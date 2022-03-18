@@ -127,7 +127,7 @@ abstract contract ManagedLender is Managed {
         Loan storage loan = loans[_loanId];
 
         //TODO implement any other checks for the loan to be approved
-        require(block.timestamp <= loan.appliedTime + 31 days, "This loan application has expired.");
+        // require(block.timestamp <= loan.appliedTime + 31 days, "This loan application has expired.");//FIXME
 
         loanDetails[_loanId] = LoanDetail({
             loanId: _loanId,
@@ -173,7 +173,7 @@ abstract contract ManagedLender is Managed {
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.lastPaymentTime = block.timestamp;
         
-        uint256 interestPaid = calculateValueAtPercent(transferAmount, 10000 + interestPercent, interestPercent);
+        uint256 interestPaid = multiplyByFraction(transferAmount, interestPercent, 10000 + interestPercent);
         uint256 baseAmountPaid = transferAmount.sub(interestPaid);
 
         loanDetail.baseAmountRepaid = loanDetail.baseAmountRepaid.add(baseAmountPaid);
@@ -191,7 +191,7 @@ abstract contract ManagedLender is Managed {
         LoanDetail storage loanDetail = loanDetails[loanId];
 
         //TODO implement any other checks for the loan to be defaulted
-        require(block.timestamp > loanDetail.grantedTime + loan.duration + 31 days, "It is too early to default this loan.");
+        // require(block.timestamp > loanDetail.grantedTime + loan.duration + 31 days, "It is too early to default this loan."); //FIXME
 
         loan.status = LoanStatus.DEFAULTED;
 
@@ -221,15 +221,16 @@ abstract contract ManagedLender is Managed {
 
         LoanDetail storage loanDetail = loanDetails[loanId];
         uint256 interestPercent = calculateInterestPercent(loan, loanDetail);
-        uint256 balanceDue = calculateValueAtPercent(loan.amount.sub(loanDetail.baseAmountRepaid), 10000, interestPercent);
+        uint256 baseAmountDue = loan.amount.sub(loanDetail.baseAmountRepaid);
+        uint256 balanceDue = baseAmountDue.sub(multiplyByFraction(baseAmountDue, interestPercent, 10000));
 
         return (balanceDue, interestPercent);
     }
 
     function calculateInterestPercent(Loan storage loan, LoanDetail storage loanDetail) private view returns (uint256) {
         uint16 apr = calculateCurrentAPR(loan, loanDetail);
-        uint256 daysPassed = countInterestDays(block.timestamp,loanDetail.grantedTime);
-        return calculateValueAtPercent(apr, 36500, 100 * daysPassed);
+        uint256 daysPassed = countInterestDays(loanDetail.grantedTime, block.timestamp);
+        return multiplyByFraction(apr, daysPassed, 365);
     }
     
     function calculateCurrentAPR(Loan storage loan, LoanDetail storage loanDetail) private view returns (uint16) {
@@ -238,10 +239,6 @@ abstract contract ManagedLender is Managed {
             interestPercent += loan.lateFeePercent;
         }
         return interestPercent;
-    }
-
-    function calculateValueAtPercent(uint256 value, uint256 valuePercentAt, uint256 targetPercentAt) internal pure returns (uint256) {
-        return multiplyByFraction(value, targetPercentAt, valuePercentAt);
     }
 
     function countInterestDays(uint256 timeFrom, uint256 timeTo) private pure returns(uint256) {
