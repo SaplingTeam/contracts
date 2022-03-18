@@ -62,6 +62,7 @@ abstract contract ManagedLender is Managed {
     uint256 public borrowedFunds;
     mapping(uint256 => Loan) public loans; //mapping of loan applications
     mapping(uint256 => LoanDetail) public loanDetails; //mapping of loan details only availble after a loan has been granted
+    mapping(address => uint256) public recentLoanIdOf;
 
     constructor(uint256 minLoanAmount) {
         applicationCount = 0;
@@ -115,6 +116,7 @@ abstract contract ManagedLender is Managed {
         });
 
         hasOpenApplication[msg.sender] = true;
+        recentLoanIdOf[msg.sender] = loanId; 
 
         emit NewLoanApplication(loanId);
 
@@ -125,7 +127,7 @@ abstract contract ManagedLender is Managed {
         Loan storage loan = loans[_loanId];
 
         //TODO implement any other checks for the loan to be approved
-        require(block.timestamp > loan.appliedTime + 31 days, "This loan application has expired.");
+        require(block.timestamp <= loan.appliedTime + 31 days, "This loan application has expired.");
 
         loanDetails[_loanId] = LoanDetail({
             loanId: _loanId,
