@@ -1,4 +1,6 @@
 const path = require("path");
+const { projectId, mnemonic } = require('./secrets.json');
+const HDWalletProvider = require('@truffle/hdwallet-provider');
 
 module.exports = {
   // See <http://truffleframework.com/docs/advanced/configuration>
@@ -7,8 +9,14 @@ module.exports = {
   networks: {
     develop: {
       port: 7545
-    }
+    },
+    kovan: {
+      provider: () => new HDWalletProvider(mnemonic, `https://kovan.infura.io/v3/${projectId}`),
+      network_id: 42,       
+      gas: 5000000,        
+    },
   },
+  
   compilers: {
     solc: {
       version: "0.8.12"
