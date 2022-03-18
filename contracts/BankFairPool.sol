@@ -94,7 +94,7 @@ contract BankFairPool is ManagedLender {
     
     function unstake(uint256 amount) external onlyManager {
         require(amount > 0, "BankFair: unstake amount is 0");
-        require(amount <= balanceStakadUnlocked(), "BankFair: requested amount is not available to be unstaked");
+        require(amount <= balanceStakedUnlocked(), "BankFair: requested amount is not available to be unstaked");
 
         uint256 shares = tokensToShares(amount);
         poolSharesLocked[msg.sender] = poolSharesLocked[msg.sender].sub(shares);
@@ -105,7 +105,7 @@ contract BankFairPool is ManagedLender {
         return sharesToTokens(managerStakedShares);
     }
 
-    function balanceStakadUnlocked() public view returns (uint256) {
+    function balanceStakedUnlocked() public view returns (uint256) {
         //staked funds locked up to 1/10 of the currently borrowed amount
         (,uint256 amountWithdrawable) = sharesToTokens(managerStakedShares).trySub(borrowedFunds.div(10)); 
         return amountWithdrawable;
@@ -129,20 +129,24 @@ contract BankFairPool is ManagedLender {
 
         poolFunds = poolFunds.sub(remainingLoss);
 
-        uint256 lostShares = tokensToShares(remainingLoss);
-        if (lostShares <= managerStakedShares) {
-            managerStakedShares = managerStakedShares.sub(lostShares);
-        } else if (managerStakedShares > 0) {
-            lostShares = lostShares.sub(managerStakedShares);
-            managerStakedShares = 0;
+        uint256 remainingLostShares = tokensToShares(remainingLoss);
+
+        if (managerStakedShares > 0) {
+            uint256 stakedShareLoss = Math.min(remainingLostShares, managerStakedShares);
+            remainingLostShares = remainingLostShares.sub(stakedShareLoss);
+
+            managerStakedShares = managerStakedShares.sub(stakedShareLoss);
+            poolSharesLocked[manager] = poolSharesLocked[manager].sub(stakedShareLoss);
+
+            decreasePoolShares(manager, stakedShareLoss);
+
+            if (managerStakedShares == 0) {
+                emit StakedAssetsDepleted();
+            }
         }
 
-        if (lostShares > 0) {
-            emit UnstakedLoss(sharesToTokens(lostShares));
-        }
-
-        if (managerStakedShares == 0) {
-            emit StakedAssetsDepleted();
+        if (remainingLostShares > 0) {
+            emit UnstakedLoss(sharesToTokens(remainingLostShares));
         }
     }
 
@@ -159,10 +163,9 @@ contract BankFairPool is ManagedLender {
 
     function increasePoolFunds(address wallet, uint256 amount) private returns (uint256) {
         uint256 shares = tokensToShares(amount);
-        poolShares[wallet] = poolShares[wallet].add(shares);
+        increasePoolShares(wallet, amount);
         poolLiqudity = poolLiqudity.add(amount);
         poolFunds = poolFunds.add(amount);
-        totalPoolShares = totalPoolShares.add(shares);
         return shares;
     }
 
@@ -172,9 +175,18 @@ contract BankFairPool is ManagedLender {
         uint256 shares = tokensToShares(amount);
         require(poolShares[wallet] - poolSharesLocked[wallet] >= shares, "BankFair: unlocked balance is not sufficient in the pool account");
 
-        poolShares[wallet] = poolShares[wallet].sub(shares);
+        decreasePoolShares(wallet, shares);
         poolLiqudity = poolLiqudity.sub(amount);
         poolFunds = poolFunds.sub(amount);
+    }
+
+    function increasePoolShares(address wallet, uint256 shares) private {
+        poolShares[wallet] = poolShares[wallet].add(shares);
+        totalPoolShares = totalPoolShares.add(shares);
+    }
+
+    function decreasePoolShares(address wallet, uint256 shares) private {
+        poolShares[wallet] = poolShares[wallet].sub(shares);
         totalPoolShares = totalPoolShares.sub(shares);
     }
     
