@@ -10,4 +10,8 @@ contract TestToken is ERC20 {
         _mint(w3, 1000*10e18);
         _mint(w4, 1000*10e18);
     }
+
+    function getTokens(address wallet, uint256 amount) external {
+        _mint(wallet, amount);
+    }
 }
