@@ -11,7 +11,9 @@ abstract contract ManagedLender is Managed {
     enum LoanStatus {
         APPLIED,
         DENIED,
-        GRANTED,
+        APPROVED,
+        CANCELLED,
+        FUNDS_WITHDRAWN,
         REPAID,
         DEFAULTED
     }
@@ -37,8 +39,9 @@ abstract contract ManagedLender is Managed {
     }
 
     event NewLoanApplication(uint256 loanId);
-    event LoanGranted(uint256 loanId);
+    event LoanApproved(uint256 loanId);
     event LoanDenied(uint256 loanId);
+    event LoanCancelled(uint256 loanId);
     event LoanRepaid(uint256 loanId);
     event LoanDefaulted(uint256 loanId, uint256 amountLost);
 
@@ -56,10 +59,13 @@ abstract contract ManagedLender is Managed {
     uint256 public maxDuration;
 
     uint256 private applicationCount;
-    mapping(address => bool) public hasOpenApplication; // borrower has open a loan application pending
+    mapping(address => bool) private hasOpenApplication; // borrower has open a loan application pending
 
     uint256 public poolLiqudity;
     uint256 public borrowedFunds;
+    uint256 public loanFundsPendingWithdrawal;
+    mapping(address => uint256) public loanFunds; 
+
     mapping(uint256 => Loan) public loans; //mapping of loan applications
     mapping(uint256 => LoanDetail) public loanDetails; //mapping of loan details only availble after a loan has been granted
     mapping(address => uint256) public recentLoanIdOf;
@@ -75,6 +81,7 @@ abstract contract ManagedLender is Managed {
 
         poolLiqudity = 0;
         borrowedFunds = 0;
+        loanFundsPendingWithdrawal = 0;
     }
 
     function setDefaultAPR(uint16 apr) external onlyManager {
@@ -123,7 +130,7 @@ abstract contract ManagedLender is Managed {
         return loanId;
     }
 
-    function grantLoan(uint256 _loanId) external onlyManager loanInStatus(_loanId, LoanStatus.APPLIED) {
+    function approveLoan(uint256 _loanId) external onlyManager loanInStatus(_loanId, LoanStatus.APPLIED) {
         Loan storage loan = loans[_loanId];
 
         //TODO implement any other checks for the loan to be approved
@@ -138,14 +145,14 @@ abstract contract ManagedLender is Managed {
             lastPaymentTime: 0
         });
 
-        loan.status = LoanStatus.GRANTED;
+        loan.status = LoanStatus.APPROVED;
         hasOpenApplication[loan.borrower] = false;
 
-        increaseFunds(loan.borrower, loan.amount);
+        increaseLoanFunds(loan.borrower, loan.amount);
         poolLiqudity = poolLiqudity.sub(loan.amount);
         borrowedFunds = borrowedFunds.add(loan.amount);
 
-        emit LoanGranted(_loanId);
+        emit LoanApproved(_loanId);
     }
 
     function denyLoan(uint256 loanId) external onlyManager loanInStatus(loanId, LoanStatus.APPLIED) {
@@ -155,7 +162,23 @@ abstract contract ManagedLender is Managed {
         emit LoanDenied(loanId);
     }
 
-    function repayLoan(uint256 loanId, uint256 amount) external loanInStatus(loanId, LoanStatus.GRANTED) returns (uint256, uint256) {
+    /* 
+     * Cancel loans whose funds are not withdrawn
+     */
+    function cancelLoan(uint256 loanId) external onlyManager loanInStatus(loanId, LoanStatus.APPROVED) {
+        Loan storage loan = loans[loanId];
+
+        // require(block.timestamp > loanDetail.grantedTime + loan.duration + 31 days, "It is too early to cancel this loan."); //FIXME
+
+        loan.status = LoanStatus.CANCELLED;
+        decreaseLoanFunds(loan.borrower, loan.amount);
+        poolLiqudity = poolLiqudity.add(loan.amount);
+        borrowedFunds = borrowedFunds.sub(loan.amount);
+        
+        emit LoanCancelled(loanId);
+    }
+
+    function repayLoan(uint256 loanId, uint256 amount) external loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) returns (uint256, uint256) {
         Loan storage loan = loans[loanId];
 
         // require the payer and the borrower to be the same to avoid mispayment
@@ -164,7 +187,7 @@ abstract contract ManagedLender is Managed {
         (uint256 amountDue, uint256 interestPercent) = loanBalanceDue(loanId);
         uint256 transferAmount = Math.min(amountDue, amount);
 
-        decreaseFunds(msg.sender, transferAmount);
+        chargeTokens(msg.sender, transferAmount);
 
         if (transferAmount == amountDue) {
             loan.status = LoanStatus.REPAID;
@@ -180,13 +203,13 @@ abstract contract ManagedLender is Managed {
         loanDetail.interestPaid = loanDetail.interestPaid.add(interestPaid);
         loanDetail.totalAmountPaid = loanDetail.totalAmountPaid.add(transferAmount);
 
-        borrowedFunds = borrowedFunds.sub(transferAmount);
+        borrowedFunds = borrowedFunds.sub(baseAmountPaid);
         poolLiqudity = poolLiqudity.add(transferAmount);
 
         return (transferAmount, interestPaid);
     }
 
-    function defaultLoan(uint256 loanId) external onlyManager loanInStatus(loanId, LoanStatus.GRANTED) {
+    function defaultLoan(uint256 loanId) external onlyManager loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) {
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
 
@@ -200,7 +223,7 @@ abstract contract ManagedLender is Managed {
         emit LoanDefaulted(loanId, loss);
 
         if (loss > 0) {
-            deductLosses(loan.borrower, loss);
+            deductLosses(loss);
         }
 
         if (loanDetail.baseAmountRepaid < loan.amount) {
@@ -208,7 +231,7 @@ abstract contract ManagedLender is Managed {
         }
     }
 
-    function loanBalanceDueToday(uint256 loanId) external view loanInStatus(loanId, LoanStatus.GRANTED) returns(uint256) {
+    function loanBalanceDueToday(uint256 loanId) external view loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) returns(uint256) {
         (uint256 amountDue,) = loanBalanceDue(loanId);
         return amountDue;
     }
@@ -222,7 +245,7 @@ abstract contract ManagedLender is Managed {
         LoanDetail storage loanDetail = loanDetails[loanId];
         uint256 interestPercent = calculateInterestPercent(loan, loanDetail);
         uint256 baseAmountDue = loan.amount.sub(loanDetail.baseAmountRepaid);
-        uint256 balanceDue = baseAmountDue.sub(multiplyByFraction(baseAmountDue, interestPercent, 10000));
+        uint256 balanceDue = baseAmountDue.add(multiplyByFraction(baseAmountDue, interestPercent, 10000));
 
         return (balanceDue, interestPercent);
     }
@@ -262,16 +285,25 @@ abstract contract ManagedLender is Managed {
             return multiplied.div(c);
         }
         
-        return b.div(c).mul(a);
+        return a.div(c).mul(b);
     }
 
     function nextLoanId() private returns (uint256) {
         return ++applicationCount;
     }
 
-    function deductLosses(address borrower, uint256 lossAmount) internal virtual;
+    function increaseLoanFunds(address wallet, uint256 amount) private {
+        loanFunds[wallet] = loanFunds[wallet].add(amount);
+        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.add(amount);
+    }
 
-    function increaseFunds(address wallet, uint256 amount) internal virtual;
+    function decreaseLoanFunds(address wallet, uint256 amount) internal {
+        require(loanFunds[wallet] >= amount, "BankFair: requested amount is not available in the funding account");
+        loanFunds[wallet] = loanFunds[wallet].sub(amount);
+        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(amount);
+    }
 
-    function decreaseFunds(address wallet, uint256 amount) internal virtual;
+    function deductLosses(uint256 lossAmount) internal virtual;
+
+    function chargeTokens(address wallet, uint256 amount) internal virtual;
 }
