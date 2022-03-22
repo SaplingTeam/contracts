@@ -64,7 +64,7 @@ abstract contract ManagedLender is Managed {
     uint256 public poolLiqudity;
     uint256 public borrowedFunds;
     uint256 public loanFundsPendingWithdrawal;
-    mapping(address => uint256) public loanFunds; 
+    mapping(address => uint256) public loanFunds; //FIXE make internal
 
     mapping(uint256 => Loan) public loans; //mapping of loan applications
     mapping(uint256 => LoanDetail) public loanDetails; //mapping of loan details only availble after a loan has been granted
