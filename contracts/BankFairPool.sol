@@ -12,15 +12,13 @@ contract BankFairPool is ManagedLender {
     address public token;
 
     uint256 public tokenBalance;
-    uint256 public fundingBalance;
 
     uint256 public poolFunds; //poolLiqudity + borrowedFunds
     uint256 public totalPoolShares;
-    uint256 public managerStakedShares;
+    uint256 public sharesStaked;
 
-    mapping(address => uint256) public fundingBalances; 
-    mapping(address => uint256) public poolShares;
-    mapping(address => uint256) public poolSharesLocked;
+    mapping(address => uint256) private poolShares;
+    mapping(address => uint256) private poolSharesLocked;
 
     event UnstakedLoss(uint256 amount);
     event StakedAssetsDepleted();
@@ -31,166 +29,128 @@ contract BankFairPool is ManagedLender {
         token = tokenAddress;
 
         tokenBalance = 0;
-        fundingBalance = 0;
 
         poolFunds = 0;
         totalPoolShares = 0;
-        managerStakedShares = 0;
-    }
-
-    function deposit(uint256 amount) external {
-        require(amount > 0, "BankFair: deposit amount is 0");
-
-        bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
-        if (!success) {
-            revert();
-        }
-
-        increaseFunds(msg.sender, amount);
-        tokenBalance = tokenBalance.add(amount);
-    }
-
-    function withdraw(uint256 amount) external {
-        require(amount > 0, "BankFair: withdrawal amount is 0");
-
-        decreaseFunds(msg.sender, amount);
-        tokenBalance = tokenBalance.sub(amount);
-
-        bool success = IERC20(token).transfer(msg.sender, amount);
-        if(!success) {
-            revert();
-        }
-    }
-
-    function balanceOf(address wallet) external view returns (uint256) {
-        return fundingBalances[wallet];
+        sharesStaked = 0;
     }
 
     function enterPool(uint256 amount) external {
         require(amount > 0, "BankFair: pool deposit amount is 0");
 
-        decreaseFunds(msg.sender, amount);
-        increasePoolFunds(msg.sender, amount);
-    }
-
-    function exitPool(uint256 amount) external {
-        require(amount > 0, "BankFair: pool withdrawal amount is 0");
-
-        decreasePoolFunds(msg.sender, amount);
-        increaseFunds(msg.sender, amount);
-    }
-
-    function poolBalanceOf(address wallet) external view returns (uint256) {
-        return sharesToTokens(poolShares[wallet]);
-    }
-
-    function stake(uint256 amount) external onlyManager {
-        require(amount > 0, "BankFair: stake amount is 0");
+        chargeTokens(msg.sender, amount);
+        poolLiqudity = poolLiqudity.add(amount);
+        poolFunds = poolFunds.add(amount);
 
         uint256 shares = tokensToShares(amount);
+
+        mintShares(msg.sender, shares);
+    }
+
+    function exitPool(uint256 shares) external {
+        require(shares > 0, "BankFair: pool withdrawal amount is 0");
+
+        require(poolShares[msg.sender] - poolSharesLocked[msg.sender] >= shares, "BankFair: unlocked shares are not sufficient");
+
+        uint256 tokenAmount = sharesToTokens(shares);
+        require(poolLiqudity >= tokenAmount, "BankFair: pool liquidity is too low");
+        
+        burnShares(msg.sender, shares);
+
+        poolFunds = poolFunds.sub(tokenAmount);
+        poolLiqudity = poolLiqudity.sub(tokenAmount);
+        tokenBalance = tokenBalance.sub(tokenAmount);
+        bool success = IERC20(token).transfer(msg.sender, tokenAmount);
+        if(!success) {
+            revert();
+        }
+    }
+
+    function withdrawLoanFunds(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) {
+        Loan storage loan = loans[loanId];
+        loan.status = LoanStatus.FUNDS_WITHDRAWN;
+        
+        decreaseLoanFunds(msg.sender, loan.amount);
+        tokenBalance = tokenBalance.sub(loan.amount);
+        bool success = IERC20(token).transfer(msg.sender, loan.amount);
+        if(!success) {
+            revert();
+        }
+    }
+
+    function sharesOf(address wallet) external view returns (uint256) {
+        return poolShares[wallet];
+    }
+
+    function unlockedSharesOf(address wallet) external view returns (uint256) {
+        return poolShares[wallet].sub(poolSharesLocked[wallet]);
+    }
+
+    function stake(uint256 shares) external onlyManager {
+        require(shares > 0, "BankFair: stake amount is 0");
+
         poolSharesLocked[msg.sender] = poolSharesLocked[msg.sender].add(shares);
-        managerStakedShares = managerStakedShares.add(shares);
+        sharesStaked = sharesStaked.add(shares);
     }
     
-    function unstake(uint256 amount) external onlyManager {
-        require(amount > 0, "BankFair: unstake amount is 0");
-        require(amount <= balanceStakedUnlocked(), "BankFair: requested amount is not available to be unstaked");
+    function unstake(uint256 shares) external onlyManager {
+        require(shares > 0, "BankFair: unstake amount is 0");
+        require(shares <= sharesStakedUnlocked(), "BankFair: requested amount is not available to be unstaked");
 
-        uint256 shares = tokensToShares(amount);
         poolSharesLocked[msg.sender] = poolSharesLocked[msg.sender].sub(shares);
-        managerStakedShares = managerStakedShares.sub(shares);
-    }
-    
-    function balanceStaked() external view returns (uint256) {
-        return sharesToTokens(managerStakedShares);
+        sharesStaked = sharesStaked.sub(shares);
     }
 
-    function balanceStakedUnlocked() public view returns (uint256) {
+    function sharesStakedUnlocked() public view returns (uint256) {
         //staked funds locked up to 1/10 of the currently borrowed amount
-        (,uint256 amountWithdrawable) = sharesToTokens(managerStakedShares).trySub(borrowedFunds.div(10)); 
-        return amountWithdrawable;
+        (,uint256 unlocked) = sharesStaked.trySub(tokensToShares(borrowedFunds.div(10))); 
+        return unlocked;
     }
 
-    function deductLosses(address borrower, uint256 lossAmount) internal override {
+    function deductLosses(uint256 lossAmount) internal override {
 
-        uint256 remainingLoss = lossAmount;
+        poolFunds = poolFunds.sub(lossAmount);
 
-        //attempt to deduct losses from funding account of the borrower
-        if (fundingBalances[borrower] > 0) {
-            uint256 balance = fundingBalances[borrower];
-            uint256 deductableAmount = Math.min(balance, lossAmount);
-            decreaseFunds(borrower, deductableAmount);
-            remainingLoss = remainingLoss.sub(deductableAmount);
-        }
+        uint256 lostShares = tokensToShares(lossAmount);
+        uint256 remainingLostShares = lostShares;
 
-        if (remainingLoss == 0) {
-            return;
-        }
-
-        poolFunds = poolFunds.sub(remainingLoss);
-
-        uint256 remainingLostShares = tokensToShares(remainingLoss);
-
-        if (managerStakedShares > 0) {
-            uint256 stakedShareLoss = Math.min(remainingLostShares, managerStakedShares);
-            remainingLostShares = remainingLostShares.sub(stakedShareLoss);
-
-            managerStakedShares = managerStakedShares.sub(stakedShareLoss);
+        if (sharesStaked > 0) {
+            uint256 stakedShareLoss = Math.min(lostShares, sharesStaked);
+            remainingLostShares = lostShares.sub(stakedShareLoss);
+            sharesStaked = sharesStaked.sub(stakedShareLoss);
             poolSharesLocked[manager] = poolSharesLocked[manager].sub(stakedShareLoss);
 
-            decreasePoolShares(manager, stakedShareLoss);
+            burnShares(manager, stakedShareLoss);
 
-            if (managerStakedShares == 0) {
+            if (sharesStaked == 0) {
                 emit StakedAssetsDepleted();
             }
         }
 
         if (remainingLostShares > 0) {
-            emit UnstakedLoss(sharesToTokens(remainingLostShares));
+            emit UnstakedLoss(lossAmount.sub(sharesToTokens(remainingLostShares)));
         }
     }
 
-    function increaseFunds(address wallet, uint256 amount) internal override{
-        fundingBalances[wallet] = fundingBalances[wallet].add(amount);
-        fundingBalance = fundingBalance.add(amount);
+    function chargeTokens(address wallet, uint256 amount) internal override {
+        bool success = IERC20(token).transferFrom(wallet, address(this), amount);
+        if (!success) {
+            revert();
+        }
+        tokenBalance = tokenBalance.add(amount);
     }
 
-    function decreaseFunds(address wallet, uint256 amount) internal override {
-        require(fundingBalances[wallet] >= amount, "BankFair: requested amount is not available in the funding account");
-        fundingBalances[wallet] = fundingBalances[wallet].sub(amount);
-        fundingBalance = fundingBalance.sub(amount);
-    }
-
-    function increasePoolFunds(address wallet, uint256 amount) private returns (uint256) {
-        uint256 shares = tokensToShares(amount);
-        increasePoolShares(wallet, amount);
-        poolLiqudity = poolLiqudity.add(amount);
-        poolFunds = poolFunds.add(amount);
-        return shares;
-    }
-
-    function decreasePoolFunds(address wallet, uint256 amount) private {
-        require(poolLiqudity >= amount, "BankFair: pool does not have sufficient liqudity for this operation");
-
-        uint256 shares = tokensToShares(amount);
-        require(poolShares[wallet] - poolSharesLocked[wallet] >= shares, "BankFair: unlocked balance is not sufficient in the pool account");
-
-        decreasePoolShares(wallet, shares);
-        poolLiqudity = poolLiqudity.sub(amount);
-        poolFunds = poolFunds.sub(amount);
-    }
-
-    function increasePoolShares(address wallet, uint256 shares) private {
+    function mintShares(address wallet, uint256 shares) private {
         poolShares[wallet] = poolShares[wallet].add(shares);
         totalPoolShares = totalPoolShares.add(shares);
     }
 
-    function decreasePoolShares(address wallet, uint256 shares) private {
+    function burnShares(address wallet, uint256 shares) private {
         poolShares[wallet] = poolShares[wallet].sub(shares);
         totalPoolShares = totalPoolShares.sub(shares);
     }
     
-    function sharesToTokens(uint256 shares) private view returns (uint256) {
+    function sharesToTokens(uint256 shares) public view returns (uint256) {
         if (shares == 0 || poolFunds == 0) {
              return 0;
         }
@@ -198,7 +158,7 @@ contract BankFairPool is ManagedLender {
         return multiplyByFraction(shares, poolFunds, totalPoolShares);
     }
 
-    function tokensToShares(uint256 tokens) private view returns (uint256) {
+    function tokensToShares(uint256 tokens) public view returns (uint256) {
         if (tokens == 0) {
             return 0;
         } else if (totalPoolShares == 0) {
