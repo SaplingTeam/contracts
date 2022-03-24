@@ -35,19 +35,21 @@ contract BankFairPool is ManagedLender {
         sharesStaked = 0;
     }
 
-    function enterPool(uint256 amount) external {
+    function enterPool(uint256 amount) external returns (uint256) {
         require(amount > 0, "BankFair: pool deposit amount is 0");
+
+        uint256 shares = tokensToShares(amount);
 
         chargeTokens(msg.sender, amount);
         poolLiqudity = poolLiqudity.add(amount);
         poolFunds = poolFunds.add(amount);
 
-        uint256 shares = tokensToShares(amount);
-
         mintShares(msg.sender, shares);
+
+        return shares;
     }
 
-    function exitPool(uint256 shares) external {
+    function exitPool(uint256 shares) external returns (uint256) {
         require(shares > 0, "BankFair: pool withdrawal amount is 0");
 
         require(poolShares[msg.sender] - poolSharesLocked[msg.sender] >= shares, "BankFair: unlocked shares are not sufficient");
@@ -64,6 +66,8 @@ contract BankFairPool is ManagedLender {
         if(!success) {
             revert();
         }
+
+        return tokenAmount;
     }
 
     function withdrawLoanFunds(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) {
