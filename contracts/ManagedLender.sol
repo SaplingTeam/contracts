@@ -52,6 +52,7 @@ abstract contract ManagedLender is Managed {
         _;
     }
 
+    uint16 public constant percentDecimals = 2;
     uint16 public defaultAPR; // 30% APR is represented as 3000
     uint16 public defaultLateFeePercent; //5% is represented as 500
     uint256 public minAmount;
