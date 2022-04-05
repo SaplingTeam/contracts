@@ -52,9 +52,14 @@ abstract contract ManagedLender is Managed {
         _;
     }
 
-    uint16 public constant percentDecimals = 2;
-    uint16 public defaultAPR; // 30% APR is represented as 3000
-    uint16 public defaultLateFeePercent; //5% is represented as 500
+    // APR, to represent a percentage value as int, mutiply by (10 ^ percentDecimals)
+    uint16 public constant PERCENT_DECIMALS = 1;
+    uint16 public constant ONE_HUNDRED_PERCENT = 1000;
+    uint16 public constant SAFE_MIN_APR = 0; // 0%
+    uint16 public constant SAFE_MAX_APR = 1000; // 100%
+    uint16 public defaultAPR;
+    uint16 public defaultLateAPRDelta;
+
     uint256 public minAmount;
     uint256 public minDuration; // loan duration in seconds
     uint256 public maxDuration;
@@ -75,8 +80,8 @@ abstract contract ManagedLender is Managed {
         applicationCount = 0;
 
         minAmount = minLoanAmount;
-        defaultAPR = 3000;
-        defaultLateFeePercent = 500;
+        defaultAPR = 300; // 30%
+        defaultLateAPRDelta = 50; //5%
         minDuration = 1 days;
         maxDuration = 365 days;
 
@@ -86,12 +91,13 @@ abstract contract ManagedLender is Managed {
     }
 
     function setDefaultAPR(uint16 apr) external onlyManager {
-        require(apr > 0, "Apr is zero.");
+        require(SAFE_MIN_APR <= apr && apr <= SAFE_MAX_APR, "APR is out of bounds");
         defaultAPR = apr;
     }
 
-    function setDefaultLateFeePercent(uint16 lateFeePercent) external onlyManager {
-        defaultLateFeePercent = lateFeePercent;
+    function setDefaultLateAPRDelta(uint16 lateAPRDelta) external onlyManager {
+        require(SAFE_MIN_APR <= lateAPRDelta && lateAPRDelta <= SAFE_MAX_APR, "APR is out of bounds");
+        defaultLateAPRDelta = lateAPRDelta;
     }
 
     function setLoanMaxDuration(uint16 newMaxDuration) external onlyManager {
@@ -118,7 +124,7 @@ abstract contract ManagedLender is Managed {
             amount: requestedAmount,
             duration: loanDuration,
             apr: defaultAPR,
-            lateFeePercent: defaultLateFeePercent,
+            lateFeePercent: defaultLateAPRDelta,
             appliedTime: block.timestamp,
             status: LoanStatus.APPLIED
         });
@@ -197,7 +203,7 @@ abstract contract ManagedLender is Managed {
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.lastPaymentTime = block.timestamp;
         
-        uint256 interestPaid = multiplyByFraction(transferAmount, interestPercent, 10000 + interestPercent);
+        uint256 interestPaid = multiplyByFraction(transferAmount, interestPercent, ONE_HUNDRED_PERCENT + interestPercent);
         uint256 baseAmountPaid = transferAmount.sub(interestPaid);
 
         loanDetail.baseAmountRepaid = loanDetail.baseAmountRepaid.add(baseAmountPaid);
@@ -246,7 +252,7 @@ abstract contract ManagedLender is Managed {
         LoanDetail storage loanDetail = loanDetails[loanId];
         uint256 interestPercent = calculateInterestPercent(loan, loanDetail);
         uint256 baseAmountDue = loan.amount.sub(loanDetail.baseAmountRepaid);
-        uint256 balanceDue = baseAmountDue.add(multiplyByFraction(baseAmountDue, interestPercent, 10000));
+        uint256 balanceDue = baseAmountDue.add(multiplyByFraction(baseAmountDue, interestPercent, ONE_HUNDRED_PERCENT));
 
         return (balanceDue, interestPercent);
     }
