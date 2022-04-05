@@ -60,7 +60,7 @@ abstract contract ManagedLender is Managed {
     uint256 public maxDuration;
 
     uint256 private applicationCount;
-    mapping(address => bool) private hasOpenApplication; // borrower has open a loan application pending
+    mapping(address => bool) private hasOpenApplication; // borrower has open loan application pending
 
     uint256 public poolLiqudity;
     uint256 public borrowedFunds;
