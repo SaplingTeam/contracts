@@ -61,7 +61,11 @@ abstract contract ManagedLender is Managed {
     uint16 public defaultLateAPRDelta;
 
     uint256 public minAmount;
-    uint256 public minDuration; // loan duration in seconds
+
+    // loan duration in seconds
+    uint256 public constant SAFE_MIN_DURATION = 1 days;
+    uint256 public constant SAFE_MAX_DURATION = 51 * 365 days;
+    uint256 public minDuration;
     uint256 public maxDuration;
 
     uint256 private applicationCount;
@@ -82,8 +86,8 @@ abstract contract ManagedLender is Managed {
         minAmount = minLoanAmount;
         defaultAPR = 300; // 30%
         defaultLateAPRDelta = 50; //5%
-        minDuration = 1 days;
-        maxDuration = 365 days;
+        minDuration = SAFE_MIN_DURATION;
+        maxDuration = SAFE_MAX_DURATION;
 
         poolLiqudity = 0;
         borrowedFunds = 0;
@@ -100,9 +104,16 @@ abstract contract ManagedLender is Managed {
         defaultLateAPRDelta = lateAPRDelta;
     }
 
-    function setLoanMaxDuration(uint16 newMaxDuration) external onlyManager {
-        require(newMaxDuration >= minDuration, "New max duration is less than the minimum duration.");
-        maxDuration = newMaxDuration;
+    function setLoanMinDuration(uint256 duration) external onlyManager {
+        require(SAFE_MIN_DURATION <= duration && duration <= SAFE_MAX_DURATION, "New min duration is out of bounds");
+        require(duration <= maxDuration, "New min duration is greater than current max duration");
+        minDuration = duration;
+    }
+
+    function setLoanMaxDuration(uint256 duration) external onlyManager {
+        require(SAFE_MIN_DURATION <= duration && duration <= SAFE_MAX_DURATION, "New max duration is out of bounds");
+        require(minDuration <= duration, "New max duration is less than current min duration");
+        maxDuration = duration;
     }
 
     function applyForLoan(uint256 requestedAmount, uint64 loanDuration) external returns (uint256) {
