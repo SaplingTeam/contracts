@@ -60,6 +60,8 @@ abstract contract ManagedLender is Managed {
     uint16 public defaultAPR;
     uint16 public defaultLateAPRDelta;
 
+    // minimum loan amount including token decimals
+    uint256 public constant SAFE_MIN_AMOUNT = 1000000; // 1 token unit with 6 decimals. i.e. 1 USDC
     uint256 public minAmount;
 
     // loan duration in seconds
@@ -81,9 +83,12 @@ abstract contract ManagedLender is Managed {
     mapping(address => uint256) public recentLoanIdOf;
 
     constructor(uint256 minLoanAmount) {
+        
         applicationCount = 0;
 
+        require(SAFE_MIN_AMOUNT <= minLoanAmount, "New min loan amount is less than the safe limit");
         minAmount = minLoanAmount;
+        
         defaultAPR = 300; // 30%
         defaultLateAPRDelta = 50; //5%
         minDuration = SAFE_MIN_DURATION;
@@ -102,6 +107,11 @@ abstract contract ManagedLender is Managed {
     function setDefaultLateAPRDelta(uint16 lateAPRDelta) external onlyManager {
         require(SAFE_MIN_APR <= lateAPRDelta && lateAPRDelta <= SAFE_MAX_APR, "APR is out of bounds");
         defaultLateAPRDelta = lateAPRDelta;
+    }
+
+    function setMinLoanAmount(uint256 minLoanAmount) external onlyManager {
+        require(SAFE_MIN_AMOUNT <= minLoanAmount, "New min loan amount is less than the safe limit");
+        minAmount = minLoanAmount;
     }
 
     function setLoanMinDuration(uint256 duration) external onlyManager {
