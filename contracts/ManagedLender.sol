@@ -70,7 +70,7 @@ abstract contract ManagedLender is Managed {
     uint256 public minDuration;
     uint256 public maxDuration;
 
-    uint256 private applicationCount;
+    uint256 private nextLoanId;
     mapping(address => bool) private hasOpenApplication; // borrower has open loan application pending
 
     uint256 public poolLiqudity;
@@ -84,7 +84,7 @@ abstract contract ManagedLender is Managed {
 
     constructor(uint256 minLoanAmount) {
         
-        applicationCount = 0;
+        nextLoanId = 1;
 
         require(SAFE_MIN_AMOUNT <= minLoanAmount, "New min loan amount is less than the safe limit");
         minAmount = minLoanAmount;
@@ -138,7 +138,9 @@ abstract contract ManagedLender is Managed {
         // ?? must not have unpaid late loans
         // ?? must not have defaulted loans
 
-        uint256 loanId = nextLoanId();
+        uint256 loanId = nextLoanId;
+        nextLoanId++;
+
         loans[loanId] = Loan({
             id: loanId,
             borrower: msg.sender,
@@ -314,10 +316,6 @@ abstract contract ManagedLender is Managed {
         }
         
         return a.div(c).mul(b);
-    }
-
-    function nextLoanId() private returns (uint256) {
-        return ++applicationCount;
     }
 
     function increaseLoanFunds(address wallet, uint256 amount) private {
