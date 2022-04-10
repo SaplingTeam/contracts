@@ -78,7 +78,6 @@ abstract contract Lender is ManagedLendingPool {
     uint256 private nextLoanId;
     mapping(address => bool) private hasOpenApplication; // borrower has open loan application pending
 
-    uint256 public poolLiqudity;
     uint256 public borrowedFunds;
     uint256 public loanFundsPendingWithdrawal;
     mapping(address => uint256) public loanFunds; //FIXE make internal
@@ -329,20 +328,6 @@ abstract contract Lender is ManagedLendingPool {
         return dayCount;
     }
 
-    //calculate a x (b/c)
-    function multiplyByFraction(uint256 a, uint256 b, uint256 c) internal pure returns (uint256) {
-        //FIXME handle c == 0
-        //FIXME implement a better multiplication by fraction      
-
-        (bool notOverflow, uint256 multiplied) = a.tryMul(b);
-
-        if(notOverflow) {
-            return multiplied.div(c);
-        }
-        
-        return a.div(c).mul(b);
-    }
-
     function increaseLoanFunds(address wallet, uint256 amount) private {
         loanFunds[wallet] = loanFunds[wallet].add(amount);
         loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.add(amount);
@@ -354,5 +339,27 @@ abstract contract Lender is ManagedLendingPool {
         loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(amount);
     }
 
-    function deductLosses(uint256 lossAmount) internal virtual;
+    function deductLosses(uint256 lossAmount) internal {
+
+        poolFunds = poolFunds.sub(lossAmount);
+
+        uint256 lostShares = tokensToShares(lossAmount);
+        uint256 remainingLostShares = lostShares;
+
+        if (sharesStaked > 0) {
+            uint256 stakedShareLoss = Math.min(lostShares, sharesStaked);
+            remainingLostShares = lostShares.sub(stakedShareLoss);
+            sharesStaked = sharesStaked.sub(stakedShareLoss);
+
+            burnShares(manager, stakedShareLoss);
+
+            if (sharesStaked == 0) {
+                emit StakedAssetsDepleted();
+            }
+        }
+
+        if (remainingLostShares > 0) {
+            emit UnstakedLoss(lossAmount.sub(sharesToTokens(remainingLostShares)));
+        }
+    }
 }

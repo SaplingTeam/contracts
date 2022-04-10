@@ -14,6 +14,7 @@ abstract contract ManagedLendingPool {
     uint256 public tokenBalance;
 
     uint256 public poolFunds; //poolLiqudity + borrowedFunds
+    uint256 public poolLiqudity;
 
     uint256 public totalPoolShares;
     uint256 public sharesStaked;
@@ -28,6 +29,8 @@ abstract contract ManagedLendingPool {
     uint16 public managerLeveragedEarningPercent = 1500; // 150% or 1.5x leverage by default (safe min 100% or 1x)
 
     event ManagementTransferred(address toManager);
+    event UnstakedLoss(uint256 amount);
+    event StakedAssetsDepleted();
 
     modifier onlyManager {
         require(msg.sender == manager, "Managed: caller is not the manager");
@@ -81,5 +84,78 @@ abstract contract ManagedLendingPool {
         if(!success) {
             revert();
         }
+    }
+
+    function enterPool(uint256 amount) internal returns (uint256) {
+        require(amount > 0, "BankFair: pool deposit amount is 0");
+
+        uint256 shares = tokensToShares(amount);
+
+        chargeTokensFrom(msg.sender, amount);
+        poolLiqudity = poolLiqudity.add(amount);
+        poolFunds = poolFunds.add(amount);
+
+        mintShares(msg.sender, shares);
+
+        return shares;
+    }
+
+    function exitPool(uint256 amount) internal returns (uint256) {
+        require(amount > 0, "BankFair: pool withdrawal amount is 0");
+        require(poolLiqudity >= amount, "BankFair: pool liquidity is too low");
+
+        uint256 shares = tokensToShares(amount); 
+        //TODO handle failed pool case when any amount equates to 0 shares
+
+        burnShares(msg.sender, shares);
+
+        poolFunds = poolFunds.sub(amount);
+        poolLiqudity = poolLiqudity.sub(amount);
+        giveTokensTo(msg.sender, amount);
+
+        return shares;
+    }
+
+    function mintShares(address wallet, uint256 shares) internal {
+        poolShares[wallet] = poolShares[wallet].add(shares);
+        totalPoolShares = totalPoolShares.add(shares);
+    }
+
+    function burnShares(address wallet, uint256 shares) internal {
+        poolShares[wallet] = poolShares[wallet].sub(shares);
+        totalPoolShares = totalPoolShares.sub(shares);
+    }
+    
+    function sharesToTokens(uint256 shares) internal view returns (uint256) {
+        if (shares == 0 || poolFunds == 0) {
+             return 0;
+        }
+
+        return multiplyByFraction(shares, poolFunds, totalPoolShares);
+    }
+
+    function tokensToShares(uint256 tokens) internal view returns (uint256) {
+        if (tokens == 0) {
+            return 0;
+        } else if (totalPoolShares == 0) {
+            return tokens;
+        }
+
+        return multiplyByFraction(tokens, totalPoolShares, poolFunds);
+    }
+
+    //TODO move to a library
+    //calculate a x (b/c)
+    function multiplyByFraction(uint256 a, uint256 b, uint256 c) internal pure returns (uint256) {
+        //FIXME handle c == 0
+        //FIXME implement a better multiplication by fraction      
+
+        (bool notOverflow, uint256 multiplied) = a.tryMul(b);
+
+        if(notOverflow) {
+            return multiplied.div(c);
+        }
+        
+        return a.div(c).mul(b);
     }
 }

@@ -8,9 +8,6 @@ contract BankFair is Lender {
 
     using SafeMath for uint256;
 
-    event UnstakedLoss(uint256 amount);
-    event StakedAssetsDepleted();
-
     modifier validLender(address wallet) {
         require(wallet != address(0), "BankFair: Address is not prsent.");
         require(wallet != manager && wallet != protocolWallet, "BankFair: Wallet is a manager or protocol.");
@@ -28,38 +25,12 @@ contract BankFair is Lender {
         enterPool(amount);
     }
 
-    function enterPool(uint256 amount) private returns (uint256) {
-        require(amount > 0, "BankFair: pool deposit amount is 0");
-
-        uint256 shares = tokensToShares(amount);
-
-        chargeTokensFrom(msg.sender, amount);
-        poolLiqudity = poolLiqudity.add(amount);
-        poolFunds = poolFunds.add(amount);
-
-        mintShares(msg.sender, shares);
-
-        return shares;
-    }
-
     function withdraw(uint256 amount) external validLender(msg.sender) {
         exitPool(amount);
     }
 
-    function exitPool(uint256 amount) private returns (uint256) {
-        require(amount > 0, "BankFair: pool withdrawal amount is 0");
-        require(poolLiqudity >= amount, "BankFair: pool liquidity is too low");
-
-        uint256 shares = tokensToShares(amount); 
-        //TODO handle failed pool case when any amount equates to 0 shares
-
-        burnShares(msg.sender, shares);
-
-        poolFunds = poolFunds.sub(amount);
-        poolLiqudity = poolLiqudity.sub(amount);
-        giveTokensTo(msg.sender, amount);
-
-        return shares;
+    function balanceOf(address wallet) external view returns (uint256) {
+        return sharesToTokens(poolShares[wallet]);
     }
 
     function withdrawLoanFunds(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) {
@@ -69,10 +40,6 @@ contract BankFair is Lender {
         decreaseLoanFunds(msg.sender, loan.amount);
         tokenBalance = tokenBalance.sub(loan.amount);
         giveTokensTo(msg.sender, loan.amount);
-    }
-
-    function balanceOf(address wallet) external view returns (uint256) {
-        return sharesToTokens(poolShares[wallet]);
     }
 
     function stake(uint256 amount) external onlyManager {
@@ -95,57 +62,5 @@ contract BankFair is Lender {
         //staked funds locked up to 1/10 of the currently borrowed amount
         (,uint256 unlocked) = sharesStaked.trySub(tokensToShares(borrowedFunds.div(10))); 
         return sharesToTokens(unlocked);
-    }
-
-    function deductLosses(uint256 lossAmount) internal override {
-
-        poolFunds = poolFunds.sub(lossAmount);
-
-        uint256 lostShares = tokensToShares(lossAmount);
-        uint256 remainingLostShares = lostShares;
-
-        if (sharesStaked > 0) {
-            uint256 stakedShareLoss = Math.min(lostShares, sharesStaked);
-            remainingLostShares = lostShares.sub(stakedShareLoss);
-            sharesStaked = sharesStaked.sub(stakedShareLoss);
-
-            burnShares(manager, stakedShareLoss);
-
-            if (sharesStaked == 0) {
-                emit StakedAssetsDepleted();
-            }
-        }
-
-        if (remainingLostShares > 0) {
-            emit UnstakedLoss(lossAmount.sub(sharesToTokens(remainingLostShares)));
-        }
-    }
-
-    function mintShares(address wallet, uint256 shares) private {
-        poolShares[wallet] = poolShares[wallet].add(shares);
-        totalPoolShares = totalPoolShares.add(shares);
-    }
-
-    function burnShares(address wallet, uint256 shares) private {
-        poolShares[wallet] = poolShares[wallet].sub(shares);
-        totalPoolShares = totalPoolShares.sub(shares);
-    }
-    
-    function sharesToTokens(uint256 shares) private view returns (uint256) {
-        if (shares == 0 || poolFunds == 0) {
-             return 0;
-        }
-
-        return multiplyByFraction(shares, poolFunds, totalPoolShares);
-    }
-
-    function tokensToShares(uint256 tokens) private view returns (uint256) {
-        if (tokens == 0) {
-            return 0;
-        } else if (totalPoolShares == 0) {
-            return tokens;
-        }
-
-        return multiplyByFraction(tokens, totalPoolShares, poolFunds);
     }
 }
