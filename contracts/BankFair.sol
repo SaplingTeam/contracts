@@ -2,16 +2,11 @@ pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./Lender.sol";
 
 contract BankFair is Lender {
 
     using SafeMath for uint256;
-
-    address public token;
-
-    uint256 public tokenBalance;
 
     uint256 public poolFunds; //poolLiqudity + borrowedFunds
     uint256 public totalPoolShares;
@@ -23,13 +18,7 @@ contract BankFair is Lender {
     event UnstakedLoss(uint256 amount);
     event StakedAssetsDepleted();
     
-    constructor(address tokenAddress, uint256 minLoanAmount) Lender(minLoanAmount) {
-        require(tokenAddress != address(0), "BankFair: pool token address is not set");
-
-        token = tokenAddress;
-
-        tokenBalance = 0;
-
+    constructor(address tokenAddress, address protocol, uint256 minLoanAmount) Lender(tokenAddress, protocol, minLoanAmount) {
         poolFunds = 0;
         totalPoolShares = 0;
         sharesStaked = 0;
@@ -40,7 +29,7 @@ contract BankFair is Lender {
 
         uint256 shares = tokensToShares(amount);
 
-        chargeTokens(msg.sender, amount);
+        chargeTokensFrom(msg.sender, amount);
         poolLiqudity = poolLiqudity.add(amount);
         poolFunds = poolFunds.add(amount);
 
@@ -61,11 +50,7 @@ contract BankFair is Lender {
 
         poolFunds = poolFunds.sub(tokenAmount);
         poolLiqudity = poolLiqudity.sub(tokenAmount);
-        tokenBalance = tokenBalance.sub(tokenAmount);
-        bool success = IERC20(token).transfer(msg.sender, tokenAmount);
-        if(!success) {
-            revert();
-        }
+        giveTokensTo(msg.sender, tokenAmount);
 
         return tokenAmount;
     }
@@ -76,10 +61,7 @@ contract BankFair is Lender {
         
         decreaseLoanFunds(msg.sender, loan.amount);
         tokenBalance = tokenBalance.sub(loan.amount);
-        bool success = IERC20(token).transfer(msg.sender, loan.amount);
-        if(!success) {
-            revert();
-        }
+        giveTokensTo(msg.sender, loan.amount);
     }
 
     function sharesOf(address wallet) external view returns (uint256) {
@@ -134,14 +116,6 @@ contract BankFair is Lender {
         if (remainingLostShares > 0) {
             emit UnstakedLoss(lossAmount.sub(sharesToTokens(remainingLostShares)));
         }
-    }
-
-    function chargeTokens(address wallet, uint256 amount) internal override {
-        bool success = IERC20(token).transferFrom(wallet, address(this), amount);
-        if (!success) {
-            revert();
-        }
-        tokenBalance = tokenBalance.add(amount);
     }
 
     function mintShares(address wallet, uint256 shares) private {

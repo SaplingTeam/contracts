@@ -82,7 +82,7 @@ abstract contract Lender is ManagedLendingPool {
     mapping(uint256 => LoanDetail) public loanDetails; //mapping of loan details only availble after a loan has been granted
     mapping(address => uint256) public recentLoanIdOf;
 
-    constructor(uint256 minLoanAmount) {
+    constructor(address tokenAddress, address protocol, uint256 minLoanAmount) ManagedLendingPool(tokenAddress, protocol) {
         
         nextLoanId = 1;
 
@@ -217,7 +217,7 @@ abstract contract Lender is ManagedLendingPool {
         (uint256 amountDue, uint256 interestPercent) = loanBalanceDue(loanId);
         uint256 transferAmount = Math.min(amountDue, amount);
 
-        chargeTokens(msg.sender, transferAmount);
+        chargeTokensFrom(msg.sender, transferAmount);
 
         if (transferAmount == amountDue) {
             loan.status = LoanStatus.REPAID;
@@ -330,6 +330,4 @@ abstract contract Lender is ManagedLendingPool {
     }
 
     function deductLosses(uint256 lossAmount) internal virtual;
-
-    function chargeTokens(address wallet, uint256 amount) internal virtual;
 }
