@@ -15,7 +15,7 @@ contract BankFair is Lender {
         poolFunds = 0;
     }
 
-    function enterPool(uint256 amount) external returns (uint256) {
+    function enterPool(uint256 amount) external {
         require(amount > 0, "BankFair: pool deposit amount is 0");
 
         uint256 shares = tokensToShares(amount);
@@ -25,25 +25,22 @@ contract BankFair is Lender {
         poolFunds = poolFunds.add(amount);
 
         mintShares(msg.sender, shares);
-
-        return shares;
     }
 
-    function exitPool(uint256 shares) external returns (uint256) {
-        require(shares > 0, "BankFair: pool withdrawal amount is 0");
+    function exitPool(uint256 amount) external {
+        require(amount > 0, "BankFair: pool withdrawal amount is 0");
+        require(poolLiqudity >= amount, "BankFair: pool liquidity is too low");
 
-        require(poolShares[msg.sender] - poolSharesLocked[msg.sender] >= shares, "BankFair: unlocked shares are not sufficient");
+        uint256 shares = tokensToShares(amount); 
+        //TODO handle failed pool case when any amount equates to 0 shares
 
-        uint256 tokenAmount = sharesToTokens(shares);
-        require(poolLiqudity >= tokenAmount, "BankFair: pool liquidity is too low");
-        
+        require(poolShares[msg.sender] - poolSharesLocked[msg.sender] >= shares, "BankFair: unlocked funds are not sufficient");
+
         burnShares(msg.sender, shares);
 
-        poolFunds = poolFunds.sub(tokenAmount);
-        poolLiqudity = poolLiqudity.sub(tokenAmount);
-        giveTokensTo(msg.sender, tokenAmount);
-
-        return tokenAmount;
+        poolFunds = poolFunds.sub(amount);
+        poolLiqudity = poolLiqudity.sub(amount);
+        giveTokensTo(msg.sender, amount);
     }
 
     function withdrawLoanFunds(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) {
@@ -55,33 +52,35 @@ contract BankFair is Lender {
         giveTokensTo(msg.sender, loan.amount);
     }
 
-    function sharesOf(address wallet) external view returns (uint256) {
-        return poolShares[wallet];
+    function balanceOf(address wallet) external view returns (uint256) {
+        return sharesToTokens(poolShares[wallet]);
     }
 
-    function unlockedSharesOf(address wallet) external view returns (uint256) {
-        return poolShares[wallet].sub(poolSharesLocked[wallet]);
+    function unlockedBalanceOf(address wallet) external view returns (uint256) {
+        return sharesToTokens(poolShares[wallet].sub(poolSharesLocked[wallet]));
     }
 
-    function stake(uint256 shares) external onlyManager {
-        require(shares > 0, "BankFair: stake amount is 0");
+    function stake(uint256 amount) external onlyManager {
+        require(amount > 0, "BankFair: stake amount is 0");
 
+        uint256 shares = tokensToShares(amount);
         poolSharesLocked[msg.sender] = poolSharesLocked[msg.sender].add(shares);
         sharesStaked = sharesStaked.add(shares);
     }
     
-    function unstake(uint256 shares) external onlyManager {
-        require(shares > 0, "BankFair: unstake amount is 0");
-        require(shares <= sharesStakedUnlocked(), "BankFair: requested amount is not available to be unstaked");
+    function unstake(uint256 amount) external onlyManager {
+        require(amount > 0, "BankFair: unstake amount is 0");
+        require(amount <= balanceStakedUnlocked(), "BankFair: requested amount is not available to be unstaked");
 
+        uint256 shares = tokensToShares(amount);
         poolSharesLocked[msg.sender] = poolSharesLocked[msg.sender].sub(shares);
         sharesStaked = sharesStaked.sub(shares);
     }
 
-    function sharesStakedUnlocked() public view returns (uint256) {
+    function balanceStakedUnlocked() public view returns (uint256) {
         //staked funds locked up to 1/10 of the currently borrowed amount
         (,uint256 unlocked) = sharesStaked.trySub(tokensToShares(borrowedFunds.div(10))); 
-        return unlocked;
+        return sharesToTokens(unlocked);
     }
 
     function deductLosses(uint256 lossAmount) internal override {
@@ -119,7 +118,7 @@ contract BankFair is Lender {
         totalPoolShares = totalPoolShares.sub(shares);
     }
     
-    function sharesToTokens(uint256 shares) public view returns (uint256) {
+    function sharesToTokens(uint256 shares) private view returns (uint256) {
         if (shares == 0 || poolFunds == 0) {
              return 0;
         }
@@ -127,7 +126,7 @@ contract BankFair is Lender {
         return multiplyByFraction(shares, poolFunds, totalPoolShares);
     }
 
-    function tokensToShares(uint256 tokens) public view returns (uint256) {
+    function tokensToShares(uint256 tokens) private view returns (uint256) {
         if (tokens == 0) {
             return 0;
         } else if (totalPoolShares == 0) {
