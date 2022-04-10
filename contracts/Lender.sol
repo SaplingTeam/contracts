@@ -2,9 +2,9 @@ pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "./Managed.sol";
+import "./ManagedLendingPool.sol";
 
-abstract contract ManagedLender is Managed {
+abstract contract Lender is ManagedLendingPool {
 
     using SafeMath for uint256;
 

@@ -3,9 +3,9 @@ pragma solidity ^0.8.12;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./ManagedLender.sol";
+import "./Lender.sol";
 
-contract BankFairPool is ManagedLender {
+contract BankFair is Lender {
 
     using SafeMath for uint256;
 
@@ -23,7 +23,7 @@ contract BankFairPool is ManagedLender {
     event UnstakedLoss(uint256 amount);
     event StakedAssetsDepleted();
     
-    constructor(address tokenAddress, uint256 minLoanAmount) ManagedLender(minLoanAmount) {
+    constructor(address tokenAddress, uint256 minLoanAmount) Lender(minLoanAmount) {
         require(tokenAddress != address(0), "BankFair: pool token address is not set");
 
         token = tokenAddress;
