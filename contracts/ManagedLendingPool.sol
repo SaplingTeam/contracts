@@ -13,6 +13,21 @@ abstract contract ManagedLendingPool {
     address public token;
     uint256 public tokenBalance;
 
+    uint256 public poolFunds; //poolLiqudity + borrowedFunds
+
+    uint256 public totalPoolShares;
+    uint256 public sharesStaked;
+
+    mapping(address => uint256) internal poolShares;
+    mapping(address => uint256) internal poolSharesLocked;
+    mapping(address => uint256) internal protocolEarnings; 
+
+    // to represent a percentage value as int, mutiply by (10 ^ percentDecimals)
+    uint16 public constant PERCENT_DECIMALS = 1;
+    uint16 public constant ONE_HUNDRED_PERCENT = 1000;
+    uint16 public protocolSharePercent = 100; //10% by default; safe min 0%, max 10%
+    uint16 public managerLeveragedEarningPercent = 1500; // 150% or 1.5x leverage by default (safe min 100% or 1x)
+
     event ManagementTransferred(address toManager);
 
     modifier onlyManager {
@@ -29,6 +44,8 @@ abstract contract ManagedLendingPool {
 
         token = tokenAddress;
         tokenBalance = 0; 
+        totalPoolShares = 0;
+        sharesStaked = 0;
     }
 
     function transferManagement(address newManager) external onlyManager {
@@ -36,6 +53,17 @@ abstract contract ManagedLendingPool {
         manager = newManager;
 
         emit ManagementTransferred(newManager);
+    }
+
+    function protocolEarningsOf(address wallet) external view returns (uint256) {
+        return protocolEarnings[wallet];
+    }
+ 
+    function withdrawProtocolEarnings() external {
+        require(protocolEarnings[msg.sender] > 0, "BankFair: protocol earnings is zero on this account");
+        uint256 amount = protocolEarnings[msg.sender];
+        protocolEarnings[msg.sender] = 0; 
+        giveTokensTo(msg.sender, amount);
     }
 
     function chargeTokensFrom(address wallet, uint256 amount) internal {

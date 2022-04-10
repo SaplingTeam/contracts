@@ -8,20 +8,11 @@ contract BankFair is Lender {
 
     using SafeMath for uint256;
 
-    uint256 public poolFunds; //poolLiqudity + borrowedFunds
-    uint256 public totalPoolShares;
-    uint256 public sharesStaked;
-
-    mapping(address => uint256) private poolShares;
-    mapping(address => uint256) private poolSharesLocked;
-
     event UnstakedLoss(uint256 amount);
     event StakedAssetsDepleted();
     
     constructor(address tokenAddress, address protocol, uint256 minLoanAmount) Lender(tokenAddress, protocol, minLoanAmount) {
         poolFunds = 0;
-        totalPoolShares = 0;
-        sharesStaked = 0;
     }
 
     function enterPool(uint256 amount) external returns (uint256) {

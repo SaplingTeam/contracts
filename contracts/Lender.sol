@@ -53,10 +53,8 @@ abstract contract Lender is ManagedLendingPool {
     }
 
     // APR, to represent a percentage value as int, mutiply by (10 ^ percentDecimals)
-    uint16 public constant PERCENT_DECIMALS = 1;
-    uint16 public constant ONE_HUNDRED_PERCENT = 1000;
     uint16 public constant SAFE_MIN_APR = 0; // 0%
-    uint16 public constant SAFE_MAX_APR = 1000; // 100%
+    uint16 public constant SAFE_MAX_APR = ONE_HUNDRED_PERCENT;
     uint16 public defaultAPR;
     uint16 public defaultLateAPRDelta;
 
@@ -229,12 +227,31 @@ abstract contract Lender is ManagedLendingPool {
         uint256 interestPaid = multiplyByFraction(transferAmount, interestPercent, ONE_HUNDRED_PERCENT + interestPercent);
         uint256 baseAmountPaid = transferAmount.sub(interestPaid);
 
+        //share profits to protocol
+        uint256 protocolEarnedInterest = multiplyByFraction(interestPaid, protocolSharePercent, ONE_HUNDRED_PERCENT);
+        
+        protocolEarnings[protocolWallet] = protocolEarnings[protocolWallet].add(protocolEarnedInterest); 
+
+        //share profits to manager 
+        uint256 managerEarnedInterest = protocolEarnedInterest.sub(
+            protocolEarnedInterest.div(
+                uint256(ONE_HUNDRED_PERCENT).add(
+                    //TODO precalculate the following when pool shares are minted/destroyed, and when the leverage factor is edited
+                    multiplyByFraction(sharesStaked, ONE_HUNDRED_PERCENT, totalPoolShares).mul(
+                            uint256(managerLeveragedEarningPercent).sub(ONE_HUNDRED_PERCENT)
+                        )
+                )
+            )
+        );
+
+        protocolEarnings[manager] = protocolEarnings[manager].add(managerEarnedInterest);
+
         loanDetail.baseAmountRepaid = loanDetail.baseAmountRepaid.add(baseAmountPaid);
         loanDetail.interestPaid = loanDetail.interestPaid.add(interestPaid);
         loanDetail.totalAmountPaid = loanDetail.totalAmountPaid.add(transferAmount);
 
         borrowedFunds = borrowedFunds.sub(baseAmountPaid);
-        poolLiqudity = poolLiqudity.add(transferAmount);
+        poolLiqudity = poolLiqudity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
 
         return (transferAmount, interestPaid);
     }
