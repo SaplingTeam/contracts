@@ -19,7 +19,6 @@ abstract contract ManagedLendingPool {
     uint256 public sharesStaked;
 
     mapping(address => uint256) internal poolShares;
-    mapping(address => uint256) internal poolSharesLocked;
     mapping(address => uint256) internal protocolEarnings; 
 
     // to represent a percentage value as int, mutiply by (10 ^ percentDecimals)

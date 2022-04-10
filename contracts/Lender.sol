@@ -52,6 +52,13 @@ abstract contract Lender is ManagedLendingPool {
         _;
     }
 
+    modifier validBorrower(address wallet) {
+        require(wallet != address(0), "BankFair: Address is not prsent.");
+        require(wallet != manager && wallet != protocolWallet, "BankFair: Wallet is a manager or protocol.");
+        require(poolShares[wallet] == 0, "BankFair: Applicant is a lender.");
+        _;
+    }
+
     // APR, to represent a percentage value as int, mutiply by (10 ^ percentDecimals)
     uint16 public constant SAFE_MIN_APR = 0; // 0%
     uint16 public constant SAFE_MAX_APR = ONE_HUNDRED_PERCENT;
@@ -124,7 +131,7 @@ abstract contract Lender is ManagedLendingPool {
         maxDuration = duration;
     }
 
-    function applyForLoan(uint256 requestedAmount, uint64 loanDuration) external returns (uint256) {
+    function applyForLoan(uint256 requestedAmount, uint64 loanDuration) external validBorrower(msg.sender) returns (uint256) {
 
         require(hasOpenApplication[msg.sender] == false, "Another loan application is pending.");
 
