@@ -60,7 +60,7 @@ contract BankFair is Lender {
 
     function balanceStakedUnlocked() public view returns (uint256) {
         //staked funds locked up to 1/10 of the currently borrowed amount
-        (,uint256 unlocked) = sharesStaked.trySub(tokensToShares(borrowedFunds.div(10))); 
+        (,uint256 unlocked) = sharesStaked.trySub(tokensToShares(multiplyByFraction(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT))); 
         return sharesToTokens(unlocked);
     }
 }
