@@ -304,17 +304,21 @@ abstract contract Lender is ManagedLendingPool {
     }
 
     function calculateInterestPercent(Loan storage loan, LoanDetail storage loanDetail) private view returns (uint256) {
-        uint16 apr = calculateCurrentAPR(loan, loanDetail);
         uint256 daysPassed = countInterestDays(loanDetail.grantedTime, block.timestamp);
-        return multiplyByFraction(apr, daysPassed, 365);
-    }
-    
-    function calculateCurrentAPR(Loan storage loan, LoanDetail storage loanDetail) private view returns (uint16) {
-        uint16 interestPercent = loan.apr;
-        if (block.timestamp > loanDetail.grantedTime.add(loan.duration)) { 
-            interestPercent += loan.lateFeePercent;
+        
+        uint256 apr;
+        uint256 loanDueTime = loanDetail.grantedTime.add(loan.duration);
+        if (block.timestamp <= loanDueTime) { 
+            apr = loan.apr;
+        } else {
+            uint256 lateDays = countInterestDays(loanDueTime, block.timestamp);
+            apr = daysPassed
+                .mul(loan.apr)
+                .add(lateDays.mul(loan.lateFeePercent))
+                .div(daysPassed);
         }
-        return interestPercent;
+
+        return multiplyByFraction(apr, daysPassed, 365);
     }
 
     function countInterestDays(uint256 timeFrom, uint256 timeTo) private pure returns(uint256) {
