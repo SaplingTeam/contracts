@@ -98,7 +98,9 @@ abstract contract ManagedLendingPool {
         poolLiqudity = poolLiqudity.add(amount);
         poolFunds = poolFunds.add(amount);
 
-        mintShares(msg.sender, shares);
+        // mint shares
+        poolShares[msg.sender] = poolShares[msg.sender].add(shares);
+        totalPoolShares = totalPoolShares.add(shares);
 
         return shares;
     }
@@ -117,11 +119,6 @@ abstract contract ManagedLendingPool {
         giveTokensTo(msg.sender, amount);
 
         return shares;
-    }
-
-    function mintShares(address wallet, uint256 shares) internal {
-        poolShares[wallet] = poolShares[wallet].add(shares);
-        totalPoolShares = totalPoolShares.add(shares);
     }
 
     function burnShares(address wallet, uint256 shares) internal {
