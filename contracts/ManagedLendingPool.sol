@@ -68,7 +68,13 @@ abstract contract ManagedLendingPool {
         require(protocolEarnings[msg.sender] > 0, "BankFair: protocol earnings is zero on this account");
         uint256 amount = protocolEarnings[msg.sender];
         protocolEarnings[msg.sender] = 0; 
-        giveTokensTo(msg.sender, amount);
+
+        // give tokens
+        tokenBalance = tokenBalance.sub(amount);
+        bool success = IERC20(token).transfer(msg.sender, amount);
+        if(!success) {
+            revert();
+        }
     }
 
     function chargeTokensFrom(address wallet, uint256 amount) internal {
@@ -77,16 +83,6 @@ abstract contract ManagedLendingPool {
             revert();
         }
         tokenBalance = tokenBalance.add(amount);
-    }
-
-    function giveTokensTo(address wallet, uint256 amount) internal {
-        require(amount <= tokenBalance, "BankFair: token balance is insufficient for this withdrawal.");
-        
-        tokenBalance = tokenBalance.sub(amount);
-        bool success = IERC20(token).transfer(wallet, amount);
-        if(!success) {
-            revert();
-        }
     }
 
     function enterPool(uint256 amount) internal returns (uint256) {
@@ -116,7 +112,12 @@ abstract contract ManagedLendingPool {
 
         poolFunds = poolFunds.sub(amount);
         poolLiqudity = poolLiqudity.sub(amount);
-        giveTokensTo(msg.sender, amount);
+
+        tokenBalance = tokenBalance.sub(amount);
+        bool success = IERC20(token).transfer(msg.sender, amount);
+        if(!success) {
+            revert();
+        }
 
         return shares;
     }

@@ -38,8 +38,12 @@ contract BankFair is Lender {
         loan.status = LoanStatus.FUNDS_WITHDRAWN;
         
         decreaseLoanFunds(msg.sender, loan.amount);
+
         tokenBalance = tokenBalance.sub(loan.amount);
-        giveTokensTo(msg.sender, loan.amount);
+        bool success = IERC20(token).transfer(msg.sender, loan.amount);
+        if(!success) {
+            revert();
+        }
     }
 
     function stake(uint256 amount) external onlyManager {
