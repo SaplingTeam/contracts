@@ -35,8 +35,9 @@ contract BankFair is Lender {
 
     function withdrawLoanFunds(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) {
         Loan storage loan = loans[loanId];
+        require(loan.borrower == msg.sender, "BankFair: ");
+
         loan.status = LoanStatus.FUNDS_WITHDRAWN;
-        
         decreaseLoanFunds(msg.sender, loan.amount);
 
         tokenBalance = tokenBalance.sub(loan.amount);
