@@ -18,7 +18,7 @@ contract BankFair is Lender {
     }
     
     constructor(address tokenAddress, address protocol, uint256 minLoanAmount) Lender(tokenAddress, protocol, minLoanAmount) {
-        poolFunds = 0;
+        
     }
 
     function deposit(uint256 amount) external validLender(msg.sender) {
@@ -31,6 +31,14 @@ contract BankFair is Lender {
 
     function balanceOf(address wallet) external view returns (uint256) {
         return sharesToTokens(poolShares[wallet]);
+    }
+
+    function amountDepositable() external view returns (uint256) {
+        if (poolFundsLimit >= poolFunds) {
+            return 0;
+        }
+
+        return poolFundsLimit.sub(poolFunds);
     }
 
     function withdrawLoanFunds(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) {
@@ -52,6 +60,7 @@ contract BankFair is Lender {
 
         uint256 shares = enterPool(amount);
         sharesStaked = sharesStaked.add(shares);
+        updatePoolLimit();
     }
     
     function unstake(uint256 amount) external onlyManager {
@@ -60,6 +69,7 @@ contract BankFair is Lender {
 
         uint256 shares = tokensToShares(amount);
         sharesStaked = sharesStaked.sub(shares);
+        updatePoolLimit();
         exitPool(amount);
     }
 

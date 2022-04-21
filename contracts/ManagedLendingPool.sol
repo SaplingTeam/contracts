@@ -13,6 +13,7 @@ abstract contract ManagedLendingPool {
     address public token;
     uint256 public tokenBalance;
 
+    uint256 public poolFundsLimit;
     uint256 public poolFunds; //poolLiqudity + borrowedFunds
     uint256 public poolLiqudity;
 
@@ -49,6 +50,9 @@ abstract contract ManagedLendingPool {
         tokenBalance = 0; 
         totalPoolShares = 0;
         sharesStaked = 0;
+
+        poolFundsLimit = 0;
+        poolFunds = 0;
 
         targetStakePercent = 100; //10%
     }
@@ -88,6 +92,11 @@ abstract contract ManagedLendingPool {
     function enterPool(uint256 amount) internal returns (uint256) {
         require(amount > 0, "BankFair: pool deposit amount is 0");
 
+        // allow the manager to add funds beyond the current pool limit as all funds of the manager in the pool are staked,
+        // and staking additional funds will in turn increase pool limit
+        require(msg.sender == manager || (poolFundsLimit > poolFunds && amount <= poolFundsLimit.sub(poolFunds)),
+         "BankFair: Deposit amount goes over the current pool limit.");
+
         uint256 shares = tokensToShares(amount);
 
         chargeTokensFrom(msg.sender, amount);
@@ -125,6 +134,10 @@ abstract contract ManagedLendingPool {
     function burnShares(address wallet, uint256 shares) internal {
         poolShares[wallet] = poolShares[wallet].sub(shares);
         totalPoolShares = totalPoolShares.sub(shares);
+    }
+
+    function updatePoolLimit() internal {
+        poolFundsLimit = sharesToTokens(multiplyByFraction(sharesStaked, ONE_HUNDRED_PERCENT, targetStakePercent));
     }
     
     function sharesToTokens(uint256 shares) internal view returns (uint256) {

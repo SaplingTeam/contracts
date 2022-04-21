@@ -354,6 +354,7 @@ abstract contract Lender is ManagedLendingPool {
             uint256 stakedShareLoss = Math.min(lostShares, sharesStaked);
             remainingLostShares = lostShares.sub(stakedShareLoss);
             sharesStaked = sharesStaked.sub(stakedShareLoss);
+            updatePoolLimit();
 
             burnShares(manager, stakedShareLoss);
 
