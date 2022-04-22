@@ -20,6 +20,7 @@ abstract contract ManagedLendingPool {
     uint256 public totalPoolShares;
     uint256 public sharesStaked;
     uint16 public targetStakePercent; //target percentage ratio of staked shares to total shares
+    uint16 public loanApprovalStakePercent; //minimum stake percentage level to allow loan approvals
 
     mapping(address => uint256) internal poolShares;
     mapping(address => uint256) internal protocolEarnings; 
@@ -55,6 +56,7 @@ abstract contract ManagedLendingPool {
         poolFunds = 0;
 
         targetStakePercent = 100; //10%
+        loanApprovalStakePercent = 80; //8%
     }
 
     function transferManagement(address newManager) external onlyManager {

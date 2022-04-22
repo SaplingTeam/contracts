@@ -170,6 +170,10 @@ abstract contract Lender is ManagedLendingPool {
         //TODO implement any other checks for the loan to be approved
         // require(block.timestamp <= loan.appliedTime + 31 days, "This loan application has expired.");//FIXME
 
+        require(poolLiqudity >= loan.amount, "BankFair: Pool liqudity is insuvvificent to approve this loan.");
+        require(sharesStaked >= multiplyByFraction(totalPoolShares, loanApprovalStakePercent, ONE_HUNDRED_PERCENT), 
+        "BankFair: Stake amount is too low to approve new loans.");
+
         loanDetails[_loanId] = LoanDetail({
             loanId: _loanId,
             baseAmountRepaid: 0,
