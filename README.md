@@ -58,6 +58,24 @@ function protocolEarningsOf(address wallet) external;
 ```
 ## Important Public Variables
 
+#### Pool
+```solidity
+address public manager;
+address public protocolWallet;
+address public token;
+
+uint16 public constant PERCENT_DECIMALS;
+
+//target stake percentage level
+uint16 public targetStakePercent; 
+
+//minimum stake percentage level to allow loan approvals
+uint16 public loanApprovalStakePercent; 
+
+uint16 public protocolEarningPercent;
+uint16 public managerLeveragedEarningPercent;
+```
+
 #### Borrowing and Lending
 ```solidity
 uint16 public defaultAPR;
@@ -71,4 +89,51 @@ mapping(uint256 => Loan) public loans;
 mapping(uint256 => LoanDetail) public loanDetails;
 
 uint256 public poolLiqudity;
+```
+
+## Events
+
+```solidity
+event LoanRequested(uint256 loanId, address borrower);
+event LoanApproved(uint256 loanId);
+event LoanDenied(uint256 loanId);
+event LoanCancelled(uint256 loanId);
+event LoanRepaid(uint256 loanId);
+event LoanDefaulted(uint256 loanId, uint256 amountLost);
+event UnstakedLoss(uint256 amount);
+event StakedAssetsDepleted();
+```
+
+## Data Structure Definitions
+
+```solidity
+enum LoanStatus {
+  APPLIED,
+  DENIED,
+  APPROVED,
+  CANCELLED,
+  FUNDS_WITHDRAWN,
+  REPAID,
+  DEFAULTED
+}
+
+struct Loan {
+  uint256 id;
+  address borrower;
+  uint256 amount;
+  uint256 duration; 
+  uint16 apr; 
+  uint16 lateAPRDelta; 
+  uint256 requestedTime;
+  LoanStatus status;
+}
+
+struct LoanDetail {
+  uint256 loanId;
+  uint256 totalAmountRepaid;
+  uint256 baseAmountRepaid;
+  uint256 interestPaid;
+  uint256 approvedTime;
+  uint256 lastPaymentTime;
+}
 ```
