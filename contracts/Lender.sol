@@ -141,7 +141,7 @@ abstract contract Lender is ManagedLendingPool {
         maxDuration = duration;
     }
 
-    function requestLoan(uint256 requestedAmount, uint64 loanDuration) external onlyBorrower returns (uint256) {
+    function requestLoan(uint256 requestedAmount, uint256 loanDuration) external onlyBorrower returns (uint256) {
 
         require(hasOpenApplication[msg.sender] == false, "Another loan application is pending.");
 
