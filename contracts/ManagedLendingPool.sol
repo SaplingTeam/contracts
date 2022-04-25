@@ -31,7 +31,6 @@ abstract contract ManagedLendingPool {
     uint16 public protocolEarningPercent = 100; //10% by default; safe min 0%, max 10%
     uint16 public managerLeveragedEarningPercent = 1500; // 150% or 1.5x leverage by default (safe min 100% or 1x)
 
-    event ManagementTransferred(address toManager);
     event UnstakedLoss(uint256 amount);
     event StakedAssetsDepleted();
 
@@ -57,13 +56,6 @@ abstract contract ManagedLendingPool {
 
         targetStakePercent = 100; //10%
         loanApprovalStakePercent = 80; //8%
-    }
-
-    function transferManagement(address newManager) external onlyManager {
-        require(newManager != address(0), "Managed: new manager address is not set");
-        manager = newManager;
-
-        emit ManagementTransferred(newManager);
     }
 
     function protocolEarningsOf(address wallet) external view returns (uint256) {
