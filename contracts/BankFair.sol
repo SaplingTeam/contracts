@@ -7,29 +7,20 @@ import "./Lender.sol";
 contract BankFair is Lender {
 
     using SafeMath for uint256;
-
-    modifier validLender(address wallet) {
-        require(wallet != address(0), "BankFair: Address is not prsent.");
-        require(wallet != manager && wallet != protocolWallet, "BankFair: Wallet is a manager or protocol.");
-        //FIXME: currently borrower is a wallet that has any past or present loans/application,
-        //TODO wallet is a borrower if: has open loan or loan application. Implement basic loan history first.
-        require(recentLoanIdOf[wallet] == 0, "BankFair: Wallet is a borrower."); 
-        _;
-    }
     
     constructor(address tokenAddress, address protocol, uint256 minLoanAmount) Lender(tokenAddress, protocol, minLoanAmount) {
         
     }
 
-    function deposit(uint256 amount) external validLender(msg.sender) {
+    function deposit(uint256 amount) external onlyLender {
         enterPool(amount);
     }
 
-    function withdraw(uint256 amount) external validLender(msg.sender) {
+    function withdraw(uint256 amount) external onlyLender {
         exitPool(amount);
     }
 
-    function balanceOf(address wallet) external view returns (uint256) {
+    function balanceOf(address wallet) public view returns (uint256) {
         return sharesToTokens(poolShares[wallet]);
     }
 
@@ -41,7 +32,11 @@ contract BankFair is Lender {
         return poolFundsLimit.sub(poolFunds);
     }
 
-    function withdrawLoanFunds(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) {
+    function amountWithdrawable() external view returns (uint256) {
+        return Math.min(poolLiqudity, balanceOf(msg.sender));
+    }
+
+    function borrow(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) {
         Loan storage loan = loans[loanId];
         require(loan.borrower == msg.sender, "BankFair: ");
 
@@ -65,7 +60,7 @@ contract BankFair is Lender {
     
     function unstake(uint256 amount) external onlyManager {
         require(amount > 0, "BankFair: unstake amount is 0");
-        require(amount <= balanceStakedUnlocked(), "BankFair: requested amount is not available to be unstaked");
+        require(amount <= amountUnstakebale(), "BankFair: requested amount is not available to be unstaked");
 
         uint256 shares = tokensToShares(amount);
         sharesStaked = sharesStaked.sub(shares);
@@ -73,7 +68,7 @@ contract BankFair is Lender {
         exitPool(amount);
     }
 
-    function balanceStakedUnlocked() public view returns (uint256) {
+    function amountUnstakebale() public view returns (uint256) {
         (,uint256 unlocked) = sharesStaked.trySub(multiplyByFraction(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT)); 
         return sharesToTokens(unlocked);
     }

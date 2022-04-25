@@ -52,7 +52,18 @@ abstract contract Lender is ManagedLendingPool {
         _;
     }
 
-    modifier validBorrower(address wallet) {
+    modifier onlyLender() {
+        address wallet = msg.sender;
+        require(wallet != address(0), "BankFair: Address is not prsent.");
+        require(wallet != manager && wallet != protocolWallet, "BankFair: Wallet is a manager or protocol.");
+        //FIXME: currently borrower is a wallet that has any past or present loans/application,
+        //TODO wallet is a borrower if: has open loan or loan application. Implement basic loan history first.
+        require(recentLoanIdOf[wallet] == 0, "BankFair: Wallet is a borrower."); 
+        _;
+    }
+
+    modifier onlyBorrower() {
+        address wallet = msg.sender;
         require(wallet != address(0), "BankFair: Address is not prsent.");
         require(wallet != manager && wallet != protocolWallet, "BankFair: Wallet is a manager or protocol.");
         require(poolShares[wallet] == 0, "BankFair: Applicant is a lender.");
@@ -130,7 +141,7 @@ abstract contract Lender is ManagedLendingPool {
         maxDuration = duration;
     }
 
-    function applyForLoan(uint256 requestedAmount, uint64 loanDuration) external validBorrower(msg.sender) returns (uint256) {
+    function requestLoan(uint256 requestedAmount, uint64 loanDuration) external onlyBorrower returns (uint256) {
 
         require(hasOpenApplication[msg.sender] == false, "Another loan application is pending.");
 
@@ -216,13 +227,13 @@ abstract contract Lender is ManagedLendingPool {
         emit LoanCancelled(loanId);
     }
 
-    function repayLoan(uint256 loanId, uint256 amount) external loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) returns (uint256, uint256) {
+    function repay(uint256 loanId, uint256 amount) external loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) returns (uint256, uint256) {
         Loan storage loan = loans[loanId];
 
         // require the payer and the borrower to be the same to avoid mispayment
         require(loan.borrower == msg.sender, "Payer is not the borrower.");
 
-        (uint256 amountDue, uint256 interestPercent) = loanBalanceDue(loanId);
+        (uint256 amountDue, uint256 interestPercent) = loanBalanceDueWithInterest(loanId);
         uint256 transferAmount = Math.min(amountDue, amount);
 
         chargeTokensFrom(msg.sender, transferAmount);
@@ -288,12 +299,12 @@ abstract contract Lender is ManagedLendingPool {
         }
     }
 
-    function loanBalanceDueToday(uint256 loanId) external view loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) returns(uint256) {
-        (uint256 amountDue,) = loanBalanceDue(loanId);
+    function loanBalanceDue(uint256 loanId) external view loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) returns(uint256) {
+        (uint256 amountDue,) = loanBalanceDueWithInterest(loanId);
         return amountDue;
     }
 
-    function loanBalanceDue(uint256 loanId) internal view returns (uint256, uint256) {
+    function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256) {
         Loan storage loan = loans[loanId];
         if (loan.status == LoanStatus.REPAID) {
             return (0, 0);
