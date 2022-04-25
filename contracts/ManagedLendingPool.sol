@@ -134,6 +134,7 @@ abstract contract ManagedLendingPool {
     }
 
     function burnShares(address wallet, uint256 shares) internal {
+        require(poolShares[wallet] >= shares, "BankFair: Insufficient balance for this operation.");
         poolShares[wallet] = poolShares[wallet].sub(shares);
         totalPoolShares = totalPoolShares.sub(shares);
     }
