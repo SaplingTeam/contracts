@@ -25,7 +25,7 @@ abstract contract Lender is ManagedLendingPool {
         uint256 duration; 
         uint16 apr; 
         uint16 lateAPRDelta; 
-        uint256 appliedTime;
+        uint256 requestedTime;
         LoanStatus status;
     }
 
@@ -38,7 +38,7 @@ abstract contract Lender is ManagedLendingPool {
         uint256 lastPaymentTime;
     }
 
-    event NewLoanApplication(uint256 loanId, address borrower);
+    event LoanRequested(uint256 loanId, address borrower);
     event LoanApproved(uint256 loanId);
     event LoanDenied(uint256 loanId);
     event LoanCancelled(uint256 loanId);
@@ -163,14 +163,14 @@ abstract contract Lender is ManagedLendingPool {
             duration: loanDuration,
             apr: defaultAPR,
             lateAPRDelta: defaultLateAPRDelta,
-            appliedTime: block.timestamp,
+            requestedTime: block.timestamp,
             status: LoanStatus.APPLIED
         });
 
         hasOpenApplication[msg.sender] = true;
         recentLoanIdOf[msg.sender] = loanId; 
 
-        emit NewLoanApplication(loanId, msg.sender);
+        emit LoanRequested(loanId, msg.sender);
 
         return loanId;
     }
@@ -179,7 +179,7 @@ abstract contract Lender is ManagedLendingPool {
         Loan storage loan = loans[_loanId];
 
         //TODO implement any other checks for the loan to be approved
-        // require(block.timestamp <= loan.appliedTime + 31 days, "This loan application has expired.");//FIXME
+        // require(block.timestamp <= loan.requestedTime + 31 days, "This loan application has expired.");//FIXME
 
         require(poolLiqudity >= loan.amount, "BankFair: Pool liqudity is insuvvificent to approve this loan.");
         require(sharesStaked >= multiplyByFraction(totalPoolShares, loanApprovalStakePercent, ONE_HUNDRED_PERCENT), 
