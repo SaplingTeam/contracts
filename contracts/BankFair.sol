@@ -70,6 +70,6 @@ contract BankFair is Lender {
 
     function amountUnstakebale() public view returns (uint256) {
         (,uint256 unlocked) = sharesStaked.trySub(multiplyByFraction(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT)); 
-        return sharesToTokens(unlocked);
+        return Math.min(poolLiqudity, sharesToTokens(unlocked));
     }
 }
