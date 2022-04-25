@@ -25,7 +25,7 @@ contract BankFair is Lender {
     }
 
     function amountDepositable() external view returns (uint256) {
-        if (poolFundsLimit >= poolFunds) {
+        if (poolFundsLimit <= poolFunds) {
             return 0;
         }
 
