@@ -249,7 +249,7 @@ abstract contract Lender is ManagedLendingPool {
         uint256 baseAmountPaid = transferAmount.sub(interestPaid);
 
         //share profits to protocol
-        uint256 protocolEarnedInterest = multiplyByFraction(interestPaid, protocolSharePercent, ONE_HUNDRED_PERCENT);
+        uint256 protocolEarnedInterest = multiplyByFraction(interestPaid, protocolEarningPercent, ONE_HUNDRED_PERCENT);
         
         protocolEarnings[protocolWallet] = protocolEarnings[protocolWallet].add(protocolEarnedInterest); 
 

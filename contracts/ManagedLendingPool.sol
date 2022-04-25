@@ -28,7 +28,7 @@ abstract contract ManagedLendingPool {
     // to represent a percentage value as int, mutiply by (10 ^ percentDecimals)
     uint16 public constant PERCENT_DECIMALS = 1;
     uint16 public constant ONE_HUNDRED_PERCENT = 1000;
-    uint16 public protocolSharePercent = 100; //10% by default; safe min 0%, max 10%
+    uint16 public protocolEarningPercent = 100; //10% by default; safe min 0%, max 10%
     uint16 public managerLeveragedEarningPercent = 1500; // 150% or 1.5x leverage by default (safe min 100% or 1x)
 
     event ManagementTransferred(address toManager);
