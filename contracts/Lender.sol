@@ -38,7 +38,7 @@ abstract contract Lender is ManagedLendingPool {
         uint256 lastPaymentTime;
     }
 
-    event NewLoanApplication(uint256 loanId);
+    event NewLoanApplication(uint256 loanId, address borrower);
     event LoanApproved(uint256 loanId);
     event LoanDenied(uint256 loanId);
     event LoanCancelled(uint256 loanId);
@@ -170,7 +170,7 @@ abstract contract Lender is ManagedLendingPool {
         hasOpenApplication[msg.sender] = true;
         recentLoanIdOf[msg.sender] = loanId; 
 
-        emit NewLoanApplication(loanId);
+        emit NewLoanApplication(loanId, msg.sender);
 
         return loanId;
     }
