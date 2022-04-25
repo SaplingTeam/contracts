@@ -24,17 +24,17 @@ abstract contract Lender is ManagedLendingPool {
         uint256 amount;
         uint256 duration; 
         uint16 apr; 
-        uint16 lateFeePercent; 
+        uint16 lateAPRDelta; 
         uint256 appliedTime;
         LoanStatus status;
     }
 
     struct LoanDetail {
         uint256 loanId;
+        uint256 totalAmountRepaid; //total amount paid including interest
         uint256 baseAmountRepaid;
         uint256 interestPaid;
-        uint256 totalAmountPaid; //total amount paid including interest
-        uint256 grantedTime;
+        uint256 approvedTime;
         uint256 lastPaymentTime;
     }
 
@@ -162,7 +162,7 @@ abstract contract Lender is ManagedLendingPool {
             amount: requestedAmount,
             duration: loanDuration,
             apr: defaultAPR,
-            lateFeePercent: defaultLateAPRDelta,
+            lateAPRDelta: defaultLateAPRDelta,
             appliedTime: block.timestamp,
             status: LoanStatus.APPLIED
         });
@@ -187,10 +187,10 @@ abstract contract Lender is ManagedLendingPool {
 
         loanDetails[_loanId] = LoanDetail({
             loanId: _loanId,
+            totalAmountRepaid: 0,
             baseAmountRepaid: 0,
             interestPaid: 0,
-            totalAmountPaid: 0,
-            grantedTime: block.timestamp,
+            approvedTime: block.timestamp,
             lastPaymentTime: 0
         });
 
@@ -217,7 +217,7 @@ abstract contract Lender is ManagedLendingPool {
     function cancelLoan(uint256 loanId) external onlyManager loanInStatus(loanId, LoanStatus.APPROVED) {
         Loan storage loan = loans[loanId];
 
-        // require(block.timestamp > loanDetail.grantedTime + loan.duration + 31 days, "It is too early to cancel this loan."); //FIXME
+        // require(block.timestamp > loanDetail.approvedTime + loan.duration + 31 days, "It is too early to cancel this loan."); //FIXME
 
         loan.status = LoanStatus.CANCELLED;
         decreaseLoanFunds(loan.borrower, loan.amount);
@@ -267,9 +267,9 @@ abstract contract Lender is ManagedLendingPool {
 
         protocolEarnings[manager] = protocolEarnings[manager].add(managerEarnedInterest);
 
+        loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(transferAmount);
         loanDetail.baseAmountRepaid = loanDetail.baseAmountRepaid.add(baseAmountPaid);
         loanDetail.interestPaid = loanDetail.interestPaid.add(interestPaid);
-        loanDetail.totalAmountPaid = loanDetail.totalAmountPaid.add(transferAmount);
 
         borrowedFunds = borrowedFunds.sub(baseAmountPaid);
         poolLiqudity = poolLiqudity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
@@ -282,11 +282,11 @@ abstract contract Lender is ManagedLendingPool {
         LoanDetail storage loanDetail = loanDetails[loanId];
 
         //TODO implement any other checks for the loan to be defaulted
-        // require(block.timestamp > loanDetail.grantedTime + loan.duration + 31 days, "It is too early to default this loan."); //FIXME
+        // require(block.timestamp > loanDetail.approvedTime + loan.duration + 31 days, "It is too early to default this loan."); //FIXME
 
         loan.status = LoanStatus.DEFAULTED;
 
-        (, uint256 loss) = loan.amount.trySub(loanDetail.totalAmountPaid); //FIXME is this logic correct
+        (, uint256 loss) = loan.amount.trySub(loanDetail.totalAmountRepaid); //FIXME is this logic correct
         
         emit LoanDefaulted(loanId, loss);
 
@@ -319,17 +319,17 @@ abstract contract Lender is ManagedLendingPool {
     }
 
     function calculateInterestPercent(Loan storage loan, LoanDetail storage loanDetail) private view returns (uint256) {
-        uint256 daysPassed = countInterestDays(loanDetail.grantedTime, block.timestamp);
+        uint256 daysPassed = countInterestDays(loanDetail.approvedTime, block.timestamp);
         
         uint256 apr;
-        uint256 loanDueTime = loanDetail.grantedTime.add(loan.duration);
+        uint256 loanDueTime = loanDetail.approvedTime.add(loan.duration);
         if (block.timestamp <= loanDueTime) { 
             apr = loan.apr;
         } else {
             uint256 lateDays = countInterestDays(loanDueTime, block.timestamp);
             apr = daysPassed
                 .mul(loan.apr)
-                .add(lateDays.mul(loan.lateFeePercent))
+                .add(lateDays.mul(loan.lateAPRDelta))
                 .div(daysPassed);
         }
 
