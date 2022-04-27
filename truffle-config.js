@@ -1,5 +1,5 @@
 const path = require("path");
-const { projectId, mnemonic } = require('./secrets.json');
+const { kovan, optimismKovan, mnemonic } = require('./secrets.json');
 const HDWalletProvider = require('@truffle/hdwallet-provider');
 
 module.exports = {
@@ -11,10 +11,15 @@ module.exports = {
       port: 7545
     },
     kovan: {
-      provider: () => new HDWalletProvider(mnemonic, `https://kovan.infura.io/v3/${projectId}`),
+      provider: () => new HDWalletProvider(mnemonic, `https://kovan.infura.io/v3/${kovan.projectId}`),
       network_id: 42,       
       gas: 5500000,        
     },
+    optimism_kovan: {
+      provider: () => new HDWalletProvider(mnemonic, `https://opt-kovan.g.alchemy.com/v2/${optimismKovan.apiKey}`),
+      network_id: 69,       
+      gas: 5500000,        
+    }
   },
   
   compilers: {
