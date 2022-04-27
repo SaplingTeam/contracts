@@ -26,5 +26,9 @@ module.exports = {
     solc: {
       version: "0.8.12"
     }
-  }
+  },
+
+  plugins: [
+    'truffle-plugin-stdjsonin'
+  ],
 };
