@@ -205,8 +205,9 @@ abstract contract Lender is ManagedLendingPool {
     }
 
     function denyLoan(uint256 loanId) external onlyManager loanInStatus(loanId, LoanStatus.APPLIED) {
-        loans[loanId].status = LoanStatus.DENIED;
-        hasOpenApplication[msg.sender] = false;
+        Loan storage loan = loans[loanId];
+        loan.status = LoanStatus.DENIED;
+        hasOpenApplication[loan.borrower] = false;
 
         emit LoanDenied(loanId);
     }
