@@ -35,7 +35,7 @@ function unstake(uint256 amount) external onlyManager;
 
 function balanceStaked() public view returns (uint256);
 
-function amountUnstakeable();
+function amountUnstakable();
 ```
 
 ## Manager Lending Actions
