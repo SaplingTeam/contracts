@@ -56,7 +56,7 @@ abstract contract ManagedLendingPool {
         poolFunds = 0;
 
         targetStakePercent = 100; //10%
-        loanApprovalStakePercent = 80; //8%
+        loanApprovalStakePercent = 100; //10%
 
         managerExcessLeverageComponent = uint256(managerLeveragedEarningPercent).sub(ONE_HUNDRED_PERCENT);
     }
