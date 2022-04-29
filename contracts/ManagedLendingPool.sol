@@ -30,6 +30,7 @@ abstract contract ManagedLendingPool {
     uint16 public constant ONE_HUNDRED_PERCENT = 1000;
     uint16 public protocolEarningPercent = 100; //10% by default; safe min 0%, max 10%
     uint16 public managerLeveragedEarningPercent = 1500; // 150% or 1.5x leverage by default (safe min 100% or 1x)
+    uint256 internal managerExcessLeverageComponent;
 
     event UnstakedLoss(uint256 amount);
     event StakedAssetsDepleted();
@@ -56,6 +57,8 @@ abstract contract ManagedLendingPool {
 
         targetStakePercent = 100; //10%
         loanApprovalStakePercent = 100; //10%
+
+        managerExcessLeverageComponent = uint256(managerLeveragedEarningPercent).sub(ONE_HUNDRED_PERCENT);
     }
 
     function protocolEarningsOf(address wallet) external view returns (uint256) {
