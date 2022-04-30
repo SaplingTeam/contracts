@@ -114,6 +114,10 @@ abstract contract Lender is ManagedLendingPool {
         loanFundsPendingWithdrawal = 0;
     }
 
+    function loansCount() external view returns(uint256) {
+        return nextLoanId - 1;
+    }
+
     function setDefaultAPR(uint16 apr) external onlyManager {
         require(SAFE_MIN_APR <= apr && apr <= SAFE_MAX_APR, "APR is out of bounds");
         defaultAPR = apr;
@@ -181,7 +185,7 @@ abstract contract Lender is ManagedLendingPool {
         //TODO implement any other checks for the loan to be approved
         // require(block.timestamp <= loan.requestedTime + 31 days, "This loan application has expired.");//FIXME
 
-        require(poolLiqudity >= loan.amount, "BankFair: Pool liqudity is insuvvificent to approve this loan.");
+        require(poolLiqudity >= loan.amount, "BankFair: Pool liqudity is insufficient to approve this loan.");
         require(sharesStaked >= multiplyByFraction(totalPoolShares, loanApprovalStakePercent, ONE_HUNDRED_PERCENT), 
         "BankFair: Stake amount is too low to approve new loans.");
 
