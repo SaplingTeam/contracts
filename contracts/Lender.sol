@@ -114,6 +114,10 @@ abstract contract Lender is ManagedLendingPool {
         loanFundsPendingWithdrawal = 0;
     }
 
+    function loansCount() external view returns(uint256) {
+        return nextLoanId - 1;
+    }
+
     function setDefaultAPR(uint16 apr) external onlyManager {
         require(SAFE_MIN_APR <= apr && apr <= SAFE_MAX_APR, "APR is out of bounds");
         defaultAPR = apr;
