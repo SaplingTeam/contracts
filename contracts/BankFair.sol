@@ -4,10 +4,22 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./Lender.sol";
 
+/**
+ * @title BankFair Pool
+ * @notice Provides deposit, withdrawal, and staking functionality. 
+ * @dev Extends Lender. 
+ *      Extends ManagedLendingPool by inheritance.
+ */
 contract BankFair is Lender {
 
     using SafeMath for uint256;
     
+    /**
+     * @notice Creates a BankFair pool.
+     * @param tokenAddress ERC20 token contract address to be used as main pool liquid currency.
+     * @param protocol Address of a wallet to accumulate protocol earnings.
+     * @param minLoanAmount Minimum amount to be borrowed per loan.
+     */
     constructor(address tokenAddress, address protocol, uint256 minLoanAmount) Lender(tokenAddress, protocol, minLoanAmount) {
         
     }
