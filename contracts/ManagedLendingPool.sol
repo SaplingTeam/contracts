@@ -37,7 +37,7 @@ abstract contract ManagedLendingPool {
     uint256 public totalPoolShares;
 
     /// Manager's staked shares
-    uint256 public sharesStaked;
+    uint256 public stakedShares;
 
     /// Target percentage ratio of staked shares to total shares
     uint16 public targetStakePercent;
@@ -92,7 +92,7 @@ abstract contract ManagedLendingPool {
         token = tokenAddress;
         tokenBalance = 0; 
         totalPoolShares = 0;
-        sharesStaked = 0;
+        stakedShares = 0;
 
         poolFundsLimit = 0;
         poolFunds = 0;
@@ -137,7 +137,7 @@ abstract contract ManagedLendingPool {
      * @return True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise.
      */
     function poolCanLend() public view returns (bool) {
-        return sharesStaked >= multiplyByFraction(totalPoolShares, loanApprovalStakePercent, ONE_HUNDRED_PERCENT);
+        return stakedShares >= multiplyByFraction(totalPoolShares, loanApprovalStakePercent, ONE_HUNDRED_PERCENT);
     }
 
     //TODO consider security implications of having the following internal function
@@ -229,7 +229,7 @@ abstract contract ManagedLendingPool {
      * @dev Internal method to update pool limit based on staked funds. 
      */
     function updatePoolLimit() internal {
-        poolFundsLimit = sharesToTokens(multiplyByFraction(sharesStaked, ONE_HUNDRED_PERCENT, targetStakePercent));
+        poolFundsLimit = sharesToTokens(multiplyByFraction(stakedShares, ONE_HUNDRED_PERCENT, targetStakePercent));
     }
     
     /**

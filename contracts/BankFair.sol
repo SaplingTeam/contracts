@@ -95,7 +95,7 @@ contract BankFair is Lender {
         require(amount > 0, "BankFair: stake amount is 0");
 
         uint256 shares = enterPool(amount);
-        sharesStaked = sharesStaked.add(shares);
+        stakedShares = stakedShares.add(shares);
         updatePoolLimit();
     }
     
@@ -110,7 +110,7 @@ contract BankFair is Lender {
         require(amount <= amountUnstakable(), "BankFair: requested amount is not available to be unstaked");
 
         uint256 shares = tokensToShares(amount);
-        sharesStaked = sharesStaked.sub(shares);
+        stakedShares = stakedShares.sub(shares);
         updatePoolLimit();
         exitPool(amount);
     }
@@ -129,9 +129,9 @@ contract BankFair is Lender {
      * @return Max amount of tokens unstakable by the manager.
      */
     function amountUnstakable() public view returns (uint256) {
-        uint256 lenderShares = totalPoolShares.sub(sharesStaked);
+        uint256 lenderShares = totalPoolShares.sub(stakedShares);
         uint256 lockedStakeShares = multiplyByFraction(lenderShares, targetStakePercent, ONE_HUNDRED_PERCENT - targetStakePercent);
 
-        return Math.min(poolLiquidity, sharesToTokens(sharesStaked.sub(lockedStakeShares)));
+        return Math.min(poolLiquidity, sharesToTokens(stakedShares.sub(lockedStakeShares)));
     }
 }

@@ -373,7 +373,7 @@ abstract contract Lender is ManagedLendingPool {
         //share profits to manager 
         //TODO optimize manager earnings calculation
 
-        uint256 currentStakePercent = multiplyByFraction(sharesStaked, ONE_HUNDRED_PERCENT, totalPoolShares);
+        uint256 currentStakePercent = multiplyByFraction(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
         uint256 managerEarningsPercent = multiplyByFraction(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT);
         uint256 managerEarnedInterest = multiplyByFraction(interestPaid.sub(protocolEarnedInterest), managerEarningsPercent, ONE_HUNDRED_PERCENT);
 
@@ -525,15 +525,15 @@ abstract contract Lender is ManagedLendingPool {
         uint256 lostShares = tokensToShares(lossAmount);
         uint256 remainingLostShares = lostShares;
 
-        if (sharesStaked > 0) {
-            uint256 stakedShareLoss = Math.min(lostShares, sharesStaked);
+        if (stakedShares > 0) {
+            uint256 stakedShareLoss = Math.min(lostShares, stakedShares);
             remainingLostShares = lostShares.sub(stakedShareLoss);
-            sharesStaked = sharesStaked.sub(stakedShareLoss);
+            stakedShares = stakedShares.sub(stakedShareLoss);
             updatePoolLimit();
 
             burnShares(manager, stakedShareLoss);
 
-            if (sharesStaked == 0) {
+            if (stakedShares == 0) {
                 emit StakedAssetsDepleted();
             }
         }
