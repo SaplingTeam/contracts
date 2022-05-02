@@ -1,4 +1,6 @@
 node_modules
-artifacts
+contracts/test/artifacts
+contracts/artifacts/*
+!contracts/artifacts/BankFair.json
 secrets.json
 *-input.json
