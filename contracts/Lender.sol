@@ -45,7 +45,7 @@ abstract contract Lender is ManagedLendingPool {
         uint256 lastPaymentTime;
     }
 
-    event LoanRequested(uint256 loanId, address borrower);
+    event LoanRequested(uint256 loanId, address indexed borrower);
     event LoanApproved(uint256 loanId);
     event LoanDenied(uint256 loanId);
     event LoanCancelled(uint256 loanId);

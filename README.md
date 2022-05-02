@@ -235,7 +235,7 @@ uint256 public poolLiquidity;
 ## Events
 
 ```solidity
-event LoanRequested(uint256 loanId, address borrower);
+event LoanRequested(uint256 loanId, address indexed borrower);
 event LoanApproved(uint256 loanId);
 event LoanDenied(uint256 loanId);
 event LoanCancelled(uint256 loanId);
