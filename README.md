@@ -88,7 +88,7 @@ mapping(address => uint256) public recentLoanIdOf;
 mapping(uint256 => Loan) public loans;
 mapping(uint256 => LoanDetail) public loanDetails;
 
-uint256 public poolLiqudity;
+uint256 public poolLiquidity;
 ```
 
 ## Events

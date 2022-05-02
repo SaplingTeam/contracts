@@ -61,7 +61,7 @@ abstract contract Lender is ManagedLendingPool {
 
     modifier onlyLender() {
         address wallet = msg.sender;
-        require(wallet != address(0), "BankFair: Address is not prsent.");
+        require(wallet != address(0), "BankFair: Address is not present.");
         require(wallet != manager && wallet != protocolWallet, "BankFair: Wallet is a manager or protocol.");
         //FIXME: currently borrower is a wallet that has any past or present loans/application,
         //TODO wallet is a borrower if: has open loan or loan application. Implement basic loan history first.
@@ -71,13 +71,13 @@ abstract contract Lender is ManagedLendingPool {
 
     modifier onlyBorrower() {
         address wallet = msg.sender;
-        require(wallet != address(0), "BankFair: Address is not prsent.");
+        require(wallet != address(0), "BankFair: Address is not present.");
         require(wallet != manager && wallet != protocolWallet, "BankFair: Wallet is a manager or protocol.");
         require(poolShares[wallet] == 0, "BankFair: Applicant is a lender.");
         _;
     }
 
-    // APR, to represent a percentage value as int, mutiply by (10 ^ percentDecimals)
+    // APR, to represent a percentage value as int, multiply by (10 ^ percentDecimals)
 
     /// Safe minimum for APR values
     uint16 public constant SAFE_MIN_APR = 0; // 0%
@@ -152,7 +152,7 @@ abstract contract Lender is ManagedLendingPool {
         minDuration = SAFE_MIN_DURATION;
         maxDuration = SAFE_MAX_DURATION;
 
-        poolLiqudity = 0;
+        poolLiquidity = 0;
         borrowedFunds = 0;
         loanFundsPendingWithdrawal = 0;
     }
@@ -270,7 +270,7 @@ abstract contract Lender is ManagedLendingPool {
      * @notice Approve a loan.
      * @dev Loan must be in APPLIED status.
      *      Caller must be the manager.
-     *      Loan amount must not exceed poolLiqudity();
+     *      Loan amount must not exceed poolLiquidity();
      *      Stake to pool funds ratio must be good - poolCanLend() must be true.
      */
     function approveLoan(uint256 _loanId) external onlyManager loanInStatus(_loanId, LoanStatus.APPLIED) {
@@ -279,7 +279,7 @@ abstract contract Lender is ManagedLendingPool {
         //TODO implement any other checks for the loan to be approved
         // require(block.timestamp <= loan.requestedTime + 31 days, "This loan application has expired.");//FIXME
 
-        require(poolLiqudity >= loan.amount, "BankFair: Pool liqudity is insufficient to approve this loan.");
+        require(poolLiquidity >= loan.amount, "BankFair: Pool liquidity is insufficient to approve this loan.");
         require(poolCanLend(), "BankFair: Stake amount is too low to approve new loans.");
 
         loanDetails[_loanId] = LoanDetail({
@@ -295,7 +295,7 @@ abstract contract Lender is ManagedLendingPool {
         hasOpenApplication[loan.borrower] = false;
 
         increaseLoanFunds(loan.borrower, loan.amount);
-        poolLiqudity = poolLiqudity.sub(loan.amount);
+        poolLiquidity = poolLiquidity.sub(loan.amount);
         borrowedFunds = borrowedFunds.add(loan.amount);
 
         emit LoanApproved(_loanId);
@@ -326,7 +326,7 @@ abstract contract Lender is ManagedLendingPool {
 
         loan.status = LoanStatus.CANCELLED;
         decreaseLoanFunds(loan.borrower, loan.amount);
-        poolLiqudity = poolLiqudity.add(loan.amount);
+        poolLiquidity = poolLiquidity.add(loan.amount);
         borrowedFunds = borrowedFunds.sub(loan.amount);
         
         emit LoanCancelled(loanId);
@@ -384,7 +384,7 @@ abstract contract Lender is ManagedLendingPool {
         loanDetail.interestPaid = loanDetail.interestPaid.add(interestPaid);
 
         borrowedFunds = borrowedFunds.sub(baseAmountPaid);
-        poolLiqudity = poolLiqudity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
+        poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
 
         return (transferAmount, interestPaid);
     }

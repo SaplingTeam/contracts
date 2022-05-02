@@ -28,10 +28,10 @@ abstract contract ManagedLendingPool {
     uint256 public poolFundsLimit;
 
     /// Current amount of tokens in the pool, including both liquid and borrowed funds
-    uint256 public poolFunds; //poolLiqudity + borrowedFunds
+    uint256 public poolFunds; //poolLiquidity + borrowedFunds
 
     /// Current amount of liquid tokens, available to lend/withdraw/borrow
-    uint256 public poolLiqudity;
+    uint256 public poolLiquidity;
 
     /// Total pool shares present
     uint256 public totalPoolShares;
@@ -174,7 +174,7 @@ abstract contract ManagedLendingPool {
         uint256 shares = tokensToShares(amount);
 
         chargeTokensFrom(msg.sender, amount);
-        poolLiqudity = poolLiqudity.add(amount);
+        poolLiquidity = poolLiquidity.add(amount);
         poolFunds = poolFunds.add(amount);
 
         // mint shares
@@ -194,7 +194,7 @@ abstract contract ManagedLendingPool {
      */
     function exitPool(uint256 amount) internal returns (uint256) {
         require(amount > 0, "BankFair: pool withdrawal amount is 0");
-        require(poolLiqudity >= amount, "BankFair: pool liquidity is too low");
+        require(poolLiquidity >= amount, "BankFair: pool liquidity is too low");
 
         uint256 shares = tokensToShares(amount); 
         //TODO handle failed pool case when any amount equates to 0 shares
@@ -202,7 +202,7 @@ abstract contract ManagedLendingPool {
         burnShares(msg.sender, shares);
 
         poolFunds = poolFunds.sub(amount);
-        poolLiqudity = poolLiqudity.sub(amount);
+        poolLiquidity = poolLiquidity.sub(amount);
 
         tokenBalance = tokenBalance.sub(amount);
         bool success = IERC20(token).transfer(msg.sender, amount);

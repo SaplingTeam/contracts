@@ -61,7 +61,7 @@ contract BankFair is Lender {
      * @return Max amount of tokens withdrawable by msg.sender.
      */
     function amountWithdrawable() external view returns (uint256) {
-        return Math.min(poolLiqudity, balanceOf(msg.sender));
+        return Math.min(poolLiquidity, balanceOf(msg.sender));
     }
 
     /**
@@ -132,6 +132,6 @@ contract BankFair is Lender {
         uint256 lenderShares = totalPoolShares.sub(sharesStaked);
         uint256 lockedStakeShares = multiplyByFraction(lenderShares, targetStakePercent, ONE_HUNDRED_PERCENT - targetStakePercent);
 
-        return Math.min(poolLiqudity, sharesToTokens(sharesStaked.sub(lockedStakeShares)));
+        return Math.min(poolLiquidity, sharesToTokens(sharesStaked.sub(lockedStakeShares)));
     }
 }
