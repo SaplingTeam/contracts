@@ -1,4 +1,5 @@
 require("@nomiclabs/hardhat-waffle");
+require('solidity-docgen');
 const { kovan, optimismKovan, testnetMnemonic } = require('./secrets.json');
 
 module.exports = {
@@ -20,5 +21,8 @@ module.exports = {
         mnemonic: testnetMnemonic
       }
     }
-  }
+  },
+  docgen: {
+    pages: 'files',
+  },
 };
