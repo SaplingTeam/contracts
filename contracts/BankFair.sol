@@ -70,10 +70,11 @@ contract BankFair is Lender {
     /**
      * @notice Check token amount withdrawable by the caller at this time.
      * @dev Return value depends on the callers balance, and is limited by pool liquidity.
+     * @param wallet Address of the wallet to check the withdrawable balance of.
      * @return Max amount of tokens withdrawable by msg.sender.
      */
-    function amountWithdrawable() external view returns (uint256) {
-        return Math.min(poolLiquidity, balanceOf(msg.sender));
+    function amountWithdrawable(address wallet) external view returns (uint256) {
+        return Math.min(poolLiquidity, balanceOf(wallet));
     }
 
     /**
