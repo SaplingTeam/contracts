@@ -5,7 +5,7 @@
   "author": "",
   "license": "",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npx hardhat test",
     "deploy-testnet": "npx hardhat run scripts/deploy.test.js --network optimism_kovan",
     "deploy-testnet-kovan": "npx hardhat run scripts/deploy.test.js --network kovan",
     "deploy-dev": "npx hardhat run scripts/deploy.dev.js"
