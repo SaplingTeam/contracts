@@ -1,4 +1,5 @@
 node_modules
 artifacts
+cache
 secrets.json
 *-input.json

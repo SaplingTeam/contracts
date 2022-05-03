@@ -279,3 +279,24 @@ struct LoanDetail {
   uint256 lastPaymentTime;
 }
 ```
+
+# Notes for contract developers
+
+## Setup API keys before testnet deployments
+cd into project directory and create ```secrets.json``` by running the command below on *NIX systems, or by creating the file manually.
+
+```sh
+tee secrets.json > /dev/null <<EOT
+{
+  "testnetMnemonic": "REPLACE WITH MNEMONIC",
+  "kovan":{
+    "infuraProjectId": "REPLACE WITH INFURA PROJECT ID"
+  },
+  "optimismKovan":{
+    "alchemyApiKey": "REPLACE WITH ALCHEMY API KEY"
+  }
+}
+EOT
+```
+
+Then edit the keys accordingly in secrets.json
