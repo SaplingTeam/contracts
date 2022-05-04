@@ -1,20 +1,22 @@
 require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-etherscan");
 require('solidity-docgen');
-const { kovan, optimismKovan, testnetMnemonic } = require('./secrets.json');
+
+const { kovanConfig, optimisticKovanConfig, testnetMnemonic } = require('./secrets.json');
 
 module.exports = {
   solidity: "0.8.12",
   networks: {
     kovan: {
-      url: `https://kovan.infura.io/v3/${kovan.projectId}`,
+      url: `https://kovan.infura.io/v3/${kovanConfig.infuraProjectId}`,
       chainId: 42,
       gas: 5500000,
       accounts: {
         mnemonic: testnetMnemonic
       }
     },
-    optimism_kovan: {
-      url: `https://opt-kovan.g.alchemy.com/v2/${optimismKovan.apiKey}`,
+    optimisticKovan: {
+      url: `https://opt-kovan.g.alchemy.com/v2/${optimisticKovanConfig.alchemyApiKey}`,
       chainId: 69,
       gas: 5500000,
       accounts: {
@@ -24,5 +26,11 @@ module.exports = {
   },
   docgen: {
     pages: 'files',
+  },
+  etherscan: {
+    apiKey: {
+        kovan: kovanConfig.etherscanApiKey,
+        optimisticKovan: optimisticKovanConfig.etherscanApiKey,
+    }
   },
 };

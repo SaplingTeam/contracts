@@ -12,11 +12,13 @@ cd into project directory and create ```secrets.json``` by running the command b
 tee secrets.json > /dev/null <<EOT
 {
   "testnetMnemonic": "REPLACE WITH MNEMONIC",
-  "kovan":{
-    "infuraProjectId": "REPLACE WITH INFURA PROJECT ID"
+  "kovanConfig":{
+    "infuraProjectId": "REPLACE WITH INFURA PROJECT ID",
+    "etherscanApiKey": "REPLACE WITH ETHERSCAN API KEY"
   },
-  "optimismKovan":{
-    "alchemyApiKey": "REPLACE WITH ALCHEMY API KEY"
+  "optimisticKovanConfig":{
+    "alchemyApiKey": "REPLACE WITH ALCHEMY API KEY",
+    "etherscanApiKey": "REPLACE WITH ETHERSCAN API KEY"
   }
 }
 EOT
