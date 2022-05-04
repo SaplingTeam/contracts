@@ -5,12 +5,12 @@
   "author": "",
   "license": "",
   "scripts": {
-    "compile": "npx hardhat compile",
-    "doc": "node -e \"require('fs-extra').emptyDir('docs');\" & npx hardhat docgen",
-    "test": "npx hardhat test",
-    "deploy-testnet": "npx hardhat run scripts/deploy.test.js --network optimisticKovan",
-    "verify-testnet": "npx hardhat verify --network optimisticKovan --constructor-args scripts/arguments.optimistic.kovan.js", 
-    "deploy-dev": "npx hardhat run scripts/deploy.dev.js"
+    "compile": "hardhat compile",
+    "doc": "rimraf docs && hardhat docgen",
+    "test": "hardhat test",
+    "deploy-testnet": "hardhat run scripts/deploy.test.js --network optimisticKovan",
+    "verify-testnet": "hardhat verify --network optimisticKovan --constructor-args scripts/arguments.optimistic.kovan.js",
+    "deploy-dev": "hardhat run scripts/deploy.dev.js"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.5.0",
@@ -23,6 +23,8 @@
     "chai": "^4.3.6",
     "ethereum-waffle": "^3.4.4",
     "ethers": "^5.6.5",
-    "solidity-docgen": "^0.5.16"
+    "hardhat": "^2.9.3",
+    "rimraf": "^3.0.2",
+    "solidity-docgen": "^0.6.0-beta.10"
   }
 }
