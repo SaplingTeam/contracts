@@ -4,3 +4,4 @@ cache
 secrets.json
 *-input.json
 docs/
+.env
