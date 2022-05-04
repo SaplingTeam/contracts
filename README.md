@@ -9,18 +9,10 @@ Please refer to [/docs](/docs) for contract details.
 cd into project directory and create ```secrets.json``` by running the command below on *NIX systems, or by creating the file manually.
 
 ```sh
-tee secrets.json > /dev/null <<EOT
-{
-  "testnetMnemonic": "REPLACE WITH MNEMONIC",
-  "kovanConfig":{
-    "infuraProjectId": "REPLACE WITH INFURA PROJECT ID",
-    "etherscanApiKey": "REPLACE WITH ETHERSCAN API KEY"
-  },
-  "optimisticKovanConfig":{
-    "alchemyApiKey": "REPLACE WITH ALCHEMY API KEY",
-    "etherscanApiKey": "REPLACE WITH ETHERSCAN API KEY"
-  }
-}
+tee .env > /dev/null <<EOT
+TESTNET_MNEMONIC="REPLACE WITH MNEMONIC"
+ETHERSCAN_API_KEY="REPLACE WITH ETHERSCAN API KEY"
+OPTIMISTIC_ETHERSCAN_API_KEY="REPLACE WITH OPTIMISTIC ETHERSCAN API KEY"
 EOT
 ```
 
