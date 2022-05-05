@@ -1,0 +1,23 @@
+name: 'Run `npm audit`'
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '19 17 * * 5'
+
+jobs:
+  audit:
+    name: Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: Install packages
+        run: npm i
+      - name: Audit
+        run: npm audit
