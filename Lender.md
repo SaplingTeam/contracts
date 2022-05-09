@@ -90,16 +90,16 @@ event LoanDefaulted(uint256 loanId, uint256 amountLost)
 modifier loanInStatus(uint256 loanId, enum Lender.LoanStatus status)
 ```
 
-### onlyLender
+### validLender
 
 ```solidity
-modifier onlyLender()
+modifier validLender()
 ```
 
-### onlyBorrower
+### validBorrower
 
 ```solidity
-modifier onlyBorrower()
+modifier validBorrower()
 ```
 
 ### SAFE_MIN_APR
@@ -197,6 +197,14 @@ mapping(address &#x3D;&gt; bool) hasOpenApplication
 ```
 
 Quick lookup to check an address has pending loan applications
+
+### countOpenLoansOf
+
+```solidity
+mapping(address &#x3D;&gt; uint256) countOpenLoansOf
+```
+
+Combined open loan counts by address. Count includes loans in APPROVED and FUNDS_WITHDRAWN states.
 
 ### borrowedFunds
 

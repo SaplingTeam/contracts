@@ -30,6 +30,18 @@ address token
 
 Address of an ERC20 token used by the pool
 
+### tokenDecimals
+
+```solidity
+uint8 tokenDecimals
+```
+
+### ONE_TOKEN
+
+```solidity
+uint256 ONE_TOKEN
+```
+
 ### tokenBalance
 
 ```solidity
@@ -85,14 +97,6 @@ uint16 targetStakePercent
 ```
 
 Target percentage ratio of staked shares to total shares
-
-### loanApprovalStakePercent
-
-```solidity
-uint16 loanApprovalStakePercent
-```
-
-minimum stake percentage level to allow loan approvals
 
 ### poolShares
 
