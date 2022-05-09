@@ -44,10 +44,6 @@ abstract contract ManagedLendingPool {
     /// Target percentage ratio of staked shares to total shares
     uint16 public targetStakePercent;
 
-    //TODO remove and use targetStakePercent
-    /// minimum stake percentage level to allow loan approvals
-    uint16 public loanApprovalStakePercent; 
-
     /// Pool shares of wallets
     mapping(address => uint256) internal poolShares;
 
@@ -100,7 +96,6 @@ abstract contract ManagedLendingPool {
         poolFunds = 0;
 
         targetStakePercent = 100; //10%
-        loanApprovalStakePercent = 100; //10%
 
         managerExcessLeverageComponent = uint256(managerLeveragedEarningPercent).sub(ONE_HUNDRED_PERCENT);
     }
@@ -139,7 +134,7 @@ abstract contract ManagedLendingPool {
      * @return True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise.
      */
     function poolCanLend() public view returns (bool) {
-        return stakedShares >= multiplyByFraction(totalPoolShares, loanApprovalStakePercent, ONE_HUNDRED_PERCENT);
+        return stakedShares >= multiplyByFraction(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
     }
 
     //TODO consider security implications of having the following internal function
