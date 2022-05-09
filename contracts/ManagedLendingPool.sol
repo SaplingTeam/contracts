@@ -264,9 +264,9 @@ abstract contract ManagedLendingPool {
      * @return Integer value of (a*b)/c if (a*b) does not overflow, else a*(b/c)
      */
     function multiplyByFraction(uint256 a, uint256 b, uint256 c) internal pure returns (uint256) {
-        //FIXME handle c == 0
-        //FIXME implement a better multiplication by fraction      
-
+        require(c != 0); // no need proceed if denominator is 0
+        
+        //TODO implement a better multiplication by fraction      
         (bool notOverflow, uint256 multiplied) = a.tryMul(b);
 
         if(notOverflow) {
