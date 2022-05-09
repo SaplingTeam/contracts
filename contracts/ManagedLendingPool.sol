@@ -4,6 +4,7 @@ pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title BankFair Managed Lending Pool
@@ -22,6 +23,10 @@ abstract contract ManagedLendingPool {
 
     /// Address of an ERC20 token used by the pool
     address public token;
+
+    uint8 public tokenDecimals;
+
+    uint256 public ONE_TOKEN;
 
     /// Total tokens currently held by this contract
     uint256 public tokenBalance;
@@ -43,10 +48,6 @@ abstract contract ManagedLendingPool {
 
     /// Target percentage ratio of staked shares to total shares
     uint16 public targetStakePercent;
-
-    //TODO remove and use targetStakePercent
-    /// minimum stake percentage level to allow loan approvals
-    uint16 public loanApprovalStakePercent; 
 
     /// Pool shares of wallets
     mapping(address => uint256) internal poolShares;
@@ -100,9 +101,15 @@ abstract contract ManagedLendingPool {
         poolFunds = 0;
 
         targetStakePercent = 100; //10%
-        loanApprovalStakePercent = 100; //10%
 
         managerExcessLeverageComponent = uint256(managerLeveragedEarningPercent).sub(ONE_HUNDRED_PERCENT);
+        try IERC20Metadata(token).decimals() returns(uint8 decimals) {
+            tokenDecimals = decimals;
+        } catch {
+            tokenDecimals = 18;
+        }
+
+        ONE_TOKEN = 10 ** tokenDecimals;
     }
 
     /**
@@ -139,7 +146,7 @@ abstract contract ManagedLendingPool {
      * @return True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise.
      */
     function poolCanLend() public view returns (bool) {
-        return stakedShares >= multiplyByFraction(totalPoolShares, loanApprovalStakePercent, ONE_HUNDRED_PERCENT);
+        return stakedShares >= multiplyByFraction(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
     }
 
     //TODO consider security implications of having the following internal function
@@ -269,9 +276,9 @@ abstract contract ManagedLendingPool {
      * @return Integer value of (a*b)/c if (a*b) does not overflow, else a*(b/c)
      */
     function multiplyByFraction(uint256 a, uint256 b, uint256 c) internal pure returns (uint256) {
-        //FIXME handle c == 0
-        //FIXME implement a better multiplication by fraction      
-
+        require(c != 0); // no need proceed if denominator is 0
+        
+        //TODO implement a better multiplication by fraction      
         (bool notOverflow, uint256 multiplied) = a.tryMul(b);
 
         if(notOverflow) {

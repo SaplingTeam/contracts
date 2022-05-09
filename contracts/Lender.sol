@@ -61,21 +61,19 @@ abstract contract Lender is ManagedLendingPool {
         _;
     }
 
-    modifier onlyLender() {
+    modifier validLender() {
         address wallet = msg.sender;
         require(wallet != address(0), "BankFair: Address is not present.");
         require(wallet != manager && wallet != protocolWallet, "BankFair: Wallet is a manager or protocol.");
-        //FIXME: currently borrower is a wallet that has any past or present loans/application,
-        //TODO wallet is a borrower if: has open loan or loan application. Implement basic loan history first.
-        require(recentLoanIdOf[wallet] == 0, "BankFair: Wallet is a borrower."); 
+        require(hasOpenApplication[wallet] == false && countOpenLoansOf[wallet] == 0, "BankFair: Wallet is a borrower."); 
         _;
     }
 
-    modifier onlyBorrower() {
+    modifier validBorrower() {
         address wallet = msg.sender;
         require(wallet != address(0), "BankFair: Address is not present.");
         require(wallet != manager && wallet != protocolWallet, "BankFair: Wallet is a manager or protocol.");
-        require(poolShares[wallet] == 0, "BankFair: Applicant is a lender.");
+        require(sharesToTokens(poolShares[wallet]) >= ONE_TOKEN, "BankFair: Wallet is a lender.");
         _;
     }
 
@@ -116,6 +114,9 @@ abstract contract Lender is ManagedLendingPool {
 
     /// Quick lookup to check an address has pending loan applications
     mapping(address => bool) private hasOpenApplication;
+
+    /// Combined open loan counts by address. Count includes loans in APPROVED and FUNDS_WITHDRAWN states.
+    mapping(address => uint256) public countOpenLoansOf;
 
     /// Total funds borrowed at this time, including both withdrawn and allocated for withdrawal.
     uint256 public borrowedFunds;
@@ -233,7 +234,7 @@ abstract contract Lender is ManagedLendingPool {
      * @param loanDuration Loan duration in seconds. 
      * @return ID of a new loan application.
      */
-    function requestLoan(uint256 requestedAmount, uint256 loanDuration) external onlyBorrower returns (uint256) {
+    function requestLoan(uint256 requestedAmount, uint256 loanDuration) external validBorrower returns (uint256) {
 
         require(hasOpenApplication[msg.sender] == false, "Another loan application is pending.");
 
@@ -284,6 +285,8 @@ abstract contract Lender is ManagedLendingPool {
         require(poolLiquidity >= loan.amount, "BankFair: Pool liquidity is insufficient to approve this loan.");
         require(poolCanLend(), "BankFair: Stake amount is too low to approve new loans.");
 
+        countOpenLoansOf[loan.borrower]++;
+
         loanDetails[_loanId] = LoanDetail({
             loanId: _loanId,
             totalAmountRepaid: 0,
@@ -330,6 +333,8 @@ abstract contract Lender is ManagedLendingPool {
         decreaseLoanFunds(loan.borrower, loan.amount);
         poolLiquidity = poolLiquidity.add(loan.amount);
         borrowedFunds = borrowedFunds.sub(loan.amount);
+
+        countOpenLoansOf[loan.borrower]--;
         
         emit LoanCancelled(loanId);
     }
@@ -356,10 +361,6 @@ abstract contract Lender is ManagedLendingPool {
         uint256 transferAmount = Math.min(amountDue, amount);
 
         chargeTokensFrom(msg.sender, transferAmount);
-
-        if (transferAmount == amountDue) {
-            loan.status = LoanStatus.REPAID;
-        }
 
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.lastPaymentTime = block.timestamp;
@@ -388,6 +389,11 @@ abstract contract Lender is ManagedLendingPool {
         borrowedFunds = borrowedFunds.sub(baseAmountPaid);
         poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
 
+        if (transferAmount == amountDue) {
+            loan.status = LoanStatus.REPAID;
+            countOpenLoansOf[loan.borrower]--;
+        }
+
         return (transferAmount, interestPaid);
     }
 
@@ -404,6 +410,7 @@ abstract contract Lender is ManagedLendingPool {
         // require(block.timestamp > loanDetail.approvedTime + loan.duration + 31 days, "It is too early to default this loan."); //FIXME
 
         loan.status = LoanStatus.DEFAULTED;
+        countOpenLoansOf[loan.borrower]--;
 
         (, uint256 loss) = loan.amount.trySub(loanDetail.totalAmountRepaid); //FIXME is this logic correct
         
