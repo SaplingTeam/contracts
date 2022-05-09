@@ -4,6 +4,7 @@ pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title BankFair Managed Lending Pool
@@ -22,6 +23,10 @@ abstract contract ManagedLendingPool {
 
     /// Address of an ERC20 token used by the pool
     address public token;
+
+    uint8 public tokenDecimals;
+
+    uint256 public ONE_TOKEN;
 
     /// Total tokens currently held by this contract
     uint256 public tokenBalance;
@@ -98,6 +103,13 @@ abstract contract ManagedLendingPool {
         targetStakePercent = 100; //10%
 
         managerExcessLeverageComponent = uint256(managerLeveragedEarningPercent).sub(ONE_HUNDRED_PERCENT);
+        try IERC20Metadata(token).decimals() returns(uint8 decimals) {
+            tokenDecimals = decimals;
+        } catch {
+            tokenDecimals = 18;
+        }
+
+        ONE_TOKEN = 10 ** tokenDecimals;
     }
 
     /**

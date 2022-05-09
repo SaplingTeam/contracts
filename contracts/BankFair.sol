@@ -33,7 +33,7 @@ contract BankFair is Lender {
      *      Caller must not be any of: manager, protocol, current borrower.
      * @param amount Token amount to deposit.
      */
-    function deposit(uint256 amount) external onlyLender {
+    function deposit(uint256 amount) external validLender {
         enterPool(amount);
     }
 
@@ -43,7 +43,7 @@ contract BankFair is Lender {
      *      Caller must not be any of: manager, protocol, current borrower.
      * @param amount token amount to withdraw.
      */
-    function withdraw(uint256 amount) external onlyLender {
+    function withdraw(uint256 amount) external validLender {
         exitPool(amount);
     }
 
