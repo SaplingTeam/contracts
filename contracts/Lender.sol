@@ -422,7 +422,27 @@ abstract contract Lender is ManagedLendingPool {
         emit LoanDefaulted(loanId, loss);
 
         if (loss > 0) {
-            deductLosses(loss);
+            poolFunds = poolFunds.sub(loss);
+
+            uint256 lostShares = tokensToShares(loss);
+            uint256 remainingLostShares = lostShares;
+
+            if (stakedShares > 0) {
+                uint256 stakedShareLoss = Math.min(lostShares, stakedShares);
+                remainingLostShares = lostShares.sub(stakedShareLoss);
+                stakedShares = stakedShares.sub(stakedShareLoss);
+                updatePoolLimit();
+
+                burnShares(manager, stakedShareLoss);
+
+                if (stakedShares == 0) {
+                    emit StakedAssetsDepleted();
+                }
+            }
+
+            if (remainingLostShares > 0) {
+                emit UnstakedLoss(loss.sub(sharesToTokens(remainingLostShares)));
+            }
         }
 
         if (loanDetail.baseAmountRepaid < loan.amount) {
@@ -454,23 +474,9 @@ abstract contract Lender is ManagedLendingPool {
         }
 
         LoanDetail storage loanDetail = loanDetails[loanId];
-        uint256 interestPercent = calculateInterestPercent(loan, loanDetail);
-        uint256 baseAmountDue = loan.amount.sub(loanDetail.baseAmountRepaid);
-        uint256 balanceDue = baseAmountDue.add(multiplyByFraction(baseAmountDue, interestPercent, ONE_HUNDRED_PERCENT));
 
-        return (balanceDue, interestPercent);
-    }
-    
-    /**
-     * @notice Get the percentage to calculate the interest due at this time.
-     * @dev Internal helper method.
-     * @param loan Reference to the loan in question.
-     * @param loanDetail Reference to the loanDetail in question.
-     * @return Percentage value to calculate the interest due.
-     */
-    function calculateInterestPercent(Loan storage loan, LoanDetail storage loanDetail) private view returns (uint256) {
+        // calculate interest percent
         uint256 daysPassed = countInterestDays(loanDetail.approvedTime, block.timestamp);
-        
         uint256 apr;
         uint256 loanDueTime = loanDetail.approvedTime.add(loan.duration);
         if (block.timestamp <= loanDueTime) { 
@@ -483,7 +489,12 @@ abstract contract Lender is ManagedLendingPool {
                 .div(daysPassed);
         }
 
-        return multiplyByFraction(apr, daysPassed, 365);
+        uint256 interestPercent = multiplyByFraction(apr, daysPassed, 365);
+
+        uint256 baseAmountDue = loan.amount.sub(loanDetail.baseAmountRepaid);
+        uint256 balanceDue = baseAmountDue.add(multiplyByFraction(baseAmountDue, interestPercent, ONE_HUNDRED_PERCENT));
+
+        return (balanceDue, interestPercent);
     }
 
     /**
@@ -525,35 +536,5 @@ abstract contract Lender is ManagedLendingPool {
         require(loanFunds[wallet] >= amount, "BankFair: requested amount is not available in the funding account");
         loanFunds[wallet] = loanFunds[wallet].sub(amount);
         loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(amount);
-    }
-
-    //TODO consider security implications of having the following internal function
-    /**
-     * @dev Internal method to handle loss on a default.
-     * @param lossAmount Unpaid base amount of a defaulted loan.
-     */
-    function deductLosses(uint256 lossAmount) internal {
-
-        poolFunds = poolFunds.sub(lossAmount);
-
-        uint256 lostShares = tokensToShares(lossAmount);
-        uint256 remainingLostShares = lostShares;
-
-        if (stakedShares > 0) {
-            uint256 stakedShareLoss = Math.min(lostShares, stakedShares);
-            remainingLostShares = lostShares.sub(stakedShareLoss);
-            stakedShares = stakedShares.sub(stakedShareLoss);
-            updatePoolLimit();
-
-            burnShares(manager, stakedShareLoss);
-
-            if (stakedShares == 0) {
-                emit StakedAssetsDepleted();
-            }
-        }
-
-        if (remainingLostShares > 0) {
-            emit UnstakedLoss(lossAmount.sub(sharesToTokens(remainingLostShares)));
-        }
     }
 }
