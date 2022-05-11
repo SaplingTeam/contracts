@@ -278,8 +278,7 @@ function setManagerEarnFactor(uint16 _managerEarnFactor) external
 Set the manager&#x27;s earn factor percent.
 
 __managerEarnFactorMax must be inclusively between ONE_HUNDRED_PERCENT and managerEarnFactorMax.
-     Caller must be the manager.
-     If the current earn factor is greater than the new maximum, then the current earn factor is set to the new maximum._
+     Caller must be the manager._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
