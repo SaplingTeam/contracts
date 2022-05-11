@@ -173,7 +173,6 @@ abstract contract ManagedLendingPool {
      * @notice Set the manager's earn factor percent.
      * @dev _managerEarnFactorMax must be inclusively between ONE_HUNDRED_PERCENT and managerEarnFactorMax.
      *      Caller must be the manager.
-     *      If the current earn factor is greater than the new maximum, then the current earn factor is set to the new maximum. 
      * @param _managerEarnFactor new manager's earn factor.
      */
     function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager {
