@@ -14,13 +14,13 @@ describe("BankFair Pool", function() {
     let borrower1;
 
     beforeEach(async function () {
-        [manager, protocol, lender1, lender2, borrower1, borrower2, ...addrs] = await ethers.getSigners();
+        [manager, protocol, governance, lender1, lender2, borrower1, borrower2, ...addrs] = await ethers.getSigners();
 
         TestToken = await ethers.getContractFactory("TestToken");
         BankFair = await ethers.getContractFactory("BankFair");
 
         tokenContract = await TestToken.deploy(lender1.address, lender2.address, borrower1.address, borrower2.address);
-        bankFairContract = await BankFair.deploy(tokenContract.address, protocol.address, BigInt(100e18))
+        bankFairContract = await BankFair.deploy(tokenContract.address, governance.address, protocol.address, BigInt(100e18))
     });
 
     describe("Deployment", function () {
@@ -29,8 +29,12 @@ describe("BankFair Pool", function() {
             expect(await bankFairContract.manager()).to.equal(manager.address);
         });
 
-        it("Set the protocol address", async function () {
-            expect(await bankFairContract.protocolWallet()).to.equal(protocol.address);
+        it("Set the protocol governance address", async function () {
+            expect(await bankFairContract.governance()).to.equal(governance.address);
+        });
+
+        it("Set the protocol wallet address", async function () {
+            expect(await bankFairContract.protocol()).to.equal(protocol.address);
         });
 
         it("Set the token contract", async function () {
