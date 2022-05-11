@@ -10,16 +10,17 @@ _Extends Lender.
 ### constructor
 
 ```solidity
-constructor(address tokenAddress, address protocol, uint256 minLoanAmount) public
+constructor(address _token, address _governance, address _protocol, uint256 _minAmount) public
 ```
 
 Creates a BankFair pool.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| tokenAddress | address | ERC20 token contract address to be used as main pool liquid currency. |
-| protocol | address | Address of a wallet to accumulate protocol earnings. |
-| minLoanAmount | uint256 | Minimum amount to be borrowed per loan. |
+| _token | address | ERC20 token contract address to be used as main pool liquid currency. |
+| _governance | address | Address of the protocol governance. |
+| _protocol | address | Address of a wallet to accumulate protocol earnings. |
+| _minAmount | uint256 | Minimum amount to be borrowed per loan. |
 
 ### deposit
 

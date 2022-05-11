@@ -257,24 +257,31 @@ Recent loanId of an address. Value of 0 means that the address doe not have any 
 ### constructor
 
 ```solidity
-constructor(address tokenAddress, address protocol, uint256 minLoanAmount) internal
+constructor(address _token, address _governance, address _protocol, uint256 _minAmount) internal
 ```
 
 Create a Lender that ManagedLendingPool.
 
-_minLoanAmount must be greater than or equal to SAFE_MIN_AMOUNT._
+__minAmount must be greater than or equal to SAFE_MIN_AMOUNT._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| tokenAddress | address | ERC20 token contract address to be used as main pool liquid currency. |
-| protocol | address | Address of a wallet to accumulate protocol earnings. |
-| minLoanAmount | uint256 | Minimum amount to be borrowed per loan. |
+| _token | address | ERC20 token contract address to be used as main pool liquid currency. |
+| _governance | address | Address of the protocol governance. |
+| _protocol | address | Address of a wallet to accumulate protocol earnings. |
+| _minAmount | uint256 | Minimum amount to be borrowed per loan. |
 
 ### loansCount
 
 ```solidity
 function loansCount() external view returns (uint256)
 ```
+
+Count of all loan requests in this pool.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Loans count. |
 
 ### setDefaultAPR
 
@@ -480,25 +487,6 @@ _Internal method to get the amount due and the interest rate applied._
 | [0] | uint256 | A pair of a total amount due with interest on this loan, and a percentage representing the interest part of the due amount. |
 | [1] | uint256 |  |
 
-### calculateInterestPercent
-
-```solidity
-function calculateInterestPercent(struct Lender.Loan loan, struct Lender.LoanDetail loanDetail) private view returns (uint256)
-```
-
-Get the percentage to calculate the interest due at this time.
-
-_Internal helper method._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| loan | struct Lender.Loan | Reference to the loan in question. |
-| loanDetail | struct Lender.LoanDetail | Reference to the loanDetail in question. |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Percentage value to calculate the interest due. |
-
 ### countInterestDays
 
 ```solidity
@@ -543,16 +531,4 @@ _Internal method to deallocate funds to borrow upon borrow()_
 | ---- | ---- | ----------- |
 | wallet | address | Address to deallocate the funds of. |
 | amount | uint256 | Token amount to deallocate. |
-
-### deductLosses
-
-```solidity
-function deductLosses(uint256 lossAmount) internal
-```
-
-_Internal method to handle loss on a default._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| lossAmount | uint256 | Unpaid base amount of a defaulted loan. |
 

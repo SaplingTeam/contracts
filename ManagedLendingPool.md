@@ -14,10 +14,18 @@ address manager
 
 Pool manager address
 
-### protocolWallet
+### governance
 
 ```solidity
-address protocolWallet
+address governance
+```
+
+protocol governance
+
+### protocol
+
+```solidity
+address protocol
 ```
 
 Protocol wallet address
@@ -36,11 +44,15 @@ Address of an ERC20 token used by the pool
 uint8 tokenDecimals
 ```
 
+tokenDecimals value retrieved from the token contract upon contract construction
+
 ### ONE_TOKEN
 
 ```solidity
 uint256 ONE_TOKEN
 ```
+
+A value representing 1.0 token amount, padded with zeros for decimals
 
 ### tokenBalance
 
@@ -138,13 +150,29 @@ uint16 protocolEarningPercent
 
 Percentage of paid interest to be allocated as protocol earnings
 
-### managerLeveragedEarningPercent
+### MAX_PROTOCOL_EARNING_PERCENT
 
 ```solidity
-uint16 managerLeveragedEarningPercent
+uint16 MAX_PROTOCOL_EARNING_PERCENT
+```
+
+Percentage of paid interest to be allocated as protocol earnings
+
+### managerEarnFactor
+
+```solidity
+uint16 managerEarnFactor
 ```
 
 Manager&#x27;s leveraged earn factor represented as a percentage
+
+### managerEarnFactorMax
+
+```solidity
+uint16 managerEarnFactorMax
+```
+
+Governance set upper bound for the manager&#x27;s leveraged earn factor
 
 ### managerExcessLeverageComponent
 
@@ -153,7 +181,7 @@ uint256 managerExcessLeverageComponent
 ```
 
 Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
-This value is always equal to (managerLeveragedEarningPercent - ONE_HUNDRED_PERCENT)
+This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
 
 ### UnstakedLoss
 
@@ -173,10 +201,16 @@ event StakedAssetsDepleted()
 modifier onlyManager()
 ```
 
+### onlyGovernance
+
+```solidity
+modifier onlyGovernance()
+```
+
 ### constructor
 
 ```solidity
-constructor(address tokenAddress, address protocol) internal
+constructor(address _token, address _governance, address _protocol) internal
 ```
 
 Create a managed lending pool.
@@ -185,8 +219,71 @@ _msg.sender will be assigned as the manager of the created pool._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| tokenAddress | address | ERC20 token contract address to be used as main pool liquid currency. |
-| protocol | address | Address of a wallet to accumulate protocol earnings. |
+| _token | address | ERC20 token contract address to be used as main pool liquid currency. |
+| _governance | address | Address of the protocol governance. |
+| _protocol | address | Address of a wallet to accumulate protocol earnings. |
+
+### setTargetStakePercent
+
+```solidity
+function setTargetStakePercent(uint16 _targetStakePercent) external
+```
+
+Set the target stake percent for the pool.
+
+__targetStakePercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+     Caller must be the governance._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _targetStakePercent | uint16 | new target stake percent. |
+
+### setProtocolEarningPercent
+
+```solidity
+function setProtocolEarningPercent(uint16 _protocolEarningPercent) external
+```
+
+Set the protocol earning percent for the pool.
+
+__protocolEarningPercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+     Caller must be the governance._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _protocolEarningPercent | uint16 | new protocol earning percent. |
+
+### setManagerEarnFactorMax
+
+```solidity
+function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external
+```
+
+Set an upper bound for the manager&#x27;s earn factor percent.
+
+__managerEarnFactorMax must be greater than or equal to ONE_HUNDRED_PERCENT.
+     Caller must be the governance.
+     If the current earn factor is greater than the new maximum, then the current earn factor is set to the new maximum._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _managerEarnFactorMax | uint16 | new maximum for manager&#x27;s earn factor. |
+
+### setManagerEarnFactor
+
+```solidity
+function setManagerEarnFactor(uint16 _managerEarnFactor) external
+```
+
+Set the manager&#x27;s earn factor percent.
+
+__managerEarnFactorMax must be inclusively between ONE_HUNDRED_PERCENT and managerEarnFactorMax.
+     Caller must be the manager.
+     If the current earn factor is greater than the new maximum, then the current earn factor is set to the new maximum._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _managerEarnFactor | uint16 | new manager&#x27;s earn factor. |
 
 ### protocolEarningsOf
 
