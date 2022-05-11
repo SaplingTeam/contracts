@@ -336,7 +336,7 @@ function setLoanMinDuration(uint256 duration) external
 
 Set maximum loan duration for the future loans.
 
-_Duration must be in seconds and inclusively between SAFE_MIN_DURATION and SAFE_MAX_DURATION.
+_Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxDuration.
      Caller must be the manager._
 
 | Name | Type | Description |
@@ -351,7 +351,7 @@ function setLoanMaxDuration(uint256 duration) external
 
 Set maximum loan duration for the future loans.
 
-_Duration must be in seconds and inclusively between SAFE_MIN_DURATION and SAFE_MAX_DURATION.
+_Duration must be in seconds and inclusively between minDuration and SAFE_MAX_DURATION.
      Caller must be the manager._
 
 | Name | Type | Description |

@@ -246,7 +246,7 @@ function setProtocolEarningPercent(uint16 _protocolEarningPercent) external
 
 Set the protocol earning percent for the pool.
 
-__protocolEarningPercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+__protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_EARNING_PERCENT.
      Caller must be the governance._
 
 | Name | Type | Description |
