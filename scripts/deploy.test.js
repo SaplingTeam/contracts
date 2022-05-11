@@ -8,9 +8,9 @@ async function main() {
     console.log("Deploying contracts with the account:", manager.address);
     console.log("Account balance:", (await manager.getBalance()).toString());
 
-    BankFair = await ethers.getContractFactory("BankFair");
-    bankFairContract = await BankFair.deploy(...arguments);
-    console.log("BankFair address:", bankFairContract.address);
+    SaplingPool = await ethers.getContractFactory("SaplingPool");
+    poolContract = await SaplingPool.deploy(...arguments);
+    console.log("SaplingPool address:", poolContract.address);
   }
   
   main()

@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
- * @title BankFair Managed Lending Pool
+ * @title SaplingPool Managed Lending Pool
  * @notice Provides the basics of a managed lending pool.
  * @dev This contract is abstract. Extend the contract to implement an intended pool functionality.
  */
@@ -103,9 +103,9 @@ abstract contract ManagedLendingPool {
      * @param _protocol Address of a wallet to accumulate protocol earnings.
      */
     constructor(address _token, address _governance, address _protocol) {
-        require(_token != address(0), "BankFair: pool token address is not set");
-        require(_governance != address(0), "BankFair: governance address is not set");
-        require(_protocol != address(0), "BankFair: protocol wallet address is not set");
+        require(_token != address(0), "SaplingPool: pool token address is not set");
+        require(_governance != address(0), "SaplingPool: governance address is not set");
+        require(_protocol != address(0), "SaplingPool: protocol wallet address is not set");
         
         manager = msg.sender;
         governance = _governance;
@@ -198,7 +198,7 @@ abstract contract ManagedLendingPool {
      *      Caller's all accumulated earnings will be withdrawn.
      */
     function withdrawProtocolEarnings() external {
-        require(protocolEarnings[msg.sender] > 0, "BankFair: protocol earnings is zero on this account");
+        require(protocolEarnings[msg.sender] > 0, "SaplingPool: protocol earnings is zero on this account");
         uint256 amount = protocolEarnings[msg.sender];
         protocolEarnings[msg.sender] = 0; 
 
@@ -242,12 +242,12 @@ abstract contract ManagedLendingPool {
      * @return Amount of shares minted and allocated to the caller.
      */
     function enterPool(uint256 amount) internal returns (uint256) {
-        require(amount > 0, "BankFair: pool deposit amount is 0");
+        require(amount > 0, "SaplingPool: pool deposit amount is 0");
 
         // allow the manager to add funds beyond the current pool limit as all funds of the manager in the pool are staked,
         // and staking additional funds will in turn increase pool limit
         require(msg.sender == manager || (poolFundsLimit > poolFunds && amount <= poolFundsLimit.sub(poolFunds)),
-         "BankFair: Deposit amount goes over the current pool limit.");
+         "SaplingPool: Deposit amount goes over the current pool limit.");
 
         uint256 shares = tokensToShares(amount);
 
@@ -271,8 +271,8 @@ abstract contract ManagedLendingPool {
      * @return Amount of shares burned and taken from the caller.
      */
     function exitPool(uint256 amount) internal returns (uint256) {
-        require(amount > 0, "BankFair: pool withdrawal amount is 0");
-        require(poolLiquidity >= amount, "BankFair: pool liquidity is too low");
+        require(amount > 0, "SaplingPool: pool withdrawal amount is 0");
+        require(poolLiquidity >= amount, "SaplingPool: pool liquidity is too low");
 
         uint256 shares = tokensToShares(amount); 
         //TODO handle failed pool case when any amount equates to 0 shares
@@ -298,7 +298,7 @@ abstract contract ManagedLendingPool {
      * @param shares Share amount to burn.
      */
     function burnShares(address wallet, uint256 shares) internal {
-        require(poolShares[wallet] >= shares, "BankFair: Insufficient balance for this operation.");
+        require(poolShares[wallet] >= shares, "SaplingPool: Insufficient balance for this operation.");
         poolShares[wallet] = poolShares[wallet].sub(shares);
         totalPoolShares = totalPoolShares.sub(shares);
     }

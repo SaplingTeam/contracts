@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./ManagedLendingPool.sol";
 
 /**
- * @title BankFair Lender
+ * @title SaplingPool Lender
  * @notice Extends ManagedLendingPool with lending functionality.
  * @dev This contract is abstract. Extend the contract to implement an intended pool functionality.
  */
@@ -63,17 +63,17 @@ abstract contract Lender is ManagedLendingPool {
 
     modifier validLender() {
         address wallet = msg.sender;
-        require(wallet != address(0), "BankFair: Address is not present.");
-        require(wallet != manager && wallet != protocol, "BankFair: Wallet is a manager or protocol.");
-        require(hasOpenApplication[wallet] == false && countOpenLoansOf[wallet] == 0, "BankFair: Wallet is a borrower."); 
+        require(wallet != address(0), "SaplingPool: Address is not present.");
+        require(wallet != manager && wallet != protocol, "SaplingPool: Wallet is a manager or protocol.");
+        require(hasOpenApplication[wallet] == false && countOpenLoansOf[wallet] == 0, "SaplingPool: Wallet is a borrower."); 
         _;
     }
 
     modifier validBorrower() {
         address wallet = msg.sender;
-        require(wallet != address(0), "BankFair: Address is not present.");
-        require(wallet != manager && wallet != protocol, "BankFair: Wallet is a manager or protocol.");
-        require(sharesToTokens(poolShares[wallet]) >= ONE_TOKEN, "BankFair: Wallet is a lender.");
+        require(wallet != address(0), "SaplingPool: Address is not present.");
+        require(wallet != manager && wallet != protocol, "SaplingPool: Wallet is a manager or protocol.");
+        require(sharesToTokens(poolShares[wallet]) >= ONE_TOKEN, "SaplingPool: Wallet is a lender.");
         _;
     }
 
@@ -287,8 +287,8 @@ abstract contract Lender is ManagedLendingPool {
         //TODO implement any other checks for the loan to be approved
         // require(block.timestamp <= loan.requestedTime + 31 days, "This loan application has expired.");//FIXME
 
-        require(poolLiquidity >= loan.amount, "BankFair: Pool liquidity is insufficient to approve this loan.");
-        require(poolCanLend(), "BankFair: Stake amount is too low to approve new loans.");
+        require(poolLiquidity >= loan.amount, "SaplingPool: Pool liquidity is insufficient to approve this loan.");
+        require(poolCanLend(), "SaplingPool: Stake amount is too low to approve new loans.");
 
         countOpenLoansOf[loan.borrower]++;
 
@@ -533,7 +533,7 @@ abstract contract Lender is ManagedLendingPool {
      * @param amount Token amount to deallocate.
      */
     function decreaseLoanFunds(address wallet, uint256 amount) internal {
-        require(loanFunds[wallet] >= amount, "BankFair: requested amount is not available in the funding account");
+        require(loanFunds[wallet] >= amount, "SaplingPool: requested amount is not available in the funding account");
         loanFunds[wallet] = loanFunds[wallet].sub(amount);
         loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(amount);
     }

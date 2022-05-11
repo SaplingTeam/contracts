@@ -1,12 +1,12 @@
 const { expect } = require("chai");
 
-describe("BankFair Pool", function() {
+describe("SaplingPool Pool", function() {
 
     let TestToken;
     let tokenContract;
 
-    let BankFair;
-    let bankFairContract;
+    let SaplingPool;
+    let poolContract;
 
     let manager;
     let protocol;
@@ -17,28 +17,28 @@ describe("BankFair Pool", function() {
         [manager, protocol, governance, lender1, lender2, borrower1, borrower2, ...addrs] = await ethers.getSigners();
 
         TestToken = await ethers.getContractFactory("TestToken");
-        BankFair = await ethers.getContractFactory("BankFair");
+        SaplingPool = await ethers.getContractFactory("SaplingPool");
 
         tokenContract = await TestToken.deploy(lender1.address, lender2.address, borrower1.address, borrower2.address);
-        bankFairContract = await BankFair.deploy(tokenContract.address, governance.address, protocol.address, BigInt(100e18))
+        poolContract = await SaplingPool.deploy(tokenContract.address, governance.address, protocol.address, BigInt(100e18))
     });
 
     describe("Deployment", function () {
 
         it("Set the manager", async function () {
-            expect(await bankFairContract.manager()).to.equal(manager.address);
+            expect(await poolContract.manager()).to.equal(manager.address);
         });
 
         it("Set the protocol governance address", async function () {
-            expect(await bankFairContract.governance()).to.equal(governance.address);
+            expect(await poolContract.governance()).to.equal(governance.address);
         });
 
         it("Set the protocol wallet address", async function () {
-            expect(await bankFairContract.protocol()).to.equal(protocol.address);
+            expect(await poolContract.protocol()).to.equal(protocol.address);
         });
 
         it("Set the token contract", async function () {
-            expect(await bankFairContract.token()).to.equal(tokenContract.address);
+            expect(await poolContract.token()).to.equal(tokenContract.address);
         });
     });
   });

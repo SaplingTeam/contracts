@@ -7,17 +7,17 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./Lender.sol";
 
 /**
- * @title BankFair Pool
+ * @title Sapling Pool
  * @notice Provides deposit, withdrawal, and staking functionality. 
  * @dev Extends Lender. 
  *      Extends ManagedLendingPool by inheritance.
  */
-contract BankFair is Lender {
+contract SaplingPool is Lender {
 
     using SafeMath for uint256;
     
     /**
-     * @notice Creates a BankFair pool.
+     * @notice Creates a Sapling pool.
      * @param _token ERC20 token contract address to be used as main pool liquid currency.
      * @param _governance Address of the protocol governance.
      * @param _protocol Address of a wallet to accumulate protocol earnings.
@@ -87,7 +87,7 @@ contract BankFair is Lender {
      */
     function borrow(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) {
         Loan storage loan = loans[loanId];
-        require(loan.borrower == msg.sender, "BankFair: Withdrawal requester is not the borrower on this loan.");
+        require(loan.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
 
         loan.status = LoanStatus.FUNDS_WITHDRAWN;
         decreaseLoanFunds(msg.sender, loan.amount);
@@ -107,7 +107,7 @@ contract BankFair is Lender {
      * @param amount Token amount to stake.
      */
     function stake(uint256 amount) external onlyManager {
-        require(amount > 0, "BankFair: stake amount is 0");
+        require(amount > 0, "SaplingPool: stake amount is 0");
 
         uint256 shares = enterPool(amount);
         stakedShares = stakedShares.add(shares);
@@ -121,8 +121,8 @@ contract BankFair is Lender {
      * @param amount Token amount to unstake.
      */
     function unstake(uint256 amount) external onlyManager {
-        require(amount > 0, "BankFair: unstake amount is 0");
-        require(amount <= amountUnstakable(), "BankFair: requested amount is not available to be unstaked");
+        require(amount > 0, "SaplingPool: unstake amount is 0");
+        require(amount <= amountUnstakable(), "SaplingPool: requested amount is not available to be unstaked");
 
         uint256 shares = tokensToShares(amount);
         stakedShares = stakedShares.sub(shares);

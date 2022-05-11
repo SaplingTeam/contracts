@@ -8,9 +8,9 @@ async function main() {
     tokenContract = await TestToken.deploy(lender1.address, lender2.address, borrower1.address, borrower2.address);
     console.log("TestToken address:", tokenContract.address);
 
-    BankFair = await ethers.getContractFactory("BankFair");
-    bankFairContract = await BankFair.deploy(tokenContract.address, protocol.address, BigInt(100e18))
-    console.log("BankFair address:", bankFairContract.address);
+    SaplingPool = await ethers.getContractFactory("SaplingPool");
+    saplingPoolContract = await SaplingPool.deploy(tokenContract.address, protocol.address, BigInt(100e18))
+    console.log("SaplingPool address:", saplingPoolContract.address);
   }
   
   main()
