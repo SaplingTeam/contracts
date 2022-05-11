@@ -64,7 +64,7 @@ abstract contract Lender is ManagedLendingPool {
     modifier validLender() {
         address wallet = msg.sender;
         require(wallet != address(0), "BankFair: Address is not present.");
-        require(wallet != manager && wallet != protocolWallet, "BankFair: Wallet is a manager or protocol.");
+        require(wallet != manager && wallet != protocol, "BankFair: Wallet is a manager or protocol.");
         require(hasOpenApplication[wallet] == false && countOpenLoansOf[wallet] == 0, "BankFair: Wallet is a borrower."); 
         _;
     }
@@ -72,7 +72,7 @@ abstract contract Lender is ManagedLendingPool {
     modifier validBorrower() {
         address wallet = msg.sender;
         require(wallet != address(0), "BankFair: Address is not present.");
-        require(wallet != manager && wallet != protocolWallet, "BankFair: Wallet is a manager or protocol.");
+        require(wallet != manager && wallet != protocol, "BankFair: Wallet is a manager or protocol.");
         require(sharesToTokens(poolShares[wallet]) >= ONE_TOKEN, "BankFair: Wallet is a lender.");
         _;
     }
@@ -138,17 +138,18 @@ abstract contract Lender is ManagedLendingPool {
 
     /**
      * @notice Create a Lender that ManagedLendingPool.
-     * @dev minLoanAmount must be greater than or equal to SAFE_MIN_AMOUNT.
-     * @param tokenAddress ERC20 token contract address to be used as main pool liquid currency.
-     * @param protocol Address of a wallet to accumulate protocol earnings.
-     * @param minLoanAmount Minimum amount to be borrowed per loan.
+     * @dev _minAmount must be greater than or equal to SAFE_MIN_AMOUNT.
+     * @param _token ERC20 token contract address to be used as main pool liquid currency.
+     * @param _governance Address of the protocol governance.
+     * @param _protocol Address of a wallet to accumulate protocol earnings.
+     * @param _minAmount Minimum amount to be borrowed per loan.
      */
-    constructor(address tokenAddress, address protocol, uint256 minLoanAmount) ManagedLendingPool(tokenAddress, protocol) {
+    constructor(address _token, address _governance, address _protocol, uint256 _minAmount) ManagedLendingPool(_token, _governance, _protocol) {
         
         nextLoanId = 1;
 
-        require(SAFE_MIN_AMOUNT <= minLoanAmount, "New min loan amount is less than the safe limit");
-        minAmount = minLoanAmount;
+        require(SAFE_MIN_AMOUNT <= _minAmount, "New min loan amount is less than the safe limit");
+        minAmount = _minAmount;
         
         defaultAPR = 300; // 30%
         defaultLateAPRDelta = 50; //5%
@@ -375,7 +376,7 @@ abstract contract Lender is ManagedLendingPool {
         //share profits to protocol
         uint256 protocolEarnedInterest = multiplyByFraction(interestPaid, protocolEarningPercent, ONE_HUNDRED_PERCENT);
         
-        protocolEarnings[protocolWallet] = protocolEarnings[protocolWallet].add(protocolEarnedInterest); 
+        protocolEarnings[protocol] = protocolEarnings[protocol].add(protocolEarnedInterest); 
 
         //share profits to manager 
         //TODO optimize manager earnings calculation

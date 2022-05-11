@@ -18,8 +18,11 @@ abstract contract ManagedLendingPool {
     /// Pool manager address
     address public manager;
 
+    /// protocol governance
+    address public governance;
+
     /// Protocol wallet address
-    address public protocolWallet;
+    address public protocol;
 
     /// Address of an ERC20 token used by the pool
     address public token;
@@ -66,11 +69,17 @@ abstract contract ManagedLendingPool {
     /// Percentage of paid interest to be allocated as protocol earnings
     uint16 public protocolEarningPercent = 100; //10% by default; safe min 0%, max 10%
 
+    /// Percentage of paid interest to be allocated as protocol earnings
+    uint16 public constant MAX_PROTOCOL_EARNING_PERCENT = 100; //10%
+
     /// Manager's leveraged earn factor represented as a percentage
-    uint16 public managerLeveragedEarningPercent = 1500; // 150% or 1.5x leverage by default (safe min 100% or 1x)
+    uint16 public managerEarnFactor = 1500; // 150% or 1.5x leverage by default (safe min 100% or 1x)
+    
+    /// Governance set upper bound for the manager's leveraged earn factor
+    uint16 public managerEarnFactorMax = 1500; //150%
 
     /// Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
-    /// This value is always equal to (managerLeveragedEarningPercent - ONE_HUNDRED_PERCENT)
+    /// This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
     uint256 internal managerExcessLeverageComponent;
 
     event UnstakedLoss(uint256 amount);
@@ -81,20 +90,28 @@ abstract contract ManagedLendingPool {
         _;
     }
 
+    modifier onlyGovernance {
+        require(msg.sender == governance, "Managed: caller is not the governance");
+        _;
+    }
+
     /**
      * @notice Create a managed lending pool.
      * @dev msg.sender will be assigned as the manager of the created pool.
-     * @param tokenAddress ERC20 token contract address to be used as main pool liquid currency.
-     * @param protocol Address of a wallet to accumulate protocol earnings.
+     * @param _token ERC20 token contract address to be used as main pool liquid currency.
+     * @param _governance Address of the protocol governance.
+     * @param _protocol Address of a wallet to accumulate protocol earnings.
      */
-    constructor(address tokenAddress, address protocol) {
-        require(tokenAddress != address(0), "BankFair: pool token address is not set");
-        require(protocol != address(0), "BankFair: protocol wallet address is not set");
+    constructor(address _token, address _governance, address _protocol) {
+        require(_token != address(0), "BankFair: pool token address is not set");
+        require(_governance != address(0), "BankFair: governance address is not set");
+        require(_protocol != address(0), "BankFair: protocol wallet address is not set");
         
         manager = msg.sender;
-        protocolWallet = protocol;
+        governance = _governance;
+        protocol = _protocol;
 
-        token = tokenAddress;
+        token = _token;
         tokenBalance = 0; 
         totalPoolShares = 0;
         stakedShares = 0;
@@ -104,7 +121,7 @@ abstract contract ManagedLendingPool {
 
         targetStakePercent = 100; //10%
 
-        managerExcessLeverageComponent = uint256(managerLeveragedEarningPercent).sub(ONE_HUNDRED_PERCENT);
+        managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
         try IERC20Metadata(token).decimals() returns(uint8 decimals) {
             tokenDecimals = decimals;
         } catch {
@@ -112,6 +129,56 @@ abstract contract ManagedLendingPool {
         }
 
         ONE_TOKEN = 10 ** tokenDecimals;
+    }
+
+    /**
+     * @notice Set the target stake percent for the pool.
+     * @dev _targetStakePercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+     *      Caller must be the governance.
+     * @param _targetStakePercent new target stake percent.
+     */
+    function setTargetStakePercent(uint16 _targetStakePercent) external onlyGovernance {
+        require(0 <= _targetStakePercent && _targetStakePercent <= ONE_HUNDRED_PERCENT, "Target stake percent is out of bounds");
+        targetStakePercent = _targetStakePercent;
+    }
+
+    /**
+     * @notice Set the protocol earning percent for the pool.
+     * @dev _protocolEarningPercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+     *      Caller must be the governance.
+     * @param _protocolEarningPercent new protocol earning percent.
+     */
+    function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyGovernance {
+        require(0 <= _protocolEarningPercent && _protocolEarningPercent <= MAX_PROTOCOL_EARNING_PERCENT, "Protocol earning percent is out of bounds");
+        protocolEarningPercent = _protocolEarningPercent;
+    }
+
+    /**
+     * @notice Set an upper bound for the manager's earn factor percent.
+     * @dev _managerEarnFactorMax must be greater than or equal to ONE_HUNDRED_PERCENT.
+     *      Caller must be the governance.
+     *      If the current earn factor is greater than the new maximum, then the current earn factor is set to the new maximum. 
+     * @param _managerEarnFactorMax new maximum for manager's earn factor.
+     */
+    function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external onlyGovernance {
+        require(ONE_HUNDRED_PERCENT <= _managerEarnFactorMax , "Manager's earn factor is out of bounds.");
+        managerEarnFactorMax = _managerEarnFactorMax;
+
+        if (managerEarnFactor > managerEarnFactorMax) {
+            managerEarnFactor = managerEarnFactorMax;
+        }
+    }
+
+    /**
+     * @notice Set the manager's earn factor percent.
+     * @dev _managerEarnFactorMax must be inclusively between ONE_HUNDRED_PERCENT and managerEarnFactorMax.
+     *      Caller must be the manager.
+     *      If the current earn factor is greater than the new maximum, then the current earn factor is set to the new maximum. 
+     * @param _managerEarnFactor new manager's earn factor.
+     */
+    function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager {
+        require(ONE_HUNDRED_PERCENT <= _managerEarnFactor && _managerEarnFactor <= managerEarnFactorMax, "Manager's earn factor is out of bounds.");
+        managerEarnFactor = _managerEarnFactor;
     }
 
     /**
