@@ -1,6 +1,6 @@
 # Solidity API
 
-## BankFair
+## SaplingPool
 
 Provides deposit, withdrawal, and staking functionality.
 
@@ -13,7 +13,7 @@ _Extends Lender.
 constructor(address _token, address _governance, address _protocol, uint256 _minAmount) public
 ```
 
-Creates a BankFair pool.
+Creates a Sapling pool.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
