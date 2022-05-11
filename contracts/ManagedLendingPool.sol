@@ -144,7 +144,7 @@ abstract contract ManagedLendingPool {
 
     /**
      * @notice Set the protocol earning percent for the pool.
-     * @dev _protocolEarningPercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+     * @dev _protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_EARNING_PERCENT.
      *      Caller must be the governance.
      * @param _protocolEarningPercent new protocol earning percent.
      */
