@@ -4,7 +4,14 @@ require('solidity-docgen');
 require('dotenv').config();
 
 module.exports = {
-  solidity: "0.8.12",
+  solidity: {
+    version: "0.8.12",
+    settings: {
+      optimizer: {
+        enabled: true,
+      },
+    },
+  },
   networks: {
     kovan: {
       url: "https://kovan.poa.network/",
