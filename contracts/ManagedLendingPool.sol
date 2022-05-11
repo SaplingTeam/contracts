@@ -24,8 +24,10 @@ abstract contract ManagedLendingPool {
     /// Address of an ERC20 token used by the pool
     address public token;
 
+    /// tokenDecimals value retrieved from the token contract upon contract construction
     uint8 public tokenDecimals;
 
+    /// A value representing 1.0 token amount, padded with zeros for decimals
     uint256 public ONE_TOKEN;
 
     /// Total tokens currently held by this contract

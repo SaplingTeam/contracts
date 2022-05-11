@@ -160,6 +160,10 @@ abstract contract Lender is ManagedLendingPool {
         loanFundsPendingWithdrawal = 0;
     }
 
+    /**
+     * @notice Count of all loan requests in this pool.
+     * @return Loans count.
+     */
     function loansCount() external view returns(uint256) {
         return nextLoanId - 1;
     }
