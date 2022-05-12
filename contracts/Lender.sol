@@ -47,12 +47,55 @@ abstract contract Lender is ManagedLendingPool {
         uint256 lastPaymentTime;
     }
 
+    /// Individual borrower statistics
+    struct BorrowerStats {
+
+        /// Wallet address of the borrower
+        address borrower; 
+
+        /// All time loan request count
+        uint256 countRequested;
+
+        /// All time loan approval count
+        uint256 countApproved;
+
+        /// All time loan denial count
+        uint256 countDenied;
+
+        /// All time loan cancellation count
+        uint256 countCancelled;
+
+        /// All time loan closure count
+        uint256 countRepaid;
+
+        /// All time loan default count
+        uint256 countDefaulted;
+
+        /// Current approved loan count
+        uint256 countCurrentApproved;
+
+        /// Current outstanding loan count
+        uint256 countOutstanding;
+
+        /// Outstanding loan borrowed amount
+        uint256 amountBorrowed;
+
+        /// Outstanding loan repaid base amount
+        uint256 amountBaseRepaid;
+
+        /// Outstanding loan paid interest amount
+        uint256 amountInterestPaid;
+
+        /// most recent loanId
+        uint256 recentLoanId;
+    }
+
     event LoanRequested(uint256 loanId, address indexed borrower);
-    event LoanApproved(uint256 loanId);
-    event LoanDenied(uint256 loanId);
-    event LoanCancelled(uint256 loanId);
-    event LoanRepaid(uint256 loanId);
-    event LoanDefaulted(uint256 loanId, uint256 amountLost);
+    event LoanApproved(uint256 loanId, address indexed borrower);
+    event LoanDenied(uint256 loanId, address indexed borrower);
+    event LoanCancelled(uint256 loanId, address indexed borrower);
+    event LoanRepaid(uint256 loanId, address indexed borrower);
+    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 amountLost);
 
     modifier loanInStatus(uint256 loanId, LoanStatus status) {
         Loan storage loan = loans[loanId];
@@ -65,7 +108,8 @@ abstract contract Lender is ManagedLendingPool {
         address wallet = msg.sender;
         require(wallet != address(0), "SaplingPool: Address is not present.");
         require(wallet != manager && wallet != protocol, "SaplingPool: Wallet is a manager or protocol.");
-        require(hasOpenApplication[wallet] == false && countOpenLoansOf[wallet] == 0, "SaplingPool: Wallet is a borrower."); 
+        require(hasOpenApplication[wallet] == false && borrowerStats[msg.sender].countApproved == 0 
+            && borrowerStats[msg.sender].countOutstanding == 0, "SaplingPool: Wallet is a borrower."); 
         _;
     }
 
@@ -115,9 +159,6 @@ abstract contract Lender is ManagedLendingPool {
     /// Quick lookup to check an address has pending loan applications
     mapping(address => bool) private hasOpenApplication;
 
-    /// Combined open loan counts by address. Count includes loans in APPROVED and FUNDS_WITHDRAWN states.
-    mapping(address => uint256) public countOpenLoansOf;
-
     /// Total funds borrowed at this time, including both withdrawn and allocated for withdrawal.
     uint256 public borrowedFunds;
 
@@ -133,8 +174,8 @@ abstract contract Lender is ManagedLendingPool {
     /// Loan payment details by loanId. Loan detail is available only after a loan has been approved.
     mapping(uint256 => LoanDetail) public loanDetails;
 
-    /// Recent loanId of an address. Value of 0 means that the address doe not have any loan requests
-    mapping(address => uint256) public recentLoanIdOf;
+    /// Borrower statistics by address 
+    mapping(address => BorrowerStats) public borrowerStats;
 
     /**
      * @notice Create a Lender that ManagedLendingPool.
@@ -267,7 +308,27 @@ abstract contract Lender is ManagedLendingPool {
         });
 
         hasOpenApplication[msg.sender] = true;
-        recentLoanIdOf[msg.sender] = loanId; 
+
+        if (borrowerStats[msg.sender].borrower == address(0)) {
+            borrowerStats[msg.sender] = BorrowerStats({
+                borrower: msg.sender,
+                countRequested: 1, 
+                countApproved: 0, 
+                countDenied: 0, 
+                countCancelled: 0, 
+                countRepaid: 0, 
+                countDefaulted: 0, 
+                countCurrentApproved: 0,
+                countOutstanding: 0, 
+                amountBorrowed: 0, 
+                amountBaseRepaid: 0,
+                amountInterestPaid: 0,
+                recentLoanId: loanId
+            });
+        }
+
+        borrowerStats[msg.sender].recentLoanId = loanId; 
+        borrowerStats[msg.sender].countRequested++;
 
         emit LoanRequested(loanId, msg.sender);
 
@@ -290,7 +351,8 @@ abstract contract Lender is ManagedLendingPool {
         require(poolLiquidity >= loan.amount, "SaplingPool: Pool liquidity is insufficient to approve this loan.");
         require(poolCanLend(), "SaplingPool: Stake amount is too low to approve new loans.");
 
-        countOpenLoansOf[loan.borrower]++;
+        borrowerStats[loan.borrower].countApproved++;
+        borrowerStats[loan.borrower].countCurrentApproved++;
 
         loanDetails[_loanId] = LoanDetail({
             loanId: _loanId,
@@ -308,7 +370,7 @@ abstract contract Lender is ManagedLendingPool {
         poolLiquidity = poolLiquidity.sub(loan.amount);
         borrowedFunds = borrowedFunds.add(loan.amount);
 
-        emit LoanApproved(_loanId);
+        emit LoanApproved(_loanId, loan.borrower);
     }
 
     /**
@@ -320,8 +382,9 @@ abstract contract Lender is ManagedLendingPool {
         Loan storage loan = loans[loanId];
         loan.status = LoanStatus.DENIED;
         hasOpenApplication[loan.borrower] = false;
+        borrowerStats[loan.borrower].countDenied++;
 
-        emit LoanDenied(loanId);
+        emit LoanDenied(loanId, loan.borrower);
     }
 
      /**
@@ -339,9 +402,10 @@ abstract contract Lender is ManagedLendingPool {
         poolLiquidity = poolLiquidity.add(loan.amount);
         borrowedFunds = borrowedFunds.sub(loan.amount);
 
-        countOpenLoansOf[loan.borrower]--;
+        borrowerStats[loan.borrower].countCancelled++;
+        borrowerStats[loan.borrower].countCurrentApproved--;
         
-        emit LoanCancelled(loanId);
+        emit LoanCancelled(loanId, loan.borrower);
     }
 
     /**
@@ -396,7 +460,8 @@ abstract contract Lender is ManagedLendingPool {
 
         if (transferAmount == amountDue) {
             loan.status = LoanStatus.REPAID;
-            countOpenLoansOf[loan.borrower]--;
+            borrowerStats[loan.borrower].countRepaid++;
+            borrowerStats[loan.borrower].countOutstanding--;
         }
 
         return (transferAmount, interestPaid);
@@ -415,11 +480,11 @@ abstract contract Lender is ManagedLendingPool {
         // require(block.timestamp > loanDetail.approvedTime + loan.duration + 31 days, "It is too early to default this loan."); //FIXME
 
         loan.status = LoanStatus.DEFAULTED;
-        countOpenLoansOf[loan.borrower]--;
+        borrowerStats[loan.borrower].countOutstanding--;
 
-        (, uint256 loss) = loan.amount.trySub(loanDetail.totalAmountRepaid); //FIXME is this logic correct
+        (, uint256 loss) = loan.amount.trySub(loanDetail.totalAmountRepaid);
         
-        emit LoanDefaulted(loanId, loss);
+        emit LoanDefaulted(loanId, loan.borrower, loss);
 
         if (loss > 0) {
             poolFunds = poolFunds.sub(loss);
@@ -459,6 +524,10 @@ abstract contract Lender is ManagedLendingPool {
     function loanBalanceDue(uint256 loanId) external view loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) returns(uint256) {
         (uint256 amountDue,) = loanBalanceDueWithInterest(loanId);
         return amountDue;
+    }
+
+    function recentLoanIdOf(address borrower) external view returns (uint256) {
+        return borrowerStats[borrower].recentLoanId;
     }
 
     /**

@@ -89,6 +89,7 @@ contract SaplingPool is Lender {
         Loan storage loan = loans[loanId];
         require(loan.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
 
+        borrowerStats[loan.borrower].countCurrentApproved--;
         loan.status = LoanStatus.FUNDS_WITHDRAWN;
         decreaseLoanFunds(msg.sender, loan.amount);
 
