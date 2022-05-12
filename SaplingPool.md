@@ -173,3 +173,51 @@ _Return value depends on the manager&#x27;s stake balance, and is limited by poo
 | ---- | ---- | ----------- |
 | [0] | uint256 | Max amount of tokens unstakable by the manager. |
 
+### currentLenderAPY
+
+```solidity
+function currentLenderAPY() external view returns (uint16)
+```
+
+Estimated lender APY given the current pool state.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint16 | Estimated lender APY |
+
+### projectedLenderAPY
+
+```solidity
+function projectedLenderAPY(uint16 borrowRate) external view returns (uint16)
+```
+
+Projected lender APY given the current pool state and a specific borrow rate.
+
+_represent borrowRate in contract specific percentage format_
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| borrowRate | uint16 | percentage of pool funds projected to be borrowed annually |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint16 | Projected lender APY |
+
+### lenderAPY
+
+```solidity
+function lenderAPY(uint256 _borrowedFunds) private view returns (uint16)
+```
+
+Lender APY given the current pool state and a specific borrowed funds amount.
+
+_represent borrowRate in contract specific percentage format_
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _borrowedFunds | uint256 | pool funds to be borrowed annually |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint16 | Lender APY |
+
