@@ -150,4 +150,51 @@ contract SaplingPool is Lender {
 
         return Math.min(poolLiquidity, sharesToTokens(stakedShares.sub(lockedStakeShares)));
     }
+
+    /**
+     * @notice Estimated lender APY given the current pool state.
+     * @return Estimated lender APY
+     */
+    function currentLenderAPY() external view returns (uint16) {
+        return lenderAPY(borrowedFunds);
+    }
+
+    /**
+     * @notice Projected lender APY given the current pool state and a specific borrow rate.
+     * @dev represent borrowRate in contract specific percentage format
+     * @param borrowRate percentage of pool funds projected to be borrowed annually
+     * @return Projected lender APY
+     */
+    function projectedLenderAPY(uint16 borrowRate) external view returns (uint16) {
+        require(borrowRate <= ONE_HUNDRED_PERCENT, "SaplingPool: Invalid borrow rate. Borrow rate must be less than or equal to 100%");
+        return lenderAPY(multiplyByFraction(poolFunds, borrowRate, ONE_HUNDRED_PERCENT));
+    }
+
+
+    /**
+     * @notice Lender APY given the current pool state and a specific borrowed funds amount.
+     * @dev represent borrowRate in contract specific percentage format
+     * @param _borrowedFunds pool funds to be borrowed annually
+     * @return Lender APY
+     */
+    function lenderAPY(uint256 _borrowedFunds) private view returns (uint16) {
+        if (poolFunds == 0 || _borrowedFunds == 0) {
+            return 0;
+        }
+
+        uint256 weightedLoanAPR = defaultAPR; //TODO maintain weighted average APR for outstanding loans
+        
+        // pool APY
+        uint256 poolAPY = multiplyByFraction(weightedLoanAPR, _borrowedFunds, poolFunds);
+        
+        // protocol APY
+        uint256 protocolAPY = multiplyByFraction(poolAPY, protocolEarningPercent, ONE_HUNDRED_PERCENT);
+        
+        // manager withdrawableAPY
+        uint256 currentStakePercent = multiplyByFraction(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
+        uint256 managerEarningsPercent = multiplyByFraction(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT);
+        uint256 managerWithdrawableAPY = managerEarningsPercent.sub(multiplyByFraction(managerEarningsPercent, ONE_HUNDRED_PERCENT - protocolEarningPercent, ONE_HUNDRED_PERCENT));
+
+        return uint16(poolAPY.sub(protocolAPY).sub(managerWithdrawableAPY));
+    }
 }

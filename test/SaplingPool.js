@@ -41,4 +41,10 @@ describe("SaplingPool Pool", function() {
             expect(await poolContract.token()).to.equal(tokenContract.address);
         });
     });
+
+    describe("APY", function () {
+        it("Empty pool lenderAPY", async function () {
+            expect(await poolContract.currentLenderAPY()).to.equal(0);
+        });
+    });
   });

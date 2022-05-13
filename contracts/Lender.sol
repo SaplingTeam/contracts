@@ -247,25 +247,23 @@ abstract contract Lender is ManagedLendingPool {
 
     /**
      * @notice Set maximum loan duration for the future loans.
-     * @dev Duration must be in seconds and inclusively between SAFE_MIN_DURATION and SAFE_MAX_DURATION.
+     * @dev Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxDuration.
      *      Caller must be the manager.
      * @param duration Maximum loan duration to be enforced for the new loan requests.
      */
     function setLoanMinDuration(uint256 duration) external onlyManager {
-        require(SAFE_MIN_DURATION <= duration && duration <= SAFE_MAX_DURATION, "New min duration is out of bounds");
-        require(duration <= maxDuration, "New min duration is greater than current max duration");
+        require(SAFE_MIN_DURATION <= duration && duration <= maxDuration, "New min duration is out of bounds");
         minDuration = duration;
     }
 
     /**
      * @notice Set maximum loan duration for the future loans.
-     * @dev Duration must be in seconds and inclusively between SAFE_MIN_DURATION and SAFE_MAX_DURATION.
+     * @dev Duration must be in seconds and inclusively between minDuration and SAFE_MAX_DURATION.
      *      Caller must be the manager.
      * @param duration Maximum loan duration to be enforced for the new loan requests.
      */
     function setLoanMaxDuration(uint256 duration) external onlyManager {
-        require(SAFE_MIN_DURATION <= duration && duration <= SAFE_MAX_DURATION, "New max duration is out of bounds");
-        require(minDuration <= duration, "New max duration is less than current min duration");
+        require(minDuration <= duration && duration <= SAFE_MAX_DURATION, "New max duration is out of bounds");
         maxDuration = duration;
     }
 
