@@ -43,7 +43,7 @@ contract SaplingPool is Lender {
      *      Caller must not be any of: manager, protocol, current borrower.
      * @param amount token amount to withdraw.
      */
-    function withdraw(uint256 amount) external validLender {
+    function withdraw(uint256 amount) external {
         exitPool(amount);
     }
 
@@ -76,7 +76,7 @@ contract SaplingPool is Lender {
      * @return Max amount of tokens withdrawable by msg.sender.
      */
     function amountWithdrawable(address wallet) external view returns (uint256) {
-        return Math.min(poolLiquidity, balanceOf(wallet));
+        return Math.min(poolLiquidity, balanceOf(wallet).sub(sharesToTokens(lockedShares[wallet])));
     }
 
     /**
@@ -111,6 +111,7 @@ contract SaplingPool is Lender {
         require(amount > 0, "SaplingPool: stake amount is 0");
 
         uint256 shares = enterPool(amount);
+        lockedShares[msg.sender] = lockedShares[msg.sender].add(shares);
         stakedShares = stakedShares.add(shares);
         updatePoolLimit();
     }
@@ -127,6 +128,7 @@ contract SaplingPool is Lender {
 
         uint256 shares = tokensToShares(amount);
         stakedShares = stakedShares.sub(shares);
+        lockedShares[msg.sender] = lockedShares[msg.sender].sub(shares);
         updatePoolLimit();
         exitPool(amount);
     }
