@@ -107,7 +107,7 @@ abstract contract Lender is ManagedLendingPool {
     modifier validLender() {
         address wallet = msg.sender;
         require(wallet != address(0), "SaplingPool: Address is not present.");
-        require(wallet != manager && wallet != protocol, "SaplingPool: Wallet is a manager or protocol.");
+        require(wallet != manager && wallet != protocol && wallet != governance, "SaplingPool: Wallet is a manager or protocol.");
         require(hasOpenApplication[wallet] == false && borrowerStats[msg.sender].countApproved == 0 
             && borrowerStats[msg.sender].countOutstanding == 0, "SaplingPool: Wallet is a borrower."); 
         _;
@@ -116,8 +116,8 @@ abstract contract Lender is ManagedLendingPool {
     modifier validBorrower() {
         address wallet = msg.sender;
         require(wallet != address(0), "SaplingPool: Address is not present.");
-        require(wallet != manager && wallet != protocol, "SaplingPool: Wallet is a manager or protocol.");
-        require(sharesToTokens(poolShares[wallet]) >= ONE_TOKEN, "SaplingPool: Wallet is a lender.");
+        require(wallet != manager && wallet != protocol && wallet != governance, "SaplingPool: Wallet is a manager or protocol.");
+        require(sharesToTokens(poolShares[wallet]) <= ONE_TOKEN, "SaplingPool: Wallet is a lender.");
         _;
     }
 
