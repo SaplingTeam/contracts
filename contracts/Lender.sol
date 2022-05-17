@@ -105,19 +105,12 @@ abstract contract Lender is ManagedLendingPool {
     }
 
     modifier validLender() {
-        address wallet = msg.sender;
-        require(wallet != address(0), "SaplingPool: Address is not present.");
-        require(wallet != manager && wallet != protocol && wallet != governance, "SaplingPool: Wallet is a manager or protocol.");
-        require(hasOpenApplication[wallet] == false && borrowerStats[msg.sender].countApproved == 0 
-            && borrowerStats[msg.sender].countOutstanding == 0, "SaplingPool: Wallet is a borrower."); 
+        require(isValidLender(msg.sender), "SaplingPool: Caller is not a valid lender.");
         _;
     }
 
     modifier validBorrower() {
-        address wallet = msg.sender;
-        require(wallet != address(0), "SaplingPool: Address is not present.");
-        require(wallet != manager && wallet != protocol && wallet != governance, "SaplingPool: Wallet is a manager or protocol.");
-        require(sharesToTokens(poolShares[wallet]) <= ONE_TOKEN, "SaplingPool: Wallet is a lender.");
+        require(isValidBorrower(msg.sender), "SaplingPool: Caller is not a valid borrower.");
         _;
     }
 
@@ -603,5 +596,26 @@ abstract contract Lender is ManagedLendingPool {
         require(loanFunds[wallet] >= amount, "SaplingPool: requested amount is not available in the funding account");
         loanFunds[wallet] = loanFunds[wallet].sub(amount);
         loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(amount);
+    }
+
+    /**
+     * @notice Determine if a wallet address qualifies as a lender or not.
+     * @dev deposit() will reject if the wallet cannot be a lender.
+     * @return True if the specified wallet can make deposits as a lender, false otherwise. 
+     */
+    function isValidLender(address wallet) public view returns (bool) {
+        return wallet != address(0) && wallet != manager && wallet != protocol && wallet != governance 
+            && hasOpenApplication[wallet] == false && borrowerStats[msg.sender].countApproved == 0 
+            && borrowerStats[msg.sender].countOutstanding == 0; 
+    }
+
+    /**
+     * @notice Determine if a wallet address qualifies as a borrower or not.
+     * @dev requestLoan() will reject if the wallet cannot be a borrower.
+     * @return True if the specified wallet can make loan requests as a borrower, false otherwise. 
+     */
+    function isValidBorrower(address wallet) public view returns (bool) {
+        return wallet != address(0) && wallet != manager && wallet != protocol && wallet != governance 
+            && sharesToTokens(poolShares[wallet]) <= ONE_TOKEN;
     }
 }
