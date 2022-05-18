@@ -479,7 +479,8 @@ abstract contract Lender is ManagedLendingPool {
      * @notice Default a loan.
      * @dev Loan must be in FUNDS_WITHDRAWN status.
      *      Caller must be the manager.
-     *      Current block timestamp must be after (loanDetail.approvedTime + loan.duration + loan.gracePeriod)
+     *      canDefault(loanId) must return 'true'.
+     * @param loanId ID of the loan to default
      */
     function defaultLoan(uint256 loanId) external onlyManager loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) notPaused {
         Loan storage loan = loans[loanId];
@@ -521,6 +522,18 @@ abstract contract Lender is ManagedLendingPool {
         if (loanDetail.baseAmountRepaid < loan.amount) {
             borrowedFunds = borrowedFunds.sub(loan.amount.sub(loanDetail.baseAmountRepaid));
         }
+    }
+
+    /**
+     * @notice View indicating whether or not a given loan qualifies to be defaulted.
+     * @param loanId loanId ID of the loan to check
+     * @return True if the given loan can be defaulted, false otherwise
+     */
+    function canDefault(uint256 loanId) external view returns (bool) {
+        Loan storage loan = loans[loanId];
+        LoanDetail storage loanDetail = loanDetails[loanId];
+
+        return block.timestamp > (loanDetail.approvedTime + loan.duration + loan.gracePeriod);
     }
 
     /**
