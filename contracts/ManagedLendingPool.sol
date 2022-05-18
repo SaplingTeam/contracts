@@ -5,21 +5,20 @@ pragma solidity ^0.8.12;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "./Governed.sol";
 
 /**
  * @title SaplingPool Managed Lending Pool
  * @notice Provides the basics of a managed lending pool.
  * @dev This contract is abstract. Extend the contract to implement an intended pool functionality.
+ *      Extends Governed.
  */
-abstract contract ManagedLendingPool {
+abstract contract ManagedLendingPool is Governed {
 
     using SafeMath for uint256;
 
     /// Pool manager address
     address public manager;
-
-    /// protocol governance
-    address public governance;
 
     /// Protocol wallet address
     address public protocol;
@@ -44,6 +43,9 @@ abstract contract ManagedLendingPool {
 
     /// Current amount of liquid tokens, available to lend/withdraw/borrow
     uint256 public poolLiquidity;
+
+    /// Total funds borrowed at this time, including both withdrawn and allocated for withdrawal.
+    uint256 public borrowedFunds;
 
     /// Total pool shares present
     uint256 public totalPoolShares;
@@ -85,6 +87,16 @@ abstract contract ManagedLendingPool {
     /// This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
     uint256 internal managerExcessLeverageComponent;
 
+    /// Flag indicating whether or not the pool is closed
+    bool public isClosed;
+
+    /// Flag indicating whether or not lending is paused
+    bool public isLendingPaused;
+
+    event LendingPaused();
+    event LendingResumed();
+    event PoolClosed();
+    event PoolOpened();
     event UnstakedLoss(uint256 amount);
     event StakedAssetsDepleted();
 
@@ -93,8 +105,23 @@ abstract contract ManagedLendingPool {
         _;
     }
 
-    modifier onlyGovernance {
-        require(msg.sender == governance, "Managed: caller is not the governance");
+    modifier whenNotClosed {
+        require(!isClosed, "Pool is closed.");
+        _;
+    }
+
+    modifier whenClosed {
+        require(isClosed, "Pool is closed.");
+        _;
+    }
+
+    modifier whenLendingNotPaused {
+        require(!isLendingPaused, "Lending is paused.");
+        _;
+    }
+
+    modifier whenLendingPaused {
+        require(isLendingPaused, "Lending is not paused.");
         _;
     }
 
@@ -105,13 +132,12 @@ abstract contract ManagedLendingPool {
      * @param _governance Address of the protocol governance.
      * @param _protocol Address of a wallet to accumulate protocol earnings.
      */
-    constructor(address _token, address _governance, address _protocol) {
+    constructor(address _token, address _governance, address _protocol) Governed(_governance) {
         require(_token != address(0), "SaplingPool: pool token address is not set");
         require(_governance != address(0), "SaplingPool: governance address is not set");
         require(_protocol != address(0), "SaplingPool: protocol wallet address is not set");
         
         manager = msg.sender;
-        governance = _governance;
         protocol = _protocol;
 
         token = _token;
@@ -132,6 +158,57 @@ abstract contract ManagedLendingPool {
         }
 
         ONE_TOKEN = 10 ** tokenDecimals;
+    }
+
+    /**
+     * @notice Close the pool and stop borrowing, lender deposits, and staking. 
+     * @dev Caller must be the manager. 
+     *      Pool must be open.
+     *      No loans or approvals must be outstanding (borrowedFunds must equal to 0).
+     *      Emits 'PoolClosed' event.
+     */
+    function close() external onlyManager whenNotClosed {
+        require(borrowedFunds == 0, "Cannot close pool with outstanding loans.");
+        isClosed = true;
+        emit PoolClosed();
+    }
+
+    /**
+     * @notice Open the pool for normal operations. 
+     * @dev Caller must be the manager. 
+     *      Pool must be closed.
+     *      Opening the pool will not unpause any pauses in effect.
+     *      Emits 'PoolOpened' event.
+     */
+    function open() external onlyManager whenClosed {
+        isClosed = false;
+        emit PoolOpened();
+    }
+
+    /**
+     * @notice Pause new loan requests, approvals, and unstaking.
+     * @dev Caller must be the manager.
+     *      Lending must not be paused.
+     *      Lending can be paused regardless of the pool open/close and governance pause states, 
+     *      but some of the states may have a higher priority making pausing irrelevant.
+     *      Emits 'LendingPaused' event.
+     */
+    function pauseLending() external onlyManager whenLendingNotPaused {
+        isLendingPaused = true;
+        emit LendingPaused();
+    }
+
+    /**
+     * @notice Resume new loan requests, approvals, and unstaking.
+     * @dev Caller must be the manager.
+     *      Lending must be paused.
+     *      Lending can be resumed regardless of the pool open/close and governance pause states, 
+     *      but some of the states may have a higher priority making resuming irrelevant.
+     *      Emits 'LendingPaused' event.
+     */
+    function resumeLending() external onlyManager whenLendingPaused {
+        isLendingPaused = false;
+        emit LendingResumed();
     }
 
     /**
@@ -178,7 +255,7 @@ abstract contract ManagedLendingPool {
      *      Caller must be the manager.
      * @param _managerEarnFactor new manager's earn factor.
      */
-    function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager {
+    function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager notPaused {
         require(ONE_HUNDRED_PERCENT <= _managerEarnFactor && _managerEarnFactor <= managerEarnFactorMax, "Manager's earn factor is out of bounds.");
         managerEarnFactor = _managerEarnFactor;
     }
@@ -199,7 +276,7 @@ abstract contract ManagedLendingPool {
      * @dev protocolEarningsOf(msg.sender) must be greater than 0.
      *      Caller's all accumulated earnings will be withdrawn.
      */
-    function withdrawProtocolEarnings() external {
+    function withdrawProtocolEarnings() external notPaused {
         require(protocolEarnings[msg.sender] > 0, "SaplingPool: protocol earnings is zero on this account");
         uint256 amount = protocolEarnings[msg.sender];
         protocolEarnings[msg.sender] = 0; 
@@ -217,7 +294,7 @@ abstract contract ManagedLendingPool {
      * @return True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise.
      */
     function poolCanLend() public view returns (bool) {
-        return stakedShares >= multiplyByFraction(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
+        return !(isLendingPaused || isPaused() || isClosed) && stakedShares >= multiplyByFraction(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
     }
 
     //TODO consider security implications of having the following internal function

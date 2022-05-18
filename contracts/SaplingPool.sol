@@ -33,7 +33,7 @@ contract SaplingPool is Lender {
      *      Caller must not be any of: manager, protocol, current borrower.
      * @param amount Token amount to deposit.
      */
-    function deposit(uint256 amount) external validLender {
+    function deposit(uint256 amount) external validLender whenLendingNotPaused whenNotClosed notPaused {
         enterPool(amount);
     }
 
@@ -43,7 +43,7 @@ contract SaplingPool is Lender {
      *      Caller must not be any of: manager, protocol, current borrower.
      * @param amount token amount to withdraw.
      */
-    function withdraw(uint256 amount) external {
+    function withdraw(uint256 amount) external notPaused {
         exitPool(amount);
     }
 
@@ -62,7 +62,7 @@ contract SaplingPool is Lender {
      * @return Max amount of tokens depositable to the pool.
      */
     function amountDepositable() external view returns (uint256) {
-        if (poolFundsLimit <= poolFunds) {
+        if (poolFundsLimit <= poolFunds || isLendingPaused || isClosed || isPaused()) {
             return 0;
         }
 
@@ -76,7 +76,7 @@ contract SaplingPool is Lender {
      * @return Max amount of tokens withdrawable by msg.sender.
      */
     function amountWithdrawable(address wallet) external view returns (uint256) {
-        return Math.min(poolLiquidity, balanceOf(wallet).sub(sharesToTokens(lockedShares[wallet])));
+        return isPaused() ? 0 : Math.min(poolLiquidity, balanceOf(wallet).sub(sharesToTokens(lockedShares[wallet])));
     }
 
     /**
@@ -85,7 +85,7 @@ contract SaplingPool is Lender {
      *      The loan must be in APPROVED status.
      * @param loanId id of the loan to withdraw funds of. 
      */
-    function borrow(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) {
+    function borrow(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) whenLendingNotPaused whenNotClosed notPaused {
         Loan storage loan = loans[loanId];
         require(loan.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
 
@@ -107,7 +107,7 @@ contract SaplingPool is Lender {
      *      An appropriate spend limit must be present at the token contract.
      * @param amount Token amount to stake.
      */
-    function stake(uint256 amount) external onlyManager {
+    function stake(uint256 amount) external onlyManager whenLendingNotPaused whenNotClosed notPaused {
         require(amount > 0, "SaplingPool: stake amount is 0");
 
         uint256 shares = enterPool(amount);
@@ -122,7 +122,7 @@ contract SaplingPool is Lender {
      *      Unstake amount must be non zero and not exceed amountUnstakable().
      * @param amount Token amount to unstake.
      */
-    function unstake(uint256 amount) external onlyManager {
+    function unstake(uint256 amount) external onlyManager whenLendingNotPaused notPaused {
         require(amount > 0, "SaplingPool: unstake amount is 0");
         require(amount <= amountUnstakable(), "SaplingPool: requested amount is not available to be unstaked");
 
@@ -147,6 +147,10 @@ contract SaplingPool is Lender {
      * @return Max amount of tokens unstakable by the manager.
      */
     function amountUnstakable() public view returns (uint256) {
+        if (isLendingPaused || isPaused()) {
+            return 0;
+        }
+
         uint256 lenderShares = totalPoolShares.sub(stakedShares);
         uint256 lockedStakeShares = multiplyByFraction(lenderShares, targetStakePercent, ONE_HUNDRED_PERCENT - targetStakePercent);
 
