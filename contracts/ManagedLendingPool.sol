@@ -87,6 +87,15 @@ abstract contract ManagedLendingPool is Governed {
     /// This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
     uint256 internal managerExcessLeverageComponent;
 
+    /// Max cooldown period for early exit
+    uint256 public constant EARLY_EXIT_COOLDOWN = 90 days;
+
+    /// Early exit fee percentage
+    uint256 public earlyExitFeePercent = 5; // 0.5%
+
+    /// Early exit deadlines by wallets
+    mapping(address => uint256) public earlyExitDeadlines;
+
     /// Flag indicating whether or not the pool is closed
     bool public isClosed;
 
@@ -334,6 +343,8 @@ abstract contract ManagedLendingPool is Governed {
         poolLiquidity = poolLiquidity.add(amount);
         poolFunds = poolFunds.add(amount);
 
+        earlyExitDeadlines[msg.sender] = block.timestamp + EARLY_EXIT_COOLDOWN; //TODO make weighted
+
         // mint shares
         poolShares[msg.sender] = poolShares[msg.sender].add(shares);
         totalPoolShares = totalPoolShares.add(shares);
@@ -358,11 +369,18 @@ abstract contract ManagedLendingPool is Governed {
 
         burnShares(msg.sender, shares);
 
-        poolFunds = poolFunds.sub(amount);
-        poolLiquidity = poolLiquidity.sub(amount);
+        uint256 transferAmount;
+        if (block.timestamp < earlyExitDeadlines[msg.sender]) {
+            transferAmount = amount.sub(multiplyByFraction(amount, earlyExitFeePercent, ONE_HUNDRED_PERCENT));
+        } else {
+            transferAmount = amount;
+        }
 
-        tokenBalance = tokenBalance.sub(amount);
-        bool success = IERC20(token).transfer(msg.sender, amount);
+        poolFunds = poolFunds.sub(transferAmount);
+        poolLiquidity = poolLiquidity.sub(transferAmount);
+
+        tokenBalance = tokenBalance.sub(transferAmount);
+        bool success = IERC20(token).transfer(msg.sender, transferAmount);
         if(!success) {
             revert();
         }
