@@ -343,7 +343,13 @@ abstract contract ManagedLendingPool is Governed {
         poolLiquidity = poolLiquidity.add(amount);
         poolFunds = poolFunds.add(amount);
 
-        earlyExitDeadlines[msg.sender] = block.timestamp + EARLY_EXIT_COOLDOWN; //TODO make weighted
+        uint256 balance = sharesToTokens(poolShares[msg.sender]);
+        (, uint256 outstandingCooldown) = earlyExitDeadlines[msg.sender].trySub(block.timestamp);
+        earlyExitDeadlines[msg.sender] = block.timestamp.add(
+            balance.mul(outstandingCooldown)
+                .add(amount.mul(EARLY_EXIT_COOLDOWN))
+                .div(balance.add(amount))
+        );
 
         // mint shares
         poolShares[msg.sender] = poolShares[msg.sender].add(shares);
