@@ -31,6 +31,7 @@ abstract contract Lender is ManagedLendingPool {
         address borrower;
         uint256 amount;
         uint256 duration; 
+        uint256 gracePeriod;
         uint16 apr; 
         uint16 lateAPRDelta; 
         uint256 requestedTime;
@@ -146,6 +147,13 @@ abstract contract Lender is ManagedLendingPool {
     /// Maximum loan duration in seconds
     uint256 public maxDuration;
 
+    /// Loan payment grace period after which a loan can be defaulted
+    uint256 public loanGracePeriod = 60 days;
+
+    /// Maximum allowed loan payment grace period
+    uint256 public constant MIN_LOAN_GRACE_PERIOD = 3 days;
+    uint256 public constant MAX_LOAN_GRACE_PERIOD = 365 days;
+
     /// Loan id generator counter
     uint256 private nextLoanId;
 
@@ -258,6 +266,17 @@ abstract contract Lender is ManagedLendingPool {
     }
 
     /**
+     * @notice Set loan payment grace period for the future loans.
+     * @dev Duration must be in seconds and inclusively between MIN_LOAN_GRACE_PERIOD and MAX_LOAN_GRACE_PERIOD.
+     *      Caller must be the manager.
+     * @param gracePeriod Loan payment grace period for new loan requests.
+     */
+    function setLoanGracePeriod(uint256 gracePeriod) external onlyManager notPaused {
+        require(MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD, "Lender: New grace period is out of bounds.");
+        loanGracePeriod = gracePeriod;
+    }
+
+    /**
      * @notice Request a new loan.
      * @dev Requested amount must be greater or equal to minAmount().
      *      Loan duration must be between minDuration() and maxDuration().
@@ -289,6 +308,7 @@ abstract contract Lender is ManagedLendingPool {
             borrower: msg.sender,
             amount: requestedAmount,
             duration: loanDuration,
+            gracePeriod: loanGracePeriod,
             apr: defaultAPR,
             lateAPRDelta: defaultLateAPRDelta,
             requestedTime: block.timestamp,
@@ -459,13 +479,13 @@ abstract contract Lender is ManagedLendingPool {
      * @notice Default a loan.
      * @dev Loan must be in FUNDS_WITHDRAWN status.
      *      Caller must be the manager.
+     *      Current block timestamp must be after (loanDetail.approvedTime + loan.duration + loan.gracePeriod)
      */
     function defaultLoan(uint256 loanId) external onlyManager loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) notPaused {
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
 
-        //TODO implement any other checks for the loan to be defaulted
-        // require(block.timestamp > loanDetail.approvedTime + loan.duration + 31 days, "It is too early to default this loan."); //FIXME
+        require(block.timestamp > (loanDetail.approvedTime + loan.duration + loan.gracePeriod), "Lender: It is too early to default this loan.");
 
         loan.status = LoanStatus.DEFAULTED;
         borrowerStats[loan.borrower].countOutstanding--;
