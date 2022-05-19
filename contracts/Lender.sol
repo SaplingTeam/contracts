@@ -129,6 +129,9 @@ abstract contract Lender is ManagedLendingPool {
     /// Loan late payment APR delta to be applied fot the new loan requests
     uint16 public defaultLateAPRDelta;
 
+    /// Weighted average loan APR on the borrowed funds
+    uint256 internal weightedAvgLoanAPR;
+
     /// Contract math safe minimum loan amount including token decimals
     uint256 public constant SAFE_MIN_AMOUNT = 1000000; // 1 token unit with 6 decimals. i.e. 1 USDC
 
@@ -205,6 +208,8 @@ abstract contract Lender is ManagedLendingPool {
         poolLiquidity = 0;
         borrowedFunds = 0;
         loanFundsPendingWithdrawal = 0;
+
+        weightedAvgLoanAPR = defaultAPR;
     }
 
     /**
@@ -372,9 +377,12 @@ abstract contract Lender is ManagedLendingPool {
 
         increaseLoanFunds(loan.borrower, loan.amount);
         poolLiquidity = poolLiquidity.sub(loan.amount);
+        uint256 prevBorrowedFunds = borrowedFunds;
         borrowedFunds = borrowedFunds.add(loan.amount);
 
         emit LoanApproved(_loanId, loan.borrower);
+
+        weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).add(loan.amount.mul(loan.apr)).div(borrowedFunds);
     }
 
     /**
@@ -409,12 +417,15 @@ abstract contract Lender is ManagedLendingPool {
         loan.status = LoanStatus.CANCELLED;
         decreaseLoanFunds(loan.borrower, loan.amount);
         poolLiquidity = poolLiquidity.add(loan.amount);
+        uint256 prevBorrowedFunds = borrowedFunds;
         borrowedFunds = borrowedFunds.sub(loan.amount);
 
         borrowerStats[loan.borrower].countCancelled++;
         borrowerStats[loan.borrower].countCurrentApproved--;
         
         emit LoanCancelled(loanId, loan.borrower);
+
+        weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(loan.amount.mul(loan.apr)).div(borrowedFunds);
     }
 
     /**
@@ -473,6 +484,8 @@ abstract contract Lender is ManagedLendingPool {
             borrowerStats[loan.borrower].countOutstanding--;
         }
 
+        weightedAvgLoanAPR = borrowedFunds.add(baseAmountPaid).mul(weightedAvgLoanAPR).sub(baseAmountPaid.mul(loan.apr)).div(borrowedFunds);
+
         return (transferAmount, interestPaid);
     }
 
@@ -528,7 +541,10 @@ abstract contract Lender is ManagedLendingPool {
         }
 
         if (loanDetail.baseAmountRepaid < loan.amount) {
-            borrowedFunds = borrowedFunds.sub(loan.amount.sub(loanDetail.baseAmountRepaid));
+            uint256 prevBorrowedFunds = borrowedFunds;
+            uint256 baseAmountLost = loan.amount.sub(loanDetail.baseAmountRepaid);
+            borrowedFunds = borrowedFunds.sub(baseAmountLost);
+            weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(baseAmountLost.mul(loan.apr)).div(borrowedFunds);
         }
     }
 

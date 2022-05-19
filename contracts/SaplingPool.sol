@@ -187,11 +187,9 @@ contract SaplingPool is Lender {
         if (poolFunds == 0 || _borrowedFunds == 0) {
             return 0;
         }
-
-        uint256 weightedLoanAPR = defaultAPR; //TODO maintain weighted average APR for outstanding loans
         
         // pool APY
-        uint256 poolAPY = multiplyByFraction(weightedLoanAPR, _borrowedFunds, poolFunds);
+        uint256 poolAPY = multiplyByFraction(weightedAvgLoanAPR, _borrowedFunds, poolFunds);
         
         // protocol APY
         uint256 protocolAPY = multiplyByFraction(poolAPY, protocolEarningPercent, ONE_HUNDRED_PERCENT);
