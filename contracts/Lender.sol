@@ -215,8 +215,6 @@ abstract contract Lender is ManagedLendingPool {
         return nextLoanId - 1;
     }
 
-    //FIXME only allow protocol to edit critical parameters, not the manager
-
     /**
      * @notice Set annual loan interest rate for the future loans.
      * @dev apr must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
@@ -303,10 +301,6 @@ abstract contract Lender is ManagedLendingPool {
         require(minDuration <= loanDuration, "Loan duration is less than minimum allowed.");
         require(maxDuration >= loanDuration, "Loan duration is more than maximum allowed.");
 
-        //TODO check:
-        // ?? must not have unpaid late loans
-        // ?? must not have defaulted loans
-
         uint256 loanId = nextLoanId;
         nextLoanId++;
 
@@ -359,9 +353,6 @@ abstract contract Lender is ManagedLendingPool {
      */
     function approveLoan(uint256 _loanId) external onlyManager loanInStatus(_loanId, LoanStatus.APPLIED) whenLendingNotPaused whenNotClosed notPaused {
         Loan storage loan = loans[_loanId];
-
-        //TODO implement any other checks for the loan to be approved
-        // require(block.timestamp <= loan.requestedTime + 31 days, "This loan application has expired.");//FIXME
 
         require(poolLiquidity >= loan.amount, "SaplingPool: Pool liquidity is insufficient to approve this loan.");
         require(poolCanLend(), "SaplingPool: Stake amount is too low to approve new loans.");
