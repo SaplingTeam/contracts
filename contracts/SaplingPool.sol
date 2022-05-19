@@ -48,12 +48,47 @@ contract SaplingPool is Lender {
     }
 
     /**
+     * @notice Request a liquidity amount to be kept for withdrawal when available.
+     * @dev amount must be greater an 0 and less than or equal to (unlockedBalanceOf(msg.sender) + requestedLiquidity[msg.sender])
+     *      Caller must be a valid lender.
+     *      Requested liquidity quota will be used on withdrawals.
+     * @param amount liquidity amount requested
+     */
+    function requestLiquidity(uint256 amount) external validLender {
+        require(amount > 0 && amount <= unlockedBalanceOf(msg.sender) + requestedLiquidity[msg.sender], "SaplingPool: Invalid amount.");
+
+        totalRequestedLiquidity = totalRequestedLiquidity.add(amount);
+        requestedLiquidity[msg.sender] = requestedLiquidity[msg.sender].add(amount);
+    }
+
+    /**
+     * @notice Cancel previously requested withdrawal liquidity amount
+     * @dev amount must be greater an 0 and less than or equal to requestedLiquidity[msg.sender]
+     * @param amount liquidity amount requested
+     */
+    function cancelLiquidityRequest(uint256 amount) external {
+        require(amount > 0 && amount <= requestedLiquidity[msg.sender], "SaplingPool: Invalid amount.");
+
+        totalRequestedLiquidity = totalRequestedLiquidity.sub(amount);
+        requestedLiquidity[msg.sender] = requestedLiquidity[msg.sender].sub(amount);
+    }
+
+    /**
      * @notice Check wallet's token balance in the pool. Balance includes acquired earnings. 
      * @param wallet Address of the wallet to check the balance of.
      * @return Token balance of the wallet in this pool.
      */
     function balanceOf(address wallet) public view returns (uint256) {
         return sharesToTokens(poolShares[wallet]);
+    }
+
+    /**
+     * @notice Check wallet's unlocked token balance in the pool. Balance includes acquired earnings. 
+     * @param wallet Address of the wallet to check the unlocked balance of.
+     * @return Unlocked token balance of the wallet in this pool.
+     */
+    function unlockedBalanceOf(address wallet) public view returns (uint256) {
+        return sharesToTokens(poolShares[wallet].sub(lockedShares[wallet]));
     }
 
     /**
@@ -76,7 +111,7 @@ contract SaplingPool is Lender {
      * @return Max amount of tokens withdrawable by msg.sender.
      */
     function amountWithdrawable(address wallet) external view returns (uint256) {
-        return isPaused() ? 0 : Math.min(poolLiquidity, balanceOf(wallet).sub(sharesToTokens(lockedShares[wallet])));
+        return isPaused() ? 0 : Math.min(poolLiquidity, unlockedBalanceOf(wallet));
     }
 
     /**

@@ -357,7 +357,7 @@ abstract contract Lender is ManagedLendingPool {
     function approveLoan(uint256 _loanId) external onlyManager loanInStatus(_loanId, LoanStatus.APPLIED) whenLendingNotPaused whenNotClosed notPaused {
         Loan storage loan = loans[_loanId];
 
-        require(poolLiquidity >= loan.amount + multiplyByFraction(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT), 
+        require(poolLiquidity >= loan.amount + multiplyByFraction(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity, 
             "SaplingPool: Pool liquidity is insufficient to approve this loan.");
         require(poolCanLend(), "SaplingPool: Stake amount is too low to approve new loans.");
 
@@ -547,6 +547,16 @@ abstract contract Lender is ManagedLendingPool {
             borrowedFunds = borrowedFunds.sub(baseAmountLost);
             weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(baseAmountLost.mul(loan.apr)).div(borrowedFunds);
         }
+    }
+
+    /**
+     * @notice View indicating whether or not a given loan can be approved by the manager.
+     * @param loanId loanId ID of the loan to check
+     * @return True if the given loan can be approved, false otherwise
+     */
+    function canApprove(uint256 loanId) external view returns (bool) {
+        return poolCanLend() 
+            && poolLiquidity >= loans[loanId].amount + multiplyByFraction(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity;
     }
 
     /**
