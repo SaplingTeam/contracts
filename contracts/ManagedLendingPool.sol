@@ -56,6 +56,9 @@ abstract contract ManagedLendingPool is Governed {
     /// Target percentage ratio of staked shares to total shares
     uint16 public targetStakePercent;
 
+    /// Target percentage of pool funds to keep liquid. 
+    uint16 public targetLiquidityPercent;
+
     /// Pool shares of wallets
     mapping(address => uint256) internal poolShares;
 
@@ -164,6 +167,7 @@ abstract contract ManagedLendingPool is Governed {
         poolFunds = 0;
 
         targetStakePercent = 100; //10%
+        targetLiquidityPercent = 0; //0%
 
         managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
         try IERC20Metadata(token).decimals() returns(uint8 decimals) {
@@ -235,6 +239,17 @@ abstract contract ManagedLendingPool is Governed {
     function setTargetStakePercent(uint16 _targetStakePercent) external onlyGovernance {
         require(0 <= _targetStakePercent && _targetStakePercent <= ONE_HUNDRED_PERCENT, "Target stake percent is out of bounds");
         targetStakePercent = _targetStakePercent;
+    }
+
+    /**
+     * @notice Set the target liquidity percent for the pool.
+     * @dev _targetLiquidityPercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+     *      Caller must be the manager.
+     * @param _targetLiquidityPercent new target liquidity percent.
+     */
+    function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external onlyManager {
+        require(0 <= _targetLiquidityPercent && _targetLiquidityPercent <= ONE_HUNDRED_PERCENT, "Target liquidity percent is out of bounds");
+        targetLiquidityPercent = _targetLiquidityPercent;
     }
 
     /**
