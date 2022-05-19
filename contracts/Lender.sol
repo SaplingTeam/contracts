@@ -295,9 +295,7 @@ abstract contract Lender is ManagedLendingPool {
     function requestLoan(uint256 requestedAmount, uint256 loanDuration) external validBorrower whenLendingNotPaused whenNotClosed notPaused returns (uint256) {
 
         require(hasOpenApplication[msg.sender] == false, "Another loan application is pending.");
-
-        //FIXME enforce minimum loan amount
-        require(requestedAmount > 0, "Loan amount is zero.");
+        require(requestedAmount >= minAmount, "Loan amount is less than the minimum allowed");
         require(minDuration <= loanDuration, "Loan duration is less than minimum allowed.");
         require(maxDuration >= loanDuration, "Loan duration is more than maximum allowed.");
 
