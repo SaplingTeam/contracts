@@ -114,6 +114,13 @@ abstract contract ManagedLendingPool is Governed {
         _;
     }
 
+    modifier managerOrApprovedOnInactive {
+        require(msg.sender == manager || msg.sender == governance || msg.sender == protocol
+            || earlyExitDeadlines[msg.sender] < block.timestamp && sharesToTokens(poolShares[msg.sender]) >= ONE_TOKEN,
+            "Managed: caller is not the manager or an approved party.");
+        _;
+    }
+
     modifier whenNotClosed {
         require(!isClosed, "Pool is closed.");
         _;

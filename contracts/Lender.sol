@@ -154,6 +154,13 @@ abstract contract Lender is ManagedLendingPool {
     uint256 public constant MIN_LOAN_GRACE_PERIOD = 3 days;
     uint256 public constant MAX_LOAN_GRACE_PERIOD = 365 days;
 
+    /**
+     * @notice Grace period for the manager to be inactive on a given loan /cancel/default decision. 
+     *         After this grace period of managers inaction on a given loan, lenders who stayed longer than EARLY_EXIT_COOLDOWN 
+     *         can also call cancel() and default(). Other requirements for loan cancellation/default still apply.
+     */
+    uint256 public constant MANAGER_INACTIVITY_GRACE_PERIOD = 90 days;
+
     /// Loan id generator counter
     uint256 private nextLoanId;
 
@@ -400,10 +407,15 @@ abstract contract Lender is ManagedLendingPool {
      * @dev Loan must be in APPROVED status.
      *      Caller must be the manager.
      */
-    function cancelLoan(uint256 loanId) external onlyManager loanInStatus(loanId, LoanStatus.APPROVED) {
+    function cancelLoan(uint256 loanId) external managerOrApprovedOnInactive loanInStatus(loanId, LoanStatus.APPROVED) {
         Loan storage loan = loans[loanId];
 
-        // require(block.timestamp > loanDetail.approvedTime + loan.duration + 31 days, "It is too early to cancel this loan."); //FIXME
+        // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
+        if (msg.sender != manager) {
+            // require inactivity grace period
+            require(block.timestamp > loanDetails[loanId].approvedTime + MANAGER_INACTIVITY_GRACE_PERIOD, 
+                "It is too early to cancel this loan as a non-manager.");
+        }
 
         loan.status = LoanStatus.CANCELLED;
         decreaseLoanFunds(loan.borrower, loan.amount);
@@ -482,10 +494,17 @@ abstract contract Lender is ManagedLendingPool {
      *      canDefault(loanId) must return 'true'.
      * @param loanId ID of the loan to default
      */
-    function defaultLoan(uint256 loanId) external onlyManager loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) notPaused {
+    function defaultLoan(uint256 loanId) external managerOrApprovedOnInactive loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) notPaused {
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
 
+        // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
+        if (msg.sender != manager) {
+            // require inactivity grace period
+            require(block.timestamp > loanDetail.approvedTime + loan.duration + loan.gracePeriod + MANAGER_INACTIVITY_GRACE_PERIOD, 
+                "It is too early to default this loan as a non-manager.");
+        }
+        
         require(block.timestamp > (loanDetail.approvedTime + loan.duration + loan.gracePeriod), "Lender: It is too early to default this loan.");
 
         loan.status = LoanStatus.DEFAULTED;
