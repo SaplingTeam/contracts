@@ -171,7 +171,7 @@ abstract contract Lender is ManagedLendingPool {
     uint256 public loanFundsPendingWithdrawal;
 
     /// Borrowed funds allocated for withdrawal by borrower addresses
-    mapping(address => uint256) public loanFunds; //FIXE make internal
+    mapping(address => uint256) internal loanFunds;
 
     /// Loan applications by loanId
     mapping(uint256 => Loan) public loans;
