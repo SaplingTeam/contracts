@@ -115,8 +115,7 @@ abstract contract ManagedLendingPool is Governed {
     }
 
     modifier managerOrApprovedOnInactive {
-        require(msg.sender == manager || msg.sender == governance || msg.sender == protocol
-            || earlyExitDeadlines[msg.sender] < block.timestamp && sharesToTokens(poolShares[msg.sender]) >= ONE_TOKEN,
+        require(msg.sender == manager || authorizedOnInactiveManager(msg.sender),
             "Managed: caller is not the manager or an approved party.");
         _;
     }
@@ -419,6 +418,11 @@ abstract contract ManagedLendingPool is Governed {
      */
     function updatePoolLimit() internal {
         poolFundsLimit = sharesToTokens(multiplyByFraction(stakedShares, ONE_HUNDRED_PERCENT, targetStakePercent));
+    }
+
+    function authorizedOnInactiveManager(address caller) internal view returns (bool) {
+        return caller == governance || caller == protocol
+            || earlyExitDeadlines[caller] < block.timestamp && sharesToTokens(poolShares[caller]) >= ONE_TOKEN;
     }
     
     /**

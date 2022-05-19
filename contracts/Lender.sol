@@ -544,15 +544,35 @@ abstract contract Lender is ManagedLendingPool {
     }
 
     /**
-     * @notice View indicating whether or not a given loan qualifies to be defaulted.
+     * @notice View indicating whether or not a given loan approval qualifies to be cancelled by a given caller.
      * @param loanId loanId ID of the loan to check
+     * @param caller address that intends to call cancel() on the loan
+     * @return True if the given loan approval can be cancelled, false otherwise
+     */
+    function canCancel(uint256 loanId, address caller) external view returns (bool) {
+        if (caller != manager && !authorizedOnInactiveManager(caller)) {
+            return false;
+        }
+
+        return loans[loanId].status == LoanStatus.APPROVED 
+            && block.timestamp > (loanDetails[loanId].approvedTime + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
+    }
+
+    /**
+     * @notice View indicating whether or not a given loan qualifies to be defaulted by a given caller.
+     * @param loanId loanId ID of the loan to check
+     * @param caller address that intends to call default() on the loan
      * @return True if the given loan can be defaulted, false otherwise
      */
-    function canDefault(uint256 loanId) external view returns (bool) {
-        Loan storage loan = loans[loanId];
-        LoanDetail storage loanDetail = loanDetails[loanId];
+    function canDefault(uint256 loanId, address caller) external view returns (bool) {
+        if (caller != manager && !authorizedOnInactiveManager(caller)) {
+            return false;
+        }
 
-        return block.timestamp > (loanDetail.approvedTime + loan.duration + loan.gracePeriod);
+        Loan storage loan = loans[loanId];
+
+        return loan.status == LoanStatus.FUNDS_WITHDRAWN 
+            && block.timestamp > (loanDetails[loanId].approvedTime + loan.duration + loan.gracePeriod + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
     }
 
     /**
