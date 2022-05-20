@@ -426,7 +426,11 @@ abstract contract Lender is ManagedLendingPool {
         
         emit LoanCancelled(loanId, loan.borrower);
 
-        weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(loan.amount.mul(loan.apr)).div(borrowedFunds);
+        if (borrowedFunds > 0) {
+            weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(loan.amount.mul(loan.apr)).div(borrowedFunds);
+        } else {
+            weightedAvgLoanAPR = defaultAPR;
+        }
     }
 
     /**
@@ -485,7 +489,11 @@ abstract contract Lender is ManagedLendingPool {
             borrowerStats[loan.borrower].countOutstanding--;
         }
 
-        weightedAvgLoanAPR = borrowedFunds.add(baseAmountPaid).mul(weightedAvgLoanAPR).sub(baseAmountPaid.mul(loan.apr)).div(borrowedFunds);
+        if (borrowedFunds > 0) {
+            weightedAvgLoanAPR = borrowedFunds.add(baseAmountPaid).mul(weightedAvgLoanAPR).sub(baseAmountPaid.mul(loan.apr)).div(borrowedFunds);
+        } else {
+            weightedAvgLoanAPR = defaultAPR;
+        }
 
         return (transferAmount, interestPaid);
     }
@@ -545,7 +553,12 @@ abstract contract Lender is ManagedLendingPool {
             uint256 prevBorrowedFunds = borrowedFunds;
             uint256 baseAmountLost = loan.amount.sub(loanDetail.baseAmountRepaid);
             borrowedFunds = borrowedFunds.sub(baseAmountLost);
-            weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(baseAmountLost.mul(loan.apr)).div(borrowedFunds);
+
+            if (borrowedFunds > 0) {
+                weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(baseAmountLost.mul(loan.apr)).div(borrowedFunds);
+            } else {
+                weightedAvgLoanAPR = defaultAPR;
+            }
         }
     }
 
