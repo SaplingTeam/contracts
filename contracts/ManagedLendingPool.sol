@@ -5,21 +5,20 @@ pragma solidity ^0.8.12;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "./Governed.sol";
 
 /**
  * @title SaplingPool Managed Lending Pool
  * @notice Provides the basics of a managed lending pool.
  * @dev This contract is abstract. Extend the contract to implement an intended pool functionality.
+ *      Extends Governed.
  */
-abstract contract ManagedLendingPool {
+abstract contract ManagedLendingPool is Governed {
 
     using SafeMath for uint256;
 
     /// Pool manager address
     address public manager;
-
-    /// protocol governance
-    address public governance;
 
     /// Protocol wallet address
     address public protocol;
@@ -45,6 +44,9 @@ abstract contract ManagedLendingPool {
     /// Current amount of liquid tokens, available to lend/withdraw/borrow
     uint256 public poolLiquidity;
 
+    /// Total funds borrowed at this time, including both withdrawn and allocated for withdrawal.
+    uint256 public borrowedFunds;
+
     /// Total pool shares present
     uint256 public totalPoolShares;
 
@@ -54,11 +56,23 @@ abstract contract ManagedLendingPool {
     /// Target percentage ratio of staked shares to total shares
     uint16 public targetStakePercent;
 
+    /// Target percentage of pool funds to keep liquid. 
+    uint16 public targetLiquidityPercent;
+
     /// Pool shares of wallets
     mapping(address => uint256) internal poolShares;
 
+    /// Locked shares of wallets (i.e. staked shares) 
+    mapping(address => uint256) internal lockedShares;
+
     /// Protocol earnings of wallets
     mapping(address => uint256) internal protocolEarnings; 
+
+    /// Total amount of requested withdrawal liquidity
+    uint256 totalRequestedLiquidity = 0;
+
+    /// Withdrawal liquidity requests by address
+    mapping(address => uint256) requestedLiquidity;
     
     /// Number of decimal digits in integer percent values used across the contract
     uint16 public constant PERCENT_DECIMALS = 1;
@@ -82,6 +96,25 @@ abstract contract ManagedLendingPool {
     /// This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
     uint256 internal managerExcessLeverageComponent;
 
+    /// Max cooldown period for early exit
+    uint256 public constant EARLY_EXIT_COOLDOWN = 90 days;
+
+    /// Early exit fee percentage
+    uint256 public earlyExitFeePercent = 5; // 0.5%
+
+    /// Early exit deadlines by wallets
+    mapping(address => uint256) public earlyExitDeadlines;
+
+    /// Flag indicating whether or not the pool is closed
+    bool public isClosed;
+
+    /// Flag indicating whether or not lending is paused
+    bool public isLendingPaused;
+
+    event LendingPaused();
+    event LendingResumed();
+    event PoolClosed();
+    event PoolOpened();
     event UnstakedLoss(uint256 amount);
     event StakedAssetsDepleted();
 
@@ -90,8 +123,29 @@ abstract contract ManagedLendingPool {
         _;
     }
 
-    modifier onlyGovernance {
-        require(msg.sender == governance, "Managed: caller is not the governance");
+    modifier managerOrApprovedOnInactive {
+        require(msg.sender == manager || authorizedOnInactiveManager(msg.sender),
+            "Managed: caller is not the manager or an approved party.");
+        _;
+    }
+
+    modifier whenNotClosed {
+        require(!isClosed, "Pool is closed.");
+        _;
+    }
+
+    modifier whenClosed {
+        require(isClosed, "Pool is closed.");
+        _;
+    }
+
+    modifier whenLendingNotPaused {
+        require(!isLendingPaused, "Lending is paused.");
+        _;
+    }
+
+    modifier whenLendingPaused {
+        require(isLendingPaused, "Lending is not paused.");
         _;
     }
 
@@ -102,13 +156,12 @@ abstract contract ManagedLendingPool {
      * @param _governance Address of the protocol governance.
      * @param _protocol Address of a wallet to accumulate protocol earnings.
      */
-    constructor(address _token, address _governance, address _protocol) {
+    constructor(address _token, address _governance, address _protocol) Governed(_governance) {
         require(_token != address(0), "SaplingPool: pool token address is not set");
         require(_governance != address(0), "SaplingPool: governance address is not set");
         require(_protocol != address(0), "SaplingPool: protocol wallet address is not set");
         
         manager = msg.sender;
-        governance = _governance;
         protocol = _protocol;
 
         token = _token;
@@ -120,6 +173,7 @@ abstract contract ManagedLendingPool {
         poolFunds = 0;
 
         targetStakePercent = 100; //10%
+        targetLiquidityPercent = 0; //0%
 
         managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
         try IERC20Metadata(token).decimals() returns(uint8 decimals) {
@@ -132,6 +186,57 @@ abstract contract ManagedLendingPool {
     }
 
     /**
+     * @notice Close the pool and stop borrowing, lender deposits, and staking. 
+     * @dev Caller must be the manager. 
+     *      Pool must be open.
+     *      No loans or approvals must be outstanding (borrowedFunds must equal to 0).
+     *      Emits 'PoolClosed' event.
+     */
+    function close() external onlyManager whenNotClosed {
+        require(borrowedFunds == 0, "Cannot close pool with outstanding loans.");
+        isClosed = true;
+        emit PoolClosed();
+    }
+
+    /**
+     * @notice Open the pool for normal operations. 
+     * @dev Caller must be the manager. 
+     *      Pool must be closed.
+     *      Opening the pool will not unpause any pauses in effect.
+     *      Emits 'PoolOpened' event.
+     */
+    function open() external onlyManager whenClosed {
+        isClosed = false;
+        emit PoolOpened();
+    }
+
+    /**
+     * @notice Pause new loan requests, approvals, and unstaking.
+     * @dev Caller must be the manager.
+     *      Lending must not be paused.
+     *      Lending can be paused regardless of the pool open/close and governance pause states, 
+     *      but some of the states may have a higher priority making pausing irrelevant.
+     *      Emits 'LendingPaused' event.
+     */
+    function pauseLending() external onlyManager whenLendingNotPaused {
+        isLendingPaused = true;
+        emit LendingPaused();
+    }
+
+    /**
+     * @notice Resume new loan requests, approvals, and unstaking.
+     * @dev Caller must be the manager.
+     *      Lending must be paused.
+     *      Lending can be resumed regardless of the pool open/close and governance pause states, 
+     *      but some of the states may have a higher priority making resuming irrelevant.
+     *      Emits 'LendingPaused' event.
+     */
+    function resumeLending() external onlyManager whenLendingPaused {
+        isLendingPaused = false;
+        emit LendingResumed();
+    }
+
+    /**
      * @notice Set the target stake percent for the pool.
      * @dev _targetStakePercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
      *      Caller must be the governance.
@@ -140,6 +245,17 @@ abstract contract ManagedLendingPool {
     function setTargetStakePercent(uint16 _targetStakePercent) external onlyGovernance {
         require(0 <= _targetStakePercent && _targetStakePercent <= ONE_HUNDRED_PERCENT, "Target stake percent is out of bounds");
         targetStakePercent = _targetStakePercent;
+    }
+
+    /**
+     * @notice Set the target liquidity percent for the pool.
+     * @dev _targetLiquidityPercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+     *      Caller must be the manager.
+     * @param _targetLiquidityPercent new target liquidity percent.
+     */
+    function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external onlyManager {
+        require(0 <= _targetLiquidityPercent && _targetLiquidityPercent <= ONE_HUNDRED_PERCENT, "Target liquidity percent is out of bounds");
+        targetLiquidityPercent = _targetLiquidityPercent;
     }
 
     /**
@@ -175,7 +291,7 @@ abstract contract ManagedLendingPool {
      *      Caller must be the manager.
      * @param _managerEarnFactor new manager's earn factor.
      */
-    function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager {
+    function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager notPaused {
         require(ONE_HUNDRED_PERCENT <= _managerEarnFactor && _managerEarnFactor <= managerEarnFactorMax, "Manager's earn factor is out of bounds.");
         managerEarnFactor = _managerEarnFactor;
     }
@@ -196,7 +312,7 @@ abstract contract ManagedLendingPool {
      * @dev protocolEarningsOf(msg.sender) must be greater than 0.
      *      Caller's all accumulated earnings will be withdrawn.
      */
-    function withdrawProtocolEarnings() external {
+    function withdrawProtocolEarnings() external notPaused {
         require(protocolEarnings[msg.sender] > 0, "SaplingPool: protocol earnings is zero on this account");
         uint256 amount = protocolEarnings[msg.sender];
         protocolEarnings[msg.sender] = 0; 
@@ -214,7 +330,7 @@ abstract contract ManagedLendingPool {
      * @return True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise.
      */
     function poolCanLend() public view returns (bool) {
-        return stakedShares >= multiplyByFraction(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
+        return !(isLendingPaused || isPaused() || isClosed) && stakedShares >= multiplyByFraction(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
     }
 
     //TODO consider security implications of having the following internal function
@@ -254,6 +370,14 @@ abstract contract ManagedLendingPool {
         poolLiquidity = poolLiquidity.add(amount);
         poolFunds = poolFunds.add(amount);
 
+        uint256 balance = sharesToTokens(poolShares[msg.sender]);
+        (, uint256 outstandingCooldown) = earlyExitDeadlines[msg.sender].trySub(block.timestamp);
+        earlyExitDeadlines[msg.sender] = block.timestamp.add(
+            balance.mul(outstandingCooldown)
+                .add(amount.mul(EARLY_EXIT_COOLDOWN))
+                .div(balance.add(amount))
+        );
+
         // mint shares
         poolShares[msg.sender] = poolShares[msg.sender].add(shares);
         totalPoolShares = totalPoolShares.add(shares);
@@ -276,13 +400,35 @@ abstract contract ManagedLendingPool {
         uint256 shares = tokensToShares(amount); 
         //TODO handle failed pool case when any amount equates to 0 shares
 
-        burnShares(msg.sender, shares);
+        require(poolShares[msg.sender] >= lockedShares[msg.sender] && shares <= poolShares[msg.sender] - lockedShares[msg.sender],
+            "SaplingPool: Insufficient balance for this operation.");
 
-        poolFunds = poolFunds.sub(amount);
-        poolLiquidity = poolLiquidity.sub(amount);
+        // burn shares
+        poolShares[msg.sender] = poolShares[msg.sender].sub(shares);
+        totalPoolShares = totalPoolShares.sub(shares);
 
-        tokenBalance = tokenBalance.sub(amount);
-        bool success = IERC20(token).transfer(msg.sender, amount);
+        uint256 transferAmount;
+        if (block.timestamp < earlyExitDeadlines[msg.sender]) {
+            transferAmount = amount.sub(multiplyByFraction(amount, earlyExitFeePercent, ONE_HUNDRED_PERCENT));
+        } else {
+            transferAmount = amount;
+        }
+
+        poolFunds = poolFunds.sub(transferAmount);
+        poolLiquidity = poolLiquidity.sub(transferAmount);
+
+        if (requestedLiquidity[msg.sender] > 0) {
+            if (requestedLiquidity[msg.sender] >= transferAmount) {
+                totalRequestedLiquidity = totalRequestedLiquidity.sub(transferAmount);
+                requestedLiquidity[msg.sender] = requestedLiquidity[msg.sender].sub(transferAmount); 
+            } else {
+                totalRequestedLiquidity = totalRequestedLiquidity.sub(requestedLiquidity[msg.sender]);
+                requestedLiquidity[msg.sender] = 0;
+            }
+        }
+
+        tokenBalance = tokenBalance.sub(transferAmount);
+        bool success = IERC20(token).transfer(msg.sender, transferAmount);
         if(!success) {
             revert();
         }
@@ -290,23 +436,16 @@ abstract contract ManagedLendingPool {
         return shares;
     }
 
-    //TODO consider security implications of having the following internal function
-    /**
-     * @dev Internal method to burn shares of a wallet.
-     * @param wallet Address to burn shares of.
-     * @param shares Share amount to burn.
-     */
-    function burnShares(address wallet, uint256 shares) internal {
-        require(poolShares[wallet] >= shares, "SaplingPool: Insufficient balance for this operation.");
-        poolShares[wallet] = poolShares[wallet].sub(shares);
-        totalPoolShares = totalPoolShares.sub(shares);
-    }
-
     /**
      * @dev Internal method to update pool limit based on staked funds. 
      */
     function updatePoolLimit() internal {
         poolFundsLimit = sharesToTokens(multiplyByFraction(stakedShares, ONE_HUNDRED_PERCENT, targetStakePercent));
+    }
+
+    function authorizedOnInactiveManager(address caller) internal view returns (bool) {
+        return caller == governance || caller == protocol
+            || earlyExitDeadlines[caller] < block.timestamp && sharesToTokens(poolShares[caller]) >= ONE_TOKEN;
     }
     
     /**

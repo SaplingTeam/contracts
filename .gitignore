@@ -5,3 +5,4 @@ secrets.json
 *-input.json
 docs/
 .env
+.VSCode*

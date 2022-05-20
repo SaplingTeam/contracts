@@ -33,7 +33,7 @@ contract SaplingPool is Lender {
      *      Caller must not be any of: manager, protocol, current borrower.
      * @param amount Token amount to deposit.
      */
-    function deposit(uint256 amount) external validLender {
+    function deposit(uint256 amount) external validLender whenLendingNotPaused whenNotClosed notPaused {
         enterPool(amount);
     }
 
@@ -43,8 +43,34 @@ contract SaplingPool is Lender {
      *      Caller must not be any of: manager, protocol, current borrower.
      * @param amount token amount to withdraw.
      */
-    function withdraw(uint256 amount) external validLender {
+    function withdraw(uint256 amount) external notPaused {
         exitPool(amount);
+    }
+
+    /**
+     * @notice Request a liquidity amount to be kept for withdrawal when available.
+     * @dev amount must be greater an 0 and less than or equal to (unlockedBalanceOf(msg.sender) + requestedLiquidity[msg.sender])
+     *      Caller must be a valid lender.
+     *      Requested liquidity quota will be used on withdrawals.
+     * @param amount liquidity amount requested
+     */
+    function requestLiquidity(uint256 amount) external validLender {
+        require(amount > 0 && amount <= unlockedBalanceOf(msg.sender) + requestedLiquidity[msg.sender], "SaplingPool: Invalid amount.");
+
+        totalRequestedLiquidity = totalRequestedLiquidity.add(amount);
+        requestedLiquidity[msg.sender] = requestedLiquidity[msg.sender].add(amount);
+    }
+
+    /**
+     * @notice Cancel previously requested withdrawal liquidity amount
+     * @dev amount must be greater an 0 and less than or equal to requestedLiquidity[msg.sender]
+     * @param amount liquidity amount requested
+     */
+    function cancelLiquidityRequest(uint256 amount) external {
+        require(amount > 0 && amount <= requestedLiquidity[msg.sender], "SaplingPool: Invalid amount.");
+
+        totalRequestedLiquidity = totalRequestedLiquidity.sub(amount);
+        requestedLiquidity[msg.sender] = requestedLiquidity[msg.sender].sub(amount);
     }
 
     /**
@@ -57,12 +83,21 @@ contract SaplingPool is Lender {
     }
 
     /**
+     * @notice Check wallet's unlocked token balance in the pool. Balance includes acquired earnings. 
+     * @param wallet Address of the wallet to check the unlocked balance of.
+     * @return Unlocked token balance of the wallet in this pool.
+     */
+    function unlockedBalanceOf(address wallet) public view returns (uint256) {
+        return sharesToTokens(poolShares[wallet].sub(lockedShares[wallet]));
+    }
+
+    /**
      * @notice Check token amount depositable by lenders at this time.
      * @dev Return value depends on the pool state rather than caller's balance.
      * @return Max amount of tokens depositable to the pool.
      */
     function amountDepositable() external view returns (uint256) {
-        if (poolFundsLimit <= poolFunds) {
+        if (poolFundsLimit <= poolFunds || isLendingPaused || isClosed || isPaused()) {
             return 0;
         }
 
@@ -76,7 +111,7 @@ contract SaplingPool is Lender {
      * @return Max amount of tokens withdrawable by msg.sender.
      */
     function amountWithdrawable(address wallet) external view returns (uint256) {
-        return Math.min(poolLiquidity, balanceOf(wallet));
+        return isPaused() ? 0 : Math.min(poolLiquidity, unlockedBalanceOf(wallet));
     }
 
     /**
@@ -85,11 +120,13 @@ contract SaplingPool is Lender {
      *      The loan must be in APPROVED status.
      * @param loanId id of the loan to withdraw funds of. 
      */
-    function borrow(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) {
+    function borrow(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) whenLendingNotPaused whenNotClosed notPaused {
         Loan storage loan = loans[loanId];
         require(loan.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
 
-        loan.status = LoanStatus.FUNDS_WITHDRAWN;
+        borrowerStats[loan.borrower].countCurrentApproved--;
+        borrowerStats[loan.borrower].countOutstanding++;
+        loan.status = LoanStatus.OUTSTANDING;
         decreaseLoanFunds(msg.sender, loan.amount);
 
         tokenBalance = tokenBalance.sub(loan.amount);
@@ -106,10 +143,11 @@ contract SaplingPool is Lender {
      *      An appropriate spend limit must be present at the token contract.
      * @param amount Token amount to stake.
      */
-    function stake(uint256 amount) external onlyManager {
+    function stake(uint256 amount) external onlyManager whenLendingNotPaused whenNotClosed notPaused {
         require(amount > 0, "SaplingPool: stake amount is 0");
 
         uint256 shares = enterPool(amount);
+        lockedShares[msg.sender] = lockedShares[msg.sender].add(shares);
         stakedShares = stakedShares.add(shares);
         updatePoolLimit();
     }
@@ -120,12 +158,13 @@ contract SaplingPool is Lender {
      *      Unstake amount must be non zero and not exceed amountUnstakable().
      * @param amount Token amount to unstake.
      */
-    function unstake(uint256 amount) external onlyManager {
+    function unstake(uint256 amount) external onlyManager whenLendingNotPaused notPaused {
         require(amount > 0, "SaplingPool: unstake amount is 0");
         require(amount <= amountUnstakable(), "SaplingPool: requested amount is not available to be unstaked");
 
         uint256 shares = tokensToShares(amount);
         stakedShares = stakedShares.sub(shares);
+        lockedShares[msg.sender] = lockedShares[msg.sender].sub(shares);
         updatePoolLimit();
         exitPool(amount);
     }
@@ -144,6 +183,10 @@ contract SaplingPool is Lender {
      * @return Max amount of tokens unstakable by the manager.
      */
     function amountUnstakable() public view returns (uint256) {
+        if (isLendingPaused || isPaused()) {
+            return 0;
+        }
+
         uint256 lenderShares = totalPoolShares.sub(stakedShares);
         uint256 lockedStakeShares = multiplyByFraction(lenderShares, targetStakePercent, ONE_HUNDRED_PERCENT - targetStakePercent);
 
@@ -180,11 +223,9 @@ contract SaplingPool is Lender {
         if (poolFunds == 0 || _borrowedFunds == 0) {
             return 0;
         }
-
-        uint256 weightedLoanAPR = defaultAPR; //TODO maintain weighted average APR for outstanding loans
         
         // pool APY
-        uint256 poolAPY = multiplyByFraction(weightedLoanAPR, _borrowedFunds, poolFunds);
+        uint256 poolAPY = multiplyByFraction(weightedAvgLoanAPR, _borrowedFunds, poolFunds);
         
         // protocol APY
         uint256 protocolAPY = multiplyByFraction(poolAPY, protocolEarningPercent, ONE_HUNDRED_PERCENT);
