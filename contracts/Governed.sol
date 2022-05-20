@@ -101,7 +101,7 @@ abstract contract Governed {
      */
     function resume() external onlyGovernance paused {
         if (block.timestamp > lastPausedTime) {
-            pauseCooldownTime = block.timestamp + PAUSE_MAX_COOLDOWN / (PAUSE_TIMEOUT / (block.timestamp - lastPausedTime));
+            pauseCooldownTime = block.timestamp + PAUSE_MAX_COOLDOWN * 1000 / (PAUSE_TIMEOUT * 1000 / (block.timestamp - lastPausedTime));
         } else {
             pauseCooldownTime = 1;
         }
