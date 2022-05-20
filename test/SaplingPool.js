@@ -1,7 +1,7 @@
 const { expect } = require("chai");
 const { BigNumber } = require("ethers");
 
-describe("SaplingPool Pool", function() {
+describe("SaplingPool", function() {
 
     let TestToken;
     let tokenContract;
@@ -173,6 +173,108 @@ describe("SaplingPool Pool", function() {
             expect(await poolContract.poolLiquidity()).to.equal(0);
             expect(await poolContract.borrowedFunds()).to.equal(0);
             expect(await poolContract.loanFundsPendingWithdrawal()).to.equal(0);
+        });
+    });
+
+    describe("Staking", function () {
+        let stakeAmount;
+
+        before(async function () {
+            stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
+        });
+
+        it("Stake", async function () {
+            let balanceBefore = await tokenContract.balanceOf(manager.address);
+            
+            await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
+            await poolContract.connect(manager).stake(stakeAmount);
+            expect(await poolContract.balanceStaked()).to.equal(stakeAmount);
+
+            expect(await tokenContract.balanceOf(manager.address)).to.equal(balanceBefore.sub(stakeAmount));
+        });
+    });
+
+    describe("Unstaking", function () {
+        let stakeAmount;
+        let unstakeAmount;
+
+        beforeEach(async function () {
+            stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
+            unstakeAmount = BigNumber.from(500).mul(TOKEN_MULTIPLIER);
+
+            await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
+            await poolContract.connect(manager).stake(stakeAmount);
+        });
+
+        it("Unstake", async function () {
+            let balanceBefore = await tokenContract.balanceOf(manager.address);
+
+            let EARLY_EXIT_COOLDOWN = await poolContract.EARLY_EXIT_COOLDOWN();
+
+            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+            await ethers.provider.send('evm_mine');
+
+            let stakedBalance = await poolContract.balanceStaked();
+            await poolContract.connect(manager).unstake(unstakeAmount);
+            expect(await poolContract.balanceStaked()).to.equal(stakedBalance.sub(unstakeAmount));
+
+            expect(await tokenContract.balanceOf(manager.address)).to.equal(balanceBefore.add(unstakeAmount));
+        });
+    });
+
+    describe("Deposits", function () {
+        let stakeAmount;
+        let depositAmount;
+
+        beforeEach(async function () {
+
+            stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
+            depositAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
+
+            await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
+            await poolContract.connect(manager).stake(stakeAmount);
+        });
+
+        it("Deposit", async function () {
+            let balanceBefore = await tokenContract.balanceOf(lender1.address);
+
+            await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
+            await poolContract.connect(lender1).deposit(depositAmount);
+            expect(await poolContract.balanceOf(lender1.address)).to.equal(depositAmount);
+
+            expect(await tokenContract.balanceOf(lender1.address)).to.equal(balanceBefore.sub(depositAmount));
+        });
+    });
+
+    describe("Withdrawals", function () {        
+        let stakeAmount;
+        let depositAmount;
+        let withdrawAmount;
+
+        beforeEach(async function () {
+            stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
+            depositAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
+            withdrawAmount = BigNumber.from(3000).mul(TOKEN_MULTIPLIER);
+
+            await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
+            await poolContract.connect(manager).stake(stakeAmount);
+
+            await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
+            await poolContract.connect(lender1).deposit(depositAmount);
+        });
+
+        it("Withdraw", async function () {
+            let tokenBalanceBefore = await tokenContract.balanceOf(lender1.address);
+            let poolBalanceBefore = await poolContract.balanceOf(lender1.address);
+            let EARLY_EXIT_COOLDOWN = await poolContract.EARLY_EXIT_COOLDOWN();
+
+            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+            await ethers.provider.send('evm_mine');
+
+            await poolContract.connect(lender1).withdraw(withdrawAmount);
+            expect(await poolContract.balanceOf(lender1.address)).to.equal(poolBalanceBefore.sub(withdrawAmount));
+
+            expect(await tokenContract.balanceOf(lender1.address)).to.equal(tokenBalanceBefore.add(withdrawAmount));
         });
     });
   });
