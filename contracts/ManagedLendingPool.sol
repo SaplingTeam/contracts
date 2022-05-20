@@ -438,7 +438,7 @@ abstract contract ManagedLendingPool is Governed {
      * @param shares Share amount to burn.
      */
     function burnShares(address wallet, uint256 shares) internal {
-        require(poolShares[msg.sender] >= lockedShares[msg.sender] && shares >= poolShares[msg.sender] - lockedShares[msg.sender],
+        require(poolShares[msg.sender] >= lockedShares[msg.sender] && shares <= poolShares[msg.sender] - lockedShares[msg.sender],
             "SaplingPool: Insufficient balance for this operation.");
         poolShares[wallet] = poolShares[wallet].sub(shares);
         totalPoolShares = totalPoolShares.sub(shares);
