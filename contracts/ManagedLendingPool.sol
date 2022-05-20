@@ -400,7 +400,12 @@ abstract contract ManagedLendingPool is Governed {
         uint256 shares = tokensToShares(amount); 
         //TODO handle failed pool case when any amount equates to 0 shares
 
-        burnShares(msg.sender, shares);
+        require(poolShares[msg.sender] >= lockedShares[msg.sender] && shares <= poolShares[msg.sender] - lockedShares[msg.sender],
+            "SaplingPool: Insufficient balance for this operation.");
+
+        // burn shares
+        poolShares[msg.sender] = poolShares[msg.sender].sub(shares);
+        totalPoolShares = totalPoolShares.sub(shares);
 
         uint256 transferAmount;
         if (block.timestamp < earlyExitDeadlines[msg.sender]) {
@@ -429,19 +434,6 @@ abstract contract ManagedLendingPool is Governed {
         }
 
         return shares;
-    }
-
-    //TODO consider security implications of having the following internal function
-    /**
-     * @dev Internal method to burn shares of a wallet.
-     * @param wallet Address to burn shares of.
-     * @param shares Share amount to burn.
-     */
-    function burnShares(address wallet, uint256 shares) internal {
-        require(poolShares[msg.sender] >= lockedShares[msg.sender] && shares <= poolShares[msg.sender] - lockedShares[msg.sender],
-            "SaplingPool: Insufficient balance for this operation.");
-        poolShares[wallet] = poolShares[wallet].sub(shares);
-        totalPoolShares = totalPoolShares.sub(shares);
     }
 
     /**

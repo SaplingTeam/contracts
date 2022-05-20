@@ -537,7 +537,10 @@ abstract contract Lender is ManagedLendingPool {
                 stakedShares = stakedShares.sub(stakedShareLoss);
                 updatePoolLimit();
 
-                burnShares(manager, stakedShareLoss);
+                //burn manager's shares
+                poolShares[manager] = poolShares[manager].sub(stakedShareLoss);
+                lockedShares[manager] = lockedShares[manager].sub(stakedShareLoss);
+                totalPoolShares = totalPoolShares.sub(stakedShareLoss);
 
                 if (stakedShares == 0) {
                     emit StakedAssetsDepleted();
