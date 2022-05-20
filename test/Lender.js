@@ -25,7 +25,7 @@ describe("Lender (SaplingPool)", function() {
         "DENIED": 1,
         "APPROVED": 2,
         "CANCELLED": 3,
-        "FUNDS_WITHDRAWN": 4,
+        "OUTSTANDING": 4,
         "REPAID": 5,
         "DEFAULTED": 6,
       };
@@ -124,7 +124,7 @@ describe("Lender (SaplingPool)", function() {
             await poolContract.connect(borrower1).borrow(loanId);
 
             let loan = await poolContract.loans(loanId);
-            expect(loan.status).to.equal(LoanStatus.FUNDS_WITHDRAWN);
+            expect(loan.status).to.equal(LoanStatus.OUTSTANDING);
 
             expect(await tokenContract.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
         });
@@ -166,7 +166,7 @@ describe("Lender (SaplingPool)", function() {
             let loanDetail = await poolContract.loanDetails(loanId);
             expect(loanDetail.totalAmountRepaid).to.equal(paymentAmount);
             expect(loanDetail.lastPaymentTime).to.equal(blockTimestamp);
-            expect(loan.status).to.equal(LoanStatus.FUNDS_WITHDRAWN);
+            expect(loan.status).to.equal(LoanStatus.OUTSTANDING);
 
             expect(await tokenContract.balanceOf(borrower1.address)).to.equal(balanceBefore.sub(paymentAmount));
         });

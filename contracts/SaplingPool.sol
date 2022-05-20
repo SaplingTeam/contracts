@@ -126,7 +126,7 @@ contract SaplingPool is Lender {
 
         borrowerStats[loan.borrower].countCurrentApproved--;
         borrowerStats[loan.borrower].countOutstanding++;
-        loan.status = LoanStatus.FUNDS_WITHDRAWN;
+        loan.status = LoanStatus.OUTSTANDING;
         decreaseLoanFunds(msg.sender, loan.amount);
 
         tokenBalance = tokenBalance.sub(loan.amount);

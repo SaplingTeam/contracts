@@ -20,7 +20,7 @@ abstract contract Lender is ManagedLendingPool {
         DENIED,
         APPROVED,
         CANCELLED,
-        FUNDS_WITHDRAWN,
+        OUTSTANDING,
         REPAID,
         DEFAULTED
     }
@@ -436,14 +436,14 @@ abstract contract Lender is ManagedLendingPool {
     /**
      * @notice Make a payment towards a loan.
      * @dev Caller must be the borrower.
-     *      Loan must be in FUNDS_WITHDRAWN status.
+     *      Loan must be in OUTSTANDING status.
      *      Only the necessary sum is charged if amount exceeds amount due.
      *      Amount charged will not exceed the amount parameter. 
      * @param loanId ID of the loan to make a payment towards.
      * @param amount Payment amount in tokens.
      * @return A pair of total amount changed including interest, and the interest charged.
      */
-    function repay(uint256 loanId, uint256 amount) external loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) returns (uint256, uint256) {
+    function repay(uint256 loanId, uint256 amount) external loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
         Loan storage loan = loans[loanId];
 
         // require the payer and the borrower to be the same to avoid mispayment
@@ -500,12 +500,12 @@ abstract contract Lender is ManagedLendingPool {
 
     /**
      * @notice Default a loan.
-     * @dev Loan must be in FUNDS_WITHDRAWN status.
+     * @dev Loan must be in OUTSTANDING status.
      *      Caller must be the manager.
      *      canDefault(loanId) must return 'true'.
      * @param loanId ID of the loan to default
      */
-    function defaultLoan(uint256 loanId) external managerOrApprovedOnInactive loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) notPaused {
+    function defaultLoan(uint256 loanId) external managerOrApprovedOnInactive loanInStatus(loanId, LoanStatus.OUTSTANDING) notPaused {
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
 
@@ -603,17 +603,17 @@ abstract contract Lender is ManagedLendingPool {
 
         Loan storage loan = loans[loanId];
 
-        return loan.status == LoanStatus.FUNDS_WITHDRAWN 
+        return loan.status == LoanStatus.OUTSTANDING 
             && block.timestamp > (loanDetails[loanId].approvedTime + loan.duration + loan.gracePeriod + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
     }
 
     /**
      * @notice Loan balance due including interest if paid in full at this time. 
-     * @dev Loan must be in FUNDS_WITHDRAWN status.
+     * @dev Loan must be in OUTSTANDING status.
      * @param loanId ID of the loan to check the balance of.
      * @return Total amount due with interest on this loan.
      */
-    function loanBalanceDue(uint256 loanId) external view loanInStatus(loanId, LoanStatus.FUNDS_WITHDRAWN) returns(uint256) {
+    function loanBalanceDue(uint256 loanId) external view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns(uint256) {
         (uint256 amountDue,) = loanBalanceDueWithInterest(loanId);
         return amountDue;
     }
