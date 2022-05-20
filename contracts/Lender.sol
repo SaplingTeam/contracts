@@ -526,11 +526,11 @@ abstract contract Lender is ManagedLendingPool {
         emit LoanDefaulted(loanId, loan.borrower, loss);
 
         if (loss > 0) {
-            poolFunds = poolFunds.sub(loss);
-
             uint256 lostShares = tokensToShares(loss);
             uint256 remainingLostShares = lostShares;
 
+            poolFunds = poolFunds.sub(loss);
+            
             if (stakedShares > 0) {
                 uint256 stakedShareLoss = Math.min(lostShares, stakedShares);
                 remainingLostShares = lostShares.sub(stakedShareLoss);
