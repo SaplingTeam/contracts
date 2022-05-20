@@ -14,7 +14,7 @@ enum LoanStatus {
   DENIED,
   APPROVED,
   CANCELLED,
-  FUNDS_WITHDRAWN,
+  OUTSTANDING,
   REPAID,
   DEFAULTED
 }
@@ -28,6 +28,7 @@ struct Loan {
   address borrower;
   uint256 amount;
   uint256 duration;
+  uint256 gracePeriod;
   uint16 apr;
   uint16 lateAPRDelta;
   uint256 requestedTime;
@@ -48,6 +49,26 @@ struct LoanDetail {
 }
 ```
 
+### BorrowerStats
+
+```solidity
+struct BorrowerStats {
+  address borrower;
+  uint256 countRequested;
+  uint256 countApproved;
+  uint256 countDenied;
+  uint256 countCancelled;
+  uint256 countRepaid;
+  uint256 countDefaulted;
+  uint256 countCurrentApproved;
+  uint256 countOutstanding;
+  uint256 amountBorrowed;
+  uint256 amountBaseRepaid;
+  uint256 amountInterestPaid;
+  uint256 recentLoanId;
+}
+```
+
 ### LoanRequested
 
 ```solidity
@@ -57,31 +78,31 @@ event LoanRequested(uint256 loanId, address borrower)
 ### LoanApproved
 
 ```solidity
-event LoanApproved(uint256 loanId)
+event LoanApproved(uint256 loanId, address borrower)
 ```
 
 ### LoanDenied
 
 ```solidity
-event LoanDenied(uint256 loanId)
+event LoanDenied(uint256 loanId, address borrower)
 ```
 
 ### LoanCancelled
 
 ```solidity
-event LoanCancelled(uint256 loanId)
+event LoanCancelled(uint256 loanId, address borrower)
 ```
 
 ### LoanRepaid
 
 ```solidity
-event LoanRepaid(uint256 loanId)
+event LoanRepaid(uint256 loanId, address borrower)
 ```
 
 ### LoanDefaulted
 
 ```solidity
-event LoanDefaulted(uint256 loanId, uint256 amountLost)
+event LoanDefaulted(uint256 loanId, address borrower, uint256 amountLost)
 ```
 
 ### loanInStatus
@@ -134,6 +155,14 @@ uint16 defaultLateAPRDelta
 
 Loan late payment APR delta to be applied fot the new loan requests
 
+### weightedAvgLoanAPR
+
+```solidity
+uint256 weightedAvgLoanAPR
+```
+
+Weighted average loan APR on the borrowed funds
+
 ### SAFE_MIN_AMOUNT
 
 ```solidity
@@ -182,6 +211,38 @@ uint256 maxDuration
 
 Maximum loan duration in seconds
 
+### loanGracePeriod
+
+```solidity
+uint256 loanGracePeriod
+```
+
+Loan payment grace period after which a loan can be defaulted
+
+### MIN_LOAN_GRACE_PERIOD
+
+```solidity
+uint256 MIN_LOAN_GRACE_PERIOD
+```
+
+Maximum allowed loan payment grace period
+
+### MAX_LOAN_GRACE_PERIOD
+
+```solidity
+uint256 MAX_LOAN_GRACE_PERIOD
+```
+
+### MANAGER_INACTIVITY_GRACE_PERIOD
+
+```solidity
+uint256 MANAGER_INACTIVITY_GRACE_PERIOD
+```
+
+Grace period for the manager to be inactive on a given loan /cancel/default decision. 
+        After this grace period of managers inaction on a given loan, lenders who stayed longer than EARLY_EXIT_COOLDOWN 
+        can also call cancel() and default(). Other requirements for loan cancellation/default still apply.
+
 ### nextLoanId
 
 ```solidity
@@ -197,22 +258,6 @@ mapping(address &#x3D;&gt; bool) hasOpenApplication
 ```
 
 Quick lookup to check an address has pending loan applications
-
-### countOpenLoansOf
-
-```solidity
-mapping(address &#x3D;&gt; uint256) countOpenLoansOf
-```
-
-Combined open loan counts by address. Count includes loans in APPROVED and FUNDS_WITHDRAWN states.
-
-### borrowedFunds
-
-```solidity
-uint256 borrowedFunds
-```
-
-Total funds borrowed at this time, including both withdrawn and allocated for withdrawal.
 
 ### loanFundsPendingWithdrawal
 
@@ -246,13 +291,13 @@ mapping(uint256 &#x3D;&gt; struct Lender.LoanDetail) loanDetails
 
 Loan payment details by loanId. Loan detail is available only after a loan has been approved.
 
-### recentLoanIdOf
+### borrowerStats
 
 ```solidity
-mapping(address &#x3D;&gt; uint256) recentLoanIdOf
+mapping(address &#x3D;&gt; struct Lender.BorrowerStats) borrowerStats
 ```
 
-Recent loanId of an address. Value of 0 means that the address doe not have any loan requests
+Borrower statistics by address
 
 ### constructor
 
@@ -358,6 +403,21 @@ _Duration must be in seconds and inclusively between minDuration and SAFE_MAX_DU
 | ---- | ---- | ----------- |
 | duration | uint256 | Maximum loan duration to be enforced for the new loan requests. |
 
+### setLoanGracePeriod
+
+```solidity
+function setLoanGracePeriod(uint256 gracePeriod) external
+```
+
+Set loan payment grace period for the future loans.
+
+_Duration must be in seconds and inclusively between MIN_LOAN_GRACE_PERIOD and MAX_LOAN_GRACE_PERIOD.
+     Caller must be the manager._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| gracePeriod | uint256 | Loan payment grace period for new loan requests. |
+
 ### requestLoan
 
 ```solidity
@@ -425,7 +485,7 @@ function repay(uint256 loanId, uint256 amount) external returns (uint256, uint25
 Make a payment towards a loan.
 
 _Caller must be the borrower.
-     Loan must be in FUNDS_WITHDRAWN status.
+     Loan must be in OUTSTANDING status.
      Only the necessary sum is charged if amount exceeds amount due.
      Amount charged will not exceed the amount parameter._
 
@@ -447,8 +507,63 @@ function defaultLoan(uint256 loanId) external
 
 Default a loan.
 
-_Loan must be in FUNDS_WITHDRAWN status.
-     Caller must be the manager._
+_Loan must be in OUTSTANDING status.
+     Caller must be the manager.
+     canDefault(loanId) must return &#x27;true&#x27;._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan to default |
+
+### canApprove
+
+```solidity
+function canApprove(uint256 loanId) external view returns (bool)
+```
+
+View indicating whether or not a given loan can be approved by the manager.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | loanId ID of the loan to check |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the given loan can be approved, false otherwise |
+
+### canCancel
+
+```solidity
+function canCancel(uint256 loanId, address caller) external view returns (bool)
+```
+
+View indicating whether or not a given loan approval qualifies to be cancelled by a given caller.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | loanId ID of the loan to check |
+| caller | address | address that intends to call cancel() on the loan |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the given loan approval can be cancelled, false otherwise |
+
+### canDefault
+
+```solidity
+function canDefault(uint256 loanId, address caller) external view returns (bool)
+```
+
+View indicating whether or not a given loan qualifies to be defaulted by a given caller.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | loanId ID of the loan to check |
+| caller | address | address that intends to call default() on the loan |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the given loan can be defaulted, false otherwise |
 
 ### loanBalanceDue
 
@@ -458,7 +573,7 @@ function loanBalanceDue(uint256 loanId) external view returns (uint256)
 
 Loan balance due including interest if paid in full at this time.
 
-_Loan must be in FUNDS_WITHDRAWN status._
+_Loan must be in OUTSTANDING status._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -467,6 +582,12 @@ _Loan must be in FUNDS_WITHDRAWN status._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | uint256 | Total amount due with interest on this loan. |
+
+### recentLoanIdOf
+
+```solidity
+function recentLoanIdOf(address borrower) external view returns (uint256)
+```
 
 ### loanBalanceDueWithInterest
 
@@ -531,4 +652,32 @@ _Internal method to deallocate funds to borrow upon borrow()_
 | ---- | ---- | ----------- |
 | wallet | address | Address to deallocate the funds of. |
 | amount | uint256 | Token amount to deallocate. |
+
+### isValidLender
+
+```solidity
+function isValidLender(address wallet) public view returns (bool)
+```
+
+Determine if a wallet address qualifies as a lender or not.
+
+_deposit() will reject if the wallet cannot be a lender._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the specified wallet can make deposits as a lender, false otherwise. |
+
+### isValidBorrower
+
+```solidity
+function isValidBorrower(address wallet) public view returns (bool)
+```
+
+Determine if a wallet address qualifies as a borrower or not.
+
+_requestLoan() will reject if the wallet cannot be a borrower._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the specified wallet can make loan requests as a borrower, false otherwise. |
 

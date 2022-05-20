@@ -1,5 +1,7 @@
-[Lender](Lender)
+[Governed](Governed)
+
+[SaplingPool](SaplingPool)
 
 [ManagedLendingPool](ManagedLendingPool)
 
-[SaplingPool](SaplingPool)
+[Lender](Lender)

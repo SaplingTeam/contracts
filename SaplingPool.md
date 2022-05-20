@@ -53,6 +53,36 @@ _Withdrawal amount must be non zero and not exceed amountWithdrawable().
 | ---- | ---- | ----------- |
 | amount | uint256 | token amount to withdraw. |
 
+### requestLiquidity
+
+```solidity
+function requestLiquidity(uint256 amount) external
+```
+
+Request a liquidity amount to be kept for withdrawal when available.
+
+_amount must be greater an 0 and less than or equal to (unlockedBalanceOf(msg.sender) + requestedLiquidity[msg.sender])
+     Caller must be a valid lender.
+     Requested liquidity quota will be used on withdrawals._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amount | uint256 | liquidity amount requested |
+
+### cancelLiquidityRequest
+
+```solidity
+function cancelLiquidityRequest(uint256 amount) external
+```
+
+Cancel previously requested withdrawal liquidity amount
+
+_amount must be greater an 0 and less than or equal to requestedLiquidity[msg.sender]_
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amount | uint256 | liquidity amount requested |
+
 ### balanceOf
 
 ```solidity
@@ -68,6 +98,22 @@ Check wallet&#x27;s token balance in the pool. Balance includes acquired earning
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | uint256 | Token balance of the wallet in this pool. |
+
+### unlockedBalanceOf
+
+```solidity
+function unlockedBalanceOf(address wallet) public view returns (uint256)
+```
+
+Check wallet&#x27;s unlocked token balance in the pool. Balance includes acquired earnings.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| wallet | address | Address of the wallet to check the unlocked balance of. |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Unlocked token balance of the wallet in this pool. |
 
 ### amountDepositable
 

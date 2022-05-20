@@ -4,7 +4,8 @@
 
 Provides the basics of a managed lending pool.
 
-_This contract is abstract. Extend the contract to implement an intended pool functionality._
+_This contract is abstract. Extend the contract to implement an intended pool functionality.
+     Extends Governed._
 
 ### manager
 
@@ -13,14 +14,6 @@ address manager
 ```
 
 Pool manager address
-
-### governance
-
-```solidity
-address governance
-```
-
-protocol governance
 
 ### protocol
 
@@ -86,6 +79,14 @@ uint256 poolLiquidity
 
 Current amount of liquid tokens, available to lend/withdraw/borrow
 
+### borrowedFunds
+
+```solidity
+uint256 borrowedFunds
+```
+
+Total funds borrowed at this time, including both withdrawn and allocated for withdrawal.
+
 ### totalPoolShares
 
 ```solidity
@@ -110,6 +111,14 @@ uint16 targetStakePercent
 
 Target percentage ratio of staked shares to total shares
 
+### targetLiquidityPercent
+
+```solidity
+uint16 targetLiquidityPercent
+```
+
+Target percentage of pool funds to keep liquid.
+
 ### poolShares
 
 ```solidity
@@ -118,6 +127,14 @@ mapping(address &#x3D;&gt; uint256) poolShares
 
 Pool shares of wallets
 
+### lockedShares
+
+```solidity
+mapping(address &#x3D;&gt; uint256) lockedShares
+```
+
+Locked shares of wallets (i.e. staked shares)
+
 ### protocolEarnings
 
 ```solidity
@@ -125,6 +142,22 @@ mapping(address &#x3D;&gt; uint256) protocolEarnings
 ```
 
 Protocol earnings of wallets
+
+### totalRequestedLiquidity
+
+```solidity
+uint256 totalRequestedLiquidity
+```
+
+Total amount of requested withdrawal liquidity
+
+### requestedLiquidity
+
+```solidity
+mapping(address &#x3D;&gt; uint256) requestedLiquidity
+```
+
+Withdrawal liquidity requests by address
 
 ### PERCENT_DECIMALS
 
@@ -183,6 +216,70 @@ uint256 managerExcessLeverageComponent
 Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
 This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
 
+### EARLY_EXIT_COOLDOWN
+
+```solidity
+uint256 EARLY_EXIT_COOLDOWN
+```
+
+Max cooldown period for early exit
+
+### earlyExitFeePercent
+
+```solidity
+uint256 earlyExitFeePercent
+```
+
+Early exit fee percentage
+
+### earlyExitDeadlines
+
+```solidity
+mapping(address &#x3D;&gt; uint256) earlyExitDeadlines
+```
+
+Early exit deadlines by wallets
+
+### isClosed
+
+```solidity
+bool isClosed
+```
+
+Flag indicating whether or not the pool is closed
+
+### isLendingPaused
+
+```solidity
+bool isLendingPaused
+```
+
+Flag indicating whether or not lending is paused
+
+### LendingPaused
+
+```solidity
+event LendingPaused()
+```
+
+### LendingResumed
+
+```solidity
+event LendingResumed()
+```
+
+### PoolClosed
+
+```solidity
+event PoolClosed()
+```
+
+### PoolOpened
+
+```solidity
+event PoolOpened()
+```
+
 ### UnstakedLoss
 
 ```solidity
@@ -201,10 +298,34 @@ event StakedAssetsDepleted()
 modifier onlyManager()
 ```
 
-### onlyGovernance
+### managerOrApprovedOnInactive
 
 ```solidity
-modifier onlyGovernance()
+modifier managerOrApprovedOnInactive()
+```
+
+### whenNotClosed
+
+```solidity
+modifier whenNotClosed()
+```
+
+### whenClosed
+
+```solidity
+modifier whenClosed()
+```
+
+### whenLendingNotPaused
+
+```solidity
+modifier whenLendingNotPaused()
+```
+
+### whenLendingPaused
+
+```solidity
+modifier whenLendingPaused()
 ```
 
 ### constructor
@@ -223,6 +344,60 @@ _msg.sender will be assigned as the manager of the created pool._
 | _governance | address | Address of the protocol governance. |
 | _protocol | address | Address of a wallet to accumulate protocol earnings. |
 
+### close
+
+```solidity
+function close() external
+```
+
+Close the pool and stop borrowing, lender deposits, and staking.
+
+_Caller must be the manager. 
+     Pool must be open.
+     No loans or approvals must be outstanding (borrowedFunds must equal to 0).
+     Emits &#x27;PoolClosed&#x27; event._
+
+### open
+
+```solidity
+function open() external
+```
+
+Open the pool for normal operations.
+
+_Caller must be the manager. 
+     Pool must be closed.
+     Opening the pool will not unpause any pauses in effect.
+     Emits &#x27;PoolOpened&#x27; event._
+
+### pauseLending
+
+```solidity
+function pauseLending() external
+```
+
+Pause new loan requests, approvals, and unstaking.
+
+_Caller must be the manager.
+     Lending must not be paused.
+     Lending can be paused regardless of the pool open/close and governance pause states, 
+     but some of the states may have a higher priority making pausing irrelevant.
+     Emits &#x27;LendingPaused&#x27; event._
+
+### resumeLending
+
+```solidity
+function resumeLending() external
+```
+
+Resume new loan requests, approvals, and unstaking.
+
+_Caller must be the manager.
+     Lending must be paused.
+     Lending can be resumed regardless of the pool open/close and governance pause states, 
+     but some of the states may have a higher priority making resuming irrelevant.
+     Emits &#x27;LendingPaused&#x27; event._
+
 ### setTargetStakePercent
 
 ```solidity
@@ -237,6 +412,21 @@ __targetStakePercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _targetStakePercent | uint16 | new target stake percent. |
+
+### setTargetLiquidityPercent
+
+```solidity
+function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external
+```
+
+Set the target liquidity percent for the pool.
+
+__targetLiquidityPercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+     Caller must be the manager._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _targetLiquidityPercent | uint16 | new target liquidity percent. |
 
 ### setProtocolEarningPercent
 
@@ -378,19 +568,6 @@ _Internal method to exit the pool with a token amount.
 | ---- | ---- | ----------- |
 | [0] | uint256 | Amount of shares burned and taken from the caller. |
 
-### burnShares
-
-```solidity
-function burnShares(address wallet, uint256 shares) internal
-```
-
-_Internal method to burn shares of a wallet._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| wallet | address | Address to burn shares of. |
-| shares | uint256 | Share amount to burn. |
-
 ### updatePoolLimit
 
 ```solidity
@@ -398,6 +575,12 @@ function updatePoolLimit() internal
 ```
 
 _Internal method to update pool limit based on staked funds._
+
+### authorizedOnInactiveManager
+
+```solidity
+function authorizedOnInactiveManager(address caller) internal view returns (bool)
+```
 
 ### sharesToTokens
 
