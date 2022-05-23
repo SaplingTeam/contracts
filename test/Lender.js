@@ -129,6 +129,17 @@ describe("Lender (SaplingPool)", function() {
             expect(await tokenContract.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
         });
 
+        it("Amount Borrowed increases on borrow", async function () {
+            let prevAmountBorrowed = (await poolContract.borrowerStats(borrower1.address)).amountBorrowed;
+
+            let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
+            await poolContract.connect(borrower1).borrow(loanId);
+
+            let loan = await poolContract.loans(loanId);
+            let stat = await poolContract.borrowerStats(borrower1.address);
+            expect(stat.amountBorrowed).to.equal(prevAmountBorrowed.add(loan.amount));
+        });
+
         it("Cancel", async function () {
             let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
             await poolContract.connect(manager).cancelLoan(loanId);

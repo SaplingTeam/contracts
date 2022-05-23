@@ -480,6 +480,9 @@ abstract contract Lender is ManagedLendingPool {
         loanDetail.baseAmountRepaid = loanDetail.baseAmountRepaid.add(baseAmountPaid);
         loanDetail.interestPaid = loanDetail.interestPaid.add(interestPaid);
 
+        borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid.add(baseAmountPaid);
+        borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid.add(interestPaid);
+
         borrowedFunds = borrowedFunds.sub(baseAmountPaid);
         poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
 
@@ -487,6 +490,9 @@ abstract contract Lender is ManagedLendingPool {
             loan.status = LoanStatus.REPAID;
             borrowerStats[loan.borrower].countRepaid++;
             borrowerStats[loan.borrower].countOutstanding--;
+            borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.sub(loan.amount);
+            borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid.sub(loanDetail.baseAmountRepaid);
+            borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid.sub(loanDetail.interestPaid);
         }
 
         if (borrowedFunds > 0) {
@@ -524,6 +530,10 @@ abstract contract Lender is ManagedLendingPool {
         (, uint256 loss) = loan.amount.trySub(loanDetail.totalAmountRepaid);
         
         emit LoanDefaulted(loanId, loan.borrower, loss);
+
+        borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.sub(loan.amount);
+        borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid.sub(loanDetail.baseAmountRepaid);
+        borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid.sub(loanDetail.interestPaid);
 
         if (loss > 0) {
             uint256 lostShares = tokensToShares(loss);
