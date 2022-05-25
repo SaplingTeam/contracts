@@ -82,6 +82,19 @@ describe("Lender (SaplingPool)", function() {
             expect(loan.requestedTime).to.equal(blockTimestamp);
             expect(loan.status).to.equal(LoanStatus.APPLIED);
         });
+
+        describe("Borrower Statistics", function () {
+            it("All Time Request Count", async function () {
+                let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
+                let loanDuration = BigNumber.from(365).mul(24*60*60);
+    
+                let prevCountRequested = (await poolContract.borrowerStats(borrower1.address)).countRequested;
+    
+                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
+                
+                expect((await poolContract.borrowerStats(borrower1.address)).countRequested).to.equal(prevCountRequested.add(1));
+            });
+        });
     });
 
     describe("Approve/Deny", function () {
@@ -106,6 +119,38 @@ describe("Lender (SaplingPool)", function() {
 
             expect((await poolContract.loans(loanId)).status).to.equal(LoanStatus.DENIED);
         });
+
+        describe("Borrower Statistics", function () {
+            it("All Time Approval Count", async function () {
+                let prevStat = await poolContract.borrowerStats(borrower1.address);
+                
+                await poolContract.connect(manager).approveLoan(prevStat.recentLoanId);
+    
+                let stat = await poolContract.borrowerStats(borrower1.address);
+    
+                expect(stat.countApproved).to.equal(prevStat.countApproved.add(1));
+            });
+    
+            it("Current Approval Count on Approve", async function () {
+                let prevStat = await poolContract.borrowerStats(borrower1.address);
+                
+                await poolContract.connect(manager).approveLoan(prevStat.recentLoanId);
+    
+                let stat = await poolContract.borrowerStats(borrower1.address);
+    
+                expect(stat.countCurrentApproved).to.equal(prevStat.countCurrentApproved.add(1));
+            });
+
+            it("All Time Deny Count", async function () {
+                let prevStat = await poolContract.borrowerStats(borrower1.address);
+                
+                await poolContract.connect(manager).denyLoan(prevStat.recentLoanId);
+    
+                let stat = await poolContract.borrowerStats(borrower1.address);
+    
+                expect(stat.countDenied).to.equal(prevStat.countDenied.add(1));
+            });
+        });
     });
 
     describe("Borrow/Cancel", function () {
@@ -129,22 +174,64 @@ describe("Lender (SaplingPool)", function() {
             expect(await tokenContract.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
         });
 
-        it("Amount Borrowed increases on borrow", async function () {
-            let prevAmountBorrowed = (await poolContract.borrowerStats(borrower1.address)).amountBorrowed;
-
-            let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
-            await poolContract.connect(borrower1).borrow(loanId);
-
-            let loan = await poolContract.loans(loanId);
-            let stat = await poolContract.borrowerStats(borrower1.address);
-            expect(stat.amountBorrowed).to.equal(prevAmountBorrowed.add(loan.amount));
-        });
-
         it("Cancel", async function () {
             let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
             await poolContract.connect(manager).cancelLoan(loanId);
 
             expect((await poolContract.loans(loanId)).status).to.equal(LoanStatus.CANCELLED);
+        });
+
+        describe("Borrower Statistics", function () {
+            it("Amount Borrowed on Borrow", async function () {
+                let prevAmountBorrowed = (await poolContract.borrowerStats(borrower1.address)).amountBorrowed;
+    
+                let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
+                await poolContract.connect(borrower1).borrow(loanId);
+    
+                let loan = await poolContract.loans(loanId);
+                let stat = await poolContract.borrowerStats(borrower1.address);
+                expect(stat.amountBorrowed).to.equal(prevAmountBorrowed.add(loan.amount));
+            });
+
+            it("Current Approval Count on Borrow", async function () {
+                let prevStat = await poolContract.borrowerStats(borrower1.address);
+                
+                await poolContract.connect(borrower1).borrow(prevStat.recentLoanId);
+    
+                let stat = await poolContract.borrowerStats(borrower1.address);
+    
+                expect(stat.countCurrentApproved).to.equal(prevStat.countCurrentApproved.sub(1));
+            });
+
+            it("Outstanding Count on Borrow", async function () {
+                let prevStat = await poolContract.borrowerStats(borrower1.address);
+                
+                await poolContract.connect(borrower1).borrow(prevStat.recentLoanId);
+    
+                let stat = await poolContract.borrowerStats(borrower1.address);
+    
+                expect(stat.countOutstanding).to.equal(prevStat.countOutstanding.add(1));
+            });
+
+            it("Current Approval Count on Cancel", async function () {
+                let prevStat = await poolContract.borrowerStats(borrower1.address);
+                
+                await poolContract.connect(manager).cancelLoan(prevStat.recentLoanId);
+    
+                let stat = await poolContract.borrowerStats(borrower1.address);
+    
+                expect(stat.countCurrentApproved).to.equal(prevStat.countCurrentApproved.sub(1));
+            });
+
+            it("All Time Cancel Count on Cancel", async function () {
+                let prevStat = await poolContract.borrowerStats(borrower1.address);
+                
+                await poolContract.connect(manager).cancelLoan(prevStat.recentLoanId);
+    
+                let stat = await poolContract.borrowerStats(borrower1.address);
+    
+                expect(stat.countCancelled).to.equal(prevStat.countCancelled.add(1));
+            });
         });
     });
 
@@ -248,6 +335,183 @@ describe("Lender (SaplingPool)", function() {
             expect(loan.status).to.equal(LoanStatus.DEFAULTED);
             expect(await poolContract.poolFunds()).to.equal(poolFundsBefore.sub(lossAmount));
             expect(await poolContract.balanceStaked()).to.equal(stakedBalanceBefore.sub(lossAmount));
+        });
+
+        describe("Borrower Statistics", function () {
+            describe("On Full Repay", function () {
+                let prevStat;
+                let prevLoanDetail;
+                let stat;
+                let loanDetail;
+                beforeEach(async function () {
+                    await ethers.provider.send('evm_increaseTime', [365*24*60*60]);
+                    await ethers.provider.send('evm_mine');
+
+                    prevStat = await poolContract.borrowerStats(borrower1.address);
+                    let loanId = prevStat.recentLoanId;
+
+                    prevLoanDetail = await poolContract.loanDetails(loanId);
+                    let paymentAmount = await poolContract.loanBalanceDue(loanId);
+    
+                    await tokenContract.connect(borrower1).approve(poolContract.address, paymentAmount);
+                    await poolContract.connect(borrower1).repay(loanId, paymentAmount);
+
+                    stat = await poolContract.borrowerStats(borrower1.address);
+                    loanDetail = await poolContract.loanDetails(loanId);
+                });
+
+                it("All Time Repay Count", async function () {
+                    expect(stat.countRepaid).to.equal(prevStat.countRepaid.add(1));
+                });
+    
+                it("Count Outstanding", async function () {
+                    expect(stat.countOutstanding).to.equal(prevStat.countOutstanding.sub(1));
+                });
+
+                it("Amount borrowed", async function () {
+                    expect(stat.amountBorrowed).to.equal(prevStat.amountBorrowed.sub(loanDetail.baseAmountRepaid));
+                });
+
+                it("Base amount repaid", async function () {
+                    expect(stat.amountBaseRepaid).to.equal(prevStat.amountBaseRepaid);
+                });
+
+                it("Amount interest paid", async function () {
+                    expect(stat.amountInterestPaid).to.equal(prevStat.amountInterestPaid);
+                });
+            });
+
+            describe("On Partial Repay", function () {
+                let prevStat;
+                let prevLoanDetail;
+                let stat;
+                let loanDetail;
+                beforeEach(async function () {
+                    await ethers.provider.send('evm_increaseTime', [183*24*60*60]);
+                    await ethers.provider.send('evm_mine');
+
+                    prevStat = await poolContract.borrowerStats(borrower1.address);
+                    let loanId = prevStat.recentLoanId;
+
+                    prevLoanDetail = await poolContract.loanDetails(loanId);
+                    let paymentAmount = (await poolContract.loanBalanceDue(loanId)).div(2);
+    
+                    await tokenContract.connect(borrower1).approve(poolContract.address, paymentAmount);
+                    await poolContract.connect(borrower1).repay(loanId, paymentAmount);
+
+                    stat = await poolContract.borrowerStats(borrower1.address);
+                    loanDetail = await poolContract.loanDetails(loanId);
+                });
+
+                it("All Time Repay Count does not change", async function () {
+                    expect(stat.countRepaid).to.equal(prevStat.countRepaid);
+                });
+    
+                it("Count Outstanding on Repay does not change", async function () {
+                    expect(stat.countOutstanding).to.equal(prevStat.countOutstanding);
+                });
+
+                it("Amount borrowed", async function () {
+                    expect(stat.amountBorrowed).to.equal(prevStat.amountBorrowed);
+                });
+
+                it("Base amount repaid", async function () {
+                    expect(stat.amountBaseRepaid).to.equal(loanDetail.baseAmountRepaid);
+                });
+
+                it("Amount interest paid", async function () {
+                    expect(stat.amountInterestPaid).to.equal(loanDetail.interestPaid);
+                });
+            });
+
+            describe("On Full Default", function () {
+                let loan;
+                let prevStat;
+                let stat;
+
+                beforeEach(async function () {
+                    prevStat = await poolContract.borrowerStats(borrower1.address);
+
+                    let loanId = prevStat.recentLoanId;
+                    loan = await poolContract.loans(loanId);
+    
+                    await ethers.provider.send('evm_increaseTime', [loan.duration.add(loan.gracePeriod).toNumber()]);
+                    await ethers.provider.send('evm_mine');
+
+                    await poolContract.connect(manager).defaultLoan(loanId);
+        
+                    stat = await poolContract.borrowerStats(borrower1.address);
+                });
+
+                it("All Time Default Count", async function () {
+                    expect(stat.countDefaulted).to.equal(prevStat.countDefaulted.add(1));
+                });
+
+                it("Count Outstanding", async function () {
+                    expect(stat.countOutstanding).to.equal(prevStat.countOutstanding.sub(1));
+                });
+
+                it("Amount borrowed", async function () {
+                    expect(stat.amountBorrowed).to.equal(prevStat.amountBorrowed.sub(loan.amount));
+                });
+
+                it("Base amount repaid", async function () {
+                    expect(stat.amountBaseRepaid).to.equal(prevStat.amountBaseRepaid);
+                });
+
+                it("Amount interest paid", async function () {
+                    expect(stat.amountInterestPaid).to.equal(prevStat.amountInterestPaid);
+                });
+            });
+
+            describe("On Partial Default", function () {
+                let loan;
+                let prevStat;
+                let prevLoanDetail;
+                let stat;
+                let loanDetail;
+
+                beforeEach(async function () {
+                    prevStat = await poolContract.borrowerStats(borrower1.address);
+
+                    let loanId = prevStat.recentLoanId;
+                    loan = await poolContract.loans(loanId);
+    
+                    await ethers.provider.send('evm_increaseTime', [loan.duration.add(loan.gracePeriod).toNumber()]);
+                    await ethers.provider.send('evm_mine');
+
+                    let paymentAmount = (await poolContract.loanBalanceDue(loanId)).div(2);
+                    await tokenContract.connect(borrower1).approve(poolContract.address, paymentAmount);
+                    await poolContract.connect(borrower1).repay(loanId, paymentAmount);
+
+                    prevStat = await poolContract.borrowerStats(borrower1.address);
+                    prevLoanDetail = await poolContract.loanDetails(loanId);
+                    await poolContract.connect(manager).defaultLoan(loanId);
+        
+                    stat = await poolContract.borrowerStats(borrower1.address);
+                    loanDetail = await poolContract.loanDetails(loanId);
+                });
+
+                it("All Time Default Count", async function () {
+                    expect(stat.countDefaulted).to.equal(prevStat.countDefaulted.add(1));
+                });
+
+                it("Count Outstanding", async function () {
+                    expect(stat.countOutstanding).to.equal(prevStat.countOutstanding.sub(1));
+                });
+
+                it("Amount borrowed", async function () {
+                    expect(stat.amountBorrowed).to.equal(prevStat.amountBorrowed.sub(loan.amount));
+                });
+
+                it("Base amount repaid", async function () {
+                    expect(stat.amountBaseRepaid).to.equal(prevStat.amountBaseRepaid.sub(loanDetail.baseAmountRepaid));
+                });
+
+                it("Amount interest paid", async function () {
+                    expect(stat.amountInterestPaid).to.equal(prevStat.amountInterestPaid.sub(loanDetail.interestPaid));
+                });
+            });
         });
     });
   });
