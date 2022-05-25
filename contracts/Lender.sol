@@ -522,6 +522,7 @@ abstract contract Lender is ManagedLendingPool {
         require(block.timestamp > (loanDetail.approvedTime + loan.duration + loan.gracePeriod), "Lender: It is too early to default this loan.");
 
         loan.status = LoanStatus.DEFAULTED;
+        borrowerStats[loan.borrower].countDefaulted++;
         borrowerStats[loan.borrower].countOutstanding--;
 
         (, uint256 loss) = loan.amount.trySub(loanDetail.totalAmountRepaid);
