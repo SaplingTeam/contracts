@@ -8,6 +8,7 @@
     "compile": "hardhat compile",
     "doc": "rimraf docs && hardhat docgen",
     "test": "hardhat test",
+    "coverage": "hardhat coverage",
     "deploy-testnet": "hardhat run scripts/deploy.test.js --network optimisticKovan",
     "verify-testnet": "hardhat verify --network optimisticKovan --constructor-args scripts/arguments.optimistic.kovan.js",
     "deploy-dev": "hardhat run scripts/deploy.dev.js"
