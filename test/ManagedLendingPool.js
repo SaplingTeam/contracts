@@ -606,7 +606,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
             describe("Rejection scenarios", function () {
                 it("Minimum loan amount cannot be set to a value less than the allowed minimum", async function () {
                     let minValue = await poolContract.SAFE_MIN_AMOUNT();
-                    await expect(poolContract.connect(manager).setDefaultAPR(minValue.sub(1))).to.be.reverted;
+                    await expect(poolContract.connect(manager).setMinLoanAmount(minValue.sub(1))).to.be.reverted;
                 });
 
                 it("Minimum loan amount cannot be set while the pool is paused", async function () {
