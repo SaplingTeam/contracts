@@ -474,7 +474,6 @@ abstract contract ManagedLendingPool is Governed {
         return multiplyByFraction(tokens, totalPoolShares, poolFunds);
     }
 
-    //TODO move to a library
     /**
      * @notice Do a multiplication of a value by a fraction.
      * @param a value to be multiplied
@@ -485,7 +484,6 @@ abstract contract ManagedLendingPool is Governed {
     function multiplyByFraction(uint256 a, uint256 b, uint256 c) internal pure returns (uint256) {
         require(c != 0); // no need proceed if denominator is 0
         
-        //TODO implement a better multiplication by fraction      
         (bool notOverflow, uint256 multiplied) = a.tryMul(b);
 
         if(notOverflow) {

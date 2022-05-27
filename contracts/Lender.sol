@@ -465,8 +465,6 @@ abstract contract Lender is ManagedLendingPool {
         protocolEarnings[protocol] = protocolEarnings[protocol].add(protocolEarnedInterest); 
 
         //share profits to manager 
-        //TODO optimize manager earnings calculation
-
         uint256 currentStakePercent = multiplyByFraction(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
         uint256 managerEarningsPercent = multiplyByFraction(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT);
         uint256 managerEarnedInterest = multiplyByFraction(interestPaid.sub(protocolEarnedInterest), managerEarningsPercent, ONE_HUNDRED_PERCENT);
