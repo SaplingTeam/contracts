@@ -100,11 +100,13 @@ abstract contract Governed {
      *      Resuming will update 'pauseCooldownTime'.
      */
     function resume() external onlyGovernance paused {
+        pauseCooldownTime = PAUSE_MAX_COOLDOWN;
+
+        // calculate a reduced cooldown if not pausing and resuming on the same block
         if (block.timestamp > lastPausedTime) {
             pauseCooldownTime = block.timestamp + PAUSE_MAX_COOLDOWN * 1000 / (PAUSE_TIMEOUT * 1000 / (block.timestamp - lastPausedTime));
-        } else {
-            pauseCooldownTime = 1;
         }
+        
         lastPausedTime = 1;
         emit Resumed();
     }
