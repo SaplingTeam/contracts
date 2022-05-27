@@ -1,8 +1,20 @@
+# files containing keys
+.env
+secrets.json
+
+# VS code
+.VSCode*
+
+# npm 
 node_modules
+
+# hardhat compiler outputs
 artifacts
 cache
-secrets.json
-*-input.json
+
+# solidity-docgen
 docs/
-.env
-.VSCode*
+
+# solidity coverage
+coverage
+coverage.json
