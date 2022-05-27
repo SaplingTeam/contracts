@@ -109,6 +109,11 @@ describe("Lender (SaplingPool)", function() {
                 await expect(poolContract.connect(borrower1).requestLoan(loanAmount, maxDuration.add(1))).to.be.reverted;
             });
 
+            it("Requesting a loan should fail while another application from the same borrower is pending approval", async function () {
+                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
+                await expect(poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration)).to.be.reverted;
+            });
+
             it ("Requesting a loan when lending is paused should fail", async function () {
                 await poolContract.connect(manager).pauseLending();
                 await expect(poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration)).to.be.reverted;
