@@ -461,15 +461,14 @@ abstract contract Lender is ManagedLendingPool {
     function repayOnBehalf(uint256 loanId, uint256 amount, address borrower) external loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
 
         // require the payer and the borrower to be the same to avoid mispayment
-        require(loans[loanId].borrower == borrower, "Payer is not the borrower.");
+        require(loans[loanId].borrower == borrower, "The specified loan does not belong to the borrower.");
 
         return repayBase(loanId, amount);
     }
 
     /**
      * @notice Make a payment towards a loan.
-     * @dev Caller must be the borrower.
-     *      Loan must be in OUTSTANDING status.
+     * @dev Loan must be in OUTSTANDING status.
      *      Only the necessary sum is charged if amount exceeds amount due.
      *      Amount charged will not exceed the amount parameter. 
      * @param loanId ID of the loan to make a payment towards.
