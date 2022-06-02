@@ -292,6 +292,14 @@ event UnstakedLoss(uint256 amount)
 event StakedAssetsDepleted()
 ```
 
+### ProtocolWalletTransferred
+
+```solidity
+event ProtocolWalletTransferred(address from, address to)
+```
+
+Event emitted when a new protocol wallet is set
+
 ### onlyManager
 
 ```solidity
@@ -343,6 +351,21 @@ _msg.sender will be assigned as the manager of the created pool._
 | _token | address | ERC20 token contract address to be used as main pool liquid currency. |
 | _governance | address | Address of the protocol governance. |
 | _protocol | address | Address of a wallet to accumulate protocol earnings. |
+
+### transferProtocolWallet
+
+```solidity
+function transferProtocolWallet(address _protocol) external
+```
+
+Transfer the protocol wallet and accumulated fees to a new wallet.
+
+_Caller must be governance. 
+     _protocol must not be 0._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _protocol | address | Address of the new protocol wallet. |
 
 ### close
 
