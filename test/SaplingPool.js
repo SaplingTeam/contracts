@@ -13,6 +13,7 @@ describe("SaplingPool", function() {
     let protocol;
     let lender1;
     let borrower1;
+    let addrs;
 
     let PERCENT_DECIMALS;
     let TOKEN_DECIMALS;
@@ -529,6 +530,16 @@ describe("SaplingPool", function() {
     
                 expect(await tokenContract.balanceOf(protocol.address)).to.equal(tokenBalanceBefore.add(poolBalanceBefore));
                 expect(await poolContract.protocolEarningsOf(protocol.address)).to.equal(0);
+            });
+
+            it("When a new protocol wallet address is set, earned protocol fees are allocated to the new address", async function () {
+                let oldProtocolBalanceBefore = await poolContract.protocolEarningsOf(protocol.address);
+                let newProtocolBalanceBefore = await poolContract.protocolEarningsOf(addrs[0].address);
+
+                await poolContract.connect(governance).transferProtocolWallet(addrs[0].address);
+    
+                expect(await poolContract.protocolEarningsOf(protocol.address)).to.equal(0);
+                expect(await poolContract.protocolEarningsOf(addrs[0].address)).to.equal(newProtocolBalanceBefore.add(oldProtocolBalanceBefore));
             });
     
             it("Manager can withdraw earned protocol fees", async function () {
