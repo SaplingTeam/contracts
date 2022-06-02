@@ -441,10 +441,42 @@ abstract contract Lender is ManagedLendingPool {
      * @return A pair of total amount changed including interest, and the interest charged.
      */
     function repay(uint256 loanId, uint256 amount) external loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
-        Loan storage loan = loans[loanId];
 
         // require the payer and the borrower to be the same to avoid mispayment
-        require(loan.borrower == msg.sender, "Payer is not the borrower.");
+        require(loans[loanId].borrower == msg.sender, "Payer is not the borrower.");
+
+        return repayBase(loanId, amount);
+    }
+
+    /**
+     * @notice Make a payment towards a loan on behalf od a borrower
+     * @dev Loan must be in OUTSTANDING status.
+     *      Only the necessary sum is charged if amount exceeds amount due.
+     *      Amount charged will not exceed the amount parameter. 
+     * @param loanId ID of the loan to make a payment towards.
+     * @param amount Payment amount in tokens.
+     * @param borrower address of the borrower to make a payment in behalf of.
+     * @return A pair of total amount changed including interest, and the interest charged.
+     */
+    function repayOnBehalf(uint256 loanId, uint256 amount, address borrower) external loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
+
+        // require the payer and the borrower to be the same to avoid mispayment
+        require(loans[loanId].borrower == borrower, "The specified loan does not belong to the borrower.");
+
+        return repayBase(loanId, amount);
+    }
+
+    /**
+     * @notice Make a payment towards a loan.
+     * @dev Loan must be in OUTSTANDING status.
+     *      Only the necessary sum is charged if amount exceeds amount due.
+     *      Amount charged will not exceed the amount parameter. 
+     * @param loanId ID of the loan to make a payment towards.
+     * @param amount Payment amount in tokens.
+     * @return A pair of total amount changed including interest, and the interest charged.
+     */
+    function repayBase(uint256 loanId, uint256 amount) internal loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
+        Loan storage loan = loans[loanId];
 
         //TODO enforce a small minimum payment amount, except for the last payment 
 
