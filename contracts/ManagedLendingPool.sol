@@ -118,6 +118,9 @@ abstract contract ManagedLendingPool is Governed {
     event UnstakedLoss(uint256 amount);
     event StakedAssetsDepleted();
 
+    /// Event emitted when a new protocol wallet is set
+    event ProtocolWalletTransferred(address from, address to);
+
     modifier onlyManager {
         require(msg.sender == manager, "Managed: caller is not the manager");
         _;
@@ -183,6 +186,21 @@ abstract contract ManagedLendingPool is Governed {
         }
 
         ONE_TOKEN = 10 ** tokenDecimals;
+    }
+
+    /**
+     * @notice Transfer the protocol wallet and accumulated fees to a new wallet.
+     * @dev Caller must be governance. 
+     *      _protocol must not be 0.
+     * @param _protocol Address of the new protocol wallet.
+     */
+    function transferProtocolWallet(address _protocol) external onlyGovernance {
+        require(_protocol != address(0) && _protocol != protocol, "Governed: New protocol address is invalid.");
+        protocolEarnings[_protocol] = protocolEarnings[_protocol].add(protocolEarnings[protocol]);
+        protocolEarnings[protocol] = 0;
+
+        emit ProtocolWalletTransferred(protocol, _protocol);
+        protocol = _protocol;
     }
 
     /**

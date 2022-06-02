@@ -70,6 +70,19 @@ describe("Governed (SaplingPool)", function() {
         });
     });
 
+    describe("Transfer Protocol Wallet", function () {
+        it("Can transfer", async function () {
+            await poolContract.connect(currentGovernance).transferProtocolWallet(addrs[1].address);
+            expect(await poolContract.protocol()).to.equal(addrs[1].address);
+        });
+
+        describe("Rejection scenarios", function () {
+            it("Transfer as non governance should fail", async function () {
+                await expect(poolContract.connect(addrs[0]).transferProtocolWallet(addrs[1].address)).to.be.reverted;
+            });
+        });
+    });
+
     describe("Pause", function () {
 
         let PAUSE_TIMEOUT;
