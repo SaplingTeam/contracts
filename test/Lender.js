@@ -599,6 +599,49 @@ describe("Lender (SaplingPool)", function() {
     
                 expect(await tokenContract.balanceOf(borrower1.address)).to.equal(balanceBefore.sub(paymentAmount));
             });
+
+            it("3rd party can do a partial payment on behalf of the borrower", async function () {
+                let balanceBefore = await tokenContract.balanceOf(lender3.address);
+                let loan = await poolContract.loans(loanId);
+    
+                await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
+                await ethers.provider.send('evm_mine');
+    
+                let paymentAmount = (await poolContract.loanBalanceDue(loanId)).div(2);
+    
+                await tokenContract.connect(lender3).approve(poolContract.address, paymentAmount);
+                await poolContract.connect(lender3).repayOnBehalf(loanId, paymentAmount, borrower1.address);
+                let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
+    
+                loan = await poolContract.loans(loanId);
+                let loanDetail = await poolContract.loanDetails(loanId);
+                expect(loanDetail.totalAmountRepaid).to.equal(paymentAmount);
+                expect(loanDetail.lastPaymentTime).to.equal(blockTimestamp);
+                expect(loan.status).to.equal(LoanStatus.OUTSTANDING);
+    
+                expect(await tokenContract.balanceOf(lender3.address)).to.equal(balanceBefore.sub(paymentAmount));
+            });
+
+            it("3rd party can do full payments on behalf of the borrower", async function () {
+                let balanceBefore = await tokenContract.balanceOf(lender3.address);
+                let loan = await poolContract.loans(loanId);
+    
+                await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
+                await ethers.provider.send('evm_mine');
+    
+                let paymentAmount = await poolContract.loanBalanceDue(loanId);
+    
+                await tokenContract.connect(lender3).approve(poolContract.address, paymentAmount);
+                await poolContract.connect(lender3).repayOnBehalf(loanId, paymentAmount, borrower1.address);
+                let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
+    
+                let loanDetail = await poolContract.loanDetails(loanId);
+                expect(loanDetail.totalAmountRepaid).to.equal(paymentAmount);
+                expect(loanDetail.lastPaymentTime).to.equal(blockTimestamp);
+                expect((await poolContract.loans(loanId)).status).to.equal(LoanStatus.REPAID);
+    
+                expect(await tokenContract.balanceOf(lender3.address)).to.equal(balanceBefore.sub(paymentAmount));
+            });
     
             it("Repaying a loan will allocate protocol fees to the protocol", async function () {
                 let balanceBefore = await poolContract.protocolEarningsOf(protocol.address);
