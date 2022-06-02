@@ -499,6 +499,51 @@ _Caller must be the borrower.
 | [0] | uint256 | A pair of total amount changed including interest, and the interest charged. |
 | [1] | uint256 |  |
 
+### repayOnBehalf
+
+```solidity
+function repayOnBehalf(uint256 loanId, uint256 amount, address borrower) external returns (uint256, uint256)
+```
+
+Make a payment towards a loan on behalf od a borrower
+
+_Loan must be in OUTSTANDING status.
+     Only the necessary sum is charged if amount exceeds amount due.
+     Amount charged will not exceed the amount parameter._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan to make a payment towards. |
+| amount | uint256 | Payment amount in tokens. |
+| borrower | address | address of the borrower to make a payment in behalf of. |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | A pair of total amount changed including interest, and the interest charged. |
+| [1] | uint256 |  |
+
+### repayBase
+
+```solidity
+function repayBase(uint256 loanId, uint256 amount) internal returns (uint256, uint256)
+```
+
+Make a payment towards a loan.
+
+_Loan must be in OUTSTANDING status.
+     Only the necessary sum is charged if amount exceeds amount due.
+     Amount charged will not exceed the amount parameter._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan to make a payment towards. |
+| amount | uint256 | Payment amount in tokens. |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | A pair of total amount changed including interest, and the interest charged. |
+| [1] | uint256 |  |
+
 ### defaultLoan
 
 ```solidity
