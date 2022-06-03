@@ -178,12 +178,7 @@ abstract contract ManagedLendingPool is Governed {
         targetLiquidityPercent = 0; //0%
 
         managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
-        try IERC20Metadata(token).decimals() returns(uint8 decimals) {
-            tokenDecimals = decimals;
-        } catch {
-            tokenDecimals = 18;
-        }
-
+        tokenDecimals = IERC20Metadata(token).decimals();
         ONE_TOKEN = 10 ** tokenDecimals;
     }
 
