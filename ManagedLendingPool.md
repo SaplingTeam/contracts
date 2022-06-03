@@ -632,7 +632,7 @@ Get a share value of tokens.
 ### multiplyByFraction
 
 ```solidity
-function multiplyByFraction(uint256 a, uint256 b, uint256 c) internal pure returns (uint256)
+function multiplyByFraction(uint256 a, uint256 b, uint256 c) public pure returns (uint256)
 ```
 
 Do a multiplication of a value by a fraction.
