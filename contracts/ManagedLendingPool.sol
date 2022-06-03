@@ -337,9 +337,7 @@ abstract contract ManagedLendingPool is Governed {
         // give tokens
         tokenBalance = tokenBalance.sub(amount);
         bool success = IERC20(token).transfer(msg.sender, amount);
-        if(!success) {
-            revert();
-        }
+        require(success);
     }
 
     /**
@@ -359,9 +357,7 @@ abstract contract ManagedLendingPool is Governed {
      */
     function chargeTokensFrom(address wallet, uint256 amount) internal {
         bool success = IERC20(token).transferFrom(wallet, address(this), amount);
-        if (!success) {
-            revert();
-        }
+        require(success);
         tokenBalance = tokenBalance.add(amount);
     }
 
@@ -446,9 +442,7 @@ abstract contract ManagedLendingPool is Governed {
 
         tokenBalance = tokenBalance.sub(transferAmount);
         bool success = IERC20(token).transfer(msg.sender, transferAmount);
-        if(!success) {
-            revert();
-        }
+        require(success);
 
         return shares;
     }

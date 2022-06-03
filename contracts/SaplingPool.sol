@@ -133,9 +133,7 @@ contract SaplingPool is Lender {
 
         tokenBalance = tokenBalance.sub(loan.amount);
         bool success = IERC20(token).transfer(msg.sender, loan.amount);
-        if(!success) {
-            revert();
-        }
+        require(success);
     }
 
     /**
