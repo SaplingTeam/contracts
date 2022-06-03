@@ -471,9 +471,7 @@ abstract contract ManagedLendingPool is Governed {
      * @param tokens Amount of tokens
      */
     function tokensToShares(uint256 tokens) internal view returns (uint256) {
-        if (tokens == 0) {
-            return 0;
-        } else if (totalPoolShares == 0) {
+        if (totalPoolShares == 0 || poolFunds == 0) {
             return tokens;
         }
 
@@ -487,11 +485,10 @@ abstract contract ManagedLendingPool is Governed {
      * @param c denominator of the fraction
      * @return Integer value of (a*b)/c if (a*b) does not overflow, else a*(b/c)
      */
-    function multiplyByFraction(uint256 a, uint256 b, uint256 c) internal pure returns (uint256) {
-        require(c != 0); // no need proceed if denominator is 0
+    function multiplyByFraction(uint256 a, uint256 b, uint256 c) public pure returns (uint256) {
+        require(c != 0, "Cannot divide by zero."); // no need proceed if denominator is 0
         
         (bool notOverflow, uint256 multiplied) = a.tryMul(b);
-
         if(notOverflow) {
             return multiplied.div(c);
         }
