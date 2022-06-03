@@ -625,7 +625,7 @@ abstract contract Lender is ManagedLendingPool {
         }
 
         return loans[loanId].status == LoanStatus.APPROVED 
-            && block.timestamp > (loanDetails[loanId].approvedTime + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
+            && block.timestamp >= (loanDetails[loanId].approvedTime + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
     }
 
     /**
