@@ -161,7 +161,6 @@ abstract contract ManagedLendingPool is Governed {
      */
     constructor(address _token, address _governance, address _protocol) Governed(_governance) {
         require(_token != address(0), "SaplingPool: pool token address is not set");
-        require(_governance != address(0), "SaplingPool: governance address is not set");
         require(_protocol != address(0), "SaplingPool: protocol wallet address is not set");
         
         manager = msg.sender;
