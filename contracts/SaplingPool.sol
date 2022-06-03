@@ -55,7 +55,7 @@ contract SaplingPool is Lender {
      * @param amount liquidity amount requested
      */
     function requestLiquidity(uint256 amount) external validLender {
-        require(amount > 0 && amount <= unlockedBalanceOf(msg.sender) + requestedLiquidity[msg.sender], "SaplingPool: Invalid amount.");
+        require(amount > 0 && amount + requestedLiquidity[msg.sender] <= unlockedBalanceOf(msg.sender), "SaplingPool: Invalid amount.");
 
         totalRequestedLiquidity = totalRequestedLiquidity.add(amount);
         requestedLiquidity[msg.sender] = requestedLiquidity[msg.sender].add(amount);

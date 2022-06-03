@@ -69,10 +69,10 @@ abstract contract ManagedLendingPool is Governed {
     mapping(address => uint256) internal protocolEarnings; 
 
     /// Total amount of requested withdrawal liquidity
-    uint256 totalRequestedLiquidity = 0;
+    uint256 public totalRequestedLiquidity = 0;
 
     /// Withdrawal liquidity requests by address
-    mapping(address => uint256) requestedLiquidity;
+    mapping(address => uint256) public requestedLiquidity;
     
     /// Number of decimal digits in integer percent values used across the contract
     uint16 public constant PERCENT_DECIMALS = 1;
