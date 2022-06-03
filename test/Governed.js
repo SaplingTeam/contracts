@@ -17,6 +17,8 @@ describe("Governed (SaplingPool)", function() {
     let PAUSE_TIMEOUT;
     let PAUSE_MAX_COOLDOWN;
 
+    const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
+
     beforeEach(async function () {
         [manager, protocol, governance1, governance2, ...addrs] = await ethers.getSigners();
 
@@ -64,6 +66,14 @@ describe("Governed (SaplingPool)", function() {
         });
 
         describe("Rejection scenarios", function () {
+            it("Transferring to NULL address should fail", async function () {
+                await expect(poolContract.connect(currentGovernance).transferGovernance(NULL_ADDRESS)).to.be.reverted;
+            });
+
+            it("Transferring governance to same address should fail", async function () {
+                await expect(poolContract.connect(currentGovernance).transferGovernance(currentGovernance)).to.be.reverted;
+            });
+
             it("Transfer as non governance should fail", async function () {
                 await expect(poolContract.connect(addrs[0]).transferGovernance(governance2.address)).to.be.reverted;
             });
@@ -79,6 +89,10 @@ describe("Governed (SaplingPool)", function() {
         describe("Rejection scenarios", function () {
             it("Transfer as non governance should fail", async function () {
                 await expect(poolContract.connect(addrs[0]).transferProtocolWallet(addrs[1].address)).to.be.reverted;
+            });
+
+            it("Transferring to a NULL address should fail", async function () {
+                await expect(poolContract.connect(currentGovernance).transferProtocolWallet(NULL_ADDRESS)).to.be.reverted;
             });
         });
     });
