@@ -146,7 +146,7 @@ describe("SaplingPool", function() {
         beforeEach(async function () {
             stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
             unstakeAmount = BigNumber.from(500).mul(TOKEN_MULTIPLIER);
-            let depositAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
+            let depositAmount = BigNumber.from(9000).mul(TOKEN_MULTIPLIER);
 
             await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
             await poolContract.connect(manager).stake(stakeAmount);
@@ -168,6 +168,24 @@ describe("SaplingPool", function() {
             expect(await poolContract.balanceStaked()).to.equal(stakedBalance.sub(unstakeAmount));
 
             expect(await tokenContract.balanceOf(manager.address)).to.equal(balanceBefore.add(unstakeAmount));
+        });
+
+        describe("Amount Unstakable", function () {
+            it("Can view amount unstakable", async function () {
+                let expectedUnstakable = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
+    
+                expect(await poolContract.amountUnstakable()).to.equal(expectedUnstakable);
+            });
+    
+            it("Amount unstakable is zero when lending is paused", async function () {
+                await poolContract.connect(manager).pauseLending();
+                expect(await poolContract.amountUnstakable()).to.equal(0);
+            });
+
+            it("Amount unstakable is zero when pool is paused", async function () {
+                await poolContract.connect(governance).pause();
+                expect(await poolContract.amountUnstakable()).to.equal(0);
+            });
         });
 
         it("Unstaking is reflected on the pool contract balance", async function () {
@@ -209,7 +227,6 @@ describe("SaplingPool", function() {
 
             expect(poolFunds).to.equal(prevPoolFunds.sub(unstakeAmount));
         });
-
 
         describe("Rejection scenarios", function () {
 
@@ -265,6 +282,41 @@ describe("SaplingPool", function() {
 
             await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
             await poolContract.connect(manager).stake(stakeAmount);
+        });
+
+        describe("Amount depositable", function () {
+            it("Can view amount depositable", async function () {
+                let targetStakePercent = await poolContract.targetStakePercent();
+                let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
+                let calculatedDepositable = stakeAmount.mul(ONE_HUNDRED_PERCENT).div(targetStakePercent).sub(stakeAmount);
+    
+                expect(await poolContract.amountDepositable()).to.equal(calculatedDepositable);
+            });
+    
+            it("Amount depositable is zero when lending is paused", async function () {
+                await poolContract.connect(manager).pauseLending();
+                expect(await poolContract.amountDepositable()).to.equal(0);
+            });
+
+            it("Amount depositable is zero when pool is paused", async function () {
+                await poolContract.connect(governance).pause();
+                expect(await poolContract.amountDepositable()).to.equal(0);
+            });
+
+            it("Amount depositable is zero when pool is closed", async function () {
+                await poolContract.connect(manager).close();
+                expect(await poolContract.amountDepositable()).to.equal(0);
+            });
+
+            it("Amount depositable is zero when pool is full", async function () {
+                let targetStakePercent = await poolContract.targetStakePercent();
+                let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
+                let calculatedDepositable = stakeAmount.mul(ONE_HUNDRED_PERCENT).div(targetStakePercent).sub(stakeAmount);
+
+                await tokenContract.connect(lender1).approve(poolContract.address, calculatedDepositable);
+                await poolContract.connect(lender1).deposit(calculatedDepositable);
+                expect(await poolContract.amountDepositable()).to.equal(0);
+            });
         });
 
         it("Lender can deposit", async function () {
@@ -455,6 +507,33 @@ describe("SaplingPool", function() {
             expect(await tokenContract.balanceOf(lender1.address)).to.equal(tokenBalanceBefore.add(withdrawAmount.sub(expectedWithdrawalFee)));
         });
 
+        describe("Withdrawal with a liquidity request", function () {
+            let liquidityRequestAmount;
+            beforeEach(async function () {
+                liquidityRequestAmount = withdrawAmount.div(2);
+                await poolContract.connect(lender1).requestLiquidity(liquidityRequestAmount);
+                await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+                await ethers.provider.send('evm_mine');
+            });
+
+            it("Withdrawing full requested amount sets the allocated liquidity amount to zero", async function () {
+                await poolContract.connect(lender1).withdraw(liquidityRequestAmount);
+                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(0);
+            });
+
+            it("Withdrawing more than the requested amount sets the allocated liquidity amount to zero", async function () {
+                await poolContract.connect(lender1).withdraw(withdrawAmount);
+                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(0);
+            });
+
+            it("Withdrawing less than the requested amount updates the allocated liquidity amount", async function () {
+                let allocatedLiquidityBefore = await poolContract.requestedLiquidity(lender1.address);
+                let amount = liquidityRequestAmount.div(2);
+                await poolContract.connect(lender1).withdraw(amount);
+                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(allocatedLiquidityBefore.sub(amount));
+            });
+        });
+
         describe("Rejection scenarios", function () {
 
             it ("Withdrawing a zero amount should fail", async function () {         
@@ -598,6 +677,192 @@ describe("SaplingPool", function() {
                     await poolContract.connect(governance).pause();
                     await expect(poolContract.connect(protocol).withdrawProtocolEarnings()).to.be.reverted;
                 });
+
+                it("Protocol withdrawal should fail when balance is zero", async function () {
+                    await poolContract.connect(protocol).withdrawProtocolEarnings();
+
+                    expect(await poolContract.protocolEarningsOf(protocol.address)).to.equal(0);
+                    await expect(poolContract.connect(protocol).withdrawProtocolEarnings()).to.be.reverted;
+                });
+            });
+        });
+
+        describe("Withdrawal requests", function () {
+            beforeEach(async function () {
+                let loanAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
+                let loanDuration = BigNumber.from(365).mul(24*60*60);
+                
+                let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
+                loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
+                await poolContract.connect(manager).approveLoan(loanId);
+                await poolContract.connect(borrower1).borrow(loanId);
+            });
+    
+            it("Lender can request liquidity for withdrawal allocation", async function () {
+                let prevTotalRequestedLiquidity = await poolContract.totalRequestedLiquidity();
+                let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
+
+                let isValidLender = await poolContract.isValidLender(lender1.address);
+                console.log('isValidLender: ' + isValidLender);
+
+                await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
+    
+                expect(await poolContract.totalRequestedLiquidity()).to.equal(prevTotalRequestedLiquidity.add(withdrawAmount));
+                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(prevRequestedLiquidity.add(withdrawAmount));
+            });
+
+            it("Lender can cancel requested liquidity", async function () {
+                await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
+
+                let prevTotalRequestedLiquidity = await poolContract.totalRequestedLiquidity();
+                let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
+                let cancelAmount = prevRequestedLiquidity.div(2);
+
+                await poolContract.connect(lender1).cancelLiquidityRequest(cancelAmount);
+    
+                expect(await poolContract.totalRequestedLiquidity()).to.equal(prevTotalRequestedLiquidity.sub(cancelAmount));
+                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(prevRequestedLiquidity.sub(cancelAmount));
+            });
+
+            describe("Rejection scenarios", function () {
+                it("Liquidity request with a zero amount should fail", async function () {
+                    await expect(poolContract.connect(lender1).requestLiquidity(0)).to.be.reverted;
+                });
+
+                it("Liquidity request with an amount greater than the lender's balance should fail", async function () {
+                    let balance = await poolContract.balanceOf(lender1.address);
+                    await expect(poolContract.connect(lender1).requestLiquidity(balance.add(1))).to.be.reverted;
+                });
+
+                it("Liquidity request with a cumulative amount greater than the lender's balance should fail", async function () {
+                    await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
+
+                    let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
+                    let balance = await poolContract.balanceOf(lender1.address);
+
+                    await expect(poolContract.connect(lender1).requestLiquidity(balance.sub(prevRequestedLiquidity).add(1))).to.be.reverted;
+                });
+    
+                it("Liquidity request cancellation with a zero amount should fail", async function () {
+                    await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
+                    await expect(poolContract.connect(lender1).cancelLiquidityRequest(0)).to.be.reverted;
+                });
+
+                it("Liquidity request cancellation with an amount greater than requested should fail", async function () {
+                    await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
+                    let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
+                    await expect(poolContract.connect(lender1).cancelLiquidityRequest(prevRequestedLiquidity.add(1))).to.be.reverted;
+                });
+            });
+        });
+    });
+
+    describe("Projected APY", function () {
+        let stakeAmount;
+        let depositAmount;
+        let loanAmount;
+        let poolFunds;
+
+        beforeEach(async function () {
+            stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
+            depositAmount = BigNumber.from(18000).mul(TOKEN_MULTIPLIER);
+
+            await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
+            await poolContract.connect(manager).stake(stakeAmount);
+
+            await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
+            await poolContract.connect(lender1).deposit(depositAmount);
+
+            loanAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
+            let loanDuration = BigNumber.from(365).mul(24*60*60);
+            await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
+            let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
+
+            await poolContract.connect(manager).approveLoan(loanId);
+            await poolContract.connect(borrower1).borrow(loanId);
+
+            poolFunds = stakeAmount.add(depositAmount);
+        });
+
+        it("Can view lender APY given current pool state", async function () {
+            let apr = await poolContract.defaultAPR();
+            let protocolEarningPercent = await poolContract.protocolEarningPercent();
+            let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
+            let managersEarnFactor = await poolContract.managerEarnFactor();
+
+            // pool APY
+            let poolAPY = BigNumber.from(apr).mul(loanAmount).div(poolFunds);
+            
+            // protocol APY
+            let protocolAPY = poolAPY.mul(protocolEarningPercent).div(ONE_HUNDRED_PERCENT);
+            
+            // manager withdrawableAPY
+            let currentStakePercent = ONE_HUNDRED_PERCENT / poolFunds.div(stakeAmount).toNumber();
+            let managerEarningsPercent = currentStakePercent * (managersEarnFactor - ONE_HUNDRED_PERCENT) / ONE_HUNDRED_PERCENT;
+            let managerWithdrawableAPY = managerEarningsPercent - (managerEarningsPercent * (ONE_HUNDRED_PERCENT - protocolEarningPercent) / ONE_HUNDRED_PERCENT);
+
+            let expectedLenderAPY = poolAPY.sub(protocolAPY).sub(managerWithdrawableAPY).toNumber();
+
+            expect(await poolContract.currentLenderAPY()).to.equal(expectedLenderAPY);
+            
+        });
+
+        it("Can view projected lender APY", async function () {
+            let apr = await poolContract.defaultAPR();
+            let protocolEarningPercent = await poolContract.protocolEarningPercent();
+            let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
+            let managersEarnFactor = await poolContract.managerEarnFactor();
+
+            // pool APY
+            let poolAPY = BigNumber.from(apr).mul(loanAmount).div(poolFunds);
+            
+            // protocol APY
+            let protocolAPY = poolAPY.mul(protocolEarningPercent).div(ONE_HUNDRED_PERCENT);
+            
+            // manager withdrawableAPY
+            let currentStakePercent = ONE_HUNDRED_PERCENT / poolFunds.div(stakeAmount).toNumber();
+            let managerEarningsPercent = currentStakePercent * (managersEarnFactor - ONE_HUNDRED_PERCENT) / ONE_HUNDRED_PERCENT;
+            let managerWithdrawableAPY = managerEarningsPercent - (managerEarningsPercent * (ONE_HUNDRED_PERCENT - protocolEarningPercent) / ONE_HUNDRED_PERCENT);
+
+            let expectedLenderAPY = poolAPY.sub(protocolAPY).sub(managerWithdrawableAPY).toNumber();
+
+            let borrowRate = loanAmount.mul(ONE_HUNDRED_PERCENT).div(poolFunds).toNumber();
+
+            expect(await poolContract.projectedLenderAPY(borrowRate)).to.equal(expectedLenderAPY);        
+        });
+
+        it("Increase in borrow rate is linearly reflected on projected lender APY within margin of integer math accuracy", async function () {
+            let apr = await poolContract.defaultAPR();
+            let protocolEarningPercent = await poolContract.protocolEarningPercent();
+            let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
+            let managersEarnFactor = await poolContract.managerEarnFactor();
+
+            let projectedBorrowAmount = loanAmount.div(2);
+
+            // pool APY
+            let poolAPY = BigNumber.from(apr).mul(projectedBorrowAmount).div(poolFunds);
+            
+            // protocol APY
+            let protocolAPY = poolAPY.mul(protocolEarningPercent).div(ONE_HUNDRED_PERCENT);
+            
+            // manager withdrawableAPY
+            let currentStakePercent = ONE_HUNDRED_PERCENT / poolFunds.div(stakeAmount).toNumber();
+            let managerEarningsPercent = currentStakePercent * (managersEarnFactor - ONE_HUNDRED_PERCENT) / ONE_HUNDRED_PERCENT;
+            let managerWithdrawableAPY = managerEarningsPercent - (managerEarningsPercent * (ONE_HUNDRED_PERCENT - protocolEarningPercent) / ONE_HUNDRED_PERCENT);
+
+            let expectedLenderAPY = poolAPY.sub(protocolAPY).sub(managerWithdrawableAPY).toNumber();
+
+            let borrowRate = projectedBorrowAmount.mul(ONE_HUNDRED_PERCENT).div(poolFunds).toNumber();
+
+            expect((await poolContract.projectedLenderAPY(borrowRate * 2)) - (expectedLenderAPY * 2)).to.lte(10);
+            expect((await poolContract.projectedLenderAPY(borrowRate * 3)) - (expectedLenderAPY * 3)).to.lte(10);
+        });
+
+
+        describe("Rejection scenarios", function () {
+            it("APY projection should fail when borrow rate of over 100% is requested", async function () {
+                let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
+                await expect(poolContract.projectedLenderAPY(ONE_HUNDRED_PERCENT + 1)).to.be.reverted;
             });
         });
     });

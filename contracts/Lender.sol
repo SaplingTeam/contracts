@@ -625,7 +625,7 @@ abstract contract Lender is ManagedLendingPool {
         }
 
         return loans[loanId].status == LoanStatus.APPROVED 
-            && block.timestamp > (loanDetails[loanId].approvedTime + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
+            && block.timestamp >= (loanDetails[loanId].approvedTime + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
     }
 
     /**
@@ -651,7 +651,7 @@ abstract contract Lender is ManagedLendingPool {
      * @param loanId ID of the loan to check the balance of.
      * @return Total amount due with interest on this loan.
      */
-    function loanBalanceDue(uint256 loanId) external view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns(uint256) {
+    function loanBalanceDue(uint256 loanId) external view returns(uint256) {
         (uint256 amountDue,) = loanBalanceDueWithInterest(loanId);
         return amountDue;
     }
@@ -668,7 +668,7 @@ abstract contract Lender is ManagedLendingPool {
      */
     function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256) {
         Loan storage loan = loans[loanId];
-        if (loan.status == LoanStatus.REPAID) {
+        if (loan.status != LoanStatus.OUTSTANDING) {
             return (0, 0);
         }
 

@@ -92,6 +92,12 @@ describe("Lender (SaplingPool)", function() {
             expect(loan.status).to.equal(LoanStatus.APPLIED);
         });
 
+        it("Can view most recent loanId by address", async function () {
+            let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
+            let loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);            
+            expect(await poolContract.recentLoanIdOf(borrower1.address)).to.equal(loanId);
+        });
+
         describe("Rejection scenarios", function () {
 
             it ("Requesting a loan with an amount less than the minimum should fail", async function () {            
@@ -170,6 +176,8 @@ describe("Lender (SaplingPool)", function() {
 
         describe("Approve", function () {
             it("Manager can approve loans", async function () {
+                expect(await poolContract.canApprove(loanId)).to.equal(true);
+
                 await poolContract.connect(manager).approveLoan(loanId);
                 let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
     
@@ -431,6 +439,18 @@ describe("Lender (SaplingPool)", function() {
         describe("Cancel", function () {
 
             it("Manager can cancel", async function () {
+                expect(await poolContract.canCancel(loanId, manager.address)).to.equal(true);
+                await poolContract.connect(manager).cancelLoan(loanId);
+                expect((await poolContract.loans(loanId)).status).to.equal(LoanStatus.CANCELLED);
+            });
+
+            it("Manager can cancel while other loans are present (Updating weighted avg loan APR", async function () {
+                let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
+                let loanDuration = BigNumber.from(365).mul(24*60*60);
+                let requestLoanTx = await poolContract.connect(borrower2).requestLoan(loanAmount, loanDuration);
+                let otherLoanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
+                await poolContract.connect(manager).approveLoan(otherLoanId);
+
                 await poolContract.connect(manager).cancelLoan(loanId);
                 expect((await poolContract.loans(loanId)).status).to.equal(LoanStatus.CANCELLED);
             });
@@ -438,30 +458,38 @@ describe("Lender (SaplingPool)", function() {
             describe("Rejection scenarios", function () {
                 it ("Cancelling a loan that is not in APPROVED status should fail", async function () {
                     await poolContract.connect(borrower1).borrow(loanId);
+
+                    expect(await poolContract.canCancel(loanId, manager.address)).to.equal(false);
                     await expect(poolContract.connect(manager).cancelLoan(loanId)).to.be.reverted;
                 });
         
                 it ("Cancelling a nonexistent loan should fail", async function () {
+                    expect(await poolContract.canCancel(loanId.add(1), manager.address)).to.equal(false);
                     await expect(poolContract.connect(manager).cancelLoan(loanId.add(1))).to.be.reverted;
                 });
         
                 it ("Cancelling a loan as the protocol should fail", async function () {
+                    expect(await poolContract.canCancel(loanId, protocol.address)).to.equal(false);
                     await expect(poolContract.connect(protocol).cancelLoan(loanId)).to.be.reverted;
                 });
         
                 it ("Cancelling a loan as the governance should fail", async function () {
+                    expect(await poolContract.canCancel(loanId, governance.address)).to.equal(false);
                     await expect(poolContract.connect(governance).cancelLoan(loanId)).to.be.reverted;
                 });
         
                 it ("Cancelling a loan as a lender should fail", async function () {
+                    expect(await poolContract.canCancel(loanId, lender1.address)).to.equal(false);
                     await expect(poolContract.connect(lender1).cancelLoan(loanId)).to.be.reverted;
                 });
         
                 it ("Cancelling a loan as the borrower should fail", async function () {
+                    expect(await poolContract.canCancel(loanId, borrower1.address)).to.equal(false);
                     await expect(poolContract.connect(borrower1).cancelLoan(loanId)).to.be.reverted;
                 });
         
                 it ("Cancelling a loan from an unrelated address should fail", async function () {
+                    expect(await poolContract.canCancel(loanId, addrs[0].address)).to.equal(false);
                     await expect(poolContract.connect(addrs[0]).cancelLoan(loanId)).to.be.reverted;
                 });
             });
@@ -481,20 +509,24 @@ describe("Lender (SaplingPool)", function() {
                 });
 
                 it ("Protocol can cancel", async function () {
+                    expect(await poolContract.canCancel(loanId, protocol.address)).to.equal(true);
                     await expect(poolContract.connect(protocol).cancelLoan(loanId)).to.be.ok;
                 });
         
                 it ("Governance can cancel", async function () {
+                    expect(await poolContract.canCancel(loanId, governance.address)).to.equal(true);
                     await expect(poolContract.connect(governance).cancelLoan(loanId)).to.be.ok;
                 });
         
                 it ("Long term lender can cancel", async function () {
+                    expect(await poolContract.canCancel(loanId, lender1.address)).to.equal(true);
                     await expect(poolContract.connect(lender1).cancelLoan(loanId)).to.be.ok;
                 });
 
                 describe("Rejection scenarios", function () {
     
                     it ("A lender without sufficient balance can't cancel", async function () {
+                        expect(await poolContract.canCancel(loanId, lender2.address)).to.equal(false);
                         await expect(poolContract.connect(lender2).cancelLoan(loanId)).to.be.reverted;
                     });
         
@@ -504,14 +536,17 @@ describe("Lender (SaplingPool)", function() {
                         await tokenContract.connect(lender3).approve(poolContract.address, depositAmount);
                         await poolContract.connect(lender3).deposit(depositAmount);
         
+                        expect(await poolContract.canCancel(loanId, lender3.address)).to.equal(false);
                         await expect(poolContract.connect(lender3).cancelLoan(loanId)).to.be.reverted;
                     });
             
                     it ("Borrower can't cancel", async function () {
+                        expect(await poolContract.canCancel(loanId, borrower1.address)).to.equal(false);
                         await expect(poolContract.connect(borrower1).cancelLoan(loanId)).to.be.reverted;
                     });
             
                     it ("An unrelated address can't cancel", async function () {
+                        expect(await poolContract.canCancel(loanId, addrs[0].address)).to.equal(false);
                         await expect(poolContract.connect(addrs[0]).cancelLoan(loanId)).to.be.reverted;
                     });
                 });
@@ -596,6 +631,7 @@ describe("Lender (SaplingPool)", function() {
                 expect(loanDetail.totalAmountRepaid).to.equal(paymentAmount);
                 expect(loanDetail.lastPaymentTime).to.equal(blockTimestamp);
                 expect((await poolContract.loans(loanId)).status).to.equal(LoanStatus.REPAID);
+                expect(await poolContract.loanBalanceDue(loanId)).to.equal(0);
     
                 expect(await tokenContract.balanceOf(borrower1.address)).to.equal(balanceBefore.sub(paymentAmount));
             });
@@ -739,6 +775,11 @@ describe("Lender (SaplingPool)", function() {
                     await tokenContract.connect(manager).transfer(addrs[0].address, paymentAmount);
                     await tokenContract.connect(addrs[0]).approve(poolContract.address, paymentAmount);
                     await expect(poolContract.connect(addrs[0]).repay(loanId, paymentAmount)).to.be.reverted;
+                });
+
+                it ("Repaying a loan on behalf of a wrong borrower should fail", async function () {
+                    await tokenContract.connect(lender3).approve(poolContract.address, loanAmount);
+                    await expect(poolContract.connect(lender3).repayOnBehalf(loanId, loanAmount, borrower2.address)).to.be.reverted;
                 });
             });
 
@@ -887,6 +928,58 @@ describe("Lender (SaplingPool)", function() {
                     expect(await poolContract.poolFunds()).to.equal(poolFundsBefore.sub(lossAmount));
                     expect(await poolContract.balanceStaked()).to.equal(stakedBalanceBefore.sub(lossAmount));
                 });
+
+                it("Manager can default a loan with an loss amount equal to the managers stake", async function () {
+
+                    let loanAmount = await poolContract.balanceStaked();
+                    let loanDuration = BigNumber.from(365).mul(24*60*60);
+                    let requestLoanTx = await poolContract.connect(borrower1).requestLoan(await poolContract.balanceStaked(), loanDuration);
+                    let otherLoanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
+                    await poolContract.connect(manager).approveLoan(otherLoanId);
+                    await poolContract.connect(borrower1).borrow(otherLoanId);
+
+                    let loan = await poolContract.loans(otherLoanId);
+                    await ethers.provider.send('evm_increaseTime', [loan.duration.add(loan.gracePeriod).toNumber()]);
+                    await ethers.provider.send('evm_mine');
+
+                    let poolFundsBefore = await poolContract.poolFunds();
+                    
+                    expect(await poolContract.canDefault(otherLoanId, manager.address)).to.equal(true);
+                    await poolContract.connect(manager).defaultLoan(otherLoanId);
+    
+                    loan = await poolContract.loans(otherLoanId);
+                    let loanDetail = await poolContract.loanDetails(otherLoanId);
+                    let lossAmount = loan.amount.sub(loanDetail.totalAmountRepaid);
+                    expect(loan.status).to.equal(LoanStatus.DEFAULTED);
+                    expect(await poolContract.poolFunds()).to.equal(poolFundsBefore.sub(lossAmount));
+                    expect(await poolContract.balanceStaked()).to.equal(0);
+                });
+
+                it("Manager can default a loan with an loss amount greater than the managers stake", async function () {
+
+                    let loanAmount = (await poolContract.balanceStaked()).mul(2);
+                    let loanDuration = BigNumber.from(365).mul(24*60*60);
+                    let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
+                    let otherLoanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
+                    await poolContract.connect(manager).approveLoan(otherLoanId);
+                    await poolContract.connect(borrower1).borrow(otherLoanId);
+
+                    let loan = await poolContract.loans(otherLoanId);
+                    await ethers.provider.send('evm_increaseTime', [loan.duration.add(loan.gracePeriod).toNumber()]);
+                    await ethers.provider.send('evm_mine');
+
+                    let poolFundsBefore = await poolContract.poolFunds();
+                    
+                    expect(await poolContract.canDefault(otherLoanId, manager.address)).to.equal(true);
+                    await poolContract.connect(manager).defaultLoan(otherLoanId);
+    
+                    loan = await poolContract.loans(otherLoanId);
+                    let loanDetail = await poolContract.loanDetails(otherLoanId);
+                    let lossAmount = loan.amount.sub(loanDetail.totalAmountRepaid);
+                    expect(loan.status).to.equal(LoanStatus.DEFAULTED);
+                    expect(await poolContract.poolFunds()).to.equal(poolFundsBefore.sub(lossAmount));
+                    expect(await poolContract.balanceStaked()).to.equal(0);
+                });
     
                 describe("Rejection scenarios", function () {
 
@@ -896,31 +989,38 @@ describe("Lender (SaplingPool)", function() {
                         await poolContract.connect(borrower1).repay(loanId, paymentAmount);
                         loan = await poolContract.loans(loanId);
                         assert(loan.status === LoanStatus.REPAID);
-        
+                        
+                        expect(await poolContract.canDefault(loanId, manager.address)).to.equal(false);
                         await expect(poolContract.connect(manager).defaultLoan(loanId)).to.be.reverted;
                     });
         
                     it ("Defaulting a nonexistent loan should fail", async function () {
+                        expect(await poolContract.canDefault(loanId.add(1), manager.address)).to.equal(false);
                         await expect(poolContract.connect(manager).defaultLoan(loanId.add(1))).to.be.reverted;
                     });
         
                     it ("Defaulting a loan as the protocol should fail", async function () {
+                        expect(await poolContract.canDefault(loanId, protocol.address)).to.equal(false);
                         await expect(poolContract.connect(protocol).defaultLoan(loanId)).to.be.reverted;
                     });
         
                     it ("Defaulting a loan as the governance should fail", async function () {
+                        expect(await poolContract.canDefault(loanId, governance.address)).to.equal(false);
                         await expect(poolContract.connect(governance).defaultLoan(loanId)).to.be.reverted;
                     });
         
                     it ("Defaulting a loan as a lender should fail", async function () {
+                        expect(await poolContract.canDefault(loanId, lender1.address)).to.equal(false);
                         await expect(poolContract.connect(lender1).defaultLoan(loanId)).to.be.reverted;
                     });
         
                     it ("Defaulting a loan as the borrower should fail", async function () {
+                        expect(await poolContract.canDefault(loanId, borrower1.address)).to.equal(false);
                         await expect(poolContract.connect(borrower1).defaultLoan(loanId)).to.be.reverted;
                     });
         
                     it ("Defaulting a loan from an unrelated address should fail", async function () {
+                        expect(await poolContract.canDefault(loanId, addrs[0].address)).to.equal(false);
                         await expect(poolContract.connect(addrs[0]).defaultLoan(loanId)).to.be.reverted;
                     });
                 });
@@ -939,20 +1039,24 @@ describe("Lender (SaplingPool)", function() {
                         await ethers.provider.send('evm_mine');
                     });
                     it ("Protocol can default", async function () {
+                        expect(await poolContract.canDefault(loanId, protocol.address)).to.equal(true);
                         await expect(poolContract.connect(protocol).defaultLoan(loanId)).to.be.ok;
                     });
             
                     it ("Governance can default", async function () {
+                        expect(await poolContract.canDefault(loanId, governance.address)).to.equal(true);
                         await expect(poolContract.connect(governance).defaultLoan(loanId)).to.be.ok;
                     });
             
                     it ("Long term lender can default", async function () {
+                        expect(await poolContract.canDefault(loanId, lender1.address)).to.equal(true);
                         await expect(poolContract.connect(lender1).defaultLoan(loanId)).to.be.ok;
                     });
     
                     describe("Rejection scenarios", function () {
 
                         it ("A lender without sufficient balance can't default", async function () {
+                            expect(await poolContract.canDefault(loanId, lender2.address)).to.equal(false);
                             await expect(poolContract.connect(lender2).defaultLoan(loanId)).to.be.reverted;
                         });
         
@@ -961,15 +1065,18 @@ describe("Lender (SaplingPool)", function() {
         
                             await tokenContract.connect(lender3).approve(poolContract.address, depositAmount);
                             await poolContract.connect(lender3).deposit(depositAmount);
-        
+                            
+                            expect(await poolContract.canDefault(loanId, lender3.address)).to.equal(false);
                             await expect(poolContract.connect(lender3).defaultLoan(loanId)).to.be.reverted;
                         });
                 
                         it ("Borrower can't default", async function () {
+                            expect(await poolContract.canDefault(loanId, borrower1.address)).to.equal(false);
                             await expect(poolContract.connect(borrower1).defaultLoan(loanId)).to.be.reverted;
                         });
                 
                         it ("An unrelated address can't default", async function () {
+                            expect(await poolContract.canDefault(loanId, addrs[0].address)).to.equal(false);
                             await expect(poolContract.connect(addrs[0]).defaultLoan(loanId)).to.be.reverted;
                         });
                     });

@@ -69,10 +69,10 @@ abstract contract ManagedLendingPool is Governed {
     mapping(address => uint256) internal protocolEarnings; 
 
     /// Total amount of requested withdrawal liquidity
-    uint256 totalRequestedLiquidity = 0;
+    uint256 public totalRequestedLiquidity = 0;
 
     /// Withdrawal liquidity requests by address
-    mapping(address => uint256) requestedLiquidity;
+    mapping(address => uint256) public requestedLiquidity;
     
     /// Number of decimal digits in integer percent values used across the contract
     uint16 public constant PERCENT_DECIMALS = 1;
@@ -161,7 +161,6 @@ abstract contract ManagedLendingPool is Governed {
      */
     constructor(address _token, address _governance, address _protocol) Governed(_governance) {
         require(_token != address(0), "SaplingPool: pool token address is not set");
-        require(_governance != address(0), "SaplingPool: governance address is not set");
         require(_protocol != address(0), "SaplingPool: protocol wallet address is not set");
         
         manager = msg.sender;
@@ -179,12 +178,7 @@ abstract contract ManagedLendingPool is Governed {
         targetLiquidityPercent = 0; //0%
 
         managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
-        try IERC20Metadata(token).decimals() returns(uint8 decimals) {
-            tokenDecimals = decimals;
-        } catch {
-            tokenDecimals = 18;
-        }
-
+        tokenDecimals = IERC20Metadata(token).decimals();
         ONE_TOKEN = 10 ** tokenDecimals;
     }
 
@@ -338,9 +332,7 @@ abstract contract ManagedLendingPool is Governed {
         // give tokens
         tokenBalance = tokenBalance.sub(amount);
         bool success = IERC20(token).transfer(msg.sender, amount);
-        if(!success) {
-            revert();
-        }
+        require(success);
     }
 
     /**
@@ -360,9 +352,7 @@ abstract contract ManagedLendingPool is Governed {
      */
     function chargeTokensFrom(address wallet, uint256 amount) internal {
         bool success = IERC20(token).transferFrom(wallet, address(this), amount);
-        if (!success) {
-            revert();
-        }
+        require(success);
         tokenBalance = tokenBalance.add(amount);
     }
 
@@ -447,9 +437,7 @@ abstract contract ManagedLendingPool is Governed {
 
         tokenBalance = tokenBalance.sub(transferAmount);
         bool success = IERC20(token).transfer(msg.sender, transferAmount);
-        if(!success) {
-            revert();
-        }
+        require(success);
 
         return shares;
     }
@@ -483,9 +471,7 @@ abstract contract ManagedLendingPool is Governed {
      * @param tokens Amount of tokens
      */
     function tokensToShares(uint256 tokens) internal view returns (uint256) {
-        if (tokens == 0) {
-            return 0;
-        } else if (totalPoolShares == 0) {
+        if (totalPoolShares == 0 || poolFunds == 0) {
             return tokens;
         }
 
@@ -499,11 +485,10 @@ abstract contract ManagedLendingPool is Governed {
      * @param c denominator of the fraction
      * @return Integer value of (a*b)/c if (a*b) does not overflow, else a*(b/c)
      */
-    function multiplyByFraction(uint256 a, uint256 b, uint256 c) internal pure returns (uint256) {
-        require(c != 0); // no need proceed if denominator is 0
+    function multiplyByFraction(uint256 a, uint256 b, uint256 c) public pure returns (uint256) {
+        require(c != 0, "Cannot divide by zero."); // no need proceed if denominator is 0
         
         (bool notOverflow, uint256 multiplied) = a.tryMul(b);
-
         if(notOverflow) {
             return multiplied.div(c);
         }

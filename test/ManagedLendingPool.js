@@ -784,5 +784,43 @@ describe("ManagedLendingPool (SaplingPool)", function() {
             });
         });
     });
+
+    describe("Multiplying by fraction", function () {
+
+        it("Simple multiplication by fraction is correct", async function () {
+            let a = BigNumber.from(1000);
+            let b = BigNumber.from(3);
+            let c = BigNumber.from(10);
+            
+            expect(await poolContract.multiplyByFraction(a, b, c)).to.equal(a.mul(b).div(c));
+        });
+
+        it("Prime number multiplication by fraction is correct", async function () {
+            let a = BigNumber.from(3259);
+            let b = BigNumber.from(547);
+            let c = BigNumber.from(7001);
+            
+            expect(await poolContract.multiplyByFraction(a, b, c)).to.equal(a.mul(b).div(c));
+        });
+
+        it("Overflow causing multiplication by fraction is correct", async function () {
+            let a = ethers.constants.MaxUint256;
+            let b = BigNumber.from(3);
+            let c = BigNumber.from(10);
+            
+            expect(await poolContract.multiplyByFraction(a, b, c)).to.equal(a.div(c).mul(b));
+        });
+
+        describe("Rejection scenarios", function () {
+
+            it("Multiplying to a fraction with zero denominator should fail", async function () {
+                let a = BigNumber.from(1000);
+                let b = BigNumber.from(3);
+                let c = BigNumber.from(0);
+                
+                await expect(poolContract.multiplyByFraction(a, b, c)).to.be.reverted;
+            });
+        });
+    });
   });
   
