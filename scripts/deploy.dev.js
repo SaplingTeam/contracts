@@ -1,5 +1,5 @@
 async function main() {
-    [manager, protocol, lender1, lender2, borrower1, borrower2] = await ethers.getSigners();
+    [manager, protocol, governance, lender1, lender2, borrower1, borrower2] = await ethers.getSigners();
   
     console.log("Deploying contracts with the account:", manager.address);
     console.log("Account balance:", (await manager.getBalance()).toString());
@@ -9,7 +9,7 @@ async function main() {
     console.log("TestToken address:", tokenContract.address);
 
     SaplingPool = await ethers.getContractFactory("SaplingPool");
-    saplingPoolContract = await SaplingPool.deploy(tokenContract.address, protocol.address, BigInt(100e18))
+    saplingPoolContract = await SaplingPool.deploy(tokenContract.address, governance.address, protocol.address, BigInt(100e18))
     console.log("SaplingPool address:", saplingPoolContract.address);
   }
   
