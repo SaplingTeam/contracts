@@ -329,6 +329,13 @@ describe("SaplingPool", function() {
             expect(await tokenContract.balanceOf(lender1.address)).to.equal(balanceBefore.sub(depositAmount));
         });
 
+        it("Lender that has deposited is valid lender but not a valid borrower", async function () {
+            await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
+            await poolContract.connect(lender1).deposit(depositAmount);
+            expect(await poolContract.isValidLender(lender1.address)).to.equal(true);
+            expect(await poolContract.isValidBorrower(lender1.address)).to.equal(false);
+        });
+
         it("Deposit is reflected on the pool contract balance", async function () {
             let prevBalance = await tokenContract.balanceOf(poolContract.address);
 
@@ -701,9 +708,6 @@ describe("SaplingPool", function() {
             it("Lender can request liquidity for withdrawal allocation", async function () {
                 let prevTotalRequestedLiquidity = await poolContract.totalRequestedLiquidity();
                 let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
-
-                let isValidLender = await poolContract.isValidLender(lender1.address);
-                console.log('isValidLender: ' + isValidLender);
 
                 await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
     

@@ -60,6 +60,21 @@ describe("Lender (SaplingPool)", function() {
         it("Loan count is correct", async function () {
             expect(await poolContract.loansCount()).to.equal(0);
         });
+
+        it("Pool manager is not a valid lender and not a valid borrower", async function () {
+            expect(await poolContract.isValidLender(manager.address)).to.equal(false);
+            expect(await poolContract.isValidBorrower(manager.address)).to.equal(false);
+        });
+
+        it("Protocol wallet is not a valid lender and not a valid borrower", async function () {
+            expect(await poolContract.isValidLender(protocol.address)).to.equal(false);
+            expect(await poolContract.isValidBorrower(protocol.address)).to.equal(false);
+        });
+
+        it("Protocol governance is not a valid lender and not a valid borrower", async function () {
+            expect(await poolContract.isValidLender(governance.address)).to.equal(false);
+            expect(await poolContract.isValidBorrower(governance.address)).to.equal(false);
+        });
     });
 
     describe("Loan Request", function () {
@@ -364,6 +379,12 @@ describe("Lender (SaplingPool)", function() {
                 expect(loan.status).to.equal(LoanStatus.OUTSTANDING);
     
                 expect(await tokenContract.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
+            });
+
+            it("Borrower that has borrowed is a valid borrower but not a valid lender", async function () {
+                await poolContract.connect(borrower1).borrow(loanId);
+                expect(await poolContract.isValidLender(borrower1.address)).to.equal(false);
+                expect(await poolContract.isValidBorrower(borrower1.address)).to.equal(true);
             });
 
             describe("Rejection scenarios", function () {

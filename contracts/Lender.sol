@@ -744,8 +744,8 @@ abstract contract Lender is ManagedLendingPool {
      */
     function isValidLender(address wallet) public view returns (bool) {
         return wallet != address(0) && wallet != manager && wallet != protocol && wallet != governance 
-            && hasOpenApplication[wallet] == false && borrowerStats[msg.sender].countApproved == 0 
-            && borrowerStats[msg.sender].countOutstanding == 0; 
+            && hasOpenApplication[wallet] == false && borrowerStats[wallet].countApproved == 0 
+            && borrowerStats[wallet].countOutstanding == 0; 
     }
 
     /**
