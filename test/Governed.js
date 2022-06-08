@@ -186,7 +186,7 @@ describe("Governed (SaplingPool)", function() {
             
             let pauseCooldownTime = await poolContract.pauseCooldownTime();
             expect(pauseCooldownTime).to.lt(prevPauseCooldownTime);
-            expect(pauseCooldownTime.sub(BigNumber.from(blockTimestamp).add(PAUSE_MAX_COOLDOWN.div(2)))).to.lte(1);
+            expect(pauseCooldownTime.sub(BigNumber.from(blockTimestamp).add(PAUSE_MAX_COOLDOWN.div(2)))).to.lte(60);
         });
 
         describe("Rejection scenarios", function () {
