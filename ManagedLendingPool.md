@@ -637,6 +637,8 @@ function multiplyByFraction(uint256 a, uint256 b, uint256 c) public pure returns
 
 Do a multiplication of a value by a fraction.
 
+_A proxy to FractionalMath.mulDiv(...)_
+
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | a | uint256 | value to be multiplied |
