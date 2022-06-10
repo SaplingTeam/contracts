@@ -4,6 +4,7 @@ pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "./FractionalMath.sol";
 import "./Lender.sol";
 
 /**
@@ -188,7 +189,7 @@ contract SaplingPool is Lender {
         }
 
         uint256 lenderShares = totalPoolShares.sub(stakedShares);
-        uint256 lockedStakeShares = multiplyByFraction(lenderShares, targetStakePercent, ONE_HUNDRED_PERCENT - targetStakePercent);
+        uint256 lockedStakeShares = FractionalMath.mulDiv(lenderShares, targetStakePercent, ONE_HUNDRED_PERCENT - targetStakePercent);
 
         return Math.min(poolLiquidity, sharesToTokens(stakedShares.sub(lockedStakeShares)));
     }
@@ -209,7 +210,7 @@ contract SaplingPool is Lender {
      */
     function projectedLenderAPY(uint16 borrowRate) external view returns (uint16) {
         require(borrowRate <= ONE_HUNDRED_PERCENT, "SaplingPool: Invalid borrow rate. Borrow rate must be less than or equal to 100%");
-        return lenderAPY(multiplyByFraction(poolFunds, borrowRate, ONE_HUNDRED_PERCENT));
+        return lenderAPY(FractionalMath.mulDiv(poolFunds, borrowRate, ONE_HUNDRED_PERCENT));
     }
 
 
@@ -225,15 +226,15 @@ contract SaplingPool is Lender {
         }
         
         // pool APY
-        uint256 poolAPY = multiplyByFraction(weightedAvgLoanAPR, _borrowedFunds, poolFunds);
+        uint256 poolAPY = FractionalMath.mulDiv(weightedAvgLoanAPR, _borrowedFunds, poolFunds);
         
         // protocol APY
-        uint256 protocolAPY = multiplyByFraction(poolAPY, protocolEarningPercent, ONE_HUNDRED_PERCENT);
+        uint256 protocolAPY = FractionalMath.mulDiv(poolAPY, protocolEarningPercent, ONE_HUNDRED_PERCENT);
         
         // manager withdrawableAPY
-        uint256 currentStakePercent = multiplyByFraction(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
-        uint256 managerEarningsPercent = multiplyByFraction(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT);
-        uint256 managerWithdrawableAPY = managerEarningsPercent.sub(multiplyByFraction(managerEarningsPercent, ONE_HUNDRED_PERCENT - protocolEarningPercent, ONE_HUNDRED_PERCENT));
+        uint256 currentStakePercent = FractionalMath.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
+        uint256 managerEarningsPercent = FractionalMath.mulDiv(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT);
+        uint256 managerWithdrawableAPY = managerEarningsPercent.sub(FractionalMath.mulDiv(managerEarningsPercent, ONE_HUNDRED_PERCENT - protocolEarningPercent, ONE_HUNDRED_PERCENT));
 
         return uint16(poolAPY.sub(protocolAPY).sub(managerWithdrawableAPY));
     }

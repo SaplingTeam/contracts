@@ -4,6 +4,7 @@ pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "./FractionalMath.sol";
 import "./ManagedLendingPool.sol";
 
 /**
@@ -354,7 +355,7 @@ abstract contract Lender is ManagedLendingPool {
     function approveLoan(uint256 _loanId) external onlyManager loanInStatus(_loanId, LoanStatus.APPLIED) whenLendingNotPaused whenNotClosed notPaused {
         Loan storage loan = loans[_loanId];
 
-        require(poolLiquidity >= loan.amount + multiplyByFraction(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity, 
+        require(poolLiquidity >= loan.amount + FractionalMath.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity, 
             "SaplingPool: Pool liquidity is insufficient to approve this loan.");
         require(poolCanLend(), "SaplingPool: Stake amount is too low to approve new loans.");
 
@@ -488,18 +489,18 @@ abstract contract Lender is ManagedLendingPool {
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.lastPaymentTime = block.timestamp;
         
-        uint256 interestPaid = multiplyByFraction(transferAmount, interestPercent, ONE_HUNDRED_PERCENT + interestPercent);
+        uint256 interestPaid = FractionalMath.mulDiv(transferAmount, interestPercent, ONE_HUNDRED_PERCENT + interestPercent);
         uint256 baseAmountPaid = transferAmount.sub(interestPaid);
 
         //share profits to protocol
-        uint256 protocolEarnedInterest = multiplyByFraction(interestPaid, protocolEarningPercent, ONE_HUNDRED_PERCENT);
+        uint256 protocolEarnedInterest = FractionalMath.mulDiv(interestPaid, protocolEarningPercent, ONE_HUNDRED_PERCENT);
         
         protocolEarnings[protocol] = protocolEarnings[protocol].add(protocolEarnedInterest); 
 
         //share profits to manager 
-        uint256 currentStakePercent = multiplyByFraction(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
-        uint256 managerEarningsPercent = multiplyByFraction(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT);
-        uint256 managerEarnedInterest = multiplyByFraction(interestPaid.sub(protocolEarnedInterest), managerEarningsPercent, ONE_HUNDRED_PERCENT);
+        uint256 currentStakePercent = FractionalMath.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
+        uint256 managerEarningsPercent = FractionalMath.mulDiv(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT);
+        uint256 managerEarnedInterest = FractionalMath.mulDiv(interestPaid.sub(protocolEarnedInterest), managerEarningsPercent, ONE_HUNDRED_PERCENT);
 
         protocolEarnings[manager] = protocolEarnings[manager].add(managerEarnedInterest);
 
@@ -610,7 +611,7 @@ abstract contract Lender is ManagedLendingPool {
      */
     function canApprove(uint256 loanId) external view returns (bool) {
         return poolCanLend() 
-            && poolLiquidity >= loans[loanId].amount + multiplyByFraction(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity;
+            && poolLiquidity >= loans[loanId].amount + FractionalMath.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity;
     }
 
     /**
@@ -688,10 +689,10 @@ abstract contract Lender is ManagedLendingPool {
                 .div(daysPassed);
         }
 
-        uint256 interestPercent = multiplyByFraction(apr, daysPassed, 365);
+        uint256 interestPercent = FractionalMath.mulDiv(apr, daysPassed, 365);
 
         uint256 baseAmountDue = loan.amount.sub(loanDetail.baseAmountRepaid);
-        uint256 balanceDue = baseAmountDue.add(multiplyByFraction(baseAmountDue, interestPercent, ONE_HUNDRED_PERCENT));
+        uint256 balanceDue = baseAmountDue.add(FractionalMath.mulDiv(baseAmountDue, interestPercent, ONE_HUNDRED_PERCENT));
 
         return (balanceDue, interestPercent);
     }
