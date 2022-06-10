@@ -5,6 +5,7 @@ pragma solidity ^0.8.12;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "./FractionalMath.sol";
 import "./Governed.sol";
 
 /**
@@ -340,7 +341,7 @@ abstract contract ManagedLendingPool is Governed {
      * @return True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise.
      */
     function poolCanLend() public view returns (bool) {
-        return !(isLendingPaused || isPaused() || isClosed) && stakedShares >= multiplyByFraction(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
+        return !(isLendingPaused || isPaused() || isClosed) && stakedShares >= FractionalMath.mulDiv(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
     }
 
     //TODO consider security implications of having the following internal function
@@ -417,7 +418,7 @@ abstract contract ManagedLendingPool is Governed {
 
         uint256 transferAmount;
         if (block.timestamp < earlyExitDeadlines[msg.sender]) {
-            transferAmount = amount.sub(multiplyByFraction(amount, earlyExitFeePercent, ONE_HUNDRED_PERCENT));
+            transferAmount = amount.sub(FractionalMath.mulDiv(amount, earlyExitFeePercent, ONE_HUNDRED_PERCENT));
         } else {
             transferAmount = amount;
         }
@@ -446,7 +447,7 @@ abstract contract ManagedLendingPool is Governed {
      * @dev Internal method to update pool limit based on staked funds. 
      */
     function updatePoolLimit() internal {
-        poolFundsLimit = sharesToTokens(multiplyByFraction(stakedShares, ONE_HUNDRED_PERCENT, targetStakePercent));
+        poolFundsLimit = sharesToTokens(FractionalMath.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, targetStakePercent));
     }
 
     function authorizedOnInactiveManager(address caller) internal view returns (bool) {
@@ -463,7 +464,7 @@ abstract contract ManagedLendingPool is Governed {
              return 0;
         }
 
-        return multiplyByFraction(shares, poolFunds, totalPoolShares);
+        return FractionalMath.mulDiv(shares, poolFunds, totalPoolShares);
     }
 
     /**
@@ -475,24 +476,21 @@ abstract contract ManagedLendingPool is Governed {
             return tokens;
         }
 
-        return multiplyByFraction(tokens, totalPoolShares, poolFunds);
+        return FractionalMath.mulDiv(tokens, totalPoolShares, poolFunds);
     }
 
     /**
      * @notice Do a multiplication of a value by a fraction.
+     * @dev A proxy to FractionalMath.mulDiv(...)
      * @param a value to be multiplied
      * @param b numerator of the fraction
      * @param c denominator of the fraction
+     * 
      * @return Integer value of (a*b)/c if (a*b) does not overflow, else a*(b/c)
      */
     function multiplyByFraction(uint256 a, uint256 b, uint256 c) public pure returns (uint256) {
         require(c != 0, "Cannot divide by zero."); // no need proceed if denominator is 0
         
-        (bool notOverflow, uint256 multiplied) = a.tryMul(b);
-        if(notOverflow) {
-            return multiplied.div(c);
-        }
-        
-        return a.div(c).mul(b);
+        return FractionalMath.mulDiv(a, b, c);
     }
 }

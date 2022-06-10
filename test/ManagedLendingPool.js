@@ -808,7 +808,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
             let b = BigNumber.from(3);
             let c = BigNumber.from(10);
             
-            expect(await poolContract.multiplyByFraction(a, b, c)).to.equal(a.div(c).mul(b));
+            expect(await poolContract.multiplyByFraction(a, b, c)).to.equal(a.mul(b).div(c));
         });
 
         describe("Rejection scenarios", function () {
