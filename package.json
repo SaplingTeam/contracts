@@ -14,7 +14,7 @@
     "deploy-dev": "hardhat run scripts/deploy.dev.js"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.5.0",
+    "@openzeppelin/contracts": "^4.6.0",
     "solc": "^0.8.13"
   },
   "devDependencies": {
