@@ -763,7 +763,52 @@ describe("Lender (SaplingPool)", function() {
                 expect(walletBalance).to.equal(prevWalletBalance.sub(loanBalanceDue));
             });
 
+            it("Borrower can do a payment with amount less than the required minimum but equal to outstanding balance", async function () {
+                let loan = await poolContract.loans(loanId);
+    
+                await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
+                await ethers.provider.send('evm_mine');
+    
+                let paymentAmount2 = (await poolContract.ONE_TOKEN()).sub(1);
+                let paymentAmount1 = (await poolContract.loanBalanceDue(loanId)).sub(paymentAmount2);
+    
+                await tokenContract.connect(borrower1).approve(poolContract.address, paymentAmount1.add(paymentAmount2));
+                await poolContract.connect(borrower1).repay(loanId, paymentAmount1);
+
+                await expect(poolContract.connect(borrower1).repay(loanId, paymentAmount2)).to.be.ok;
+
+                await ethers.provider.send('evm_mine');
+                
+                loan = await poolContract.loans(loanId);
+                expect(loan.status).to.equal(LoanStatus.REPAID);
+            });
+
             describe("Rejection scenarios", function () {
+                it ("Repaying a less than minimum payment amount on a loan with a greater outstanding balance should fail", async function () {
+                    let paymentAmount = (await poolContract.ONE_TOKEN()).sub(1);
+                    let balanceDue = await poolContract.loanBalanceDue(loanId);
+
+                    assert(balanceDue.gt(paymentAmount));
+
+                    await tokenContract.connect(borrower1).approve(poolContract.address, paymentAmount);
+                    await expect(poolContract.connect(protocol).repay(loanId, paymentAmount)).to.be.reverted;
+                });
+
+                it("Repaying less than the outstanding balance on a loan with balance less than the minimum required should fail", async function () {
+                    let loan = await poolContract.loans(loanId);
+        
+                    await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
+                    await ethers.provider.send('evm_mine');
+        
+                    let paymentAmount2 = (await poolContract.ONE_TOKEN()).sub(1);
+                    let paymentAmount1 = (await poolContract.loanBalanceDue(loanId)).sub(paymentAmount2);
+        
+                    await tokenContract.connect(borrower1).approve(poolContract.address, paymentAmount1.add(paymentAmount2));
+                    await poolContract.connect(borrower1).repay(loanId, paymentAmount1);
+
+                    await expect(poolContract.connect(borrower1).repay(loanId, paymentAmount2.sub(1))).to.be.reverted;
+                });
+
                 it ("Repaying a loan that is not in OUTSTANDING status should fail", async function () {
                     let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
                     let otherLoanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
