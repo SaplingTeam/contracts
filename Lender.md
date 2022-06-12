@@ -533,7 +533,7 @@ _Loan must be in OUTSTANDING status.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | A pair of total amount changed including interest, and the interest charged. |
+| [0] | uint256 | A pair of total amount charged including interest, and the interest charged. |
 | [1] | uint256 |  |
 
 ### defaultLoan

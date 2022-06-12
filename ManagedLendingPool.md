@@ -539,20 +539,6 @@ Check if the pool can lend based on the current stake levels.
 | ---- | ---- | ----------- |
 | [0] | bool | True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise. |
 
-### chargeTokensFrom
-
-```solidity
-function chargeTokensFrom(address wallet, uint256 amount) internal
-```
-
-_Internal method to charge tokens from a wallet.
-     An appropriate approval must be present._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| wallet | address | Address to charge tokens from. |
-| amount | uint256 | Token amount to charge. |
-
 ### enterPool
 
 ```solidity
