@@ -344,19 +344,6 @@ abstract contract ManagedLendingPool is Governed {
         return !(isLendingPaused || isPaused() || isClosed) && stakedShares >= FractionalMath.mulDiv(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
     }
 
-    //TODO consider security implications of having the following internal function
-    /**
-     * @dev Internal method to charge tokens from a wallet.
-     *      An appropriate approval must be present.
-     * @param wallet Address to charge tokens from.
-     * @param amount Token amount to charge.
-     */
-    function chargeTokensFrom(address wallet, uint256 amount) internal {
-        bool success = IERC20(token).transferFrom(wallet, address(this), amount);
-        require(success);
-        tokenBalance = tokenBalance.add(amount);
-    }
-
     /**
      * @dev Internal method to enter the pool with a token amount.
      *      With the exception of the manager's call, amount must not exceed amountDepositable().
@@ -375,7 +362,11 @@ abstract contract ManagedLendingPool is Governed {
 
         uint256 shares = tokensToShares(amount);
 
-        chargeTokensFrom(msg.sender, amount);
+        // charge 'amount' tokens from msg.sender
+        bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
+        require(success);
+        tokenBalance = tokenBalance.add(amount);
+
         poolLiquidity = poolLiquidity.add(amount);
         poolFunds = poolFunds.add(amount);
 
