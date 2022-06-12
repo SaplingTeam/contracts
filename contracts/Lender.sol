@@ -471,7 +471,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Amount charged will not exceed the amount parameter. 
      * @param loanId ID of the loan to make a payment towards.
      * @param amount Payment amount in tokens.
-     * @return A pair of total amount changed including interest, and the interest charged.
+     * @return A pair of total amount charged including interest, and the interest charged.
      */
     function repayBase(uint256 loanId, uint256 amount) internal loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
         Loan storage loan = loans[loanId];
@@ -481,7 +481,10 @@ abstract contract Lender is ManagedLendingPool {
         (uint256 amountDue, uint256 interestPercent) = loanBalanceDueWithInterest(loanId);
         uint256 transferAmount = Math.min(amountDue, amount);
 
-        chargeTokensFrom(msg.sender, transferAmount);
+        // charge 'amount' tokens from msg.sender
+        bool success = IERC20(token).transferFrom(msg.sender, address(this), transferAmount);
+        require(success);
+        tokenBalance = tokenBalance.add(transferAmount);
 
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.lastPaymentTime = block.timestamp;
@@ -496,8 +499,10 @@ abstract contract Lender is ManagedLendingPool {
 
         //share profits to manager 
         uint256 currentStakePercent = FractionalMath.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
-        uint256 managerEarningsPercent = FractionalMath.mulDiv(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT);
-        uint256 managerEarnedInterest = FractionalMath.mulDiv(interestPaid.sub(protocolEarnedInterest), managerEarningsPercent, ONE_HUNDRED_PERCENT);
+        uint256 managerEarnedInterest = FractionalMath
+            .mulDiv(interestPaid.sub(protocolEarnedInterest),
+                    FractionalMath.mulDiv(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT), // managerEarningsPercent
+                    ONE_HUNDRED_PERCENT);
 
         protocolEarnings[manager] = protocolEarnings[manager].add(managerEarnedInterest);
 
