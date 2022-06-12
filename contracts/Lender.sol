@@ -174,9 +174,6 @@ abstract contract Lender is ManagedLendingPool {
     /// Total borrowed funds allocated for withdrawal but not yet withdrawn by the borrowers
     uint256 public loanFundsPendingWithdrawal;
 
-    /// Borrowed funds allocated for withdrawal by borrower addresses
-    mapping(address => uint256) internal loanFunds;
-
     /// Loan applications by loanId
     mapping(uint256 => Loan) public loans;
 
@@ -374,7 +371,7 @@ abstract contract Lender is ManagedLendingPool {
         loan.status = LoanStatus.APPROVED;
         hasOpenApplication[loan.borrower] = false;
 
-        increaseLoanFunds(loan.borrower, loan.amount);
+        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.add(loan.amount);
         poolLiquidity = poolLiquidity.sub(loan.amount);
         uint256 prevBorrowedFunds = borrowedFunds;
         borrowedFunds = borrowedFunds.add(loan.amount);
@@ -414,7 +411,7 @@ abstract contract Lender is ManagedLendingPool {
         }
 
         loan.status = LoanStatus.CANCELLED;
-        decreaseLoanFunds(loan.borrower, loan.amount);
+        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(loan.amount);
         poolLiquidity = poolLiquidity.add(loan.amount);
         uint256 prevBorrowedFunds = borrowedFunds;
         borrowedFunds = borrowedFunds.sub(loan.amount);
@@ -713,29 +710,6 @@ abstract contract Lender is ManagedLendingPool {
         }
 
         return dayCount;
-    }
-
-    //TODO consider security implications of having the following internal function
-    /**
-     * @dev Internal method to allocate funds to borrow upon loan approval
-     * @param wallet Address to allocate funds to.
-     * @param amount Token amount to allocate.
-     */
-    function increaseLoanFunds(address wallet, uint256 amount) private {
-        loanFunds[wallet] = loanFunds[wallet].add(amount);
-        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.add(amount);
-    }
-
-    //TODO consider security implications of having the following internal function
-    /**
-     * @dev Internal method to deallocate funds to borrow upon borrow()
-     * @param wallet Address to deallocate the funds of.
-     * @param amount Token amount to deallocate.
-     */
-    function decreaseLoanFunds(address wallet, uint256 amount) internal {
-        require(loanFunds[wallet] >= amount, "SaplingPool: requested amount is not available in the funding account");
-        loanFunds[wallet] = loanFunds[wallet].sub(amount);
-        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(amount);
     }
 
     /**

@@ -130,7 +130,7 @@ contract SaplingPool is Lender {
         borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.add(loan.amount);
         
         loan.status = LoanStatus.OUTSTANDING;
-        decreaseLoanFunds(msg.sender, loan.amount);
+        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(loan.amount);
 
         tokenBalance = tokenBalance.sub(loan.amount);
         bool success = IERC20(token).transfer(msg.sender, loan.amount);
