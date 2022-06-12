@@ -267,14 +267,6 @@ uint256 loanFundsPendingWithdrawal
 
 Total borrowed funds allocated for withdrawal but not yet withdrawn by the borrowers
 
-### loanFunds
-
-```solidity
-mapping(address &#x3D;&gt; uint256) loanFunds
-```
-
-Borrowed funds allocated for withdrawal by borrower addresses
-
 ### loans
 
 ```solidity
@@ -671,32 +663,6 @@ _Internal helper method. Returns the ceiling of the count._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | uint256 | Ceil count of days in a time period to witch an interest can be applied. |
-
-### increaseLoanFunds
-
-```solidity
-function increaseLoanFunds(address wallet, uint256 amount) private
-```
-
-_Internal method to allocate funds to borrow upon loan approval_
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| wallet | address | Address to allocate funds to. |
-| amount | uint256 | Token amount to allocate. |
-
-### decreaseLoanFunds
-
-```solidity
-function decreaseLoanFunds(address wallet, uint256 amount) internal
-```
-
-_Internal method to deallocate funds to borrow upon borrow()_
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| wallet | address | Address to deallocate the funds of. |
-| amount | uint256 | Token amount to deallocate. |
 
 ### isValidLender
 
