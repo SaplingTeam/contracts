@@ -1,4 +1,4 @@
-const { expect } = require("chai");
+const { expect, assert } = require("chai");
 const { BigNumber } = require("ethers");
 
 describe("SaplingPool", function() {
@@ -81,6 +81,37 @@ describe("SaplingPool", function() {
             let poolFunds = await poolContract.poolFunds();
 
             expect(poolFunds).to.equal(prevPoolFunds.add(stakeAmount));
+        });
+        
+        it("Manager can stake on a failed pool and have a correct pool balance", async function () {
+            await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
+            await poolContract.connect(manager).stake(stakeAmount);
+            
+            let depositAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
+            await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
+            await poolContract.connect(lender1).deposit(depositAmount);
+
+            let loanAmount = await poolContract.poolFunds();
+            let loanDuration = BigNumber.from(365).mul(24*60*60);
+
+            let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
+            loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
+
+            await poolContract.connect(manager).approveLoan(loanId);
+            await poolContract.connect(borrower1).borrow(loanId);
+
+            let loan = await poolContract.loans(loanId);
+            await ethers.provider.send('evm_increaseTime', [loan.duration.add(loan.gracePeriod).toNumber()]);
+            await ethers.provider.send('evm_mine');
+
+            await poolContract.connect(manager).defaultLoan(loanId);
+
+            assert((await poolContract.balanceStaked()).eq(0));
+            assert((await poolContract.poolFunds()).eq(0));
+
+            await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
+            await poolContract.connect(manager).stake(stakeAmount);
+            expect(await poolContract.balanceStaked()).to.equal(stakeAmount.sub(1));
         });
 
         describe("Rejection scenarios", function () {
