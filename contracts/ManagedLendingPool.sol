@@ -397,8 +397,7 @@ abstract contract ManagedLendingPool is Governed {
         require(amount > 0, "SaplingPool: pool withdrawal amount is 0");
         require(poolLiquidity >= amount, "SaplingPool: pool liquidity is too low");
 
-        uint256 shares = tokensToShares(amount); 
-        //TODO handle failed pool case when any amount equates to 0 shares
+        uint256 shares = tokensToShares(amount);
 
         require(poolShares[msg.sender] >= lockedShares[msg.sender] && shares <= poolShares[msg.sender] - lockedShares[msg.sender],
             "SaplingPool: Insufficient balance for this operation.");
@@ -463,8 +462,16 @@ abstract contract ManagedLendingPool is Governed {
      * @param tokens Amount of tokens
      */
     function tokensToShares(uint256 tokens) internal view returns (uint256) {
-        if (totalPoolShares == 0 || poolFunds == 0) {
+        if (totalPoolShares == 0) {
+            // a pool with no positions
             return tokens;
+        } else if (poolFunds == 0) {
+            /* 
+                Handle failed pool case, where: poolFunds == 0, but totalPoolShares > 0
+                To minimize loss for the new depositor, assume the total value of existing shares is the minimum possible nonzero integer, which is 1
+                simplify (tokens * totalPoolShares) / 1 as tokens * totalPoolShares
+            */
+            return tokens.mul(totalPoolShares);
         }
 
         return FractionalMath.mulDiv(tokens, totalPoolShares, poolFunds);
