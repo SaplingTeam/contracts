@@ -1,7 +1,7 @@
 # Sapling V1 Contracts
 
 ## Interacting with the contracts
-Please refer to https://saplingfinance.github.io/contracts/ for contract details.
+Please refer to https://saplingprotocol.github.io/contracts/ for contract details.
 
 ## Notes for contract developers
 
