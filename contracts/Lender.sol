@@ -474,18 +474,19 @@ abstract contract Lender is ManagedLendingPool {
      * @return A pair of total amount charged including interest, and the interest charged.
      */
     function repayBase(uint256 loanId, uint256 amount) internal loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
-        Loan storage loan = loans[loanId];
-
-        //TODO enforce a small minimum payment amount, except for the last payment 
 
         (uint256 amountDue, uint256 interestPercent) = loanBalanceDueWithInterest(loanId);
         uint256 transferAmount = Math.min(amountDue, amount);
+
+        // enforce a small minimum payment amount, except for the last payment 
+        require(transferAmount == amountDue || transferAmount >= ONE_TOKEN, "Sapling: Payment amount is less than the required minimum of 1 token.");
 
         // charge 'amount' tokens from msg.sender
         bool success = IERC20(token).transferFrom(msg.sender, address(this), transferAmount);
         require(success);
         tokenBalance = tokenBalance.add(transferAmount);
 
+        Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.lastPaymentTime = block.timestamp;
         
