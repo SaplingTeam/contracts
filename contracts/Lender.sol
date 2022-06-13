@@ -431,6 +431,28 @@ abstract contract Lender is ManagedLendingPool {
     }
 
     /**
+     * @notice Withdraw funds of an approved loan.
+     * @dev Caller must be the borrower. 
+     *      The loan must be in APPROVED status.
+     * @param loanId id of the loan to withdraw funds of. 
+     */
+    function borrow(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) whenLendingNotPaused whenNotClosed notPaused {
+        Loan storage loan = loans[loanId];
+        require(loan.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
+
+        borrowerStats[loan.borrower].countCurrentApproved--;
+        borrowerStats[loan.borrower].countOutstanding++;
+        borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.add(loan.amount);
+        
+        loan.status = LoanStatus.OUTSTANDING;
+        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(loan.amount);
+
+        tokenBalance = tokenBalance.sub(loan.amount);
+        bool success = IERC20(token).transfer(msg.sender, loan.amount);
+        require(success);
+    }
+
+    /**
      * @notice Make a payment towards a loan.
      * @dev Caller must be the borrower.
      *      Loan must be in OUTSTANDING status.
