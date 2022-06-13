@@ -25,13 +25,13 @@ abstract contract ManagedLendingPool is Governed {
     address public protocol;
 
     /// Address of an ERC20 token used by the pool
-    address public token;
+    address public immutable token;
 
     /// tokenDecimals value retrieved from the token contract upon contract construction
-    uint8 public tokenDecimals;
+    uint8 public immutable tokenDecimals;
 
     /// A value representing 1.0 token amount, padded with zeros for decimals
-    uint256 public ONE_TOKEN;
+    uint256 public immutable ONE_TOKEN;
 
     /// Total tokens currently held by this contract
     uint256 public tokenBalance;
@@ -79,19 +79,19 @@ abstract contract ManagedLendingPool is Governed {
     uint16 public constant PERCENT_DECIMALS = 1;
 
     /// A constant representing 100%
-    uint16 public constant ONE_HUNDRED_PERCENT = 1000;
+    uint16 public immutable ONE_HUNDRED_PERCENT;
 
     /// Percentage of paid interest to be allocated as protocol earnings
-    uint16 public protocolEarningPercent = 100; //10% by default; safe min 0%, max 10%
+    uint16 public protocolEarningPercent;
 
     /// Percentage of paid interest to be allocated as protocol earnings
-    uint16 public constant MAX_PROTOCOL_EARNING_PERCENT = 100; //10%
+    uint16 public immutable MAX_PROTOCOL_EARNING_PERCENT;
 
     /// Manager's leveraged earn factor represented as a percentage
-    uint16 public managerEarnFactor = 1500; // 150% or 1.5x leverage by default (safe min 100% or 1x)
+    uint16 public managerEarnFactor;
     
     /// Governance set upper bound for the manager's leveraged earn factor
-    uint16 public managerEarnFactorMax = 1500; //150%
+    uint16 public managerEarnFactorMax;
 
     /// Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
     /// This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
@@ -178,9 +178,19 @@ abstract contract ManagedLendingPool is Governed {
         targetStakePercent = 100; //10%
         targetLiquidityPercent = 0; //0%
 
-        managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
-        tokenDecimals = IERC20Metadata(token).decimals();
-        ONE_TOKEN = 10 ** tokenDecimals;
+        uint16 oneHundredPercent = uint16(100 * 10 ** PERCENT_DECIMALS);
+        ONE_HUNDRED_PERCENT = oneHundredPercent;
+        protocolEarningPercent = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
+        MAX_PROTOCOL_EARNING_PERCENT = protocolEarningPercent;
+
+        managerEarnFactorMax = uint16(150 * 10 ** PERCENT_DECIMALS); // 150% or 1.5x leverage by default (safe min 100% or 1x)
+        managerEarnFactor = managerEarnFactorMax;
+
+        managerExcessLeverageComponent = uint256(managerEarnFactor).sub(oneHundredPercent);
+
+        uint8 decimals = IERC20Metadata(token).decimals();
+        tokenDecimals = decimals;
+        ONE_TOKEN = 10 ** decimals;
     }
 
     /**

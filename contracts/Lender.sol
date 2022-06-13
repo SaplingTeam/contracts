@@ -122,7 +122,7 @@ abstract contract Lender is ManagedLendingPool {
     uint16 public constant SAFE_MIN_APR = 0; // 0%
 
     /// Safe maximum for APR values
-    uint16 public constant SAFE_MAX_APR = ONE_HUNDRED_PERCENT;
+    uint16 public immutable SAFE_MAX_APR;
 
     /// Loan APR to be applied for the new loan requests
     uint16 public defaultAPR;
@@ -134,7 +134,7 @@ abstract contract Lender is ManagedLendingPool {
     uint256 internal weightedAvgLoanAPR;
 
     /// Contract math safe minimum loan amount including token decimals
-    uint256 public constant SAFE_MIN_AMOUNT = 1000000; // 1 token unit with 6 decimals. i.e. 1 USDC
+    uint256 public immutable SAFE_MIN_AMOUNT;
 
     /// Minimum allowed loan amount 
     uint256 public minAmount;
@@ -193,21 +193,23 @@ abstract contract Lender is ManagedLendingPool {
      */
     constructor(address _token, address _governance, address _protocol, uint256 _minAmount) ManagedLendingPool(_token, _governance, _protocol) {
         
-        nextLoanId = 1;
-
-        require(SAFE_MIN_AMOUNT <= _minAmount, "New min loan amount is less than the safe limit");
+        require(ONE_TOKEN <= _minAmount, "New min loan amount is less than the safe limit");
+        SAFE_MIN_AMOUNT = ONE_TOKEN;
         minAmount = _minAmount;
+
+        SAFE_MAX_APR = ONE_HUNDRED_PERCENT;
+        defaultAPR = uint16(30 * 10 ** PERCENT_DECIMALS); // 30%
+        defaultLateAPRDelta = uint16(5 * 10 ** PERCENT_DECIMALS); //5%
+        weightedAvgLoanAPR = defaultAPR;
         
-        defaultAPR = 300; // 30%
-        defaultLateAPRDelta = 50; //5%
         minDuration = SAFE_MIN_DURATION;
         maxDuration = SAFE_MAX_DURATION;
+
+        nextLoanId = 1;
 
         poolLiquidity = 0;
         borrowedFunds = 0;
         loanFundsPendingWithdrawal = 0;
-
-        weightedAvgLoanAPR = defaultAPR;
     }
 
     /**
