@@ -468,6 +468,21 @@ Cancel a loan.
 _Loan must be in APPROVED status.
      Caller must be the manager._
 
+### borrow
+
+```solidity
+function borrow(uint256 loanId) external
+```
+
+Withdraw funds of an approved loan.
+
+_Caller must be the borrower. 
+     The loan must be in APPROVED status._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | id of the loan to withdraw funds of. |
+
 ### repay
 
 ```solidity

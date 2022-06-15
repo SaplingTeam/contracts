@@ -1,6 +1,6 @@
 # Solidity API
 
-## Governed
+## GovernedPausable
 
 Provides the basics for governance access and emergency pause functionality.
 

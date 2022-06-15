@@ -147,21 +147,6 @@ _Return value depends on the callers balance, and is limited by pool liquidity._
 | ---- | ---- | ----------- |
 | [0] | uint256 | Max amount of tokens withdrawable by msg.sender. |
 
-### borrow
-
-```solidity
-function borrow(uint256 loanId) external
-```
-
-Withdraw funds of an approved loan.
-
-_Caller must be the borrower. 
-     The loan must be in APPROVED status._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| loanId | uint256 | id of the loan to withdraw funds of. |
-
 ### stake
 
 ```solidity
