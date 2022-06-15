@@ -337,6 +337,9 @@ abstract contract Lender is ManagedLendingPool {
                 amountInterestPaid: 0,
                 recentLoanId: loanId
             });
+        } else {
+            borrowerStats[msg.sender].countRequested++;
+            borrowerStats[msg.sender].recentLoanId = loanId;
         }
 
         emit LoanRequested(loanId, msg.sender);
