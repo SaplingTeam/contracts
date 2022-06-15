@@ -6,32 +6,29 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./FractionalMath.sol";
-import "./Governed.sol";
+import "./GovernedPausable.sol";
+import "./ManagedPausableClosable.sol";
 
 /**
- * @title SaplingPool Managed Lending Pool
- * @notice Provides the basics of a managed lending pool.
+ * @title Sapling Lending Pool
+ * @notice Provides the basics of a Sapling lending pool.
  * @dev This contract is abstract. Extend the contract to implement an intended pool functionality.
- *      Extends Governed.
  */
-abstract contract ManagedLendingPool is Governed {
+abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosable {
 
     using SafeMath for uint256;
-
-    /// Pool manager address
-    address public manager;
 
     /// Protocol wallet address
     address public protocol;
 
     /// Address of an ERC20 token used by the pool
-    address public token;
+    address public immutable token;
 
     /// tokenDecimals value retrieved from the token contract upon contract construction
-    uint8 public tokenDecimals;
+    uint8 public immutable tokenDecimals;
 
     /// A value representing 1.0 token amount, padded with zeros for decimals
-    uint256 public ONE_TOKEN;
+    uint256 public immutable ONE_TOKEN;
 
     /// Total tokens currently held by this contract
     uint256 public tokenBalance;
@@ -79,19 +76,19 @@ abstract contract ManagedLendingPool is Governed {
     uint16 public constant PERCENT_DECIMALS = 1;
 
     /// A constant representing 100%
-    uint16 public constant ONE_HUNDRED_PERCENT = 1000;
+    uint16 public immutable ONE_HUNDRED_PERCENT;
 
     /// Percentage of paid interest to be allocated as protocol earnings
-    uint16 public protocolEarningPercent = 100; //10% by default; safe min 0%, max 10%
+    uint16 public protocolEarningPercent;
 
     /// Percentage of paid interest to be allocated as protocol earnings
-    uint16 public constant MAX_PROTOCOL_EARNING_PERCENT = 100; //10%
+    uint16 public immutable MAX_PROTOCOL_EARNING_PERCENT;
 
     /// Manager's leveraged earn factor represented as a percentage
-    uint16 public managerEarnFactor = 1500; // 150% or 1.5x leverage by default (safe min 100% or 1x)
+    uint16 public managerEarnFactor;
     
     /// Governance set upper bound for the manager's leveraged earn factor
-    uint16 public managerEarnFactorMax = 1500; //150%
+    uint16 public managerEarnFactorMax;
 
     /// Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
     /// This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
@@ -106,52 +103,11 @@ abstract contract ManagedLendingPool is Governed {
     /// Early exit deadlines by wallets
     mapping(address => uint256) public earlyExitDeadlines;
 
-    /// Flag indicating whether or not the pool is closed
-    bool public isClosed;
-
-    /// Flag indicating whether or not lending is paused
-    bool public isLendingPaused;
-
-    event LendingPaused();
-    event LendingResumed();
-    event PoolClosed();
-    event PoolOpened();
     event UnstakedLoss(uint256 amount);
     event StakedAssetsDepleted();
 
     /// Event emitted when a new protocol wallet is set
     event ProtocolWalletTransferred(address from, address to);
-
-    modifier onlyManager {
-        require(msg.sender == manager, "Managed: caller is not the manager");
-        _;
-    }
-
-    modifier managerOrApprovedOnInactive {
-        require(msg.sender == manager || authorizedOnInactiveManager(msg.sender),
-            "Managed: caller is not the manager or an approved party.");
-        _;
-    }
-
-    modifier whenNotClosed {
-        require(!isClosed, "Pool is closed.");
-        _;
-    }
-
-    modifier whenClosed {
-        require(isClosed, "Pool is closed.");
-        _;
-    }
-
-    modifier whenLendingNotPaused {
-        require(!isLendingPaused, "Lending is paused.");
-        _;
-    }
-
-    modifier whenLendingPaused {
-        require(isLendingPaused, "Lending is not paused.");
-        _;
-    }
 
     /**
      * @notice Create a managed lending pool.
@@ -160,11 +116,10 @@ abstract contract ManagedLendingPool is Governed {
      * @param _governance Address of the protocol governance.
      * @param _protocol Address of a wallet to accumulate protocol earnings.
      */
-    constructor(address _token, address _governance, address _protocol) Governed(_governance) {
+    constructor(address _token, address _governance, address _protocol) GovernedPausable(_governance) {
         require(_token != address(0), "SaplingPool: pool token address is not set");
         require(_protocol != address(0), "SaplingPool: protocol wallet address is not set");
         
-        manager = msg.sender;
         protocol = _protocol;
 
         token = _token;
@@ -178,9 +133,19 @@ abstract contract ManagedLendingPool is Governed {
         targetStakePercent = 100; //10%
         targetLiquidityPercent = 0; //0%
 
-        managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
-        tokenDecimals = IERC20Metadata(token).decimals();
-        ONE_TOKEN = 10 ** tokenDecimals;
+        uint16 oneHundredPercent = uint16(100 * 10 ** PERCENT_DECIMALS);
+        ONE_HUNDRED_PERCENT = oneHundredPercent;
+        protocolEarningPercent = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
+        MAX_PROTOCOL_EARNING_PERCENT = protocolEarningPercent;
+
+        managerEarnFactorMax = uint16(150 * 10 ** PERCENT_DECIMALS); // 150% or 1.5x leverage by default (safe min 100% or 1x)
+        managerEarnFactor = managerEarnFactorMax;
+
+        managerExcessLeverageComponent = uint256(managerEarnFactor).sub(oneHundredPercent);
+
+        uint8 decimals = IERC20Metadata(token).decimals();
+        tokenDecimals = decimals;
+        ONE_TOKEN = 10 ** decimals;
     }
 
     /**
@@ -196,57 +161,6 @@ abstract contract ManagedLendingPool is Governed {
 
         emit ProtocolWalletTransferred(protocol, _protocol);
         protocol = _protocol;
-    }
-
-    /**
-     * @notice Close the pool and stop borrowing, lender deposits, and staking. 
-     * @dev Caller must be the manager. 
-     *      Pool must be open.
-     *      No loans or approvals must be outstanding (borrowedFunds must equal to 0).
-     *      Emits 'PoolClosed' event.
-     */
-    function close() external onlyManager whenNotClosed {
-        require(borrowedFunds == 0, "Cannot close pool with outstanding loans.");
-        isClosed = true;
-        emit PoolClosed();
-    }
-
-    /**
-     * @notice Open the pool for normal operations. 
-     * @dev Caller must be the manager. 
-     *      Pool must be closed.
-     *      Opening the pool will not unpause any pauses in effect.
-     *      Emits 'PoolOpened' event.
-     */
-    function open() external onlyManager whenClosed {
-        isClosed = false;
-        emit PoolOpened();
-    }
-
-    /**
-     * @notice Pause new loan requests, approvals, and unstaking.
-     * @dev Caller must be the manager.
-     *      Lending must not be paused.
-     *      Lending can be paused regardless of the pool open/close and governance pause states, 
-     *      but some of the states may have a higher priority making pausing irrelevant.
-     *      Emits 'LendingPaused' event.
-     */
-    function pauseLending() external onlyManager whenLendingNotPaused {
-        isLendingPaused = true;
-        emit LendingPaused();
-    }
-
-    /**
-     * @notice Resume new loan requests, approvals, and unstaking.
-     * @dev Caller must be the manager.
-     *      Lending must be paused.
-     *      Lending can be resumed regardless of the pool open/close and governance pause states, 
-     *      but some of the states may have a higher priority making resuming irrelevant.
-     *      Emits 'LendingPaused' event.
-     */
-    function resumeLending() external onlyManager whenLendingPaused {
-        isLendingPaused = false;
-        emit LendingResumed();
     }
 
     /**
@@ -439,11 +353,6 @@ abstract contract ManagedLendingPool is Governed {
     function updatePoolLimit() internal {
         poolFundsLimit = sharesToTokens(FractionalMath.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, targetStakePercent));
     }
-
-    function authorizedOnInactiveManager(address caller) internal view returns (bool) {
-        return caller == governance || caller == protocol
-            || earlyExitDeadlines[caller] < block.timestamp && sharesToTokens(poolShares[caller]) >= ONE_TOKEN;
-    }
     
     /**
      * @notice Get a token value of shares.
@@ -490,5 +399,14 @@ abstract contract ManagedLendingPool is Governed {
         require(c != 0, "Cannot divide by zero."); // no need proceed if denominator is 0
         
         return FractionalMath.mulDiv(a, b, c);
+    }
+
+    function canClose() override internal view returns (bool) {
+        return borrowedFunds == 0;
+    }
+
+    function authorizedOnInactiveManager(address caller) override internal view returns (bool) {
+        return caller == governance || caller == protocol
+            || earlyExitDeadlines[caller] < block.timestamp && sharesToTokens(poolShares[caller]) >= ONE_TOKEN;
     }
 }

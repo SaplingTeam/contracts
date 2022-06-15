@@ -3,11 +3,11 @@
 pragma solidity ^0.8.12;
 
 /**
- * @title Governed
+ * @title GovernedPausable
  * @notice Provides the basics for governance access and emergency pause functionality.
  * @dev This contract is abstract. Extend the contract to implement governance access control and emergency pause functionality.
  */
-abstract contract Governed {
+abstract contract GovernedPausable {
     
     /// Protocol governance
     address public governance;
