@@ -116,17 +116,17 @@ describe("Lender (SaplingPool)", function() {
         describe("Rejection scenarios", function () {
 
             it ("Requesting a loan with an amount less than the minimum should fail", async function () {            
-                let minAmount = await poolContract.minAmount();
+                let minAmount = await poolContract.minLoanAmount();
                 await expect(poolContract.connect(borrower1).requestLoan(minAmount.sub(1), loanDuration)).to.be.reverted;
             });
 
             it ("Requesting a loan with a duration less than the minimum should fail", async function () {            
-                let minDuration = await poolContract.minDuration();
+                let minDuration = await poolContract.minLoanDuration();
                 await expect(poolContract.connect(borrower1).requestLoan(loanAmount, minDuration.sub(1))).to.be.reverted;
             });
 
             it ("Requesting a loan with a duration greater than the maximum should fail", async function () {            
-                let maxDuration = await poolContract.maxDuration();
+                let maxDuration = await poolContract.maxLoanDuration();
                 await expect(poolContract.connect(borrower1).requestLoan(loanAmount, maxDuration.add(1))).to.be.reverted;
             });
 

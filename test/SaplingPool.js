@@ -535,10 +535,10 @@ describe("SaplingPool", function() {
 
         it("Early Withdraw should charge an exit fee", async function () {
             let tokenBalanceBefore = await tokenContract.balanceOf(lender1.address);
-            let earlyExitFeePercent = await poolContract.earlyExitFeePercent();
+            let exitFeePercent = await poolContract.exitFeePercent();
             let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
 
-            let expectedWithdrawalFee = withdrawAmount.mul(earlyExitFeePercent).div(ONE_HUNDRED_PERCENT);
+            let expectedWithdrawalFee = withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
 
             await poolContract.connect(lender1).withdraw(withdrawAmount);
 
@@ -820,7 +820,7 @@ describe("SaplingPool", function() {
         });
 
         it("Can view lender APY given current pool state", async function () {
-            let apr = await poolContract.defaultAPR();
+            let apr = await poolContract.templateLoanAPR();
             let protocolEarningPercent = await poolContract.protocolEarningPercent();
             let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
             let managersEarnFactor = await poolContract.managerEarnFactor();
@@ -843,7 +843,7 @@ describe("SaplingPool", function() {
         });
 
         it("Can view projected lender APY", async function () {
-            let apr = await poolContract.defaultAPR();
+            let apr = await poolContract.templateLoanAPR();
             let protocolEarningPercent = await poolContract.protocolEarningPercent();
             let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
             let managersEarnFactor = await poolContract.managerEarnFactor();
@@ -867,7 +867,7 @@ describe("SaplingPool", function() {
         });
 
         it("Increase in borrow rate is linearly reflected on projected lender APY within margin of integer math accuracy", async function () {
-            let apr = await poolContract.defaultAPR();
+            let apr = await poolContract.templateLoanAPR();
             let protocolEarningPercent = await poolContract.protocolEarningPercent();
             let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
             let managersEarnFactor = await poolContract.managerEarnFactor();

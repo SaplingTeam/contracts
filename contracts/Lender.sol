@@ -125,10 +125,10 @@ abstract contract Lender is ManagedLendingPool {
     uint16 public immutable SAFE_MAX_APR;
 
     /// Loan APR to be applied for the new loan requests
-    uint16 public defaultAPR;
+    uint16 public templateLoanAPR;
 
     /// Loan late payment APR delta to be applied fot the new loan requests
-    uint16 public defaultLateAPRDelta;
+    uint16 public templateLateLoanAPRDelta;
 
     /// Weighted average loan APR on the borrowed funds
     uint256 internal weightedAvgLoanAPR;
@@ -137,7 +137,7 @@ abstract contract Lender is ManagedLendingPool {
     uint256 public immutable SAFE_MIN_AMOUNT;
 
     /// Minimum allowed loan amount 
-    uint256 public minAmount;
+    uint256 public minLoanAmount;
 
     /// Contract math safe minimum loan duration in seconds
     uint256 public constant SAFE_MIN_DURATION = 1 days;
@@ -146,13 +146,13 @@ abstract contract Lender is ManagedLendingPool {
     uint256 public constant SAFE_MAX_DURATION = 51 * 365 days;
 
     /// Minimum loan duration in seconds
-    uint256 public minDuration;
+    uint256 public minLoanDuration;
 
     /// Maximum loan duration in seconds
-    uint256 public maxDuration;
+    uint256 public maxLoanDuration;
 
     /// Loan payment grace period after which a loan can be defaulted
-    uint256 public loanGracePeriod = 60 days;
+    uint256 public templateLoanGracePeriod = 60 days;
 
     /// Maximum allowed loan payment grace period
     uint256 public constant MIN_LOAN_GRACE_PERIOD = 3 days;
@@ -189,21 +189,21 @@ abstract contract Lender is ManagedLendingPool {
      * @param _token ERC20 token contract address to be used as main pool liquid currency.
      * @param _governance Address of the protocol governance.
      * @param _protocol Address of a wallet to accumulate protocol earnings.
-     * @param _minAmount Minimum amount to be borrowed per loan.
+     * @param _minLoanAmount Minimum amount to be borrowed per loan.
      */
-    constructor(address _token, address _governance, address _protocol, uint256 _minAmount) ManagedLendingPool(_token, _governance, _protocol) {
+    constructor(address _token, address _governance, address _protocol, uint256 _minLoanAmount) ManagedLendingPool(_token, _governance, _protocol) {
         
-        require(ONE_TOKEN <= _minAmount, "New min loan amount is less than the safe limit");
+        require(ONE_TOKEN <= _minLoanAmount, "New min loan amount is less than the safe limit");
         SAFE_MIN_AMOUNT = ONE_TOKEN;
-        minAmount = _minAmount;
+        minLoanAmount = _minLoanAmount;
 
         SAFE_MAX_APR = ONE_HUNDRED_PERCENT;
-        defaultAPR = uint16(30 * 10 ** PERCENT_DECIMALS); // 30%
-        defaultLateAPRDelta = uint16(5 * 10 ** PERCENT_DECIMALS); //5%
-        weightedAvgLoanAPR = defaultAPR;
+        templateLoanAPR = uint16(30 * 10 ** PERCENT_DECIMALS); // 30%
+        templateLateLoanAPRDelta = uint16(5 * 10 ** PERCENT_DECIMALS); //5%
+        weightedAvgLoanAPR = templateLoanAPR;
         
-        minDuration = SAFE_MIN_DURATION;
-        maxDuration = SAFE_MAX_DURATION;
+        minLoanDuration = SAFE_MIN_DURATION;
+        maxLoanDuration = SAFE_MAX_DURATION;
 
         nextLoanId = 1;
 
@@ -228,7 +228,7 @@ abstract contract Lender is ManagedLendingPool {
      */
     function setDefaultAPR(uint16 apr) external onlyManager notPaused {
         require(SAFE_MIN_APR <= apr && apr <= SAFE_MAX_APR, "APR is out of bounds");
-        defaultAPR = apr;
+        templateLoanAPR = apr;
     }
 
     /**
@@ -239,40 +239,40 @@ abstract contract Lender is ManagedLendingPool {
      */
     function setDefaultLateAPRDelta(uint16 lateAPRDelta) external onlyManager notPaused {
         require(SAFE_MIN_APR <= lateAPRDelta && lateAPRDelta <= SAFE_MAX_APR, "APR is out of bounds");
-        defaultLateAPRDelta = lateAPRDelta;
+        templateLateLoanAPRDelta = lateAPRDelta;
     }
 
     /**
      * @notice Set a minimum loan amount for the future loans.
      * @dev minLoanAmount must be greater than or equal to SAFE_MIN_AMOUNT.
      *      Caller must be the manager.
-     * @param minLoanAmount minimum loan amount to be enforced for the new loan requests.
+     * @param _minLoanAmount minimum loan amount to be enforced for the new loan requests.
      */
-    function setMinLoanAmount(uint256 minLoanAmount) external onlyManager notPaused {
-        require(SAFE_MIN_AMOUNT <= minLoanAmount, "New min loan amount is less than the safe limit");
-        minAmount = minLoanAmount;
+    function setMinLoanAmount(uint256 _minLoanAmount) external onlyManager notPaused {
+        require(SAFE_MIN_AMOUNT <= _minLoanAmount, "New min loan amount is less than the safe limit");
+        minLoanAmount = _minLoanAmount;
     }
 
     /**
      * @notice Set maximum loan duration for the future loans.
-     * @dev Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxDuration.
+     * @dev Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxLoanDuration.
      *      Caller must be the manager.
      * @param duration Maximum loan duration to be enforced for the new loan requests.
      */
     function setLoanMinDuration(uint256 duration) external onlyManager notPaused {
-        require(SAFE_MIN_DURATION <= duration && duration <= maxDuration, "New min duration is out of bounds");
-        minDuration = duration;
+        require(SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration, "New min duration is out of bounds");
+        minLoanDuration = duration;
     }
 
     /**
      * @notice Set maximum loan duration for the future loans.
-     * @dev Duration must be in seconds and inclusively between minDuration and SAFE_MAX_DURATION.
+     * @dev Duration must be in seconds and inclusively between minLoanDuration and SAFE_MAX_DURATION.
      *      Caller must be the manager.
      * @param duration Maximum loan duration to be enforced for the new loan requests.
      */
     function setLoanMaxDuration(uint256 duration) external onlyManager notPaused {
-        require(minDuration <= duration && duration <= SAFE_MAX_DURATION, "New max duration is out of bounds");
-        maxDuration = duration;
+        require(minLoanDuration <= duration && duration <= SAFE_MAX_DURATION, "New max duration is out of bounds");
+        maxLoanDuration = duration;
     }
 
     /**
@@ -283,13 +283,13 @@ abstract contract Lender is ManagedLendingPool {
      */
     function setLoanGracePeriod(uint256 gracePeriod) external onlyManager notPaused {
         require(MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD, "Lender: New grace period is out of bounds.");
-        loanGracePeriod = gracePeriod;
+        templateLoanGracePeriod = gracePeriod;
     }
 
     /**
      * @notice Request a new loan.
-     * @dev Requested amount must be greater or equal to minAmount().
-     *      Loan duration must be between minDuration() and maxDuration().
+     * @dev Requested amount must be greater or equal to minLoanAmount().
+     *      Loan duration must be between minLoanDuration() and maxLoanDuration().
      *      Caller must not be a lender, protocol, or the manager. 
      *      Multiple pending applications from the same address are not allowed,
      *      most recent loan/application of the caller must not have APPLIED status.
@@ -300,9 +300,9 @@ abstract contract Lender is ManagedLendingPool {
     function requestLoan(uint256 requestedAmount, uint256 loanDuration) external validBorrower whenLendingNotPaused whenNotClosed notPaused returns (uint256) {
 
         require(hasOpenApplication[msg.sender] == false, "Another loan application is pending.");
-        require(requestedAmount >= minAmount, "Loan amount is less than the minimum allowed");
-        require(minDuration <= loanDuration, "Loan duration is less than minimum allowed.");
-        require(maxDuration >= loanDuration, "Loan duration is more than maximum allowed.");
+        require(requestedAmount >= minLoanAmount, "Loan amount is less than the minimum allowed");
+        require(minLoanDuration <= loanDuration, "Loan duration is less than minimum allowed.");
+        require(maxLoanDuration >= loanDuration, "Loan duration is more than maximum allowed.");
 
         uint256 loanId = nextLoanId;
         nextLoanId++;
@@ -312,9 +312,9 @@ abstract contract Lender is ManagedLendingPool {
             borrower: msg.sender,
             amount: requestedAmount,
             duration: loanDuration,
-            gracePeriod: loanGracePeriod,
-            apr: defaultAPR,
-            lateAPRDelta: defaultLateAPRDelta,
+            gracePeriod: templateLoanGracePeriod,
+            apr: templateLoanAPR,
+            lateAPRDelta: templateLateLoanAPRDelta,
             requestedTime: block.timestamp,
             status: LoanStatus.APPLIED
         });
@@ -429,7 +429,7 @@ abstract contract Lender is ManagedLendingPool {
         if (borrowedFunds > 0) {
             weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(loan.amount.mul(loan.apr)).div(borrowedFunds);
         } else {
-            weightedAvgLoanAPR = defaultAPR;
+            weightedAvgLoanAPR = templateLoanAPR;
         }
     }
 
@@ -556,7 +556,7 @@ abstract contract Lender is ManagedLendingPool {
         if (borrowedFunds > 0) {
             weightedAvgLoanAPR = borrowedFunds.add(baseAmountPaid).mul(weightedAvgLoanAPR).sub(baseAmountPaid.mul(loan.apr)).div(borrowedFunds);
         } else {
-            weightedAvgLoanAPR = defaultAPR;
+            weightedAvgLoanAPR = templateLoanAPR;
         }
 
         return (transferAmount, interestPaid);
@@ -629,7 +629,7 @@ abstract contract Lender is ManagedLendingPool {
             if (borrowedFunds > 0) {
                 weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(baseAmountLost.mul(loan.apr)).div(borrowedFunds);
             } else {
-                weightedAvgLoanAPR = defaultAPR;
+                weightedAvgLoanAPR = templateLoanAPR;
             }
         }
     }

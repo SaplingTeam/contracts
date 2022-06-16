@@ -98,7 +98,7 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
     uint256 public constant EARLY_EXIT_COOLDOWN = 90 days;
 
     /// Early exit fee percentage
-    uint256 public earlyExitFeePercent = 5; // 0.5%
+    uint256 public exitFeePercent = 5; // 0.5%
 
     /// Early exit deadlines by wallets
     mapping(address => uint256) public earlyExitDeadlines;
@@ -322,7 +322,7 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
 
         uint256 transferAmount;
         if (block.timestamp < earlyExitDeadlines[msg.sender]) {
-            transferAmount = amount.sub(FractionalMath.mulDiv(amount, earlyExitFeePercent, ONE_HUNDRED_PERCENT));
+            transferAmount = amount.sub(FractionalMath.mulDiv(amount, exitFeePercent, ONE_HUNDRED_PERCENT));
         } else {
             transferAmount = amount;
         }
