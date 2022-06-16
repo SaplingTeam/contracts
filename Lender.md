@@ -139,18 +139,18 @@ uint16 SAFE_MAX_APR
 
 Safe maximum for APR values
 
-### defaultAPR
+### templateLoanAPR
 
 ```solidity
-uint16 defaultAPR
+uint16 templateLoanAPR
 ```
 
 Loan APR to be applied for the new loan requests
 
-### defaultLateAPRDelta
+### templateLateLoanAPRDelta
 
 ```solidity
-uint16 defaultLateAPRDelta
+uint16 templateLateLoanAPRDelta
 ```
 
 Loan late payment APR delta to be applied fot the new loan requests
@@ -171,10 +171,10 @@ uint256 SAFE_MIN_AMOUNT
 
 Contract math safe minimum loan amount including token decimals
 
-### minAmount
+### minLoanAmount
 
 ```solidity
-uint256 minAmount
+uint256 minLoanAmount
 ```
 
 Minimum allowed loan amount
@@ -195,26 +195,26 @@ uint256 SAFE_MAX_DURATION
 
 Contract math safe maximum loan duration in seconds
 
-### minDuration
+### minLoanDuration
 
 ```solidity
-uint256 minDuration
+uint256 minLoanDuration
 ```
 
 Minimum loan duration in seconds
 
-### maxDuration
+### maxLoanDuration
 
 ```solidity
-uint256 maxDuration
+uint256 maxLoanDuration
 ```
 
 Maximum loan duration in seconds
 
-### loanGracePeriod
+### templateLoanGracePeriod
 
 ```solidity
-uint256 loanGracePeriod
+uint256 templateLoanGracePeriod
 ```
 
 Loan payment grace period after which a loan can be defaulted
@@ -294,7 +294,7 @@ Borrower statistics by address
 ### constructor
 
 ```solidity
-constructor(address _token, address _governance, address _protocol, uint256 _minAmount) internal
+constructor(address _token, address _governance, address _protocol, uint256 _minLoanAmount) internal
 ```
 
 Create a Lender that ManagedLendingPool.
@@ -306,7 +306,7 @@ __minAmount must be greater than or equal to SAFE_MIN_AMOUNT._
 | _token | address | ERC20 token contract address to be used as main pool liquid currency. |
 | _governance | address | Address of the protocol governance. |
 | _protocol | address | Address of a wallet to accumulate protocol earnings. |
-| _minAmount | uint256 | Minimum amount to be borrowed per loan. |
+| _minLoanAmount | uint256 | Minimum amount to be borrowed per loan. |
 
 ### loansCount
 
@@ -353,7 +353,7 @@ _lateAPRDelta must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
 ### setMinLoanAmount
 
 ```solidity
-function setMinLoanAmount(uint256 minLoanAmount) external
+function setMinLoanAmount(uint256 _minLoanAmount) external
 ```
 
 Set a minimum loan amount for the future loans.
@@ -363,7 +363,7 @@ _minLoanAmount must be greater than or equal to SAFE_MIN_AMOUNT.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| minLoanAmount | uint256 | minimum loan amount to be enforced for the new loan requests. |
+| _minLoanAmount | uint256 | minimum loan amount to be enforced for the new loan requests. |
 
 ### setLoanMinDuration
 
@@ -373,7 +373,7 @@ function setLoanMinDuration(uint256 duration) external
 
 Set maximum loan duration for the future loans.
 
-_Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxDuration.
+_Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxLoanDuration.
      Caller must be the manager._
 
 | Name | Type | Description |
@@ -388,7 +388,7 @@ function setLoanMaxDuration(uint256 duration) external
 
 Set maximum loan duration for the future loans.
 
-_Duration must be in seconds and inclusively between minDuration and SAFE_MAX_DURATION.
+_Duration must be in seconds and inclusively between minLoanDuration and SAFE_MAX_DURATION.
      Caller must be the manager._
 
 | Name | Type | Description |
@@ -418,8 +418,8 @@ function requestLoan(uint256 requestedAmount, uint256 loanDuration) external ret
 
 Request a new loan.
 
-_Requested amount must be greater or equal to minAmount().
-     Loan duration must be between minDuration() and maxDuration().
+_Requested amount must be greater or equal to minLoanAmount().
+     Loan duration must be between minLoanDuration() and maxLoanDuration().
      Caller must not be a lender, protocol, or the manager. 
      Multiple pending applications from the same address are not allowed,
      most recent loan/application of the caller must not have APPLIED status._

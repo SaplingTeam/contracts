@@ -215,10 +215,10 @@ uint256 EARLY_EXIT_COOLDOWN
 
 Max cooldown period for early exit
 
-### earlyExitFeePercent
+### exitFeePercent
 
 ```solidity
-uint256 earlyExitFeePercent
+uint256 exitFeePercent
 ```
 
 Early exit fee percentage
