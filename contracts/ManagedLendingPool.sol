@@ -321,7 +321,7 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
         totalPoolShares = totalPoolShares.sub(shares);
 
         uint256 transferAmount;
-        if (block.timestamp < earlyExitDeadlines[msg.sender]) {
+        if (block.timestamp < earlyExitDeadlines[msg.sender] && totalPoolShares > 0) {
             transferAmount = amount.sub(FractionalMath.mulDiv(amount, exitFeePercent, ONE_HUNDRED_PERCENT));
         } else {
             transferAmount = amount;
