@@ -1,11 +1,11 @@
 [ManagedPausableClosable](ManagedPausableClosable)
 
-[ManagedLendingPool](ManagedLendingPool)
-
-[GovernedPausable](GovernedPausable)
+[FractionalMath](FractionalMath)
 
 [Lender](Lender)
 
-[FractionalMath](FractionalMath)
+[ManagedLendingPool](ManagedLendingPool)
+
+[GovernedPausable](GovernedPausable)
 
 [SaplingPool](SaplingPool)
