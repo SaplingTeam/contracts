@@ -22,9 +22,9 @@ contract SaplingPool is Lender {
      * @param _token ERC20 token contract address to be used as main pool liquid currency.
      * @param _governance Address of the protocol governance.
      * @param _protocol Address of a wallet to accumulate protocol earnings.
-     * @param _minAmount Minimum amount to be borrowed per loan.
+     * @param _manager Address of the pool manager.
      */
-    constructor(address _token, address _governance, address _protocol, uint256 _minAmount) Lender(_token, _governance, _protocol, _minAmount) {
+    constructor(address _token, address _governance, address _protocol, address _manager) Lender(_token, _governance, _protocol, _manager) {
     }
 
     /**

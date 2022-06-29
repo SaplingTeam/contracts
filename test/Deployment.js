@@ -36,30 +36,29 @@ describe("Contract Deployment", function() {
     describe("Deploy Lending Pool", function () {
 
         it("Can deploy lending pool", async function () {
-            await expect(SaplingPool.deploy(tokenContract.address, currentGovernance.address, protocol.address, BigNumber.from(100).mul(TOKEN_MULTIPLIER)))
+            await expect(SaplingPool.deploy(tokenContract.address, currentGovernance.address, protocol.address, manager.address))
                 .to.be.ok;
         });
 
         describe("Rejection scenarios", function () {
 
             it("Deploying with null token address should fail", async function () {
-                await expect(SaplingPool.deploy(NULL_ADDRESS, currentGovernance.address, protocol.address, BigNumber.from(100).mul(TOKEN_MULTIPLIER)))
+                await expect(SaplingPool.deploy(NULL_ADDRESS, currentGovernance.address, protocol.address, manager.address))
                     .to.be.reverted;
             });
 
             it("Deploying with null governance address should fail", async function () {
-                await expect(SaplingPool.deploy(tokenContract.address, NULL_ADDRESS, protocol.address, BigNumber.from(100).mul(TOKEN_MULTIPLIER)))
+                await expect(SaplingPool.deploy(tokenContract.address, NULL_ADDRESS, protocol.address, manager.address))
                     .to.be.reverted;
             });
 
             it("Deploying with null protocol wallet address should fail", async function () {
-                await expect(SaplingPool.deploy(tokenContract.address, currentGovernance.address, NULL_ADDRESS, BigNumber.from(100).mul(TOKEN_MULTIPLIER)))
+                await expect(SaplingPool.deploy(tokenContract.address, currentGovernance.address, NULL_ADDRESS, manager.address))
                     .to.be.reverted;
             });
 
-            it("Deploying with with less than minimum loan amount should fail", async function () {
-                let SAFE_MIN_AMOUNT = BigNumber.from(1000000);
-                await expect(SaplingPool.deploy(tokenContract.address, currentGovernance.address, protocol.address, SAFE_MIN_AMOUNT.sub(1)))
+            it("Deploying with null manager address should fail", async function () {
+                await expect(SaplingPool.deploy(tokenContract.address, currentGovernance.address, protocol.address, NULL_ADDRESS))
                     .to.be.reverted;
             });
         });

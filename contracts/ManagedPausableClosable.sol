@@ -57,9 +57,12 @@ abstract contract ManagedPausableClosable {
     /**
      * @notice Create a managed lending pool.
      * @dev msg.sender will be assigned as the manager of the created pool.
+     * @param _manager Address of the pool manager
      */
-    constructor() {
-        manager = msg.sender;
+    constructor(address _manager) {
+        require(_manager != address(0));
+        
+        manager = _manager;
 
         isLendingPaused = false;
         isClosed = false;

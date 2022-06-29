@@ -31,7 +31,7 @@ describe("Governed (SaplingPool)", function() {
 
         currentGovernance = governance1;
 
-        poolContract = await SaplingPool.deploy(tokenContract.address, currentGovernance.address, protocol.address, BigNumber.from(100).mul(TOKEN_MULTIPLIER));
+        poolContract = await SaplingPool.deploy(tokenContract.address, currentGovernance.address, protocol.address, manager.address);
 
         PAUSE_TIMEOUT = await poolContract.PAUSE_TIMEOUT();
         PAUSE_MAX_COOLDOWN = await poolContract.PAUSE_MAX_COOLDOWN();

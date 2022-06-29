@@ -2,11 +2,13 @@
  * Deploy using TestUSDC from optimism-kovan testnet as a pool token.
  */
 async function main() {
-    [manager] = await ethers.getSigners();
+    [deployer, ...addrs] = await ethers.getSigners();
     const arguments = require('./arguments.optimistic.kovan.js');
+
+    var wallets = require('./data/wallets.json');
   
-    console.log("Deploying contracts with the account:", manager.address);
-    console.log("Account balance:", (await manager.getBalance()).toString());
+    console.log("Deploying contracts with the account:", deployer.address);
+    console.log("Account balance:", (await deployer.getBalance()).toString());
 
     SaplingPool = await ethers.getContractFactory("SaplingPool");
     poolContract = await SaplingPool.deploy(...arguments);

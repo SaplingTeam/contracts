@@ -189,13 +189,12 @@ abstract contract Lender is ManagedLendingPool {
      * @param _token ERC20 token contract address to be used as main pool liquid currency.
      * @param _governance Address of the protocol governance.
      * @param _protocol Address of a wallet to accumulate protocol earnings.
-     * @param _minLoanAmount Minimum amount to be borrowed per loan.
+     * @param _manager Address of the pool manager.
      */
-    constructor(address _token, address _governance, address _protocol, uint256 _minLoanAmount) ManagedLendingPool(_token, _governance, _protocol) {
+    constructor(address _token, address _governance, address _protocol, address _manager) ManagedLendingPool(_token, _governance, _protocol, _manager) {
         
-        require(ONE_TOKEN <= _minLoanAmount, "New min loan amount is less than the safe limit");
         SAFE_MIN_AMOUNT = ONE_TOKEN;
-        minLoanAmount = _minLoanAmount;
+        minLoanAmount = ONE_TOKEN.mul(100);
 
         SAFE_MAX_APR = ONE_HUNDRED_PERCENT;
         templateLoanAPR = uint16(30 * 10 ** PERCENT_DECIMALS); // 30%

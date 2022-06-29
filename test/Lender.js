@@ -51,7 +51,7 @@ describe("Lender (SaplingPool)", function() {
         await tokenContract.connect(manager).mint(lender3.address, mintAmount);
         await tokenContract.connect(manager).mint(borrower1.address, mintAmount);
 
-        poolContract = await SaplingPool.deploy(tokenContract.address, governance.address, protocol.address, BigNumber.from(100).mul(TOKEN_MULTIPLIER));
+        poolContract = await SaplingPool.deploy(tokenContract.address, governance.address, protocol.address, manager.address);
 
         PERCENT_DECIMALS = await poolContract.PERCENT_DECIMALS();
 

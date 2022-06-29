@@ -115,8 +115,9 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
      * @param _token ERC20 token contract address to be used as main pool liquid currency.
      * @param _governance Address of the protocol governance.
      * @param _protocol Address of a wallet to accumulate protocol earnings.
+     * @param _manager Address of the pool manager
      */
-    constructor(address _token, address _governance, address _protocol) GovernedPausable(_governance) {
+    constructor(address _token, address _governance, address _protocol, address _manager) GovernedPausable(_governance) ManagedPausableClosable(_manager) {
         require(_token != address(0), "SaplingPool: pool token address is not set");
         require(_protocol != address(0), "SaplingPool: protocol wallet address is not set");
         
