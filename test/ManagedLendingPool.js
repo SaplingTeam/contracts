@@ -505,7 +505,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 let newValue = 40 * 10 ** PERCENT_DECIMALS;
                 assert(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
 
-                await poolContract.connect(manager).setDefaultAPR(newValue);
+                await poolContract.connect(manager).setTemplateLoanAPR(newValue);
                 expect(await poolContract.templateLoanAPR()).to.equal(newValue);
             });
 
@@ -513,13 +513,13 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 it("Loan APR cannot be set to a value less than the allowed minimum", async function () {
                     let minValue = await poolContract.SAFE_MIN_APR();
                     if (minValue > 0) {
-                        await expect(poolContract.connect(manager).setDefaultAPR(minValue - 1)).to.be.reverted;
+                        await expect(poolContract.connect(manager).setTemplateLoanAPR(minValue - 1)).to.be.reverted;
                     }
                 });
 
                 it("Loan APR cannot be set to a value greater than the allowed maximum", async function () {
                     let maxValue = await poolContract.SAFE_MAX_APR();
-                    await expect(poolContract.connect(manager).setDefaultAPR(maxValue + 1)).to.be.reverted;
+                    await expect(poolContract.connect(manager).setTemplateLoanAPR(maxValue + 1)).to.be.reverted;
                 });
 
                 it("Loan APR cannot be set while the pool is paused", async function () {
@@ -532,7 +532,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
 
                     await poolContract.connect(governance).pause();
 
-                    await expect(poolContract.connect(manager).setDefaultAPR(newValue)).to.be.reverted;
+                    await expect(poolContract.connect(manager).setTemplateLoanAPR(newValue)).to.be.reverted;
                 });
 
                 it("A non-manager cannot set the loan APR", async function () {
@@ -543,7 +543,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                     let newValue = 40 * 10 ** PERCENT_DECIMALS;
                     assert(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
     
-                    await expect(poolContract.connect(governance).setDefaultAPR(newValue)).to.be.reverted;
+                    await expect(poolContract.connect(governance).setTemplateLoanAPR(newValue)).to.be.reverted;
                 });
 
             });
@@ -558,7 +558,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 let newValue = 40 * 10 ** PERCENT_DECIMALS;
                 assert(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
 
-                await poolContract.connect(manager).setDefaultLateAPRDelta(newValue);
+                await poolContract.connect(manager).setTemplateLateLoanAPRDelta(newValue);
                 expect(await poolContract.templateLateLoanAPRDelta()).to.equal(newValue);
             });
 
@@ -566,13 +566,13 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 it("Loan late payment APR delta cannot be set to a value less than the allowed minimum", async function () {
                     let minValue = await poolContract.SAFE_MIN_APR();
                     if (minValue > 0) {
-                        await expect(poolContract.connect(manager).setDefaultLateAPRDelta(minValue - 1)).to.be.reverted;
+                        await expect(poolContract.connect(manager).setTemplateLateLoanAPRDelta(minValue - 1)).to.be.reverted;
                     }
                 });
 
                 it("Loan late payment APR delta cannot be set to a value greater than the allowed maximum", async function () {
                     let maxValue = await poolContract.SAFE_MAX_APR();
-                    await expect(poolContract.connect(manager).setDefaultLateAPRDelta(maxValue + 1)).to.be.reverted;
+                    await expect(poolContract.connect(manager).setTemplateLateLoanAPRDelta(maxValue + 1)).to.be.reverted;
                 });
 
                 it("Loan late payment APR delta cannot be set while the pool is paused", async function () {
@@ -585,7 +585,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
 
                     await poolContract.connect(governance).pause();
 
-                    await expect(poolContract.connect(manager).setDefaultLateAPRDelta(newValue)).to.be.reverted;
+                    await expect(poolContract.connect(manager).setTemplateLateLoanAPRDelta(newValue)).to.be.reverted;
                 });
 
                 it("A non-manager cannot set the loan late payment APR delta", async function () {
@@ -596,7 +596,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                     let newValue = 40 * 10 ** PERCENT_DECIMALS;
                     assert(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
     
-                    await expect(poolContract.connect(governance).setDefaultLateAPRDelta(newValue)).to.be.reverted;
+                    await expect(poolContract.connect(governance).setTemplateLateLoanAPRDelta(newValue)).to.be.reverted;
                 });
 
             });
@@ -644,7 +644,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 let newValue = currentValue.add(1);
                 assert(newValue.lte(maxValue));
 
-                await poolContract.connect(manager).setLoanMinDuration(newValue);
+                await poolContract.connect(manager).setMinLoanDuration(newValue);
                 expect(await poolContract.minLoanDuration()).to.equal(newValue);
             });
 
@@ -652,13 +652,13 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 it("Minimum loan duration cannot be set to a value less than the allowed minimum", async function () {
                     let minValue = await poolContract.SAFE_MIN_DURATION();
                     if (minValue > 0) {
-                        await expect(poolContract.connect(manager).setLoanMinDuration(minValue.sub(1))).to.be.reverted;
+                        await expect(poolContract.connect(manager).setMinLoanDuration(minValue.sub(1))).to.be.reverted;
                     }
                 });
 
                 it("Minimum loan duration cannot be set to a value greater than the allowed maximum", async function () {
                     let maxValue = await poolContract.maxLoanDuration();
-                    await expect(poolContract.connect(manager).setLoanMinDuration(maxValue.add(1))).to.be.reverted;
+                    await expect(poolContract.connect(manager).setMinLoanDuration(maxValue.add(1))).to.be.reverted;
                 });
 
                 it("Minimum loan duration cannot be set while the pool is paused", async function () {
@@ -670,7 +670,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
 
                     await poolContract.connect(governance).pause();
 
-                    await expect(poolContract.connect(manager).setLoanMinDuration(newValue)).to.be.reverted;
+                    await expect(poolContract.connect(manager).setMinLoanDuration(newValue)).to.be.reverted;
                 });
 
                 it("A non-manager cannot set the minimum loan duration", async function () {
@@ -680,7 +680,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                     let newValue = currentValue.add(1);
                     assert(newValue.lte(maxValue));
     
-                    await expect(poolContract.connect(governance).setLoanMinDuration(newValue)).to.be.reverted;
+                    await expect(poolContract.connect(governance).setMinLoanDuration(newValue)).to.be.reverted;
                 });
 
             });
@@ -695,7 +695,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 let newValue = currentValue.sub(1);
                 assert(minValue.lte(newValue) && newValue.lte(maxValue));
 
-                await poolContract.connect(manager).setLoanMaxDuration(newValue);
+                await poolContract.connect(manager).setMaxLoanDuration(newValue);
                 expect(await poolContract.maxLoanDuration()).to.equal(newValue);
             });
 
@@ -703,13 +703,13 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 it("Maximum loan duration cannot be set to a value less than the allowed minimum", async function () {
                     let minValue = await poolContract.minLoanDuration();
                     if (minValue > 0) {
-                        await expect(poolContract.connect(manager).setLoanMaxDuration(minValue.sub(1))).to.be.reverted;
+                        await expect(poolContract.connect(manager).setMaxLoanDuration(minValue.sub(1))).to.be.reverted;
                     }
                 });
 
                 it("Maximum loan duration cannot be set to a value greater than the allowed maximum", async function () {
                     let maxValue = await poolContract.SAFE_MAX_DURATION();
-                    await expect(poolContract.connect(manager).setLoanMaxDuration(maxValue.add(1))).to.be.reverted;
+                    await expect(poolContract.connect(manager).setMaxLoanDuration(maxValue.add(1))).to.be.reverted;
                 });
 
                 it("Maximum loan duration cannot be set while the pool is paused", async function () {
@@ -722,7 +722,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
 
                     await poolContract.connect(governance).pause();
 
-                    await expect(poolContract.connect(manager).setLoanMaxDuration(newValue)).to.be.reverted;
+                    await expect(poolContract.connect(manager).setMaxLoanDuration(newValue)).to.be.reverted;
                 });
 
                 it("A non-manager cannot set the maximum loan duration", async function () {
@@ -733,7 +733,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                     let newValue = currentValue.sub(1);
                     assert(minValue.lte(newValue) && newValue.lte(maxValue));
     
-                    await expect(poolContract.connect(governance).setLoanMaxDuration(newValue)).to.be.reverted;
+                    await expect(poolContract.connect(governance).setMaxLoanDuration(newValue)).to.be.reverted;
                 });
 
             });
@@ -748,7 +748,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 let newValue = currentValue.add(1);
                 assert(minValue.lte(newValue) && newValue.lte(maxValue));
 
-                await poolContract.connect(manager).setLoanGracePeriod(newValue);
+                await poolContract.connect(manager).setTemplateLoanGracePeriod(newValue);
                 expect(await poolContract.templateLoanGracePeriod()).to.equal(newValue);
             });
 
@@ -756,13 +756,13 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 it("Loan grace period cannot be set to a value less than the allowed minimum", async function () {
                     let minValue = await poolContract.MIN_LOAN_GRACE_PERIOD();
                     if (minValue > 0) {
-                        await expect(poolContract.connect(manager).setLoanGracePeriod(minValue.sub(1))).to.be.reverted;
+                        await expect(poolContract.connect(manager).setTemplateLoanGracePeriod(minValue.sub(1))).to.be.reverted;
                     }
                 });
 
                 it("Loan grace period cannot be set to a value greater than the allowed maximum", async function () {
                     let maxValue = await poolContract.MAX_LOAN_GRACE_PERIOD();
-                    await expect(poolContract.connect(manager).setLoanGracePeriod(maxValue.add(1))).to.be.reverted;
+                    await expect(poolContract.connect(manager).setTemplateLoanGracePeriod(maxValue.add(1))).to.be.reverted;
                 });
 
                 it("Loan grace period cannot be set while the pool is paused", async function () {
@@ -775,7 +775,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
 
                     await poolContract.connect(governance).pause();
 
-                    await expect(poolContract.connect(manager).setLoanGracePeriod(newValue)).to.be.reverted;
+                    await expect(poolContract.connect(manager).setTemplateLoanGracePeriod(newValue)).to.be.reverted;
                 });
 
                 it("A non-manager cannot set the loan grace period", async function () {
@@ -786,7 +786,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                     let newValue = currentValue.add(1);
                     assert(minValue.lte(newValue) && newValue.lte(maxValue));
     
-                    await expect(poolContract.connect(governance).setLoanGracePeriod(newValue)).to.be.reverted;
+                    await expect(poolContract.connect(governance).setTemplateLoanGracePeriod(newValue)).to.be.reverted;
                 });
 
             });

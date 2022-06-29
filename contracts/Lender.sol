@@ -226,7 +226,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Caller must be the manager.
      * @param apr Loan APR to be applied for the new loan requests.
      */
-    function setDefaultAPR(uint16 apr) external onlyManager notPaused {
+    function setTemplateLoanAPR(uint16 apr) external onlyManager notPaused {
         require(SAFE_MIN_APR <= apr && apr <= SAFE_MAX_APR, "APR is out of bounds");
         templateLoanAPR = apr;
     }
@@ -237,7 +237,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Caller must be the manager.
      * @param lateAPRDelta Loan late payment APR delta to be applied for the new loan requests.
      */
-    function setDefaultLateAPRDelta(uint16 lateAPRDelta) external onlyManager notPaused {
+    function setTemplateLateLoanAPRDelta(uint16 lateAPRDelta) external onlyManager notPaused {
         require(SAFE_MIN_APR <= lateAPRDelta && lateAPRDelta <= SAFE_MAX_APR, "APR is out of bounds");
         templateLateLoanAPRDelta = lateAPRDelta;
     }
@@ -259,7 +259,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Caller must be the manager.
      * @param duration Maximum loan duration to be enforced for the new loan requests.
      */
-    function setLoanMinDuration(uint256 duration) external onlyManager notPaused {
+    function setMinLoanDuration(uint256 duration) external onlyManager notPaused {
         require(SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration, "New min duration is out of bounds");
         minLoanDuration = duration;
     }
@@ -270,7 +270,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Caller must be the manager.
      * @param duration Maximum loan duration to be enforced for the new loan requests.
      */
-    function setLoanMaxDuration(uint256 duration) external onlyManager notPaused {
+    function setMaxLoanDuration(uint256 duration) external onlyManager notPaused {
         require(minLoanDuration <= duration && duration <= SAFE_MAX_DURATION, "New max duration is out of bounds");
         maxLoanDuration = duration;
     }
@@ -281,7 +281,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Caller must be the manager.
      * @param gracePeriod Loan payment grace period for new loan requests.
      */
-    function setLoanGracePeriod(uint256 gracePeriod) external onlyManager notPaused {
+    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyManager notPaused {
         require(MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD, "Lender: New grace period is out of bounds.");
         templateLoanGracePeriod = gracePeriod;
     }

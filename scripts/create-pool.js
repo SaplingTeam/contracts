@@ -37,7 +37,7 @@ async function main() {
     let poolSizeBN = BigNumber.from(config.poolSize).mul(TOKEN_MULTIPLIER);
 
     //set apr
-    await poolContract.connect(manager).setDefaultAPR(BigNumber.from(config.loanAPR).mul(BigNumber.from(10).pow(PERCENT_DECIMALS)));
+    await poolContract.connect(manager).setTemplateLoanAPR(BigNumber.from(config.loanAPR).mul(BigNumber.from(10).pow(PERCENT_DECIMALS)));
     
     // stake
     let stakeAmount = poolSizeBN.mul(config.stakePercent).div(100);
