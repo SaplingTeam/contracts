@@ -254,7 +254,7 @@ Event emitted when a new protocol wallet is set
 ### constructor
 
 ```solidity
-constructor(address _token, address _governance, address _protocol) internal
+constructor(address _token, address _governance, address _protocol, address _manager) internal
 ```
 
 Create a managed lending pool.
@@ -266,6 +266,7 @@ _msg.sender will be assigned as the manager of the created pool._
 | _token | address | ERC20 token contract address to be used as main pool liquid currency. |
 | _governance | address | Address of the protocol governance. |
 | _protocol | address | Address of a wallet to accumulate protocol earnings. |
+| _manager | address | Address of the pool manager |
 
 ### transferProtocolWallet
 

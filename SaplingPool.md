@@ -10,7 +10,7 @@ _Extends Lender.
 ### constructor
 
 ```solidity
-constructor(address _token, address _governance, address _protocol, uint256 _minAmount) public
+constructor(address _token, address _governance, address _protocol, address _manager) public
 ```
 
 Creates a Sapling pool.
@@ -20,7 +20,7 @@ Creates a Sapling pool.
 | _token | address | ERC20 token contract address to be used as main pool liquid currency. |
 | _governance | address | Address of the protocol governance. |
 | _protocol | address | Address of a wallet to accumulate protocol earnings. |
-| _minAmount | uint256 | Minimum amount to be borrowed per loan. |
+| _manager | address | Address of the pool manager. |
 
 ### deposit
 

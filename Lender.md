@@ -294,7 +294,7 @@ Borrower statistics by address
 ### constructor
 
 ```solidity
-constructor(address _token, address _governance, address _protocol, uint256 _minLoanAmount) internal
+constructor(address _token, address _governance, address _protocol, address _manager) internal
 ```
 
 Create a Lender that ManagedLendingPool.
@@ -306,7 +306,7 @@ __minAmount must be greater than or equal to SAFE_MIN_AMOUNT._
 | _token | address | ERC20 token contract address to be used as main pool liquid currency. |
 | _governance | address | Address of the protocol governance. |
 | _protocol | address | Address of a wallet to accumulate protocol earnings. |
-| _minLoanAmount | uint256 | Minimum amount to be borrowed per loan. |
+| _manager | address | Address of the pool manager. |
 
 ### loansCount
 
@@ -320,10 +320,10 @@ Count of all loan requests in this pool.
 | ---- | ---- | ----------- |
 | [0] | uint256 | Loans count. |
 
-### setDefaultAPR
+### setTemplateLoanAPR
 
 ```solidity
-function setDefaultAPR(uint16 apr) external
+function setTemplateLoanAPR(uint16 apr) external
 ```
 
 Set annual loan interest rate for the future loans.
@@ -335,10 +335,10 @@ _apr must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
 | ---- | ---- | ----------- |
 | apr | uint16 | Loan APR to be applied for the new loan requests. |
 
-### setDefaultLateAPRDelta
+### setTemplateLateLoanAPRDelta
 
 ```solidity
-function setDefaultLateAPRDelta(uint16 lateAPRDelta) external
+function setTemplateLateLoanAPRDelta(uint16 lateAPRDelta) external
 ```
 
 Set late payment annual loan interest rate delta for the future loans.
@@ -365,10 +365,10 @@ _minLoanAmount must be greater than or equal to SAFE_MIN_AMOUNT.
 | ---- | ---- | ----------- |
 | _minLoanAmount | uint256 | minimum loan amount to be enforced for the new loan requests. |
 
-### setLoanMinDuration
+### setMinLoanDuration
 
 ```solidity
-function setLoanMinDuration(uint256 duration) external
+function setMinLoanDuration(uint256 duration) external
 ```
 
 Set maximum loan duration for the future loans.
@@ -380,10 +380,10 @@ _Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxLo
 | ---- | ---- | ----------- |
 | duration | uint256 | Maximum loan duration to be enforced for the new loan requests. |
 
-### setLoanMaxDuration
+### setMaxLoanDuration
 
 ```solidity
-function setLoanMaxDuration(uint256 duration) external
+function setMaxLoanDuration(uint256 duration) external
 ```
 
 Set maximum loan duration for the future loans.
@@ -395,10 +395,10 @@ _Duration must be in seconds and inclusively between minLoanDuration and SAFE_MA
 | ---- | ---- | ----------- |
 | duration | uint256 | Maximum loan duration to be enforced for the new loan requests. |
 
-### setLoanGracePeriod
+### setTemplateLoanGracePeriod
 
 ```solidity
-function setLoanGracePeriod(uint256 gracePeriod) external
+function setTemplateLoanGracePeriod(uint256 gracePeriod) external
 ```
 
 Set loan payment grace period for the future loans.

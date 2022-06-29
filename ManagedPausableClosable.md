@@ -93,12 +93,16 @@ modifier whenLendingPaused()
 ### constructor
 
 ```solidity
-constructor() internal
+constructor(address _manager) internal
 ```
 
 Create a managed lending pool.
 
 _msg.sender will be assigned as the manager of the created pool._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _manager | address | Address of the pool manager |
 
 ### close
 
