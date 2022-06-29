@@ -32,6 +32,8 @@ async function main() {
 
     let SaplingPool = await ethers.getContractFactory("SaplingPool");
     let poolContract = await SaplingPool.connect(manager).deploy(tokenContract.address, wallets[config.governanceAddressIndex].address, wallets[config.protocolAddressIndex].address, BigInt(100e6))
+    console.log("Lending pool deployed at: %s", poolContract.address);
+    
     let PERCENT_DECIMALS = await poolContract.PERCENT_DECIMALS();
 
     let poolSizeBN = BigNumber.from(config.poolSize).mul(TOKEN_MULTIPLIER);
@@ -64,6 +66,8 @@ async function main() {
         await poolContract.connect(lender).deposit(depositAmount);
 
         remainingDepositAmount = remainingDepositAmount.sub(depositAmount);
+
+        console.log("Lender %s: %s", i+1, lender.address);
     }
 
     // borrow
@@ -87,9 +91,9 @@ async function main() {
         await poolContract.connect(borrower).borrow(loanId);
 
         remainingLoanAmount = remainingLoanAmount.sub(loanAmount);
-    }
 
-    console.log("Lending pool deployed at: %s", poolContract.address);
+        console.log("Borrower %s: %s", i+1, borrower.address);
+    }
 }
 
 main()
