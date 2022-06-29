@@ -4,8 +4,6 @@
 async function main() {
     [deployer, ...addrs] = await ethers.getSigners();
     const arguments = require('./arguments.optimistic.kovan.js');
-
-    var wallets = require('./data/wallets.json');
   
     console.log("Deploying contracts with the account:", deployer.address);
     console.log("Account balance:", (await deployer.getBalance()).toString());
