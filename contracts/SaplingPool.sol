@@ -209,11 +209,13 @@ contract SaplingPool is Lender {
         // protocol APY
         uint256 protocolAPY = FractionalMath.mulDiv(poolAPY, protocolEarningPercent, ONE_HUNDRED_PERCENT);
         
+        uint256 remainingAPY = poolAPY.sub(protocolAPY);
+
         // manager withdrawableAPY
         uint256 currentStakePercent = FractionalMath.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
         uint256 managerEarningsPercent = FractionalMath.mulDiv(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT);
-        uint256 managerWithdrawableAPY = managerEarningsPercent.sub(FractionalMath.mulDiv(managerEarningsPercent, ONE_HUNDRED_PERCENT - protocolEarningPercent, ONE_HUNDRED_PERCENT));
+        uint256 managerWithdrawableAPY = FractionalMath.mulDiv(remainingAPY, managerEarningsPercent, managerEarningsPercent + ONE_HUNDRED_PERCENT);
 
-        return uint16(poolAPY.sub(protocolAPY).sub(managerWithdrawableAPY));
+        return uint16(remainingAPY.sub(managerWithdrawableAPY));
     }
 }

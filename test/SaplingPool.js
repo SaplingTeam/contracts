@@ -830,13 +830,15 @@ describe("SaplingPool", function() {
             
             // protocol APY
             let protocolAPY = poolAPY.mul(protocolEarningPercent).div(ONE_HUNDRED_PERCENT);
+
+            let remainingAPY = poolAPY.sub(protocolAPY);
             
             // manager withdrawableAPY
             let currentStakePercent = ONE_HUNDRED_PERCENT / poolFunds.div(stakeAmount).toNumber();
             let managerEarningsPercent = currentStakePercent * (managersEarnFactor - ONE_HUNDRED_PERCENT) / ONE_HUNDRED_PERCENT;
-            let managerWithdrawableAPY = managerEarningsPercent - (managerEarningsPercent * (ONE_HUNDRED_PERCENT - protocolEarningPercent) / ONE_HUNDRED_PERCENT);
+            let managerWithdrawableAPY = remainingAPY.mul(managerEarningsPercent).div(managerEarningsPercent + ONE_HUNDRED_PERCENT);
 
-            let expectedLenderAPY = poolAPY.sub(protocolAPY).sub(managerWithdrawableAPY).toNumber();
+            let expectedLenderAPY = remainingAPY.sub(managerWithdrawableAPY).toNumber();
 
             expect(await poolContract.currentLenderAPY()).to.equal(expectedLenderAPY);
             
@@ -854,12 +856,14 @@ describe("SaplingPool", function() {
             // protocol APY
             let protocolAPY = poolAPY.mul(protocolEarningPercent).div(ONE_HUNDRED_PERCENT);
             
+            let remainingAPY = poolAPY.sub(protocolAPY);
+            
             // manager withdrawableAPY
             let currentStakePercent = ONE_HUNDRED_PERCENT / poolFunds.div(stakeAmount).toNumber();
             let managerEarningsPercent = currentStakePercent * (managersEarnFactor - ONE_HUNDRED_PERCENT) / ONE_HUNDRED_PERCENT;
-            let managerWithdrawableAPY = managerEarningsPercent - (managerEarningsPercent * (ONE_HUNDRED_PERCENT - protocolEarningPercent) / ONE_HUNDRED_PERCENT);
+            let managerWithdrawableAPY = remainingAPY.mul(managerEarningsPercent).div(managerEarningsPercent + ONE_HUNDRED_PERCENT);
 
-            let expectedLenderAPY = poolAPY.sub(protocolAPY).sub(managerWithdrawableAPY).toNumber();
+            let expectedLenderAPY = remainingAPY.sub(managerWithdrawableAPY).toNumber();
 
             let borrowRate = loanAmount.mul(ONE_HUNDRED_PERCENT).div(poolFunds).toNumber();
 
