@@ -1,0 +1,14 @@
+{
+    "walletsOffset": 32,
+    "governanceAddressIndex": 1,
+    "protocolAddressIndex": 2,
+    "capitalToken": "0x3e22e37Cb472c872B5dE121134cFD1B57Ef06560",
+    "poolSize": 90000,
+    "borrowedFunds": 82000,
+    "stakePercent": 18,
+    "loanAPR": 40,
+    "lenderAPY": 30,
+    "numLenders": 5,
+    "numBorrowers": 22,
+    "dryRun": true
+}
