@@ -138,8 +138,8 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
         protocolEarningPercent = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
         MAX_PROTOCOL_EARNING_PERCENT = protocolEarningPercent;
 
-        managerEarnFactorMax = uint16(150 * 10 ** PERCENT_DECIMALS); // 150% or 1.5x leverage by default (safe min 100% or 1x)
-        managerEarnFactor = managerEarnFactorMax;
+        managerEarnFactorMax = uint16(500 * 10 ** PERCENT_DECIMALS); // 150% or 1.5x leverage by default (safe min 100% or 1x)
+        managerEarnFactor = uint16(150 * 10 ** PERCENT_DECIMALS);
 
         managerExcessLeverageComponent = uint256(managerEarnFactor).sub(oneHundredPercent);
 
@@ -209,6 +209,7 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
 
         if (managerEarnFactor > managerEarnFactorMax) {
             managerEarnFactor = managerEarnFactorMax;
+            managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
         }
     }
 
@@ -221,6 +222,7 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
     function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager notPaused {
         require(ONE_HUNDRED_PERCENT <= _managerEarnFactor && _managerEarnFactor <= managerEarnFactorMax, "Manager's earn factor is out of bounds.");
         managerEarnFactor = _managerEarnFactor;
+        managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
     }
 
     /**
