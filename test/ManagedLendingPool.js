@@ -20,13 +20,21 @@ describe("ManagedLendingPool (SaplingPool)", function() {
     beforeEach(async function () {
         [manager, protocol, governance, lender1, borrower1, ...addrs] = await ethers.getSigners();
 
-        let TestToken = await ethers.getContractFactory("TestToken");
+        let TestUSDC = await ethers.getContractFactory("TestUSDC");
         let SaplingPool = await ethers.getContractFactory("SaplingPool");
 
-        tokenContract = await TestToken.deploy(lender1.address, borrower1.address, addrs[0].address, addrs[1].address);
+        tokenContract = await TestUSDC.deploy();
 
         TOKEN_DECIMALS = await tokenContract.decimals();
         TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
+
+        let mintAmount = TOKEN_MULTIPLIER.mul(100000);
+
+        await tokenContract.connect(manager).mint(manager.address, mintAmount);
+        await tokenContract.connect(manager).mint(lender1.address, mintAmount);
+        await tokenContract.connect(manager).mint(borrower1.address, mintAmount);
+        await tokenContract.connect(manager).mint(addrs[0].address, mintAmount);
+        await tokenContract.connect(manager).mint(addrs[1].address, mintAmount);
 
         poolContract = await SaplingPool.deploy(tokenContract.address, governance.address, protocol.address, BigNumber.from(100).mul(TOKEN_MULTIPLIER));
 

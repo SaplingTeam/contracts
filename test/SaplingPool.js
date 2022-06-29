@@ -3,7 +3,7 @@ const { BigNumber } = require("ethers");
 
 describe("SaplingPool", function() {
 
-    let TestToken;
+    let TestUSDC;
     let tokenContract;
 
     let SaplingPool;
@@ -22,15 +22,24 @@ describe("SaplingPool", function() {
     beforeEach(async function () {
         [manager, protocol, governance, lender1, lender2, borrower1, borrower2, ...addrs] = await ethers.getSigners();
 
-        TestToken = await ethers.getContractFactory("TestToken");
+        TestUSDC = await ethers.getContractFactory("TestUSDC");
         SaplingPool = await ethers.getContractFactory("SaplingPool");
 
-        tokenContract = await TestToken.deploy(lender1.address, lender2.address, borrower1.address, borrower2.address);
-        poolContract = await SaplingPool.deploy(tokenContract.address, governance.address, protocol.address, BigInt(100e18));
-
-        PERCENT_DECIMALS = await poolContract.PERCENT_DECIMALS();
+        tokenContract = await TestUSDC.deploy();
         TOKEN_DECIMALS = await tokenContract.decimals();
         TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
+
+        let mintAmount = TOKEN_MULTIPLIER.mul(100000);
+
+        await tokenContract.connect(manager).mint(manager.address, mintAmount);
+        await tokenContract.connect(manager).mint(lender1.address, mintAmount);
+        await tokenContract.connect(manager).mint(lender2.address, mintAmount);
+        await tokenContract.connect(manager).mint(borrower1.address, mintAmount);
+        await tokenContract.connect(manager).mint(borrower2.address, mintAmount);
+
+        poolContract = await SaplingPool.deploy(tokenContract.address, governance.address, protocol.address, BigNumber.from(100).mul(TOKEN_MULTIPLIER));
+
+        PERCENT_DECIMALS = await poolContract.PERCENT_DECIMALS();
     });
 
     describe("Staking", function () {

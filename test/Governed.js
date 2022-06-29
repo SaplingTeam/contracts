@@ -22,10 +22,10 @@ describe("Governed (SaplingPool)", function() {
     beforeEach(async function () {
         [manager, protocol, governance1, governance2, ...addrs] = await ethers.getSigners();
 
-        let TestToken = await ethers.getContractFactory("TestToken");
+        let TestUSDC = await ethers.getContractFactory("TestUSDC");
         let SaplingPool = await ethers.getContractFactory("SaplingPool");
 
-        let tokenContract = await TestToken.deploy(addrs[0].address, addrs[1].address, addrs[2].address, addrs[3].address);
+        let tokenContract = await TestUSDC.deploy();
         let TOKEN_DECIMALS = await tokenContract.decimals();
         let TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
 
