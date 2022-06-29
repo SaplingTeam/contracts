@@ -131,7 +131,7 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
         poolFundsLimit = 0;
         poolFunds = 0;
 
-        targetStakePercent = 100; //10%
+        targetStakePercent = uint16(10 * 10 ** PERCENT_DECIMALS); //10%
         targetLiquidityPercent = 0; //0%
 
         uint16 oneHundredPercent = uint16(100 * 10 ** PERCENT_DECIMALS);
