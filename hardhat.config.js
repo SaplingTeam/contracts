@@ -14,6 +14,11 @@ module.exports = {
     },
   },
   networks: {
+    hardhat: {
+      accounts: {
+        mnemonic: process.env.TESTNET_MNEMONIC
+      }
+    },
     kovan: {
       url: "https://kovan.poa.network/",
       chainId: 42,
