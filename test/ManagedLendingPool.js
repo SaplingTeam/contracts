@@ -90,7 +90,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
 
         it("Manager's earn factor is correct", async function () {
             let minValue = 100 * 10**PERCENT_DECIMALS;
-            let maxValue = 150 * 10**PERCENT_DECIMALS;
+            let maxValue = 500 * 10**PERCENT_DECIMALS;
             let defaultValue = 150 * 10**PERCENT_DECIMALS;
 
             expect(await poolContract.managerEarnFactorMax()).to.equal(maxValue);
