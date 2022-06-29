@@ -5,8 +5,13 @@ var config = require('./create-pool.config.json');
 var wallets = require('./data/wallets.json');
 
 const DEPLOYER_ADDRESS_INDEX = 0;
+const MANAGER_ETH = "0.0001";
+const LENDER_ETH = "0.0000001";
+const BORROWER_ETH = "0.0000001";
 
 async function main() {
+
+    console.log("Wallets offset: %s", config.walletsOffset);
 
     let deployer = await ethers.Wallet.fromMnemonic(wallets[DEPLOYER_ADDRESS_INDEX].mnemonic.phrase).connect(ethers.provider);
 
@@ -27,12 +32,13 @@ async function main() {
 
     await deployer.sendTransaction({
         to: manager.address,
-        value: ethers.utils.parseEther("0.1"),
+        value: ethers.utils.parseEther(MANAGER_ETH),
       });
 
     let SaplingPool = await ethers.getContractFactory("SaplingPool");
-    let poolContract = await SaplingPool.connect(manager).deploy(tokenContract.address, wallets[config.governanceAddressIndex].address, wallets[config.protocolAddressIndex].address, BigInt(100e6))
+    let poolContract = await SaplingPool.connect(deployer).deploy(tokenContract.address, wallets[config.governanceAddressIndex].address, wallets[config.protocolAddressIndex].address, manager.address)
     console.log("Lending pool deployed at: %s", poolContract.address);
+    console.log("Manager: %s", manager.address);
     
     let PERCENT_DECIMALS = await poolContract.PERCENT_DECIMALS();
 
@@ -56,7 +62,7 @@ async function main() {
         nextWallet++;
         await deployer.sendTransaction({
             to: lender.address,
-            value: ethers.utils.parseEther("0.1"),
+            value: ethers.utils.parseEther(LENDER_ETH),
         });
         
         let depositAmount = i === config.numLenders - 1 ? remainingDepositAmount : singleDepositAmount;
@@ -80,7 +86,7 @@ async function main() {
         nextWallet++;
         await deployer.sendTransaction({
             to: borrower.address,
-            value: ethers.utils.parseEther("0.1"),
+            value: ethers.utils.parseEther(BORROWER_ETH),
         });
 
         let loanAmount = i === config.numBorrowers - 1 ? remainingLoanAmount : singleLoanAmount;
