@@ -471,26 +471,6 @@ Get a share value of tokens.
 | ---- | ---- | ----------- |
 | tokens | uint256 | Amount of tokens |
 
-### multiplyByFraction
-
-```solidity
-function multiplyByFraction(uint256 a, uint256 b, uint256 c) public pure returns (uint256)
-```
-
-Do a multiplication of a value by a fraction.
-
-_A proxy to FractionalMath.mulDiv(...)_
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| a | uint256 | value to be multiplied |
-| b | uint256 | numerator of the fraction |
-| c | uint256 | denominator of the fraction |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Integer value of (a*b)/c if (a*b) does not overflow, else a*(b/c) |
-
 ### canClose
 
 ```solidity

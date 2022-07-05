@@ -220,7 +220,7 @@ Requirements:
 function _transfer(address from, address to, uint256 amount) internal virtual
 ```
 
-_Moves &#x60;amount&#x60; of tokens from &#x60;sender&#x60; to &#x60;recipient&#x60;.
+_Moves &#x60;amount&#x60; of tokens from &#x60;from&#x60; to &#x60;to&#x60;.
 
 This internal function is equivalent to {transfer}, and can be used to
 e.g. implement automatic token fees, slashing mechanisms, etc.

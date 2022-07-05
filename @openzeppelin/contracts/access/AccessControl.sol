@@ -140,7 +140,9 @@ event.
 
 Requirements:
 
-- the caller must have &#x60;&#x60;role&#x60;&#x60;&#x27;s admin role._
+- the caller must have &#x60;&#x60;role&#x60;&#x60;&#x27;s admin role.
+
+May emit a {RoleGranted} event._
 
 ### revokeRole
 
@@ -154,7 +156,9 @@ If &#x60;account&#x60; had been granted &#x60;role&#x60;, emits a {RoleRevoked} 
 
 Requirements:
 
-- the caller must have &#x60;&#x60;role&#x60;&#x60;&#x27;s admin role._
+- the caller must have &#x60;&#x60;role&#x60;&#x60;&#x27;s admin role.
+
+May emit a {RoleRevoked} event._
 
 ### renounceRole
 
@@ -173,7 +177,9 @@ event.
 
 Requirements:
 
-- the caller must be &#x60;account&#x60;._
+- the caller must be &#x60;account&#x60;.
+
+May emit a {RoleRevoked} event._
 
 ### _setupRole
 
@@ -186,6 +192,8 @@ _Grants &#x60;role&#x60; to &#x60;account&#x60;.
 If &#x60;account&#x60; had not been already granted &#x60;role&#x60;, emits a {RoleGranted}
 event. Note that unlike {grantRole}, this function doesn&#x27;t perform any
 checks on the calling account.
+
+May emit a {RoleGranted} event.
 
 [WARNING]
 &#x3D;&#x3D;&#x3D;&#x3D;
@@ -216,7 +224,9 @@ function _grantRole(bytes32 role, address account) internal virtual
 
 _Grants &#x60;role&#x60; to &#x60;account&#x60;.
 
-Internal function without access restriction._
+Internal function without access restriction.
+
+May emit a {RoleGranted} event._
 
 ### _revokeRole
 
@@ -226,5 +236,7 @@ function _revokeRole(bytes32 role, address account) internal virtual
 
 _Revokes &#x60;role&#x60; from &#x60;account&#x60;.
 
-Internal function without access restriction._
+Internal function without access restriction.
+
+May emit a {RoleRevoked} event._
 
