@@ -89,7 +89,7 @@ _amount must be greater an 0 and less than or equal to requestedLiquidity[msg.se
 function balanceOf(address wallet) public view returns (uint256)
 ```
 
-Check wallet&#x27;s token balance in the pool. Balance includes acquired earnings.
+Check wallet's token balance in the pool. Balance includes acquired earnings.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -105,7 +105,7 @@ Check wallet&#x27;s token balance in the pool. Balance includes acquired earning
 function unlockedBalanceOf(address wallet) public view returns (uint256)
 ```
 
-Check wallet&#x27;s unlocked token balance in the pool. Balance includes acquired earnings.
+Check wallet's unlocked token balance in the pool. Balance includes acquired earnings.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -123,7 +123,7 @@ function amountDepositable() external view returns (uint256)
 
 Check token amount depositable by lenders at this time.
 
-_Return value depends on the pool state rather than caller&#x27;s balance._
+_Return value depends on the pool state rather than caller's balance._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -184,11 +184,11 @@ _Caller must be the manager.
 function balanceStaked() public view returns (uint256)
 ```
 
-Check the manager&#x27;s staked token balance in the pool.
+Check the manager's staked token balance in the pool.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Token balance of the manager&#x27;s stake. |
+| [0] | uint256 | Token balance of the manager's stake. |
 
 ### amountUnstakable
 
@@ -198,7 +198,7 @@ function amountUnstakable() public view returns (uint256)
 
 Check token amount unstakable by the manager at this time.
 
-_Return value depends on the manager&#x27;s stake balance, and is limited by pool liquidity._
+_Return value depends on the manager's stake balance, and is limited by pool liquidity._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |

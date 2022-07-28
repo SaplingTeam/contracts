@@ -115,7 +115,7 @@ Close the pool and stop borrowing, lender deposits, and staking.
 _Caller must be the manager. 
      Pool must be open.
      No loans or approvals must be outstanding (borrowedFunds must equal to 0).
-     Emits &#x27;PoolClosed&#x27; event._
+     Emits 'PoolClosed' event._
 
 ### open
 
@@ -128,7 +128,7 @@ Open the pool for normal operations.
 _Caller must be the manager. 
      Pool must be closed.
      Opening the pool will not unpause any pauses in effect.
-     Emits &#x27;PoolOpened&#x27; event._
+     Emits 'PoolOpened' event._
 
 ### pauseLending
 
@@ -142,7 +142,7 @@ _Caller must be the manager.
      Lending must not be paused.
      Lending can be paused regardless of the pool open/close and governance pause states, 
      but some of the states may have a higher priority making pausing irrelevant.
-     Emits &#x27;LendingPaused&#x27; event._
+     Emits 'LendingPaused' event._
 
 ### resumeLending
 
@@ -156,7 +156,7 @@ _Caller must be the manager.
      Lending must be paused.
      Lending can be resumed regardless of the pool open/close and governance pause states, 
      but some of the states may have a higher priority making resuming irrelevant.
-     Emits &#x27;LendingPaused&#x27; event._
+     Emits 'LendingPaused' event._
 
 ### canClose
 

@@ -1,9 +1,9 @@
+[ManagedLendingPool](ManagedLendingPool)
+
 [ManagedPausableClosable](ManagedPausableClosable)
+
+[SaplingPool](SaplingPool)
 
 [Lender](Lender)
 
-[ManagedLendingPool](ManagedLendingPool)
-
 [GovernedPausable](GovernedPausable)
-
-[SaplingPool](SaplingPool)

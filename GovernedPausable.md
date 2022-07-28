@@ -141,7 +141,7 @@ Pause.
 
 _Caller must be the governance.
      Pause or cooldown must not be in effect.
-     Emits &#x27;Paused&#x27; event.
+     Emits 'Paused' event.
      Pause will time out in PAUSE_TIMEOUT seconds after the current block timestamp._
 
 ### resume
@@ -154,8 +154,8 @@ Resume.
 
 _Caller must be the governance.
      Pause must be in effect.
-     Emits &#x27;Resumed&#x27; event.
-     Resuming will update &#x27;pauseCooldownTime&#x27;._
+     Emits 'Resumed' event.
+     Resuming will update 'pauseCooldownTime'._
 
 ### isPaused
 

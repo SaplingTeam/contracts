@@ -92,7 +92,7 @@ Total pool shares present
 uint256 stakedShares
 ```
 
-Manager&#x27;s staked shares
+Manager's staked shares
 
 ### targetStakePercent
 
@@ -113,7 +113,7 @@ Target percentage of pool funds to keep liquid.
 ### poolShares
 
 ```solidity
-mapping(address &#x3D;&gt; uint256) poolShares
+mapping(address => uint256) poolShares
 ```
 
 Pool shares of wallets
@@ -121,7 +121,7 @@ Pool shares of wallets
 ### lockedShares
 
 ```solidity
-mapping(address &#x3D;&gt; uint256) lockedShares
+mapping(address => uint256) lockedShares
 ```
 
 Locked shares of wallets (i.e. staked shares)
@@ -129,7 +129,7 @@ Locked shares of wallets (i.e. staked shares)
 ### protocolEarnings
 
 ```solidity
-mapping(address &#x3D;&gt; uint256) protocolEarnings
+mapping(address => uint256) protocolEarnings
 ```
 
 Protocol earnings of wallets
@@ -145,7 +145,7 @@ Total amount of requested withdrawal liquidity
 ### requestedLiquidity
 
 ```solidity
-mapping(address &#x3D;&gt; uint256) requestedLiquidity
+mapping(address => uint256) requestedLiquidity
 ```
 
 Withdrawal liquidity requests by address
@@ -188,7 +188,7 @@ Percentage of paid interest to be allocated as protocol earnings
 uint16 managerEarnFactor
 ```
 
-Manager&#x27;s leveraged earn factor represented as a percentage
+Manager's leveraged earn factor represented as a percentage
 
 ### managerEarnFactorMax
 
@@ -196,7 +196,7 @@ Manager&#x27;s leveraged earn factor represented as a percentage
 uint16 managerEarnFactorMax
 ```
 
-Governance set upper bound for the manager&#x27;s leveraged earn factor
+Governance set upper bound for the manager's leveraged earn factor
 
 ### managerExcessLeverageComponent
 
@@ -226,7 +226,7 @@ Early exit fee percentage
 ### earlyExitDeadlines
 
 ```solidity
-mapping(address &#x3D;&gt; uint256) earlyExitDeadlines
+mapping(address => uint256) earlyExitDeadlines
 ```
 
 Early exit deadlines by wallets
@@ -334,7 +334,7 @@ __protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_EARNING_
 function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external
 ```
 
-Set an upper bound for the manager&#x27;s earn factor percent.
+Set an upper bound for the manager's earn factor percent.
 
 __managerEarnFactorMax must be greater than or equal to ONE_HUNDRED_PERCENT.
      Caller must be the governance.
@@ -342,7 +342,7 @@ __managerEarnFactorMax must be greater than or equal to ONE_HUNDRED_PERCENT.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _managerEarnFactorMax | uint16 | new maximum for manager&#x27;s earn factor. |
+| _managerEarnFactorMax | uint16 | new maximum for manager's earn factor. |
 
 ### setManagerEarnFactor
 
@@ -350,14 +350,14 @@ __managerEarnFactorMax must be greater than or equal to ONE_HUNDRED_PERCENT.
 function setManagerEarnFactor(uint16 _managerEarnFactor) external
 ```
 
-Set the manager&#x27;s earn factor percent.
+Set the manager's earn factor percent.
 
 __managerEarnFactorMax must be inclusively between ONE_HUNDRED_PERCENT and managerEarnFactorMax.
      Caller must be the manager._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _managerEarnFactor | uint16 | new manager&#x27;s earn factor. |
+| _managerEarnFactor | uint16 | new manager's earn factor. |
 
 ### protocolEarningsOf
 
@@ -365,7 +365,7 @@ __managerEarnFactorMax must be inclusively between ONE_HUNDRED_PERCENT and manag
 function protocolEarningsOf(address wallet) external view returns (uint256)
 ```
 
-Check the special addresses&#x27; earnings from the protocol.
+Check the special addresses' earnings from the protocol.
 
 _This method is useful for manager and protocol addresses. 
      Calling this method for a non-protocol associated addresses will return 0._
@@ -387,7 +387,7 @@ function withdrawProtocolEarnings() external
 Withdraws protocol earnings belonging to the caller.
 
 _protocolEarningsOf(msg.sender) must be greater than 0.
-     Caller&#x27;s all accumulated earnings will be withdrawn._
+     Caller's all accumulated earnings will be withdrawn._
 
 ### poolCanLend
 
@@ -408,7 +408,7 @@ function enterPool(uint256 amount) internal returns (uint256)
 ```
 
 _Internal method to enter the pool with a token amount.
-     With the exception of the manager&#x27;s call, amount must not exceed amountDepositable().
+     With the exception of the manager's call, amount must not exceed amountDepositable().
      If the caller is the pool manager, entered funds are considered staked.
      New shares are minted in a way that will not influence the current share price._
 

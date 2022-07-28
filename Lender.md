@@ -254,7 +254,7 @@ Loan id generator counter
 ### hasOpenApplication
 
 ```solidity
-mapping(address &#x3D;&gt; bool) hasOpenApplication
+mapping(address => bool) hasOpenApplication
 ```
 
 Quick lookup to check an address has pending loan applications
@@ -270,7 +270,7 @@ Total borrowed funds allocated for withdrawal but not yet withdrawn by the borro
 ### loans
 
 ```solidity
-mapping(uint256 &#x3D;&gt; struct Lender.Loan) loans
+mapping(uint256 => struct Lender.Loan) loans
 ```
 
 Loan applications by loanId
@@ -278,7 +278,7 @@ Loan applications by loanId
 ### loanDetails
 
 ```solidity
-mapping(uint256 &#x3D;&gt; struct Lender.LoanDetail) loanDetails
+mapping(uint256 => struct Lender.LoanDetail) loanDetails
 ```
 
 Loan payment details by loanId. Loan detail is available only after a loan has been approved.
@@ -286,7 +286,7 @@ Loan payment details by loanId. Loan detail is available only after a loan has b
 ### borrowerStats
 
 ```solidity
-mapping(address &#x3D;&gt; struct Lender.BorrowerStats) borrowerStats
+mapping(address => struct Lender.BorrowerStats) borrowerStats
 ```
 
 Borrower statistics by address
@@ -561,7 +561,7 @@ Default a loan.
 
 _Loan must be in OUTSTANDING status.
      Caller must be the manager.
-     canDefault(loanId) must return &#x27;true&#x27;._
+     canDefault(loanId) must return 'true'._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
