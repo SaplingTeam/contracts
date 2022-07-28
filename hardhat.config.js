@@ -1,8 +1,5 @@
-require("@nomicfoundation/hardhat-chai-matchers");
-require("@nomiclabs/hardhat-ethers");
-require("@nomiclabs/hardhat-etherscan");
+require("@nomicfoundation/hardhat-toolbox");
 require('solidity-docgen');
-require("solidity-coverage");
 require('dotenv').config();
 
 module.exports = {
