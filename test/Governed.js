@@ -71,7 +71,7 @@ describe("Governed (SaplingPool)", function() {
             });
 
             it("Transferring governance to same address should fail", async function () {
-                await expect(poolContract.connect(currentGovernance).transferGovernance(currentGovernance)).to.be.reverted;
+                await expect(poolContract.connect(currentGovernance).transferGovernance(currentGovernance.address)).to.be.reverted;
             });
 
             it("Transfer as non governance should fail", async function () {
