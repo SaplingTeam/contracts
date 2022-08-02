@@ -6,7 +6,8 @@ describe("Contract Deployment", function() {
 
     let SaplingPool;
     let poolContract;
-    let tokenContract;
+    let poolTokenContract;
+    let liquidityTokenContract;
     let TOKEN_MULTIPLIER;
 
     let manager;
@@ -23,10 +24,13 @@ describe("Contract Deployment", function() {
         [manager, protocol, governance1, governance2, ...addrs] = await ethers.getSigners();
 
         let TestUSDC = await ethers.getContractFactory("TestUSDC");
-        tokenContract = await TestUSDC.deploy();
+        liquidityTokenContract = await TestUSDC.deploy();
 
-        let TOKEN_DECIMALS = await tokenContract.decimals();
+        let TOKEN_DECIMALS = await liquidityTokenContract.decimals();
         TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
+
+        let PoolToken = await ethers.getContractFactory("PoolToken");
+        poolTokenContract = await PoolToken.deploy("Test Pool Token", "TPT", TOKEN_DECIMALS);
 
         SaplingPool = await ethers.getContractFactory("SaplingPool");
 
@@ -36,29 +40,29 @@ describe("Contract Deployment", function() {
     describe("Deploy Lending Pool", function () {
 
         it("Can deploy lending pool", async function () {
-            await expect(SaplingPool.deploy(tokenContract.address, currentGovernance.address, protocol.address, manager.address))
+            await expect(SaplingPool.deploy(poolTokenContract.address, liquidityTokenContract.address, currentGovernance.address, protocol.address, manager.address))
                 .to.be.ok;
         });
 
         describe("Rejection scenarios", function () {
 
             it("Deploying with null token address should fail", async function () {
-                await expect(SaplingPool.deploy(NULL_ADDRESS, currentGovernance.address, protocol.address, manager.address))
+                await expect(SaplingPool.deploy(poolTokenContract.address, NULL_ADDRESS, currentGovernance.address, protocol.address, manager.address))
                     .to.be.reverted;
             });
 
             it("Deploying with null governance address should fail", async function () {
-                await expect(SaplingPool.deploy(tokenContract.address, NULL_ADDRESS, protocol.address, manager.address))
+                await expect(SaplingPool.deploy(poolTokenContract.address, liquidityTokenContract.address, NULL_ADDRESS, protocol.address, manager.address))
                     .to.be.reverted;
             });
 
             it("Deploying with null protocol wallet address should fail", async function () {
-                await expect(SaplingPool.deploy(tokenContract.address, currentGovernance.address, NULL_ADDRESS, manager.address))
+                await expect(SaplingPool.deploy(poolTokenContract.address, liquidityTokenContract.address, currentGovernance.address, NULL_ADDRESS, manager.address))
                     .to.be.reverted;
             });
 
             it("Deploying with null manager address should fail", async function () {
-                await expect(SaplingPool.deploy(tokenContract.address, currentGovernance.address, protocol.address, NULL_ADDRESS))
+                await expect(SaplingPool.deploy(poolTokenContract.address, liquidityTokenContract.address, currentGovernance.address, protocol.address, NULL_ADDRESS))
                     .to.be.reverted;
             });
         });

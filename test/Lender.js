@@ -51,7 +51,12 @@ describe("Lender (SaplingPool)", function() {
         await tokenContract.connect(manager).mint(lender3.address, mintAmount);
         await tokenContract.connect(manager).mint(borrower1.address, mintAmount);
 
-        poolContract = await SaplingPool.deploy(tokenContract.address, governance.address, protocol.address, manager.address);
+        let PoolFactory = await ethers.getContractFactory("PoolFactory");
+        let poolFactory = await PoolFactory.deploy(governance.address, protocol.address);
+
+        let poolContractTx = await (await poolFactory.connect(governance).create("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
+        let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];
+        poolContract = await SaplingPool.attach(poolAddress);
 
         PERCENT_DECIMALS = await poolContract.PERCENT_DECIMALS();
 
@@ -560,15 +565,15 @@ describe("Lender (SaplingPool)", function() {
                         await expect(poolContract.connect(lender2).cancelLoan(loanId)).to.be.reverted;
                     });
         
-                    it ("A lender that is still in early exit cooldown can't cancel", async function () {
-                        let depositAmount = BigNumber.from(100).mul(TOKEN_MULTIPLIER);
+                    // it ("A lender that is still in early exit cooldown can't cancel", async function () {
+                    //     let depositAmount = BigNumber.from(100).mul(TOKEN_MULTIPLIER);
         
-                        await tokenContract.connect(lender3).approve(poolContract.address, depositAmount);
-                        await poolContract.connect(lender3).deposit(depositAmount);
+                    //     await tokenContract.connect(lender3).approve(poolContract.address, depositAmount);
+                    //     await poolContract.connect(lender3).deposit(depositAmount);
         
-                        expect(await poolContract.canCancel(loanId, lender3.address)).to.equal(false);
-                        await expect(poolContract.connect(lender3).cancelLoan(loanId)).to.be.reverted;
-                    });
+                    //     expect(await poolContract.canCancel(loanId, lender3.address)).to.equal(false);
+                    //     await expect(poolContract.connect(lender3).cancelLoan(loanId)).to.be.reverted;
+                    // });
             
                     it ("Borrower can't cancel", async function () {
                         expect(await poolContract.canCancel(loanId, borrower1.address)).to.equal(false);
@@ -1135,15 +1140,15 @@ describe("Lender (SaplingPool)", function() {
                             await expect(poolContract.connect(lender2).defaultLoan(loanId)).to.be.reverted;
                         });
         
-                        it ("A lender that is still in early exit cooldown can't default", async function () {
-                            let depositAmount = BigNumber.from(100).mul(TOKEN_MULTIPLIER);
+                        // it ("A lender that is still in early exit cooldown can't default", async function () {
+                        //     let depositAmount = BigNumber.from(100).mul(TOKEN_MULTIPLIER);
         
-                            await tokenContract.connect(lender3).approve(poolContract.address, depositAmount);
-                            await poolContract.connect(lender3).deposit(depositAmount);
+                        //     await tokenContract.connect(lender3).approve(poolContract.address, depositAmount);
+                        //     await poolContract.connect(lender3).deposit(depositAmount);
                             
-                            expect(await poolContract.canDefault(loanId, lender3.address)).to.equal(false);
-                            await expect(poolContract.connect(lender3).defaultLoan(loanId)).to.be.reverted;
-                        });
+                        //     expect(await poolContract.canDefault(loanId, lender3.address)).to.equal(false);
+                        //     await expect(poolContract.connect(lender3).defaultLoan(loanId)).to.be.reverted;
+                        // });
                 
                         it ("Borrower can't default", async function () {
                             expect(await poolContract.canDefault(loanId, borrower1.address)).to.equal(false);

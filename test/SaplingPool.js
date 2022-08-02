@@ -37,7 +37,12 @@ describe("SaplingPool", function() {
         await tokenContract.connect(manager).mint(borrower1.address, mintAmount);
         await tokenContract.connect(manager).mint(borrower2.address, mintAmount);
 
-        poolContract = await SaplingPool.deploy(tokenContract.address, governance.address, protocol.address, manager.address);
+        let PoolFactory = await ethers.getContractFactory("PoolFactory");
+        let poolFactory = await PoolFactory.deploy(governance.address, protocol.address);
+
+        let poolContractTx = await (await poolFactory.connect(governance).create("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
+        let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];
+        poolContract = await SaplingPool.attach(poolAddress);
 
         PERCENT_DECIMALS = await poolContract.PERCENT_DECIMALS();
     });
@@ -181,12 +186,15 @@ describe("SaplingPool", function() {
 
         let stakeAmount;
         let unstakeAmount;
-        let EARLY_EXIT_COOLDOWN;
+        let depositAmount;
+        // let EARLY_EXIT_COOLDOWN;
+        let exitFeePercent;
+        let ONE_HUNDRED_PERCENT;
 
         beforeEach(async function () {
             stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
             unstakeAmount = BigNumber.from(500).mul(TOKEN_MULTIPLIER);
-            let depositAmount = BigNumber.from(9000).mul(TOKEN_MULTIPLIER);
+            depositAmount = BigNumber.from(9000).mul(TOKEN_MULTIPLIER);
 
             await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
             await poolContract.connect(manager).stake(stakeAmount);
@@ -194,20 +202,26 @@ describe("SaplingPool", function() {
             await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
             await poolContract.connect(lender1).deposit(depositAmount);
 
-            EARLY_EXIT_COOLDOWN = await poolContract.EARLY_EXIT_COOLDOWN();
+            // EARLY_EXIT_COOLDOWN = await poolContract.EARLY_EXIT_COOLDOWN();
+
+            exitFeePercent = await poolContract.exitFeePercent();
+            ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
         });
 
         it("Manager can unstake", async function () {
             let balanceBefore = await tokenContract.balanceOf(manager.address);
 
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
+            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+            // await ethers.provider.send('evm_mine');
+
+            let exitFee = unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
+            let exitFeeGain = exitFee.mul(stakeAmount.sub(unstakeAmount)).div(depositAmount.add(stakeAmount.sub(unstakeAmount)));
 
             let stakedBalance = await poolContract.balanceStaked();
             await poolContract.connect(manager).unstake(unstakeAmount);
-            expect(await poolContract.balanceStaked()).to.equal(stakedBalance.sub(unstakeAmount));
+            expect(await poolContract.balanceStaked()).to.equal(stakedBalance.sub(unstakeAmount).add(exitFeeGain));
 
-            expect(await tokenContract.balanceOf(manager.address)).to.equal(balanceBefore.add(unstakeAmount));
+            expect(await tokenContract.balanceOf(manager.address)).to.equal(balanceBefore.add(unstakeAmount).sub(exitFee));
         });
 
         describe("Amount Unstakable", function () {
@@ -229,8 +243,8 @@ describe("SaplingPool", function() {
         });
 
         it("Unstaking is reflected on the pool contract balance", async function () {
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
+            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+            // await ethers.provider.send('evm_mine');
 
             let prevBalance = await tokenContract.balanceOf(poolContract.address);
 
@@ -238,13 +252,13 @@ describe("SaplingPool", function() {
 
             let balance = await tokenContract.balanceOf(poolContract.address);
 
-            expect(balance).to.equal(prevBalance.sub(unstakeAmount))
+            expect(balance).to.equal(prevBalance.sub(unstakeAmount).add(unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)))
                 .and.equal(await poolContract.tokenBalance());
         });
 
         it("Unstaking is reflected on pool liquidity", async function () {
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
+            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+            // await ethers.provider.send('evm_mine');
 
             let prevLiquidity = await poolContract.poolLiquidity();
 
@@ -252,12 +266,12 @@ describe("SaplingPool", function() {
 
             let liquidity = await poolContract.poolLiquidity();
 
-            expect(liquidity).to.equal(prevLiquidity.sub(unstakeAmount));
+            expect(liquidity).to.equal(prevLiquidity.sub(unstakeAmount).add(unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)));
         });
 
         it("Unstaking is reflected on pool funds", async function () {
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
+            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+            // await ethers.provider.send('evm_mine');
 
             let prevPoolFunds = await poolContract.poolFunds();
 
@@ -265,7 +279,7 @@ describe("SaplingPool", function() {
 
             let poolFunds = await poolContract.poolFunds();
 
-            expect(poolFunds).to.equal(prevPoolFunds.sub(unstakeAmount));
+            expect(poolFunds).to.equal(prevPoolFunds.sub(unstakeAmount).add(unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)));
         });
 
         describe("Rejection scenarios", function () {
@@ -474,7 +488,9 @@ describe("SaplingPool", function() {
         let stakeAmount;
         let depositAmount;
         let withdrawAmount;
-        let EARLY_EXIT_COOLDOWN;
+        // let EARLY_EXIT_COOLDOWN;
+        let exitFeePercent;
+        let ONE_HUNDRED_PERCENT;
 
         beforeEach(async function () {
             stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
@@ -487,38 +503,44 @@ describe("SaplingPool", function() {
             await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
             await poolContract.connect(lender1).deposit(depositAmount);
 
-            EARLY_EXIT_COOLDOWN = await poolContract.EARLY_EXIT_COOLDOWN();
+            // EARLY_EXIT_COOLDOWN = await poolContract.EARLY_EXIT_COOLDOWN();
+
+            exitFeePercent = await poolContract.exitFeePercent();
+            ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
         });
 
         it("Lender can withdraw", async function () {
             let tokenBalanceBefore = await tokenContract.balanceOf(lender1.address);
             let poolBalanceBefore = await poolContract.balanceOf(lender1.address);
 
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
+            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+            // await ethers.provider.send('evm_mine');
+
+            let exitFee = withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
+            let exitFeeGain = exitFee.mul(depositAmount.sub(withdrawAmount)).div(stakeAmount.add(depositAmount.sub(withdrawAmount)));
 
             await poolContract.connect(lender1).withdraw(withdrawAmount);
-            expect(await poolContract.balanceOf(lender1.address)).to.equal(poolBalanceBefore.sub(withdrawAmount));
+            expect(await poolContract.balanceOf(lender1.address)).to.equal(poolBalanceBefore.sub(withdrawAmount).add(exitFeeGain));
 
-            expect(await tokenContract.balanceOf(lender1.address)).to.equal(tokenBalanceBefore.add(withdrawAmount));
+            expect(await tokenContract.balanceOf(lender1.address)).to.equal(tokenBalanceBefore.add(withdrawAmount).sub(exitFee));
         });
 
         it("Withdraw is reflected on the pool contract balance", async function () {
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
+            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+            // await ethers.provider.send('evm_mine');
 
             let prevBalance = await tokenContract.balanceOf(poolContract.address);
 
             await poolContract.connect(lender1).withdraw(withdrawAmount);
 
             let balance = await tokenContract.balanceOf(poolContract.address);
-            expect(balance).to.equal(prevBalance.sub(withdrawAmount))
+            expect(balance).to.equal(prevBalance.sub(withdrawAmount).add(withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)))
                 .and.equal(await poolContract.tokenBalance());
         });
 
         it("Withdraw is reflected on pool liquidity", async function () {
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
+            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+            // await ethers.provider.send('evm_mine');
 
             let prevLiquidity = await poolContract.poolLiquidity();
 
@@ -526,12 +548,12 @@ describe("SaplingPool", function() {
 
             let liquidity = await poolContract.poolLiquidity();
 
-            expect(liquidity).to.equal(prevLiquidity.sub(withdrawAmount));
+            expect(liquidity).to.equal(prevLiquidity.sub(withdrawAmount).add(withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)));
         });
 
         it("Withdraw is reflected on pool funds", async function () {
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
+            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+            // await ethers.provider.send('evm_mine');
 
             let prevPoolFunds = await poolContract.poolFunds();
 
@@ -539,13 +561,11 @@ describe("SaplingPool", function() {
 
             let poolFunds = await poolContract.poolFunds();
 
-            expect(poolFunds).to.equal(prevPoolFunds.sub(withdrawAmount));
+            expect(poolFunds).to.equal(prevPoolFunds.sub(withdrawAmount).add(withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)));
         });
 
         it("Early Withdraw should charge an exit fee", async function () {
             let tokenBalanceBefore = await tokenContract.balanceOf(lender1.address);
-            let exitFeePercent = await poolContract.exitFeePercent();
-            let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
 
             let expectedWithdrawalFee = withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
 
@@ -559,8 +579,8 @@ describe("SaplingPool", function() {
             beforeEach(async function () {
                 liquidityRequestAmount = withdrawAmount.div(2);
                 await poolContract.connect(lender1).requestLiquidity(liquidityRequestAmount);
-                await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-                await ethers.provider.send('evm_mine');
+                // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+                // await ethers.provider.send('evm_mine');
             });
 
             it("Withdrawing full requested amount sets the allocated liquidity amount to zero", async function () {
@@ -679,8 +699,8 @@ describe("SaplingPool", function() {
             });
 
             it("Protocol fee withdrawal is reflected on the pool contract balance", async function () {
-                await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-                await ethers.provider.send('evm_mine');
+                // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+                // await ethers.provider.send('evm_mine');
     
                 let prevBalance = await tokenContract.balanceOf(poolContract.address);
 
@@ -693,8 +713,8 @@ describe("SaplingPool", function() {
             });
     
             it("Protocol fee withdrawal is not reflected on pool liquidity", async function () {
-                await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-                await ethers.provider.send('evm_mine');
+                // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+                // await ethers.provider.send('evm_mine');
     
                 let prevLiquidity = await poolContract.poolLiquidity();
 
@@ -706,8 +726,8 @@ describe("SaplingPool", function() {
             });
     
             it("Protocol fee withdrawal is not reflected on pool funds", async function () {
-                await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-                await ethers.provider.send('evm_mine');
+                // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
+                // await ethers.provider.send('evm_mine');
     
                 let prevPoolFunds = await poolContract.poolFunds();
     

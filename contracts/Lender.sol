@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./ManagedLendingPool.sol";
 
 /**
@@ -185,12 +183,13 @@ abstract contract Lender is ManagedLendingPool {
     /**
      * @notice Create a Lender that ManagedLendingPool.
      * @dev _minAmount must be greater than or equal to SAFE_MIN_AMOUNT.
-     * @param _token ERC20 token contract address to be used as main pool liquid currency.
+     * @param _poolToken ERC20 token contract address to be used as the pool issued token.
+     * @param _liquidityToken ERC20 token contract address to be used as main pool liquid currency.
      * @param _governance Address of the protocol governance.
      * @param _protocol Address of a wallet to accumulate protocol earnings.
      * @param _manager Address of the pool manager.
      */
-    constructor(address _token, address _governance, address _protocol, address _manager) ManagedLendingPool(_token, _governance, _protocol, _manager) {
+    constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) ManagedLendingPool(_poolToken, _liquidityToken, _governance, _protocol, _manager) {
         
         SAFE_MIN_AMOUNT = ONE_TOKEN;
         minLoanAmount = ONE_TOKEN.mul(100);
@@ -449,7 +448,7 @@ abstract contract Lender is ManagedLendingPool {
         loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(loan.amount);
 
         tokenBalance = tokenBalance.sub(loan.amount);
-        bool success = IERC20(token).transfer(msg.sender, loan.amount);
+        bool success = IERC20(liquidityToken).transfer(msg.sender, loan.amount);
         require(success);
     }
 
@@ -507,7 +506,7 @@ abstract contract Lender is ManagedLendingPool {
         require(transferAmount == amountDue || transferAmount >= ONE_TOKEN, "Sapling: Payment amount is less than the required minimum of 1 token.");
 
         // charge 'amount' tokens from msg.sender
-        bool success = IERC20(token).transferFrom(msg.sender, address(this), transferAmount);
+        bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), transferAmount);
         require(success);
         tokenBalance = tokenBalance.add(transferAmount);
 
@@ -605,7 +604,7 @@ abstract contract Lender is ManagedLendingPool {
                 updatePoolLimit();
 
                 //burn manager's shares
-                poolShares[manager] = poolShares[manager].sub(stakedShareLoss);
+                IPoolToken(poolToken).burn(address(this), stakedShareLoss);
                 lockedShares[manager] = lockedShares[manager].sub(stakedShareLoss);
                 totalPoolShares = totalPoolShares.sub(stakedShareLoss);
 
@@ -761,6 +760,6 @@ abstract contract Lender is ManagedLendingPool {
      */
     function isValidBorrower(address wallet) public view returns (bool) {
         return wallet != address(0) && wallet != manager && wallet != protocol && wallet != governance 
-            && sharesToTokens(poolShares[wallet]) <= ONE_TOKEN;
+            && sharesToTokens(IERC20(poolToken).balanceOf(wallet)) <= ONE_TOKEN;
     }
 }

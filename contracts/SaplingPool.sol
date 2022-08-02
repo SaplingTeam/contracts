@@ -2,8 +2,6 @@
 
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./Lender.sol";
 
 /**
@@ -18,12 +16,13 @@ contract SaplingPool is Lender {
     
     /**
      * @notice Creates a Sapling pool.
-     * @param _token ERC20 token contract address to be used as main pool liquid currency.
+     * @param _poolToken ERC20 token contract address to be used as the pool issued token.
+     * @param _liquidityToken ERC20 token contract address to be used as main pool liquid currency.
      * @param _governance Address of the protocol governance.
      * @param _protocol Address of a wallet to accumulate protocol earnings.
      * @param _manager Address of the pool manager.
      */
-    constructor(address _token, address _governance, address _protocol, address _manager) Lender(_token, _governance, _protocol, _manager) {
+    constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) Lender(_poolToken, _liquidityToken, _governance, _protocol, _manager) {
     }
 
     /**
@@ -44,6 +43,7 @@ contract SaplingPool is Lender {
      * @param amount token amount to withdraw.
      */
     function withdraw(uint256 amount) external notPaused {
+        require(msg.sender != manager);
         exitPool(amount);
     }
 
@@ -79,7 +79,11 @@ contract SaplingPool is Lender {
      * @return Token balance of the wallet in this pool.
      */
     function balanceOf(address wallet) public view returns (uint256) {
-        return sharesToTokens(poolShares[wallet]);
+        if (wallet != manager) {
+            return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet) + lockedShares[wallet]);
+        } else {
+            return sharesToTokens(lockedShares[manager]);
+        }
     }
 
     /**
@@ -88,7 +92,7 @@ contract SaplingPool is Lender {
      * @return Unlocked token balance of the wallet in this pool.
      */
     function unlockedBalanceOf(address wallet) public view returns (uint256) {
-        return sharesToTokens(poolShares[wallet].sub(lockedShares[wallet]));
+        return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet));
     }
 
     /**
@@ -125,7 +129,6 @@ contract SaplingPool is Lender {
         require(amount > 0, "SaplingPool: stake amount is 0");
 
         uint256 shares = enterPool(amount);
-        lockedShares[msg.sender] = lockedShares[msg.sender].add(shares);
         stakedShares = stakedShares.add(shares);
         updatePoolLimit();
     }
@@ -142,7 +145,6 @@ contract SaplingPool is Lender {
 
         uint256 shares = tokensToShares(amount);
         stakedShares = stakedShares.sub(shares);
-        lockedShares[msg.sender] = lockedShares[msg.sender].sub(shares);
         updatePoolLimit();
         exitPool(amount);
     }

@@ -4,8 +4,8 @@ pragma solidity ^0.8.15;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "./IPoolToken.sol";
 import "./GovernedPausable.sol";
 import "./ManagedPausableClosable.sol";
 
@@ -21,8 +21,11 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
     /// Protocol wallet address
     address public protocol;
 
-    /// Address of an ERC20 token used by the pool
-    address public immutable token;
+    /// Address of an ERC20 token issued by the pool
+    address public immutable poolToken;
+
+    /// Address of an ERC20 liquidity token accepted by the pool
+    address public immutable liquidityToken;
 
     /// tokenDecimals value retrieved from the token contract upon contract construction
     uint8 public immutable tokenDecimals;
@@ -58,7 +61,7 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
     uint16 public targetLiquidityPercent;
 
     /// Pool shares of wallets
-    mapping(address => uint256) internal poolShares;
+    // mapping(address => uint256) internal poolShares;
 
     /// Locked shares of wallets (i.e. staked shares) 
     mapping(address => uint256) internal lockedShares;
@@ -97,11 +100,8 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
     /// Max cooldown period for early exit
     uint256 public constant EARLY_EXIT_COOLDOWN = 90 days;
 
-    /// Early exit fee percentage
+    /// exit fee percentage
     uint256 public exitFeePercent = 5; // 0.5%
-
-    /// Early exit deadlines by wallets
-    mapping(address => uint256) public earlyExitDeadlines;
 
     event UnstakedLoss(uint256 amount);
     event StakedAssetsDepleted();
@@ -112,18 +112,21 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
     /**
      * @notice Create a managed lending pool.
      * @dev msg.sender will be assigned as the manager of the created pool.
-     * @param _token ERC20 token contract address to be used as main pool liquid currency.
+     * @param _poolToken ERC20 token contract address to be used as the pool issued token.
+     * @param _liquidityToken ERC20 token contract address to be used as main pool liquid currency.
      * @param _governance Address of the protocol governance.
      * @param _protocol Address of a wallet to accumulate protocol earnings.
      * @param _manager Address of the pool manager
      */
-    constructor(address _token, address _governance, address _protocol, address _manager) GovernedPausable(_governance) ManagedPausableClosable(_manager) {
-        require(_token != address(0), "SaplingPool: pool token address is not set");
+    constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) GovernedPausable(_governance) ManagedPausableClosable(_manager) {
+        require(_poolToken != address(0), "SaplingPool: pool token address is not set");
+        require(_liquidityToken != address(0), "SaplingPool: liquidity token address is not set");
         require(_protocol != address(0), "SaplingPool: protocol wallet address is not set");
         
         protocol = _protocol;
 
-        token = _token;
+        poolToken = _poolToken;
+        liquidityToken = _liquidityToken;
         tokenBalance = 0; 
         totalPoolShares = 0;
         stakedShares = 0;
@@ -144,9 +147,11 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
 
         managerExcessLeverageComponent = uint256(managerEarnFactor).sub(oneHundredPercent);
 
-        uint8 decimals = IERC20Metadata(token).decimals();
+        uint8 decimals = IERC20Metadata(liquidityToken).decimals();
         tokenDecimals = decimals;
         ONE_TOKEN = 10 ** decimals;
+
+        assert(IERC20(poolToken).totalSupply() == 0);
     }
 
     /**
@@ -249,7 +254,7 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
 
         // give tokens
         tokenBalance = tokenBalance.sub(amount);
-        bool success = IERC20(token).transfer(msg.sender, amount);
+        bool success = IERC20(liquidityToken).transfer(msg.sender, amount);
         require(success);
     }
 
@@ -280,23 +285,21 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
         uint256 shares = tokensToShares(amount);
 
         // charge 'amount' tokens from msg.sender
-        bool success = IERC20(token).transferFrom(msg.sender, address(this), amount);
+        bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), amount);
         require(success);
         tokenBalance = tokenBalance.add(amount);
 
         poolLiquidity = poolLiquidity.add(amount);
         poolFunds = poolFunds.add(amount);
 
-        uint256 balance = sharesToTokens(poolShares[msg.sender]);
-        (, uint256 outstandingCooldown) = earlyExitDeadlines[msg.sender].trySub(block.timestamp);
-        earlyExitDeadlines[msg.sender] = block.timestamp.add(
-            balance.mul(outstandingCooldown)
-                .add(amount.mul(EARLY_EXIT_COOLDOWN))
-                .div(balance.add(amount))
-        );
-
         // mint shares
-        poolShares[msg.sender] = poolShares[msg.sender].add(shares);
+        if (msg.sender != manager) {
+            IPoolToken(poolToken).mint(msg.sender, shares);
+        } else {
+            IPoolToken(poolToken).mint(address(this), shares);
+            lockedShares[msg.sender] = lockedShares[msg.sender].add(shares);
+        }
+        
         totalPoolShares = totalPoolShares.add(shares);
 
         return shares;
@@ -316,27 +319,28 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
 
         uint256 shares = tokensToShares(amount);
 
-        require(poolShares[msg.sender] >= lockedShares[msg.sender] && shares <= poolShares[msg.sender] - lockedShares[msg.sender],
+        require(msg.sender != manager && shares <= IERC20(poolToken).balanceOf(msg.sender) || shares <= lockedShares[msg.sender],
             "SaplingPool: Insufficient balance for this operation.");
 
         // burn shares
-        poolShares[msg.sender] = poolShares[msg.sender].sub(shares);
+        if (msg.sender != manager) {
+            IPoolToken(poolToken).burn(msg.sender, shares);
+        } else {
+            lockedShares[msg.sender] = lockedShares[msg.sender].sub(shares);
+            IPoolToken(poolToken).burn(address(this), shares);
+        }
+
         totalPoolShares = totalPoolShares.sub(shares);
 
-        uint256 transferAmount;
-        if (block.timestamp < earlyExitDeadlines[msg.sender] && totalPoolShares > 0) {
-            transferAmount = amount.sub(Math.mulDiv(amount, exitFeePercent, ONE_HUNDRED_PERCENT));
-        } else {
-            transferAmount = amount;
-        }
+        uint256 transferAmount = amount.sub(Math.mulDiv(amount, exitFeePercent, ONE_HUNDRED_PERCENT));
 
         poolFunds = poolFunds.sub(transferAmount);
         poolLiquidity = poolLiquidity.sub(transferAmount);
 
         if (requestedLiquidity[msg.sender] > 0) {
-            if (requestedLiquidity[msg.sender] >= transferAmount) {
-                totalRequestedLiquidity = totalRequestedLiquidity.sub(transferAmount);
-                requestedLiquidity[msg.sender] = requestedLiquidity[msg.sender].sub(transferAmount); 
+            if (requestedLiquidity[msg.sender] >= amount) {
+                totalRequestedLiquidity = totalRequestedLiquidity.sub(amount);
+                requestedLiquidity[msg.sender] = requestedLiquidity[msg.sender].sub(amount); 
             } else {
                 totalRequestedLiquidity = totalRequestedLiquidity.sub(requestedLiquidity[msg.sender]);
                 requestedLiquidity[msg.sender] = 0;
@@ -344,7 +348,7 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
         }
 
         tokenBalance = tokenBalance.sub(transferAmount);
-        bool success = IERC20(token).transfer(msg.sender, transferAmount);
+        bool success = IERC20(liquidityToken).transfer(msg.sender, transferAmount);
         require(success);
 
         return shares;
@@ -394,7 +398,6 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
     }
 
     function authorizedOnInactiveManager(address caller) override internal view returns (bool) {
-        return caller == governance || caller == protocol
-            || earlyExitDeadlines[caller] < block.timestamp && sharesToTokens(poolShares[caller]) >= ONE_TOKEN;
+        return caller == governance || caller == protocol || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= ONE_TOKEN;
     }
 }

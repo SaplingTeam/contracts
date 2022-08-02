@@ -31,7 +31,12 @@ describe("Governed (SaplingPool)", function() {
 
         currentGovernance = governance1;
 
-        poolContract = await SaplingPool.deploy(tokenContract.address, currentGovernance.address, protocol.address, manager.address);
+        let PoolFactory = await ethers.getContractFactory("PoolFactory");
+        let poolFactory = await PoolFactory.deploy(currentGovernance.address, protocol.address);
+
+        let poolContractTx = await (await poolFactory.connect(currentGovernance).create("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
+        let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];
+        poolContract = await SaplingPool.attach(poolAddress);
 
         PAUSE_TIMEOUT = await poolContract.PAUSE_TIMEOUT();
         PAUSE_MAX_COOLDOWN = await poolContract.PAUSE_MAX_COOLDOWN();

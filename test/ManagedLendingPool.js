@@ -36,7 +36,12 @@ describe("ManagedLendingPool (SaplingPool)", function() {
         await tokenContract.connect(manager).mint(addrs[0].address, mintAmount);
         await tokenContract.connect(manager).mint(addrs[1].address, mintAmount);
 
-        poolContract = await SaplingPool.deploy(tokenContract.address, governance.address, protocol.address, manager.address);
+        let PoolFactory = await ethers.getContractFactory("PoolFactory");
+        let poolFactory = await PoolFactory.deploy(governance.address, protocol.address);
+
+        let poolContractTx = await (await poolFactory.connect(governance).create("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
+        let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];
+        poolContract = await SaplingPool.attach(poolAddress);
 
         PERCENT_DECIMALS = await poolContract.PERCENT_DECIMALS();
     });
@@ -52,7 +57,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
         });
 
         it("Token contract address is correct", async function () {
-            expect(await poolContract.token()).to.equal(tokenContract.address);
+            expect(await poolContract.liquidityToken()).to.equal(tokenContract.address);
         });
 
         it("Pool is not closed", async function () {

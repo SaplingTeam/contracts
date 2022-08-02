@@ -8,6 +8,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
+        runs: 32
       },
     },
   },
@@ -15,7 +16,8 @@ module.exports = {
     hardhat: {
       accounts: {
         mnemonic: process.env.TESTNET_MNEMONIC
-      }
+      },
+      allowUnlimitedContractSize: true
     },
     kovan: {
       url: "https://kovan.poa.network/",
