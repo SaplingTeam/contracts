@@ -68,12 +68,6 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
 
     /// Protocol earnings of wallets
     mapping(address => uint256) internal protocolEarnings; 
-
-    /// Total amount of requested withdrawal liquidity
-    uint256 public totalRequestedLiquidity = 0;
-
-    /// Withdrawal liquidity requests by address
-    mapping(address => uint256) public requestedLiquidity;
     
     /// Number of decimal digits in integer percent values used across the contract
     uint16 public constant PERCENT_DECIMALS = 1;
@@ -336,16 +330,6 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
 
         poolFunds = poolFunds.sub(transferAmount);
         poolLiquidity = poolLiquidity.sub(transferAmount);
-
-        if (requestedLiquidity[msg.sender] > 0) {
-            if (requestedLiquidity[msg.sender] >= amount) {
-                totalRequestedLiquidity = totalRequestedLiquidity.sub(amount);
-                requestedLiquidity[msg.sender] = requestedLiquidity[msg.sender].sub(amount); 
-            } else {
-                totalRequestedLiquidity = totalRequestedLiquidity.sub(requestedLiquidity[msg.sender]);
-                requestedLiquidity[msg.sender] = 0;
-            }
-        }
 
         tokenBalance = tokenBalance.sub(transferAmount);
         bool success = IERC20(liquidityToken).transfer(msg.sender, transferAmount);

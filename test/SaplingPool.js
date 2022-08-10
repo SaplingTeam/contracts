@@ -591,33 +591,6 @@ describe("SaplingPool", function() {
             expect(await tokenContract.balanceOf(lender1.address)).to.equal(tokenBalanceBefore.add(withdrawAmount.sub(expectedWithdrawalFee)));
         });
 
-        describe("Withdrawal with a liquidity request", function () {
-            let liquidityRequestAmount;
-            beforeEach(async function () {
-                liquidityRequestAmount = withdrawAmount.div(2);
-                await poolContract.connect(lender1).requestLiquidity(liquidityRequestAmount);
-                // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-                // await ethers.provider.send('evm_mine');
-            });
-
-            it("Withdrawing full requested amount sets the allocated liquidity amount to zero", async function () {
-                await poolContract.connect(lender1).withdraw(liquidityRequestAmount);
-                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(0);
-            });
-
-            it("Withdrawing more than the requested amount sets the allocated liquidity amount to zero", async function () {
-                await poolContract.connect(lender1).withdraw(withdrawAmount);
-                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(0);
-            });
-
-            it("Withdrawing less than the requested amount updates the allocated liquidity amount", async function () {
-                let allocatedLiquidityBefore = await poolContract.requestedLiquidity(lender1.address);
-                let amount = liquidityRequestAmount.div(2);
-                await poolContract.connect(lender1).withdraw(amount);
-                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(allocatedLiquidityBefore.sub(amount));
-            });
-        });
-
         describe("Rejection scenarios", function () {
 
             it ("Withdrawing a zero amount should fail", async function () {         
@@ -779,79 +752,6 @@ describe("SaplingPool", function() {
 
                     expect(await poolContract.protocolEarningsOf(protocol.address)).to.equal(0);
                     await expect(poolContract.connect(protocol).withdrawProtocolEarnings()).to.be.reverted;
-                });
-            });
-        });
-
-        describe("Withdrawal requests", function () {
-            beforeEach(async function () {
-                let loanAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
-                let loanDuration = BigNumber.from(365).mul(24*60*60);
-
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
-                let applicationId = await poolContract.recentApplicationIdOf(borrower1.address);
-                let application = await poolContract.loanApplications(applicationId);
-
-                let gracePeriod = await poolContract.templateLoanGracePeriod();
-                let installments = 1;
-                let apr = await poolContract.templateLoanAPR();
-                let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
-
-                await poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
-                await poolContract.connect(borrower1).borrow(applicationId);
-            });
-    
-            it("Lender can request liquidity for withdrawal allocation", async function () {
-                let prevTotalRequestedLiquidity = await poolContract.totalRequestedLiquidity();
-                let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
-
-                await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
-    
-                expect(await poolContract.totalRequestedLiquidity()).to.equal(prevTotalRequestedLiquidity.add(withdrawAmount));
-                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(prevRequestedLiquidity.add(withdrawAmount));
-            });
-
-            it("Lender can cancel requested liquidity", async function () {
-                await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
-
-                let prevTotalRequestedLiquidity = await poolContract.totalRequestedLiquidity();
-                let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
-                let cancelAmount = prevRequestedLiquidity.div(2);
-
-                await poolContract.connect(lender1).cancelLiquidityRequest(cancelAmount);
-    
-                expect(await poolContract.totalRequestedLiquidity()).to.equal(prevTotalRequestedLiquidity.sub(cancelAmount));
-                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(prevRequestedLiquidity.sub(cancelAmount));
-            });
-
-            describe("Rejection scenarios", function () {
-                it("Liquidity request with a zero amount should fail", async function () {
-                    await expect(poolContract.connect(lender1).requestLiquidity(0)).to.be.reverted;
-                });
-
-                it("Liquidity request with an amount greater than the lender's balance should fail", async function () {
-                    let balance = await poolContract.balanceOf(lender1.address);
-                    await expect(poolContract.connect(lender1).requestLiquidity(balance.add(1))).to.be.reverted;
-                });
-
-                it("Liquidity request with a cumulative amount greater than the lender's balance should fail", async function () {
-                    await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
-
-                    let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
-                    let balance = await poolContract.balanceOf(lender1.address);
-
-                    await expect(poolContract.connect(lender1).requestLiquidity(balance.sub(prevRequestedLiquidity).add(1))).to.be.reverted;
-                });
-    
-                it("Liquidity request cancellation with a zero amount should fail", async function () {
-                    await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
-                    await expect(poolContract.connect(lender1).cancelLiquidityRequest(0)).to.be.reverted;
-                });
-
-                it("Liquidity request cancellation with an amount greater than requested should fail", async function () {
-                    await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
-                    let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
-                    await expect(poolContract.connect(lender1).cancelLiquidityRequest(prevRequestedLiquidity.add(1))).to.be.reverted;
                 });
             });
         });

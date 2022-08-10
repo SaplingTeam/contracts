@@ -441,7 +441,7 @@ abstract contract Lender is ManagedLendingPool {
     {
         LoanApplication storage app = loanApplications[appId];
 
-        require(poolLiquidity >= _amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity, 
+        require(poolLiquidity >= _amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT), 
             "SaplingPool: Pool liquidity is insufficient to approve this loan.");
         require(poolCanLend(), "SaplingPool: Stake amount is too low to approve new loans.");
 
@@ -485,7 +485,7 @@ abstract contract Lender is ManagedLendingPool {
     function updateOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint16 _installments, uint16 _apr, uint16 _lateAPRDelta) external onlyManager applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) whenLendingNotPaused whenNotClosed notPaused {
         LoanOffer memory offer = loanOffers[appId];
 
-        require(offer.amount <= _amount || poolLiquidity + offer.amount >= _amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity, 
+        require(offer.amount <= _amount || poolLiquidity + offer.amount >= _amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT), 
             "SaplingPool: Pool liquidity is insufficient to approve this loan.");
         require(offer.amount <= _amount || poolCanLend(), "SaplingPool: Stake amount is too low to approve new loans.");
 
@@ -810,7 +810,7 @@ abstract contract Lender is ManagedLendingPool {
      */
     function canOffer(uint256 appId) external view returns (bool) {
         return poolCanLend() 
-            && poolLiquidity >= loanApplications[appId].amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity;
+            && poolLiquidity >= loanApplications[appId].amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT);
     }
 
     /**
