@@ -13,36 +13,71 @@ abstract contract Lender is ManagedLendingPool {
 
     using SafeMath for uint256;
 
-    enum LoanStatus {
+    // do not use zero enum as it is the default value in an uninitialized struct, and some modifiers may use first logical enum state for validation
+    enum LoanApplicationStatus {
+        NULL, 
         APPLIED,
         DENIED,
-        APPROVED,
-        CANCELLED,
+        OFFER_MADE,
+        OFFER_ACCEPTED,
+        OFFER_CANCELLED
+    }
+
+    /// Loan application object
+    struct LoanApplication {
+        uint256 id;
+        address borrower;
+        uint256 amount;
+        uint256 duration;
+        uint256 requestedTime;
+        LoanApplicationStatus status;
+
+        //TODO replace personal info fields with metadata id and hash 
+        string name;
+        string email;
+        string phone;
+        string businessName;
+    }
+
+    struct LoanOffer {
+        uint256 applicationId;
+        address borrower;
+        uint256 amount;
+        uint256 duration;
+        uint256 gracePeriod;
+        uint16 installments;
+        uint16 apr; 
+        uint16 lateAPRDelta;
+        uint256 offeredTime;
+    }
+
+    enum LoanStatus {
+        NULL,
         OUTSTANDING,
         REPAID,
         DEFAULTED
     }
 
-    /// Loan application object
+    /// Loan object
     struct Loan {
         uint256 id;
+        uint256 applicationId;
         address borrower;
         uint256 amount;
         uint256 duration; 
         uint256 gracePeriod;
-        uint16 apr; 
-        uint16 lateAPRDelta; 
-        uint256 requestedTime;
+        uint16 installments;
+        uint16 apr;
+        uint16 lateAPRDelta;
+        uint256 borrowedTime;
         LoanStatus status;
     }
 
-    /// Loan payment details object
     struct LoanDetail {
         uint256 loanId;
         uint256 totalAmountRepaid; //total amount paid including interest
         uint256 baseAmountRepaid;
         uint256 interestPaid;
-        uint256 approvedTime;
         uint256 lastPaymentTime;
     }
 
@@ -89,10 +124,13 @@ abstract contract Lender is ManagedLendingPool {
         uint256 recentLoanId;
     }
 
-    event LoanRequested(uint256 loanId, address indexed borrower);
-    event LoanApproved(uint256 loanId, address indexed borrower);
-    event LoanDenied(uint256 loanId, address indexed borrower);
-    event LoanCancelled(uint256 loanId, address indexed borrower);
+    event LoanRequested(uint256 applicationId, address indexed borrower);
+    event LoanRequestDenied(uint256 applicationId, address indexed borrower);
+    event LoanOffered(uint256 applicationId, address indexed borrower);
+    event LoanOfferUpdated(uint256 applicationId, address indexed borrower);
+    event LoanOfferCancelled(uint256 applicationId, address indexed borrower);
+
+    event LoanBorrowed(uint256 loanId, address indexed borrower, uint256 applicationId);
     event LoanRepaid(uint256 loanId, address indexed borrower);
     event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 amountLost);
 
@@ -100,6 +138,13 @@ abstract contract Lender is ManagedLendingPool {
         Loan storage loan = loans[loanId];
         require(loan.id != 0, "Loan is not found.");
         require(loan.status == status, "Loan does not have a valid status for this operation.");
+        _;
+    }
+
+    modifier applicationInStatus(uint256 applicationId, LoanApplicationStatus status) {
+        LoanApplication storage app = loanApplications[applicationId];
+        require(app.id != 0, "Loan application is not found.");
+        require(app.status == status, "Loan application does not have a valid status for this operation.");
         _;
     }
 
@@ -162,19 +207,29 @@ abstract contract Lender is ManagedLendingPool {
      */
     uint256 public constant MANAGER_INACTIVITY_GRACE_PERIOD = 90 days;
 
+    /// Loan application id generator counter
+    uint256 private nextApplicationId;
+
     /// Loan id generator counter
     uint256 private nextLoanId;
 
     /// Quick lookup to check an address has pending loan applications
     mapping(address => bool) private hasOpenApplication;
 
+    mapping(address => uint256) public recentApplicationIdOf;
+
     /// Total borrowed funds allocated for withdrawal but not yet withdrawn by the borrowers
     uint256 public loanFundsPendingWithdrawal;
 
-    /// Loan applications by loanId
+    /// Loan applications by applicationId
+    mapping(uint256 => LoanApplication) public loanApplications;
+
+    /// Loan offers by applicationId
+    mapping(uint256 => LoanOffer) public loanOffers;
+
+    /// Loans by loanId
     mapping(uint256 => Loan) public loans;
 
-    /// Loan payment details by loanId. Loan detail is available only after a loan has been approved.
     mapping(uint256 => LoanDetail) public loanDetails;
 
     /// Borrower statistics by address 
@@ -203,6 +258,7 @@ abstract contract Lender is ManagedLendingPool {
         maxLoanDuration = SAFE_MAX_DURATION;
 
         nextLoanId = 1;
+        nextApplicationId = 1;
 
         poolLiquidity = 0;
         borrowedFunds = 0;
@@ -294,26 +350,41 @@ abstract contract Lender is ManagedLendingPool {
      * @param loanDuration Loan duration in seconds. 
      * @return ID of a new loan application.
      */
-    function requestLoan(uint256 requestedAmount, uint256 loanDuration) external validBorrower whenLendingNotPaused whenNotClosed notPaused returns (uint256) {
+    function requestLoan(
+        uint256 requestedAmount, 
+        uint256 loanDuration, 
+        string memory _name, 
+        string memory _email, 
+        string memory _phone, 
+        string memory _businessName
+    ) 
+        external 
+        validBorrower 
+        whenLendingNotPaused 
+        whenNotClosed 
+        notPaused 
+        returns (uint256)
+    {
 
         require(hasOpenApplication[msg.sender] == false, "Another loan application is pending.");
         require(requestedAmount >= minLoanAmount, "Loan amount is less than the minimum allowed");
         require(minLoanDuration <= loanDuration, "Loan duration is less than minimum allowed.");
         require(maxLoanDuration >= loanDuration, "Loan duration is more than maximum allowed.");
 
-        uint256 loanId = nextLoanId;
-        nextLoanId++;
+        uint256 appId = nextApplicationId;
+        nextApplicationId++;
 
-        loans[loanId] = Loan({
-            id: loanId,
+        loanApplications[appId] = LoanApplication({
+            id: appId,
             borrower: msg.sender,
             amount: requestedAmount,
             duration: loanDuration,
-            gracePeriod: templateLoanGracePeriod,
-            apr: templateLoanAPR,
-            lateAPRDelta: templateLateLoanAPRDelta,
             requestedTime: block.timestamp,
-            status: LoanStatus.APPLIED
+            status: LoanApplicationStatus.APPLIED,
+            name: _name,
+            email: _email,
+            phone: _phone,
+            businessName: _businessName
         });
 
         hasOpenApplication[msg.sender] = true;
@@ -332,55 +403,125 @@ abstract contract Lender is ManagedLendingPool {
                 amountBorrowed: 0, 
                 amountBaseRepaid: 0,
                 amountInterestPaid: 0,
-                recentLoanId: loanId
+                recentLoanId: 0
             });
         } else {
             borrowerStats[msg.sender].countRequested++;
-            borrowerStats[msg.sender].recentLoanId = loanId;
         }
 
-        emit LoanRequested(loanId, msg.sender);
+        recentApplicationIdOf[msg.sender] = appId;
 
-        return loanId;
+        emit LoanRequested(appId, msg.sender);
+
+        return appId;
     }
 
     /**
-     * @notice Approve a loan.
-     * @dev Loan must be in APPLIED status.
+     * @notice Approve a loan application and offer a loan.
+     * @dev Loan application must be in APPLIED status.
      *      Caller must be the manager.
      *      Loan amount must not exceed poolLiquidity();
      *      Stake to pool funds ratio must be good - poolCanLend() must be true.
      */
-    function approveLoan(uint256 _loanId) external onlyManager loanInStatus(_loanId, LoanStatus.APPLIED) whenLendingNotPaused whenNotClosed notPaused {
-        Loan storage loan = loans[_loanId];
+    function offerLoan(
+        uint256 appId, 
+        uint256 _amount, 
+        uint256 _duration, 
+        uint256 _gracePeriod, 
+        uint16 _installments, 
+        uint16 _apr, 
+        uint16 _lateAPRDelta
+    ) 
+        external 
+        onlyManager 
+        applicationInStatus(appId, LoanApplicationStatus.APPLIED) 
+        whenLendingNotPaused 
+        whenNotClosed 
+        notPaused 
+    {
+        LoanApplication storage app = loanApplications[appId];
 
-        require(poolLiquidity >= loan.amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity, 
+        require(poolLiquidity >= _amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity, 
             "SaplingPool: Pool liquidity is insufficient to approve this loan.");
         require(poolCanLend(), "SaplingPool: Stake amount is too low to approve new loans.");
 
-        borrowerStats[loan.borrower].countApproved++;
-        borrowerStats[loan.borrower].countCurrentApproved++;
+        borrowerStats[app.borrower].countApproved++;
+        borrowerStats[app.borrower].countCurrentApproved++;
 
-        loanDetails[_loanId] = LoanDetail({
-            loanId: _loanId,
-            totalAmountRepaid: 0,
-            baseAmountRepaid: 0,
-            interestPaid: 0,
-            approvedTime: block.timestamp,
-            lastPaymentTime: 0
+        LoanOffer memory offer = LoanOffer({
+            applicationId: appId,
+            borrower: app.borrower,
+            amount: _amount,
+            duration: _duration,
+            gracePeriod: _gracePeriod,
+            installments: _installments,
+            apr: _apr,
+            lateAPRDelta: _lateAPRDelta,
+            offeredTime: block.timestamp
         });
 
-        loan.status = LoanStatus.APPROVED;
-        hasOpenApplication[loan.borrower] = false;
+        loanOffers[appId] = offer;
 
-        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.add(loan.amount);
-        poolLiquidity = poolLiquidity.sub(loan.amount);
+        loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
+        // hasOpenApplication[loan.borrower] = false; //todo set this on deny, cancel or borrow
+
+        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.add(offer.amount);
+        poolLiquidity = poolLiquidity.sub(offer.amount);
         uint256 prevBorrowedFunds = borrowedFunds;
-        borrowedFunds = borrowedFunds.add(loan.amount);
+        borrowedFunds = borrowedFunds.add(offer.amount);
 
-        emit LoanApproved(_loanId, loan.borrower);
+        emit LoanOffered(appId, offer.borrower);
 
-        weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).add(loan.amount.mul(loan.apr)).div(borrowedFunds);
+        weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).add(offer.amount.mul(offer.apr)).div(borrowedFunds);
+    }
+
+    /**
+     * @notice Update an existing loan offer offer a loan.
+     * @dev Loan application must be in OFFER_MADE status.
+     *      Caller must be the manager.
+     *      Loan amount must not exceed poolLiquidity();
+     *      Stake to pool funds ratio must be good - poolCanLend() must be true.
+     */
+    function updateOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint16 _installments, uint16 _apr, uint16 _lateAPRDelta) external onlyManager applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) whenLendingNotPaused whenNotClosed notPaused {
+        LoanOffer memory offer = loanOffers[appId];
+
+        require(offer.amount <= _amount || poolLiquidity + offer.amount >= _amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity, 
+            "SaplingPool: Pool liquidity is insufficient to approve this loan.");
+        require(offer.amount <= _amount || poolCanLend(), "SaplingPool: Stake amount is too low to approve new loans.");
+
+        offer.duration = _duration;
+        offer.gracePeriod = _gracePeriod;
+        offer.installments = _installments;
+        offer.lateAPRDelta = _lateAPRDelta;
+        offer.offeredTime = block.timestamp;
+
+        if (offer.amount != _amount || offer.apr != _apr) {
+
+            // undo effect of previous amount and apt to pool state
+            loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(offer.amount);
+            poolLiquidity = poolLiquidity.add(offer.amount);
+            uint256 prevBorrowedFunds = borrowedFunds;
+            borrowedFunds = borrowedFunds.sub(offer.amount);
+
+            if (borrowedFunds > 0) {
+                weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(offer.amount.mul(offer.apr)).div(borrowedFunds);
+            } else {
+                weightedAvgLoanAPR = templateLoanAPR;
+            }
+
+            //set new amount and apr
+            offer.amount = _amount;
+            offer.apr = _apr;
+
+            // apply effect of the new amount and apr to the pool state
+            loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.add(offer.amount);
+            poolLiquidity = poolLiquidity.sub(offer.amount);
+            prevBorrowedFunds = borrowedFunds;
+            borrowedFunds = borrowedFunds.add(offer.amount);
+
+            weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).add(offer.amount.mul(offer.apr)).div(borrowedFunds);
+        }
+        emit LoanOfferUpdated(appId, offer.borrower);
     }
 
     /**
@@ -388,13 +529,13 @@ abstract contract Lender is ManagedLendingPool {
      * @dev Loan must be in APPLIED status.
      *      Caller must be the manager.
      */
-    function denyLoan(uint256 loanId) external onlyManager loanInStatus(loanId, LoanStatus.APPLIED) {
-        Loan storage loan = loans[loanId];
-        loan.status = LoanStatus.DENIED;
-        hasOpenApplication[loan.borrower] = false;
-        borrowerStats[loan.borrower].countDenied++;
+    function denyLoan(uint256 appId) external onlyManager applicationInStatus(appId, LoanApplicationStatus.APPLIED) {
+        LoanApplication storage app = loanApplications[appId];
+        app.status = LoanApplicationStatus.DENIED;
+        hasOpenApplication[app.borrower] = false;
+        borrowerStats[app.borrower].countDenied++;
 
-        emit LoanDenied(loanId, loan.borrower);
+        emit LoanRequestDenied(appId, app.borrower);
     }
 
      /**
@@ -402,54 +543,84 @@ abstract contract Lender is ManagedLendingPool {
      * @dev Loan must be in APPROVED status.
      *      Caller must be the manager.
      */
-    function cancelLoan(uint256 loanId) external managerOrApprovedOnInactive loanInStatus(loanId, LoanStatus.APPROVED) {
-        Loan storage loan = loans[loanId];
+    function cancelLoan(uint256 appId) external managerOrApprovedOnInactive applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) {
+        LoanOffer storage offer = loanOffers[appId];
 
         // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
         if (msg.sender != manager) {
             // require inactivity grace period
-            require(block.timestamp > loanDetails[loanId].approvedTime + MANAGER_INACTIVITY_GRACE_PERIOD, 
+            require(block.timestamp > offer.offeredTime + MANAGER_INACTIVITY_GRACE_PERIOD, 
                 "It is too early to cancel this loan as a non-manager.");
         }
 
-        loan.status = LoanStatus.CANCELLED;
-        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(loan.amount);
-        poolLiquidity = poolLiquidity.add(loan.amount);
+        loanApplications[appId].status = LoanApplicationStatus.OFFER_CANCELLED;
+        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(offer.amount);
+        poolLiquidity = poolLiquidity.add(offer.amount);
         uint256 prevBorrowedFunds = borrowedFunds;
-        borrowedFunds = borrowedFunds.sub(loan.amount);
+        borrowedFunds = borrowedFunds.sub(offer.amount);
 
-        borrowerStats[loan.borrower].countCancelled++;
-        borrowerStats[loan.borrower].countCurrentApproved--;
+        borrowerStats[offer.borrower].countCancelled++;
+        borrowerStats[offer.borrower].countCurrentApproved--;
         
-        emit LoanCancelled(loanId, loan.borrower);
+        emit LoanOfferCancelled(appId, offer.borrower);
 
         if (borrowedFunds > 0) {
-            weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(loan.amount.mul(loan.apr)).div(borrowedFunds);
+            weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(offer.amount.mul(offer.apr)).div(borrowedFunds);
         } else {
             weightedAvgLoanAPR = templateLoanAPR;
         }
     }
 
     /**
-     * @notice Withdraw funds of an approved loan.
+     * @notice Accept loan offer and withdraw funds
      * @dev Caller must be the borrower. 
      *      The loan must be in APPROVED status.
-     * @param loanId id of the loan to withdraw funds of. 
+     * @param appId id of the loan application to accept the offer of. 
      */
-    function borrow(uint256 loanId) external loanInStatus(loanId, LoanStatus.APPROVED) whenLendingNotPaused whenNotClosed notPaused {
-        Loan storage loan = loans[loanId];
-        require(loan.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
+    function borrow(uint256 appId) external applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) whenLendingNotPaused whenNotClosed notPaused {
+        LoanOffer storage offer = loanOffers[appId];
+        require(offer.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
 
-        borrowerStats[loan.borrower].countCurrentApproved--;
-        borrowerStats[loan.borrower].countOutstanding++;
-        borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.add(loan.amount);
+        borrowerStats[offer.borrower].countCurrentApproved--;
+        borrowerStats[offer.borrower].countOutstanding++;
+        borrowerStats[offer.borrower].amountBorrowed = borrowerStats[offer.borrower].amountBorrowed.add(offer.amount);
         
-        loan.status = LoanStatus.OUTSTANDING;
-        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(loan.amount);
+        loanApplications[appId].status = LoanApplicationStatus.OFFER_ACCEPTED;
 
-        tokenBalance = tokenBalance.sub(loan.amount);
-        bool success = IERC20(liquidityToken).transfer(msg.sender, loan.amount);
+        uint256 loanId = nextLoanId;
+        nextLoanId++;
+
+        loans[loanId] = Loan({
+            id: loanId,
+            applicationId: appId,
+            borrower: offer.borrower,
+            amount: offer.amount,
+            duration: offer.duration,
+            gracePeriod: offer.gracePeriod,
+            installments: offer.installments,
+            apr: offer.apr,
+            lateAPRDelta: offer.lateAPRDelta,
+            borrowedTime: block.timestamp,
+            status: LoanStatus.OUTSTANDING
+        });
+
+        loanDetails[loanId] = LoanDetail({
+            loanId: loanId,
+            totalAmountRepaid: 0,
+            baseAmountRepaid: 0,
+            interestPaid: 0,
+            lastPaymentTime: 0
+        });
+
+        borrowerStats[offer.borrower].recentLoanId = loanId;
+
+        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(offer.amount);
+
+        tokenBalance = tokenBalance.sub(offer.amount);
+        bool success = IERC20(liquidityToken).transfer(msg.sender, offer.amount);
         require(success);
+
+        emit LoanBorrowed(loanId, offer.borrower, appId);
     }
 
     /**
@@ -512,7 +683,7 @@ abstract contract Lender is ManagedLendingPool {
 
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
-        loanDetail.lastPaymentTime = block.timestamp;
+        // loan.lastPaymentTime = block.timestamp;
         
         uint256 interestPaid = Math.mulDiv(transferAmount, interestPercent, ONE_HUNDRED_PERCENT + interestPercent);
         uint256 baseAmountPaid = transferAmount.sub(interestPaid);
@@ -534,6 +705,7 @@ abstract contract Lender is ManagedLendingPool {
         loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(transferAmount);
         loanDetail.baseAmountRepaid = loanDetail.baseAmountRepaid.add(baseAmountPaid);
         loanDetail.interestPaid = loanDetail.interestPaid.add(interestPaid);
+        loanDetail.lastPaymentTime = block.timestamp;
 
         borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid.add(baseAmountPaid);
         borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid.add(interestPaid);
@@ -573,11 +745,11 @@ abstract contract Lender is ManagedLendingPool {
         // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
         if (msg.sender != manager) {
             // require inactivity grace period
-            require(block.timestamp > loanDetail.approvedTime + loan.duration + loan.gracePeriod + MANAGER_INACTIVITY_GRACE_PERIOD, 
+            require(block.timestamp > loan.borrowedTime + loan.duration + loan.gracePeriod + MANAGER_INACTIVITY_GRACE_PERIOD, 
                 "It is too early to default this loan as a non-manager.");
         }
         
-        require(block.timestamp > (loanDetail.approvedTime + loan.duration + loan.gracePeriod), "Lender: It is too early to default this loan.");
+        require(block.timestamp > (loan.borrowedTime + loan.duration + loan.gracePeriod), "Lender: It is too early to default this loan.");
 
         loan.status = LoanStatus.DEFAULTED;
         borrowerStats[loan.borrower].countDefaulted++;
@@ -633,27 +805,27 @@ abstract contract Lender is ManagedLendingPool {
 
     /**
      * @notice View indicating whether or not a given loan can be approved by the manager.
-     * @param loanId loanId ID of the loan to check
+     * @param appId application ID to check
      * @return True if the given loan can be approved, false otherwise
      */
-    function canApprove(uint256 loanId) external view returns (bool) {
+    function canOffer(uint256 appId) external view returns (bool) {
         return poolCanLend() 
-            && poolLiquidity >= loans[loanId].amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity;
+            && poolLiquidity >= loanApplications[appId].amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT) + totalRequestedLiquidity;
     }
 
     /**
      * @notice View indicating whether or not a given loan approval qualifies to be cancelled by a given caller.
-     * @param loanId loanId ID of the loan to check
+     * @param appId application ID to check
      * @param caller address that intends to call cancel() on the loan
      * @return True if the given loan approval can be cancelled, false otherwise
      */
-    function canCancel(uint256 loanId, address caller) external view returns (bool) {
+    function canCancel(uint256 appId, address caller) external view returns (bool) {
         if (caller != manager && !authorizedOnInactiveManager(caller)) {
             return false;
         }
 
-        return loans[loanId].status == LoanStatus.APPROVED 
-            && block.timestamp >= (loanDetails[loanId].approvedTime + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
+        return loanApplications[appId].status == LoanApplicationStatus.OFFER_MADE 
+            && block.timestamp >= (loanOffers[appId].offeredTime + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
     }
 
     /**
@@ -670,7 +842,7 @@ abstract contract Lender is ManagedLendingPool {
         Loan storage loan = loans[loanId];
 
         return loan.status == LoanStatus.OUTSTANDING 
-            && block.timestamp > (loanDetails[loanId].approvedTime + loan.duration + loan.gracePeriod + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
+            && block.timestamp > (loan.borrowedTime + loan.duration + loan.gracePeriod + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
     }
 
     /**
@@ -700,12 +872,10 @@ abstract contract Lender is ManagedLendingPool {
             return (0, 0);
         }
 
-        LoanDetail storage loanDetail = loanDetails[loanId];
-
         // calculate interest percent
-        uint256 daysPassed = countInterestDays(loanDetail.approvedTime, block.timestamp);
+        uint256 daysPassed = countInterestDays(loan.borrowedTime, block.timestamp);
         uint256 apr;
-        uint256 loanDueTime = loanDetail.approvedTime.add(loan.duration);
+        uint256 loanDueTime = loan.borrowedTime.add(loan.duration);
         if (block.timestamp <= loanDueTime) { 
             apr = loan.apr;
         } else {
@@ -718,7 +888,7 @@ abstract contract Lender is ManagedLendingPool {
 
         uint256 interestPercent = Math.mulDiv(apr, daysPassed, 365);
 
-        uint256 baseAmountDue = loan.amount.sub(loanDetail.baseAmountRepaid);
+        uint256 baseAmountDue = loan.amount.sub(loanDetails[loanId].baseAmountRepaid);
         uint256 balanceDue = baseAmountDue.add(Math.mulDiv(baseAmountDue, interestPercent, ONE_HUNDRED_PERCENT));
 
         return (balanceDue, interestPercent);

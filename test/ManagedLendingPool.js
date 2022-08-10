@@ -201,9 +201,13 @@ describe("ManagedLendingPool (SaplingPool)", function() {
 
             let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             let loanDuration = BigNumber.from(365).mul(24*60*60);
-            let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-            loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
-            await poolContract.connect(manager).approveLoan(loanId);
+            await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            let applicationId = await poolContract.recentApplicationIdOf(borrower1.address);
+            let gracePeriod = await poolContract.templateLoanGracePeriod();
+            let installments = 1;
+            let apr = await poolContract.templateLoanAPR();
+            let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
+            await poolContract.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
 
             await poolContract.connect(manager).pauseLending();
             expect(await poolContract.isLendingPaused()).to.equal(true);
@@ -264,10 +268,14 @@ describe("ManagedLendingPool (SaplingPool)", function() {
 
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-                loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
-                await poolContract.connect(manager).approveLoan(loanId);
-
+                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                let applicationId = await poolContract.recentApplicationIdOf(borrower1.address);
+                let gracePeriod = await poolContract.templateLoanGracePeriod();
+                let installments = 1;
+                let apr = await poolContract.templateLoanAPR();
+                let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
+                await poolContract.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+            
                 await expect(poolContract.connect(manager).close()).to.be.reverted;
             });
 

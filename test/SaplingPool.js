@@ -108,11 +108,18 @@ describe("SaplingPool", function() {
             let loanAmount = await poolContract.poolFunds();
             let loanDuration = BigNumber.from(365).mul(24*60*60);
 
-            let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-            loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
+            let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            let applicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
 
-            await poolContract.connect(manager).approveLoan(loanId);
-            await poolContract.connect(borrower1).borrow(loanId);
+            let gracePeriod = await poolContract.templateLoanGracePeriod();
+            let installments = 1;
+            let apr = await poolContract.templateLoanAPR();
+            let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
+
+            await poolContract.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+            await poolContract.connect(borrower1).borrow(applicationId);
+            
+            let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
 
             let loan = await poolContract.loans(loanId);
             await ethers.provider.send('evm_increaseTime', [loan.duration.add(loan.gracePeriod).toNumber()]);
@@ -174,7 +181,7 @@ describe("SaplingPool", function() {
             it ("Staking as a borrower should fail", async function () {
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration)
+                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
 
                 await tokenContract.connect(borrower1).approve(poolContract.address, stakeAmount);
                 await expect(poolContract.connect(borrower1).stake(stakeAmount)).to.be.reverted;
@@ -318,7 +325,8 @@ describe("SaplingPool", function() {
             it ("Unstaking as a borrower should fail", async function () {
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration)
+                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+
 
                 await expect(poolContract.connect(borrower1).unstake(unstakeAmount)).to.be.reverted;
             });
@@ -475,7 +483,16 @@ describe("SaplingPool", function() {
             it ("Depositing as a borrower should fail", async function () {
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration)
+                let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                let applicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
+
+                let gracePeriod = await poolContract.templateLoanGracePeriod();
+                let installments = 1;
+                let apr = await poolContract.templateLoanAPR();
+                let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
+
+                await poolContract.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+                let borrowTx = await(await poolContract.connect(borrower1).borrow(applicationId)).wait();
 
                 await tokenContract.connect(borrower1).approve(poolContract.address, depositAmount);
                 await expect(poolContract.connect(borrower1).deposit(depositAmount)).to.be.reverted;
@@ -613,14 +630,17 @@ describe("SaplingPool", function() {
             });
 
             it ("Withdrawing an amount greater than available should fail", async function () {   
+                let gracePeriod = await poolContract.templateLoanGracePeriod();
+                let installments = 1;
+                let apr = await poolContract.templateLoanAPR();
+                let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
                 let loanAmount = BigNumber.from(5000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
 
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-                let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
-
-                await poolContract.connect(manager).approveLoan(loanId);
-                await poolContract.connect(borrower1).borrow(loanId);
+                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                let otherApplicationId = await poolContract.recentApplicationIdOf(borrower1.address);
+                await poolContract.connect(manager).offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+                await poolContract.connect(borrower1).borrow(otherApplicationId);
 
                 let amountWithdrawable = await poolContract.amountWithdrawable(lender1.address);
 
@@ -638,12 +658,15 @@ describe("SaplingPool", function() {
             });
 
             it ("Withdrawing as a borrower should fail", async function () {
+                let gracePeriod = await poolContract.templateLoanGracePeriod();
+                let installments = 1;
+                let apr = await poolContract.templateLoanAPR();
+                let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-                let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
-
-                await poolContract.connect(manager).approveLoan(loanId);
+                await poolContract.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                let otherApplicationId = await poolContract.recentApplicationIdOf(borrower2.address);
+                await poolContract.connect(manager).offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
 
                 await expect(poolContract.connect(borrower1).withdraw(loanAmount)).to.be.reverted;
             });
@@ -651,15 +674,21 @@ describe("SaplingPool", function() {
 
         describe("Protocol fees", function () {
             beforeEach(async function () {
+                let gracePeriod = await poolContract.templateLoanGracePeriod();
+                let installments = 1;
+                let apr = await poolContract.templateLoanAPR();
+                let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
+
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                
-                let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-                loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
-                await poolContract.connect(manager).approveLoan(loanId);
-                await poolContract.connect(borrower1).borrow(loanId);
+
+                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                let applicationId = await poolContract.recentApplicationIdOf(borrower1.address);
+                await poolContract.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+                await poolContract.connect(borrower1).borrow(applicationId);
+                let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
     
-                await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
+                await ethers.provider.send('evm_increaseTime', [loanDuration.toNumber()]);
                 await ethers.provider.send('evm_mine');
     
                 let paymentAmount = await poolContract.loanBalanceDue(loanId);
@@ -758,11 +787,18 @@ describe("SaplingPool", function() {
             beforeEach(async function () {
                 let loanAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                
-                let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-                loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
-                await poolContract.connect(manager).approveLoan(loanId);
-                await poolContract.connect(borrower1).borrow(loanId);
+
+                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                let applicationId = await poolContract.recentApplicationIdOf(borrower1.address);
+                let application = await poolContract.loanApplications(applicationId);
+
+                let gracePeriod = await poolContract.templateLoanGracePeriod();
+                let installments = 1;
+                let apr = await poolContract.templateLoanAPR();
+                let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
+
+                await poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
+                await poolContract.connect(borrower1).borrow(applicationId);
             });
     
             it("Lender can request liquidity for withdrawal allocation", async function () {
@@ -839,11 +875,18 @@ describe("SaplingPool", function() {
 
             loanAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
             let loanDuration = BigNumber.from(365).mul(24*60*60);
-            await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-            let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
 
-            await poolContract.connect(manager).approveLoan(loanId);
-            await poolContract.connect(borrower1).borrow(loanId);
+            await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            let applicationId = await poolContract.recentApplicationIdOf(borrower1.address);
+            let application = await poolContract.loanApplications(applicationId);
+
+            let gracePeriod = await poolContract.templateLoanGracePeriod();
+            let installments = 1;
+            let apr = await poolContract.templateLoanAPR();
+            let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
+
+            await poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
+            await poolContract.connect(borrower1).borrow(applicationId);
 
             poolFunds = stakeAmount.add(depositAmount);
         });
