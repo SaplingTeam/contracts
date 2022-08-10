@@ -391,13 +391,6 @@ describe("SaplingPool", function() {
             expect(await tokenContract.balanceOf(lender1.address)).to.equal(balanceBefore.sub(depositAmount));
         });
 
-        it("Lender that has deposited is valid lender but not a valid borrower", async function () {
-            await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
-            await poolContract.connect(lender1).deposit(depositAmount);
-            expect(await poolContract.isValidLender(lender1.address)).to.equal(true);
-            expect(await poolContract.isValidBorrower(lender1.address)).to.equal(false);
-        });
-
         it("Deposit is reflected on the pool contract balance", async function () {
             let prevBalance = await tokenContract.balanceOf(poolContract.address);
 
@@ -478,24 +471,6 @@ describe("SaplingPool", function() {
                 await tokenContract.connect(lender1).transfer(governance.address, depositAmount);
                 await tokenContract.connect(governance).approve(poolContract.address, depositAmount);
                 await expect(poolContract.connect(governance).deposit(depositAmount)).to.be.reverted;
-            });
-
-            it ("Depositing as a borrower should fail", async function () {
-                let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
-                let loanDuration = BigNumber.from(365).mul(24*60*60);
-                let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
-                let applicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
-
-                let gracePeriod = await poolContract.templateLoanGracePeriod();
-                let installments = 1;
-                let apr = await poolContract.templateLoanAPR();
-                let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
-
-                await poolContract.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
-                let borrowTx = await(await poolContract.connect(borrower1).borrow(applicationId)).wait();
-
-                await tokenContract.connect(borrower1).approve(poolContract.address, depositAmount);
-                await expect(poolContract.connect(borrower1).deposit(depositAmount)).to.be.reverted;
             });
         });
     });

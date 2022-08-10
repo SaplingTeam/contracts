@@ -148,13 +148,8 @@ abstract contract Lender is ManagedLendingPool {
         _;
     }
 
-    modifier validLender() {
-        require(isValidLender(msg.sender), "SaplingPool: Caller is not a valid lender.");
-        _;
-    }
-
-    modifier validBorrower() {
-        require(isValidBorrower(msg.sender), "SaplingPool: Caller is not a valid borrower.");
+    modifier onlyUser() {
+        require(msg.sender != manager && msg.sender != protocol && msg.sender != governance, "SaplingPool: Caller is not a valid lender.");
         _;
     }
 
@@ -359,7 +354,7 @@ abstract contract Lender is ManagedLendingPool {
         string memory _businessName
     ) 
         external 
-        validBorrower 
+        onlyUser
         whenLendingNotPaused 
         whenNotClosed 
         notPaused 
@@ -910,26 +905,5 @@ abstract contract Lender is ManagedLendingPool {
         }
 
         return dayCount;
-    }
-
-    /**
-     * @notice Determine if a wallet address qualifies as a lender or not.
-     * @dev deposit() will reject if the wallet cannot be a lender.
-     * @return True if the specified wallet can make deposits as a lender, false otherwise. 
-     */
-    function isValidLender(address wallet) public view returns (bool) {
-        return wallet != address(0) && wallet != manager && wallet != protocol && wallet != governance 
-            && hasOpenApplication[wallet] == false && borrowerStats[wallet].countApproved == 0 
-            && borrowerStats[wallet].countOutstanding == 0; 
-    }
-
-    /**
-     * @notice Determine if a wallet address qualifies as a borrower or not.
-     * @dev requestLoan() will reject if the wallet cannot be a borrower.
-     * @return True if the specified wallet can make loan requests as a borrower, false otherwise. 
-     */
-    function isValidBorrower(address wallet) public view returns (bool) {
-        return wallet != address(0) && wallet != manager && wallet != protocol && wallet != governance 
-            && sharesToTokens(IERC20(poolToken).balanceOf(wallet)) <= ONE_TOKEN;
     }
 }

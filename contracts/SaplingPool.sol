@@ -32,7 +32,7 @@ contract SaplingPool is Lender {
      *      Caller must not be any of: manager, protocol, current borrower.
      * @param amount Token amount to deposit.
      */
-    function deposit(uint256 amount) external validLender whenLendingNotPaused whenNotClosed notPaused {
+    function deposit(uint256 amount) external onlyUser whenLendingNotPaused whenNotClosed notPaused {
         enterPool(amount);
     }
 
