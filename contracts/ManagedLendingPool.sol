@@ -6,20 +6,16 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./IPoolToken.sol";
-import "./GovernedPausable.sol";
-import "./ManagedPausableClosable.sol";
+import "./SaplingManagerContext.sol";
 
 /**
  * @title Sapling Lending Pool
  * @notice Provides the basics of a Sapling lending pool.
  * @dev This contract is abstract. Extend the contract to implement an intended pool functionality.
  */
-abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosable {
+abstract contract ManagedLendingPool is SaplingManagerContext {
 
     using SafeMath for uint256;
-
-    /// Protocol wallet address
-    address public protocol;
 
     /// Address of an ERC20 token issued by the pool
     address public immutable poolToken;
@@ -112,7 +108,8 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
      * @param _protocol Address of a wallet to accumulate protocol earnings.
      * @param _manager Address of the pool manager
      */
-    constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) GovernedPausable(_governance) ManagedPausableClosable(_manager) {
+    constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) 
+        SaplingManagerContext(_manager, _governance, _protocol) {
         require(_poolToken != address(0), "SaplingPool: pool token address is not set");
         require(_liquidityToken != address(0), "SaplingPool: liquidity token address is not set");
         require(_protocol != address(0), "SaplingPool: protocol wallet address is not set");
@@ -219,7 +216,7 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
      *      Caller must be the manager.
      * @param _managerEarnFactor new manager's earn factor.
      */
-    function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager notPaused {
+    function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager whenNotPaused {
         require(ONE_HUNDRED_PERCENT <= _managerEarnFactor && _managerEarnFactor <= managerEarnFactorMax, "Manager's earn factor is out of bounds.");
         managerEarnFactor = _managerEarnFactor;
         managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
@@ -241,7 +238,7 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
      * @dev protocolEarningsOf(msg.sender) must be greater than 0.
      *      Caller's all accumulated earnings will be withdrawn.
      */
-    function withdrawProtocolEarnings() external notPaused {
+    function withdrawProtocolEarnings() external whenNotPaused {
         require(protocolEarnings[msg.sender] > 0, "SaplingPool: protocol earnings is zero on this account");
         uint256 amount = protocolEarnings[msg.sender];
         protocolEarnings[msg.sender] = 0; 
@@ -257,7 +254,7 @@ abstract contract ManagedLendingPool is GovernedPausable, ManagedPausableClosabl
      * @return True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise.
      */
     function poolCanLend() public view returns (bool) {
-        return !(isLendingPaused || isPaused() || isClosed) && stakedShares >= Math.mulDiv(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
+        return !(paused() || closed()) && stakedShares >= Math.mulDiv(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
     }
 
     /**

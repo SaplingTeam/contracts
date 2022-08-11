@@ -61,12 +61,14 @@ describe("ManagedLendingPool (SaplingPool)", function() {
         });
 
         it("Pool is not closed", async function () {
-            expect(await poolContract.isClosed()).to.equal(false);
+            expect(await poolContract.closed()).to.equal(false);
         });
 
+        /*
         it("Lending is not paused", async function () {
             expect(await poolContract.isLendingPaused()).to.equal(false);
         });
+        */
 
         it("Target stake percent is correct", async function () {
             let minValue = 0 * 10**PERCENT_DECIMALS;
@@ -182,77 +184,11 @@ describe("ManagedLendingPool (SaplingPool)", function() {
         });
     });
 
-    describe("Pause Lending", function () {
-
-        it("Manager can pause lending", async function () {
-            await poolContract.connect(manager).pauseLending();
-            expect(await poolContract.isLendingPaused()).to.equal(true);
-        });
-
-        it("Manager can pause lending with a non-zero borrowed amount in the pool", async function () {
-            let stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
-            let depositAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
-
-            await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
-            await poolContract.connect(manager).stake(stakeAmount);
-
-            await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
-            await poolContract.connect(lender1).deposit(depositAmount);
-
-            let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
-            let loanDuration = BigNumber.from(365).mul(24*60*60);
-            await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
-            let applicationId = await poolContract.recentApplicationIdOf(borrower1.address);
-            let gracePeriod = await poolContract.templateLoanGracePeriod();
-            let installments = 1;
-            let apr = await poolContract.templateLoanAPR();
-            let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
-            await poolContract.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
-
-            await poolContract.connect(manager).pauseLending();
-            expect(await poolContract.isLendingPaused()).to.equal(true);
-        });
-
-        describe("Rejection scenarios", function () {
-            it("Pausing lending when paused should fail", async function () {
-                await poolContract.connect(manager).pauseLending();
-                await expect(poolContract.connect(manager).pauseLending()).to.be.reverted;
-            });
-
-            it("Pausing lending as a non manager should fail", async function () {
-                await expect(poolContract.connect(addrs[0]).pauseLending()).to.be.reverted;
-            });
-        });
-    });
-
-    describe("Resume Lending", function () {
-        beforeEach(async function () {
-            await poolContract.connect(manager).pauseLending();
-        });
-
-        it("Manager can resume lending", async function () {
-            await poolContract.connect(manager).resumeLending();
-            expect(await poolContract.isLendingPaused()).to.equal(false);
-        });
-
-        describe("Rejection scenarios", function () {
-
-            it("Resuming lending when not paused should fail", async function () {
-                await poolContract.connect(manager).resumeLending();
-                await expect(poolContract.connect(manager).resumeLending()).to.be.reverted;
-            });
-
-            it("Resuming lending as a non manager should fail", async function () {
-                await expect(poolContract.connect(addrs[0]).resumeLending()).to.be.reverted;
-            });
-        });
-    });
-
     describe("Close Pool", function () {
 
         it("Manager can close the pool", async function () {
             await poolContract.connect(manager).close();
-            expect(await poolContract.isClosed()).to.equal(true);
+            expect(await poolContract.closed()).to.equal(true);
         });
 
         describe("Rejection scenarios", function () {
@@ -297,7 +233,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
 
         it("Manager can open the pool", async function () {
             await poolContract.connect(manager).open();
-            expect(await poolContract.isClosed()).to.equal(false);
+            expect(await poolContract.closed()).to.equal(false);
         });
 
         describe("Rejection scenarios", function () {

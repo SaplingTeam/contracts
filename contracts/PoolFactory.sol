@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import "./GovernedPausable.sol";
+import "./SaplingContext.sol";
 import "./PoolToken.sol";
 import "./SaplingPool.sol";
 
-contract PoolFactory is GovernedPausable {
-
-    /// Protocol wallet address
-    address public protocol;
+contract PoolFactory is SaplingContext {
 
     event PoolCreated(address pool);
 
-    constructor(address _governance, address _protocol) GovernedPausable(_governance) {
-        protocol = _protocol;
+    constructor(address _governance, address _protocol) SaplingContext(_governance, _protocol) {
     }
 
     function create(string memory name, string memory symbol, address manager, address liquidityToken) external onlyGovernance {

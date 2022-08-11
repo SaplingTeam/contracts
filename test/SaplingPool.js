@@ -142,12 +142,6 @@ describe("SaplingPool", function() {
                 await expect(poolContract.connect(manager).stake(0)).to.be.reverted;
             });
 
-            it ("Staking when lending is paused should fail", async function () {
-                await poolContract.connect(manager).pauseLending();
-                await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
-                await expect(poolContract.connect(manager).stake(stakeAmount)).to.be.reverted;
-            });
-
             it ("Staking when the pool is paused should fail", async function () {            
                 await poolContract.connect(governance).pause();
                 await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
@@ -237,11 +231,6 @@ describe("SaplingPool", function() {
     
                 expect(await poolContract.amountUnstakable()).to.equal(expectedUnstakable);
             });
-    
-            it("Amount unstakable is zero when lending is paused", async function () {
-                await poolContract.connect(manager).pauseLending();
-                expect(await poolContract.amountUnstakable()).to.equal(0);
-            });
 
             it("Amount unstakable is zero when pool is paused", async function () {
                 await poolContract.connect(governance).pause();
@@ -300,11 +289,6 @@ describe("SaplingPool", function() {
                 await expect(poolContract.connect(manager).unstake(amountUnstakable.add(1))).to.be.reverted;
             });
 
-            it ("Unstaking when lending is paused should fail", async function () {
-                await poolContract.connect(manager).pauseLending();
-                await expect(poolContract.connect(manager).unstake(unstakeAmount)).to.be.reverted;
-            });
-
             it ("Unstaking when the pool is paused should fail", async function () {            
                 await poolContract.connect(governance).pause();
                 await expect(poolContract.connect(manager).unstake(unstakeAmount)).to.be.reverted;
@@ -355,10 +339,6 @@ describe("SaplingPool", function() {
                 expect(await poolContract.amountDepositable()).to.equal(calculatedDepositable);
             });
     
-            it("Amount depositable is zero when lending is paused", async function () {
-                await poolContract.connect(manager).pauseLending();
-                expect(await poolContract.amountDepositable()).to.equal(0);
-            });
 
             it("Amount depositable is zero when pool is paused", async function () {
                 await poolContract.connect(governance).pause();
@@ -436,12 +416,6 @@ describe("SaplingPool", function() {
 
                 await tokenContract.connect(lender1).approve(poolContract.address, amountDepositable.add(1));
                 await expect(poolContract.connect(lender1).deposit(amountDepositable.add(1))).to.be.reverted;
-            });
-
-            it ("Depositing when lending is paused should fail", async function () {
-                await poolContract.connect(manager).pauseLending();
-                await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
-                await expect(poolContract.connect(lender1).deposit(depositAmount)).to.be.reverted;
             });
 
             it ("Depositing when the pool is paused should fail", async function () {            

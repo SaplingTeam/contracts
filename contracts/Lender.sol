@@ -274,7 +274,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Caller must be the manager.
      * @param apr Loan APR to be applied for the new loan requests.
      */
-    function setTemplateLoanAPR(uint16 apr) external onlyManager notPaused {
+    function setTemplateLoanAPR(uint16 apr) external onlyManager whenNotPaused {
         require(SAFE_MIN_APR <= apr && apr <= SAFE_MAX_APR, "APR is out of bounds");
         templateLoanAPR = apr;
     }
@@ -285,7 +285,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Caller must be the manager.
      * @param lateAPRDelta Loan late payment APR delta to be applied for the new loan requests.
      */
-    function setTemplateLateLoanAPRDelta(uint16 lateAPRDelta) external onlyManager notPaused {
+    function setTemplateLateLoanAPRDelta(uint16 lateAPRDelta) external onlyManager whenNotPaused {
         require(SAFE_MIN_APR <= lateAPRDelta && lateAPRDelta <= SAFE_MAX_APR, "APR is out of bounds");
         templateLateLoanAPRDelta = lateAPRDelta;
     }
@@ -296,7 +296,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Caller must be the manager.
      * @param _minLoanAmount minimum loan amount to be enforced for the new loan requests.
      */
-    function setMinLoanAmount(uint256 _minLoanAmount) external onlyManager notPaused {
+    function setMinLoanAmount(uint256 _minLoanAmount) external onlyManager whenNotPaused {
         require(SAFE_MIN_AMOUNT <= _minLoanAmount, "New min loan amount is less than the safe limit");
         minLoanAmount = _minLoanAmount;
     }
@@ -307,7 +307,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Caller must be the manager.
      * @param duration Maximum loan duration to be enforced for the new loan requests.
      */
-    function setMinLoanDuration(uint256 duration) external onlyManager notPaused {
+    function setMinLoanDuration(uint256 duration) external onlyManager whenNotPaused {
         require(SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration, "New min duration is out of bounds");
         minLoanDuration = duration;
     }
@@ -318,7 +318,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Caller must be the manager.
      * @param duration Maximum loan duration to be enforced for the new loan requests.
      */
-    function setMaxLoanDuration(uint256 duration) external onlyManager notPaused {
+    function setMaxLoanDuration(uint256 duration) external onlyManager whenNotPaused {
         require(minLoanDuration <= duration && duration <= SAFE_MAX_DURATION, "New max duration is out of bounds");
         maxLoanDuration = duration;
     }
@@ -329,7 +329,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Caller must be the manager.
      * @param gracePeriod Loan payment grace period for new loan requests.
      */
-    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyManager notPaused {
+    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyManager whenNotPaused {
         require(MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD, "Lender: New grace period is out of bounds.");
         templateLoanGracePeriod = gracePeriod;
     }
@@ -345,6 +345,7 @@ abstract contract Lender is ManagedLendingPool {
      * @param loanDuration Loan duration in seconds. 
      * @return ID of a new loan application.
      */
+    //FIXME whenLendingNotPaused
     function requestLoan(
         uint256 requestedAmount, 
         uint256 loanDuration, 
@@ -355,9 +356,8 @@ abstract contract Lender is ManagedLendingPool {
     ) 
         external 
         onlyUser
-        whenLendingNotPaused 
         whenNotClosed 
-        notPaused 
+        whenNotPaused 
         returns (uint256)
     {
 
@@ -418,6 +418,7 @@ abstract contract Lender is ManagedLendingPool {
      *      Loan amount must not exceed poolLiquidity();
      *      Stake to pool funds ratio must be good - poolCanLend() must be true.
      */
+    //FIXME whenLendingNotPaused
     function offerLoan(
         uint256 appId, 
         uint256 _amount, 
@@ -430,9 +431,8 @@ abstract contract Lender is ManagedLendingPool {
         external 
         onlyManager 
         applicationInStatus(appId, LoanApplicationStatus.APPLIED) 
-        whenLendingNotPaused 
         whenNotClosed 
-        notPaused 
+        whenNotPaused 
     {
         LoanApplication storage app = loanApplications[appId];
 
@@ -477,7 +477,8 @@ abstract contract Lender is ManagedLendingPool {
      *      Loan amount must not exceed poolLiquidity();
      *      Stake to pool funds ratio must be good - poolCanLend() must be true.
      */
-    function updateOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint16 _installments, uint16 _apr, uint16 _lateAPRDelta) external onlyManager applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) whenLendingNotPaused whenNotClosed notPaused {
+    //FIXME whenLendingNotPaused
+    function updateOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint16 _installments, uint16 _apr, uint16 _lateAPRDelta) external onlyManager applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) whenNotClosed whenNotPaused {
         LoanOffer memory offer = loanOffers[appId];
 
         require(offer.amount <= _amount || poolLiquidity + offer.amount >= _amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT), 
@@ -572,7 +573,8 @@ abstract contract Lender is ManagedLendingPool {
      *      The loan must be in APPROVED status.
      * @param appId id of the loan application to accept the offer of. 
      */
-    function borrow(uint256 appId) external applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) whenLendingNotPaused whenNotClosed notPaused {
+    //FIXME whenLendingNotPaused
+    function borrow(uint256 appId) external applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) whenNotClosed whenNotPaused {
         LoanOffer storage offer = loanOffers[appId];
         require(offer.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
 
@@ -733,7 +735,7 @@ abstract contract Lender is ManagedLendingPool {
      *      canDefault(loanId) must return 'true'.
      * @param loanId ID of the loan to default
      */
-    function defaultLoan(uint256 loanId) external managerOrApprovedOnInactive loanInStatus(loanId, LoanStatus.OUTSTANDING) notPaused {
+    function defaultLoan(uint256 loanId) external managerOrApprovedOnInactive loanInStatus(loanId, LoanStatus.OUTSTANDING) whenNotPaused {
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
 
