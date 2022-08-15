@@ -90,10 +90,10 @@ async function main() {
         });
 
         let loanAmount = i === config.numBorrowers - 1 ? remainingLoanAmount : singleLoanAmount;
-        let requestLoanTx = await poolContract.connect(borrower).requestLoan(loanAmount, loanDuration);
+        let requestLoanTx = await loanDesk.connect(borrower).requestLoan(loanAmount, loanDuration);
         let loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
 
-        await poolContract.connect(manager).approveLoan(loanId);
+        await loanDesk.connect(manager).approveLoan(loanId);
         await poolContract.connect(borrower).borrow(loanId);
 
         remainingLoanAmount = remainingLoanAmount.sub(loanAmount);

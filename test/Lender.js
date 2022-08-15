@@ -1,5 +1,6 @@
 const { expect, assert } = require("chai");
 const { BigNumber } = require("ethers");
+const { ethers } = require("hardhat");
 
 describe("Lender (SaplingPool)", function() {
 
@@ -8,6 +9,7 @@ describe("Lender (SaplingPool)", function() {
 
     let SaplingPool;
     let poolContract;
+    let loanDesk;
 
     let manager;
     let protocol;
@@ -44,6 +46,7 @@ describe("Lender (SaplingPool)", function() {
 
         TestUSDC = await ethers.getContractFactory("TestUSDC");
         SaplingPool = await ethers.getContractFactory("SaplingPool");
+        LoanDesk = await ethers.getContractFactory("LoanDesk");
 
         tokenContract = await TestUSDC.deploy();
         TOKEN_DECIMALS = await tokenContract.decimals();
@@ -63,6 +66,8 @@ describe("Lender (SaplingPool)", function() {
         let poolContractTx = await (await poolFactory.connect(governance).create("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
         let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];
         poolContract = await SaplingPool.attach(poolAddress);
+        let loanDeskAddress = await poolContract.loanDesk();
+        loanDesk = await LoanDesk.attach(loanDeskAddress);
 
         PERCENT_DECIMALS = await poolContract.PERCENT_DECIMALS();
 
@@ -95,14 +100,12 @@ describe("Lender (SaplingPool)", function() {
         it("Borrower can request a loan", async function () {
             // let nextApplicationId = (await poolContract.loansCount()).add(1);
 
-            let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
-            let applicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
+            let requestLoanTx = await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            let applicationId = (await requestLoanTx.wait()).events.filter(e => e.event === 'LoanRequested')[0].args.applicationId;
 
             let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
-            
-            // expect(loanId).to.equal(nextLoanId);
 
-            let loanApplication = await poolContract.loanApplications(applicationId);
+            let loanApplication = await loanDesk.loanApplications(applicationId);
             
             expect(loanApplication.id).to.equal(applicationId);
             expect(loanApplication.borrower).to.equal(borrower1.address);
@@ -113,90 +116,81 @@ describe("Lender (SaplingPool)", function() {
         });
 
         it("Can view most recent applicationId by address", async function () {
-            let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
-            let applicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);            
-            expect(await poolContract.recentApplicationIdOf(borrower1.address)).to.equal(applicationId);
+            let requestLoanTx = await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            let applicationId = (await requestLoanTx.wait()).events.filter(e => e.event === 'LoanRequested')[0].args.applicationId;
+            expect((await loanDesk.borrowerStats(borrower1.address)).recentApplicationId).to.equal(applicationId);
         });
 
         describe("Rejection scenarios", function () {
 
             it ("Requesting a loan with an amount less than the minimum should fail", async function () {            
-                let minAmount = await poolContract.minLoanAmount();
+                let minAmount = await loanDesk.minLoanAmount();
                 await expect(
-                    poolContract.connect(borrower1).requestLoan(minAmount.sub(1), loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(borrower1).requestLoan(minAmount.sub(1), loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
                     ).to.be.reverted;
             });
 
             it ("Requesting a loan with a duration less than the minimum should fail", async function () {            
-                let minDuration = await poolContract.minLoanDuration();
+                let minDuration = await loanDesk.minLoanDuration();
                 await expect(
-                    poolContract.connect(borrower1).requestLoan(loanAmount, minDuration.sub(1), "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(borrower1).requestLoan(loanAmount, minDuration.sub(1), "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
                     ).to.be.reverted;
             });
 
             it ("Requesting a loan with a duration greater than the maximum should fail", async function () {            
-                let maxDuration = await poolContract.maxLoanDuration();
+                let maxDuration = await loanDesk.maxLoanDuration();
                 await expect(
-                    poolContract.connect(borrower1).requestLoan(loanAmount, maxDuration.add(1), "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(borrower1).requestLoan(loanAmount, maxDuration.add(1), "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
                 ).to.be.reverted;
             });
 
             it("Requesting a loan should fail while another application from the same borrower is pending approval", async function () {
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
                 await expect(
-                    poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
                 ).to.be.reverted;
             });
 
-            /*
-            it ("Requesting a loan when lending is paused should fail", async function () {
-                await poolContract.connect(manager).pauseLending();
+            it ("Requesting a loan when the loan desk is paused should fail", async function () {            
+                await loanDesk.connect(governance).pause();
                 await expect(
-                    poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
-                ).to.be.reverted;
-            });
-            */
-
-            it ("Requesting a loan when the pool is paused should fail", async function () {            
-                await poolContract.connect(governance).pause();
-                await expect(
-                    poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
                 ).to.be.reverted;
             });
 
-            it ("Requesting a loan when the pool is closed should fail", async function () {            
-                await poolContract.connect(manager).close();
+            it ("Requesting a loan when the loan desk is closed should fail", async function () {            
+                await loanDesk.connect(manager).close();
                 await expect(
-                    poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
                 ).to.be.reverted;
             });
 
             it ("Requesting a loan as the manager should fail", async function () {
                 await expect(
-                    poolContract.connect(manager).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(manager).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
                 ).to.be.reverted;
             });
 
             it ("Requesting a loan as the protocol should fail", async function () {
                 await expect(
-                    poolContract.connect(protocol).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(protocol).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
                 ).to.be.reverted;
             });
 
             it ("Requesting a loan as the governance should fail", async function () {
                 await expect(
-                    poolContract.connect(governance).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(governance).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
                 ).to.be.reverted;
             });
         });
 
         describe("Borrower Statistics", function () {
             it("Loan requests increments all time request count", async function () {
-                let prevCountRequested = (await poolContract.borrowerStats(borrower1.address)).countRequested;
+                let prevCountRequested = (await loanDesk.borrowerStats(borrower1.address)).countRequested;
     
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
                 
-                expect((await poolContract.borrowerStats(borrower1.address)).countRequested).to.equal(prevCountRequested.add(1));
+                expect((await loanDesk.borrowerStats(borrower1.address)).countRequested).to.equal(prevCountRequested.add(1));
             });
         });
     });
@@ -211,33 +205,33 @@ describe("Lender (SaplingPool)", function() {
         let application;
 
         beforeEach(async function () {
-            gracePeriod = await poolContract.templateLoanGracePeriod();
+            gracePeriod = await loanDesk.templateLoanGracePeriod();
             installments = 1;
-            apr = await poolContract.templateLoanAPR();
-            lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
+            apr = await loanDesk.templateLoanAPR();
+            lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
 
             let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             let loanDuration = BigNumber.from(365).mul(24*60*60);
-            await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
-            applicationId = await poolContract.recentApplicationIdOf(borrower1.address);
-            application = await poolContract.loanApplications(applicationId);
+            await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+            application = await loanDesk.loanApplications(applicationId);
         });
 
         describe("Offer", function () {
             it("Manager can offer loans", async function () {
                 expect(await poolContract.canOffer(applicationId)).to.equal(true);
 
-                await poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
+                await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
                 let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
     
-                expect((await poolContract.loanApplications(applicationId)).status).to.equal(LoanApplicationStatus.OFFER_MADE);
-                expect((await poolContract.loanOffers(applicationId)).offeredTime).to.equal(blockTimestamp);
+                expect((await loanDesk.loanApplications(applicationId)).status).to.equal(LoanApplicationStatus.OFFER_MADE);
+                expect((await loanDesk.loanOffers(applicationId)).offeredTime).to.equal(blockTimestamp);
             });
 
             describe("Rejection scenarios", function () {
                 it ("Offering a loan that is not in APPLIED status should fail", async function () {            
-                    await poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
-                    await expect(poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
+                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
                 });
 
                 it ("Offering a loan with an amount greater than available liquidity should fail", async function () {        
@@ -249,11 +243,11 @@ describe("Lender (SaplingPool)", function() {
                     let amountBorrowable = poolLiquidity.sub(poolFunds.mul(targetLiquidityPercent).div(ONE_HUNDRED_PERCENT));
                     let loanDuration = BigNumber.from(365).mul(24*60*60);
         
-                    await poolContract.connect(borrower2).requestLoan(amountBorrowable.add(1), loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
-                    let otherApplicationId = await poolContract.recentApplicationIdOf(borrower2.address);
-                    let otherApplication = await poolContract.loanApplications(otherApplicationId);
+                    await loanDesk.connect(borrower2).requestLoan(amountBorrowable.add(1), loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                    let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                    let otherApplication = await loanDesk.loanApplications(otherApplicationId);
         
-                    await expect(poolContract.connect(manager).offerLoan(otherApplicationId, otherApplication.amount, otherApplication.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(manager).offerLoan(otherApplicationId, otherApplication.amount, otherApplication.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
                 });
         
                 it ("Offering a loan while pool stake is insufficient should fail", async function () {   
@@ -263,11 +257,11 @@ describe("Lender (SaplingPool)", function() {
                     let loanAmount = amountStaked.mul(75).div(100);
                     let loanDuration = BigNumber.from(365).mul(24*60*60);
         
-                    await poolContract.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
-                    let otherApplicationId = await poolContract.recentApplicationIdOf(borrower2.address);
-                    let otherApplication = await poolContract.loanApplications(otherApplicationId);
+                    await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                    let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                    let otherApplication = await loanDesk.loanApplications(otherApplicationId);
 
-                    await poolContract.connect(manager).offerLoan(otherApplicationId, otherApplication.amount, otherApplication.duration, gracePeriod, installments, apr, lateAPRDelta);
+                    await loanDesk.connect(manager).offerLoan(otherApplicationId, otherApplication.amount, otherApplication.duration, gracePeriod, installments, apr, lateAPRDelta);
 
                     await poolContract.connect(borrower2).borrow(otherApplicationId);
 
@@ -278,118 +272,108 @@ describe("Lender (SaplingPool)", function() {
                     
                     await poolContract.connect(manager).defaultLoan(otherLoanId);
         
-                    await expect(poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
                 });
 
                 /*
                 it ("Offering a loan when lending is paused should fail", async function () {
                     await poolContract.connect(manager).pauseLending();
-                    await expect(poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
                 });
                 */
         
                 it ("Offering a loan when the pool is paused should fail", async function () {            
-                    await poolContract.connect(governance).pause();
-                    await expect(poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await loanDesk.connect(governance).pause();
+                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
                 });
         
                 it ("Offering a loan when the pool is closed should fail", async function () {            
-                    await poolContract.connect(manager).close();
-                    await expect(poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await loanDesk.connect(manager).close();
+                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
                 });
 
                 it ("Offering a nonexistent loan should fail", async function () {
-                    await expect(poolContract.connect(manager).offerLoan(applicationId.add(1), application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(manager).offerLoan(applicationId.add(1), application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
                 });
         
                 it ("Offering a loan as the protocol should fail", async function () {
-                    await expect(poolContract.connect(protocol).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(protocol).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
                 });
         
                 it ("Offering a loan as the governance should fail", async function () {
-                    await expect(poolContract.connect(governance).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(governance).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
                 });
         
                 it ("Offering a loan as a lender should fail", async function () {
-                    await expect(poolContract.connect(lender1).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(lender1).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
                 });
         
                 it ("Offering a loan as the borrower should fail", async function () {
-                    await expect(poolContract.connect(borrower1).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(borrower1).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
                 });
         
                 it ("Offering a loan from an unrelated address should fail", async function () {
-                    await expect(poolContract.connect(addrs[0]).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(addrs[0]).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
                 });
             });
 
             describe("Borrower Statistics", function () {
                 it("Loan approval increments all time approval count", async function () {
-                    let prevStat = await poolContract.borrowerStats(borrower1.address);
+                    let prevStat = await loanDesk.borrowerStats(borrower1.address);
                     
-                    await poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)
+                    await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)
         
-                    let stat = await poolContract.borrowerStats(borrower1.address);
+                    let stat = await loanDesk.borrowerStats(borrower1.address);
         
-                    expect(stat.countApproved).to.equal(prevStat.countApproved.add(1));
-                });
-        
-                it("Loan approval increments current approval count", async function () {
-                    let prevStat = await poolContract.borrowerStats(borrower1.address);
-                    
-                    await poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
-        
-                    let stat = await poolContract.borrowerStats(borrower1.address);
-        
-                    expect(stat.countCurrentApproved).to.equal(prevStat.countCurrentApproved.add(1));
+                    expect(stat.countOffered).to.equal(prevStat.countOffered.add(1));
                 });
             });
         });
 
         describe("Deny", function () {
             it("manager can deny loans", async function () {
-                await poolContract.connect(manager).denyLoan(applicationId);
-                expect((await poolContract.loanApplications(applicationId)).status).to.equal(LoanApplicationStatus.DENIED);
+                await loanDesk.connect(manager).denyLoan(applicationId);
+                expect((await loanDesk.loanApplications(applicationId)).status).to.equal(LoanApplicationStatus.DENIED);
             });
 
             describe("Rejection scenarios", function () {
                 it ("Denying a loan that is not in APPLIED status should fail", async function () {            
-                    await poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
-                    await expect(poolContract.connect(manager).denyLoan(applicationId)).to.be.reverted;
+                    await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
+                    await expect(loanDesk.connect(manager).denyLoan(applicationId)).to.be.reverted;
                 });
         
                 it ("Denying a nonexistent loan should fail", async function () {
-                    await expect(poolContract.connect(manager).denyLoan(applicationId.add(1))).to.be.reverted;
+                    await expect(loanDesk.connect(manager).denyLoan(applicationId.add(1))).to.be.reverted;
                 });
         
                 it ("Denying a loan as the protocol should fail", async function () {
-                    await expect(poolContract.connect(protocol).denyLoan(applicationId)).to.be.reverted;
+                    await expect(loanDesk.connect(protocol).denyLoan(applicationId)).to.be.reverted;
                 });
         
                 it ("Denying a loan as the governance should fail", async function () {
-                    await expect(poolContract.connect(governance).denyLoan(applicationId)).to.be.reverted;
+                    await expect(loanDesk.connect(governance).denyLoan(applicationId)).to.be.reverted;
                 });
         
                 it ("Denying a loan as a lender should fail", async function () {
-                    await expect(poolContract.connect(lender1).denyLoan(applicationId)).to.be.reverted;
+                    await expect(loanDesk.connect(lender1).denyLoan(applicationId)).to.be.reverted;
                 });
         
                 it ("Denying a loan as the borrower should fail", async function () {
-                    await expect(poolContract.connect(borrower1).denyLoan(applicationId)).to.be.reverted;
+                    await expect(loanDesk.connect(borrower1).denyLoan(applicationId)).to.be.reverted;
                 });
         
                 it ("Denying a loan from an unrelated address should fail", async function () {
-                    await expect(poolContract.connect(addrs[0]).denyLoan(applicationId)).to.be.reverted;
+                    await expect(loanDesk.connect(addrs[0]).denyLoan(applicationId)).to.be.reverted;
                 });
             });
 
             describe("Borrower Statistics", function () {
                 it("Loan Denial increments all time deny count", async function () {
-                    let prevStat = await poolContract.borrowerStats(borrower1.address);
+                    let prevStat = await loanDesk.borrowerStats(borrower1.address);
                     
-                    await poolContract.connect(manager).denyLoan(applicationId);
+                    await loanDesk.connect(manager).denyLoan(applicationId);
         
-                    let stat = await poolContract.borrowerStats(borrower1.address);
+                    let stat = await loanDesk.borrowerStats(borrower1.address);
         
                     expect(stat.countDenied).to.equal(prevStat.countDenied.add(1));
                 });
@@ -407,17 +391,17 @@ describe("Lender (SaplingPool)", function() {
         let application;
 
         beforeEach(async function () {
-            gracePeriod = await poolContract.templateLoanGracePeriod();
+            gracePeriod = await loanDesk.templateLoanGracePeriod();
             installments = 1;
-            apr = await poolContract.templateLoanAPR();
-            lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
+            apr = await loanDesk.templateLoanAPR();
+            lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
 
             let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             let loanDuration = BigNumber.from(365).mul(24*60*60);
-            await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
-            applicationId = await poolContract.recentApplicationIdOf(borrower1.address);
-            application = await poolContract.loanApplications(applicationId);
-            await poolContract.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
+            await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+            application = await loanDesk.loanApplications(applicationId);
+            await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
         });
 
         describe("Borrow", function () {
@@ -436,7 +420,7 @@ describe("Lender (SaplingPool)", function() {
             describe("Rejection scenarios", function () {
 
                 it ("Borrowing a loan that is not in APPROVED status should fail", async function () {
-                    await poolContract.connect(manager).cancelLoan(applicationId);
+                    await loanDesk.connect(manager).cancelLoan(applicationId);
                     await expect(poolContract.connect(borrower1).borrow(applicationId)).to.be.reverted;
                 });
         
@@ -477,16 +461,7 @@ describe("Lender (SaplingPool)", function() {
                     let stat = await poolContract.borrowerStats(borrower1.address);
                     expect(stat.amountBorrowed).to.equal(prevAmountBorrowed.add(loan.amount));
                 });
-    
-                it("Borrowing a loan decrements current approval count", async function () {
-                    let prevStat = await poolContract.borrowerStats(borrower1.address);
-                    
-                    await poolContract.connect(borrower1).borrow(applicationId);
-        
-                    let stat = await poolContract.borrowerStats(borrower1.address);
-                    expect(stat.countCurrentApproved).to.equal(prevStat.countCurrentApproved.sub(1));
-                });
-    
+
                 it("Borrowing a loan increments outstanding loan count", async function () {
                     let prevStat = await poolContract.borrowerStats(borrower1.address);
                     
@@ -501,60 +476,60 @@ describe("Lender (SaplingPool)", function() {
         describe("Cancel", function () {
 
             it("Manager can cancel", async function () {
-                expect(await poolContract.canCancel(applicationId, manager.address)).to.equal(true);
-                await poolContract.connect(manager).cancelLoan(applicationId);
-                expect((await poolContract.loanApplications(applicationId)).status).to.equal(LoanApplicationStatus.OFFER_CANCELLED);
+                expect(await loanDesk.canCancel(applicationId, manager.address)).to.equal(true);
+                await loanDesk.connect(manager).cancelLoan(applicationId);
+                expect((await loanDesk.loanApplications(applicationId)).status).to.equal(LoanApplicationStatus.OFFER_CANCELLED);
             });
 
             it("Manager can cancel while other loans are present (Updating weighted avg loan APR", async function () {
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                let requestLoanTx = await poolContract.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                let requestLoanTx = await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
                 let otherApplicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
 
-                let otherApplication = await poolContract.loanApplications(otherApplicationId);
-                await poolContract.connect(manager).offerLoan(otherApplicationId, otherApplication.amount, otherApplication.duration, gracePeriod, installments, apr, lateAPRDelta);
+                let otherApplication = await loanDesk.loanApplications(otherApplicationId);
+                await loanDesk.connect(manager).offerLoan(otherApplicationId, otherApplication.amount, otherApplication.duration, gracePeriod, installments, apr, lateAPRDelta);
 
-                await poolContract.connect(manager).cancelLoan(applicationId);
-                expect((await poolContract.loanApplications(applicationId)).status).to.equal(LoanApplicationStatus.OFFER_CANCELLED);
+                await loanDesk.connect(manager).cancelLoan(applicationId);
+                expect((await loanDesk.loanApplications(applicationId)).status).to.equal(LoanApplicationStatus.OFFER_CANCELLED);
             });
     
             describe("Rejection scenarios", function () {
                 it ("Cancelling a loan that is not in APPROVED status should fail", async function () {
                     await poolContract.connect(borrower1).borrow(applicationId);
 
-                    expect(await poolContract.canCancel(applicationId, manager.address)).to.equal(false);
-                    await expect(poolContract.connect(manager).cancelLoan(applicationId)).to.be.reverted;
+                    expect(await loanDesk.canCancel(applicationId, manager.address)).to.equal(false);
+                    await expect(loanDesk.connect(manager).cancelLoan(applicationId)).to.be.reverted;
                 });
         
                 it ("Cancelling a nonexistent loan should fail", async function () {
-                    expect(await poolContract.canCancel(applicationId.add(1), manager.address)).to.equal(false);
-                    await expect(poolContract.connect(manager).cancelLoan(applicationId.add(1))).to.be.reverted;
+                    expect(await loanDesk.canCancel(applicationId.add(1), manager.address)).to.equal(false);
+                    await expect(loanDesk.connect(manager).cancelLoan(applicationId.add(1))).to.be.reverted;
                 });
         
                 it ("Cancelling a loan as the protocol should fail", async function () {
-                    expect(await poolContract.canCancel(applicationId, protocol.address)).to.equal(false);
-                    await expect(poolContract.connect(protocol).cancelLoan(applicationId)).to.be.reverted;
+                    expect(await loanDesk.canCancel(applicationId, protocol.address)).to.equal(false);
+                    await expect(loanDesk.connect(protocol).cancelLoan(applicationId)).to.be.reverted;
                 });
         
                 it ("Cancelling a loan as the governance should fail", async function () {
-                    expect(await poolContract.canCancel(applicationId, governance.address)).to.equal(false);
-                    await expect(poolContract.connect(governance).cancelLoan(applicationId)).to.be.reverted;
+                    expect(await loanDesk.canCancel(applicationId, governance.address)).to.equal(false);
+                    await expect(loanDesk.connect(governance).cancelLoan(applicationId)).to.be.reverted;
                 });
         
                 it ("Cancelling a loan as a lender should fail", async function () {
-                    expect(await poolContract.canCancel(applicationId, lender1.address)).to.equal(false);
-                    await expect(poolContract.connect(lender1).cancelLoan(applicationId)).to.be.reverted;
+                    expect(await loanDesk.canCancel(applicationId, lender1.address)).to.equal(false);
+                    await expect(loanDesk.connect(lender1).cancelLoan(applicationId)).to.be.reverted;
                 });
         
                 it ("Cancelling a loan as the borrower should fail", async function () {
-                    expect(await poolContract.canCancel(applicationId, borrower1.address)).to.equal(false);
-                    await expect(poolContract.connect(borrower1).cancelLoan(applicationId)).to.be.reverted;
+                    expect(await loanDesk.canCancel(applicationId, borrower1.address)).to.equal(false);
+                    await expect(loanDesk.connect(borrower1).cancelLoan(applicationId)).to.be.reverted;
                 });
         
                 it ("Cancelling a loan from an unrelated address should fail", async function () {
-                    expect(await poolContract.canCancel(applicationId, addrs[0].address)).to.equal(false);
-                    await expect(poolContract.connect(addrs[0]).cancelLoan(applicationId)).to.be.reverted;
+                    expect(await loanDesk.canCancel(applicationId, addrs[0].address)).to.equal(false);
+                    await expect(loanDesk.connect(addrs[0]).cancelLoan(applicationId)).to.be.reverted;
                 });
             });
     
@@ -573,56 +548,49 @@ describe("Lender (SaplingPool)", function() {
                 });
 
                 it ("Protocol can cancel", async function () {
-                    expect(await poolContract.canCancel(applicationId, protocol.address)).to.equal(true);
-                    await expect(poolContract.connect(protocol).cancelLoan(applicationId)).to.be.ok;
+                    expect(await loanDesk.canCancel(applicationId, protocol.address)).to.equal(true);
+                    await expect(loanDesk.connect(protocol).cancelLoan(applicationId)).to.be.ok;
                 });
         
                 it ("Governance can cancel", async function () {
-                    expect(await poolContract.canCancel(applicationId, governance.address)).to.equal(true);
-                    await expect(poolContract.connect(governance).cancelLoan(applicationId)).to.be.ok;
+                    expect(await loanDesk.canCancel(applicationId, governance.address)).to.equal(true);
+                    await expect(loanDesk.connect(governance).cancelLoan(applicationId)).to.be.ok;
                 });
         
+                /*
                 it ("Long term lender can cancel", async function () {
-                    expect(await poolContract.canCancel(applicationId, lender1.address)).to.equal(true);
-                    await expect(poolContract.connect(lender1).cancelLoan(applicationId)).to.be.ok;
+                    expect(await loanDesk.canCancel(applicationId, lender1.address)).to.equal(true);
+                    await expect(loanDesk.connect(lender1).cancelLoan(applicationId)).to.be.ok;
                 });
+                */
 
                 describe("Rejection scenarios", function () {
     
                     it ("A lender without sufficient balance can't cancel", async function () {
-                        expect(await poolContract.canCancel(applicationId, lender2.address)).to.equal(false);
-                        await expect(poolContract.connect(lender2).cancelLoan(applicationId)).to.be.reverted;
+                        expect(await loanDesk.canCancel(applicationId, lender2.address)).to.equal(false);
+                        await expect(loanDesk.connect(lender2).cancelLoan(applicationId)).to.be.reverted;
                     });
             
                     it ("Borrower can't cancel", async function () {
-                        expect(await poolContract.canCancel(applicationId, borrower1.address)).to.equal(false);
-                        await expect(poolContract.connect(borrower1).cancelLoan(applicationId)).to.be.reverted;
+                        expect(await loanDesk.canCancel(applicationId, borrower1.address)).to.equal(false);
+                        await expect(loanDesk.connect(borrower1).cancelLoan(applicationId)).to.be.reverted;
                     });
             
                     it ("An unrelated address can't cancel", async function () {
-                        expect(await poolContract.canCancel(applicationId, addrs[0].address)).to.equal(false);
-                        await expect(poolContract.connect(addrs[0]).cancelLoan(applicationId)).to.be.reverted;
+                        expect(await loanDesk.canCancel(applicationId, addrs[0].address)).to.equal(false);
+                        await expect(loanDesk.connect(addrs[0]).cancelLoan(applicationId)).to.be.reverted;
                     });
                 });
             });
     
             describe("Borrower Statistics", function () {
-                it("Cancelling a loan decrements current approval count", async function () {
-                    let prevStat = await poolContract.borrowerStats(borrower1.address);
-                    
-                    await poolContract.connect(manager).cancelLoan(applicationId);
-        
-                    let stat = await poolContract.borrowerStats(borrower1.address);
-        
-                    expect(stat.countCurrentApproved).to.equal(prevStat.countCurrentApproved.sub(1));
-                });
     
                 it("Cancelling a loan increments all time cancel count", async function () {
-                    let prevStat = await poolContract.borrowerStats(borrower1.address);
+                    let prevStat = await loanDesk.borrowerStats(borrower1.address);
                     
-                    await poolContract.connect(manager).cancelLoan(applicationId);
+                    await loanDesk.connect(manager).cancelLoan(applicationId);
         
-                    let stat = await poolContract.borrowerStats(borrower1.address);
+                    let stat = await loanDesk.borrowerStats(borrower1.address);
         
                     expect(stat.countCancelled).to.equal(prevStat.countCancelled.add(1));
                 });
@@ -640,13 +608,13 @@ describe("Lender (SaplingPool)", function() {
             loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             loanDuration = BigNumber.from(365).mul(24*60*60);
 
-            await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
-            let applicationId = await poolContract.recentApplicationIdOf(borrower1.address);
-            let gracePeriod = await poolContract.templateLoanGracePeriod();
+            await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+            let gracePeriod = await loanDesk.templateLoanGracePeriod();
             let installments = 1;
-            let apr = await poolContract.templateLoanAPR();
-            let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
-            await poolContract.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+            let apr = await loanDesk.templateLoanAPR();
+            let lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
+            await loanDesk.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
         
             await poolContract.connect(borrower1).borrow(applicationId);
             loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
@@ -1043,13 +1011,13 @@ describe("Lender (SaplingPool)", function() {
                     let loanAmount = await poolContract.balanceStaked();
                     let loanDuration = BigNumber.from(365).mul(24*60*60);
 
-                    await poolContract.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
-                    let otherApplicationId = await poolContract.recentApplicationIdOf(borrower2.address);
-                    let gracePeriod = await poolContract.templateLoanGracePeriod();
+                    await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                    let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                    let gracePeriod = await loanDesk.templateLoanGracePeriod();
                     let installments = 1;
-                    let apr = await poolContract.templateLoanAPR();
-                    let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
-                    await poolContract.connect(manager).offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+                    let apr = await loanDesk.templateLoanAPR();
+                    let lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
+                    await loanDesk.connect(manager).offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
                     await poolContract.connect(borrower2).borrow(otherApplicationId);
 
                     await ethers.provider.send('evm_increaseTime', [loanDuration.add(gracePeriod).add(1).toNumber()]);
@@ -1075,13 +1043,13 @@ describe("Lender (SaplingPool)", function() {
                     let loanAmount = (await poolContract.balanceStaked()).mul(2);
                     let loanDuration = BigNumber.from(365).mul(24*60*60);
 
-                    await poolContract.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
-                    let otherApplicationId = await poolContract.recentApplicationIdOf(borrower2.address);
-                    let gracePeriod = await poolContract.templateLoanGracePeriod();
+                    await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                    let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                    let gracePeriod = await loanDesk.templateLoanGracePeriod();
                     let installments = 1;
-                    let apr = await poolContract.templateLoanAPR();
-                    let lateAPRDelta = await poolContract.templateLateLoanAPRDelta();
-                    await poolContract.connect(manager).offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+                    let apr = await loanDesk.templateLoanAPR();
+                    let lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
+                    await loanDesk.connect(manager).offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
                     await poolContract.connect(borrower2).borrow(otherApplicationId);
 
                     await ethers.provider.send('evm_increaseTime', [loanDuration.add(gracePeriod).add(1).toNumber()]);
@@ -1167,11 +1135,13 @@ describe("Lender (SaplingPool)", function() {
                         expect(await poolContract.canDefault(loanId, governance.address)).to.equal(true);
                         await expect(poolContract.connect(governance).defaultLoan(loanId)).to.be.ok;
                     });
-            
+                    
+                    /*
                     it ("Long term lender can default", async function () {
                         expect(await poolContract.canDefault(loanId, lender1.address)).to.equal(true);
                         await expect(poolContract.connect(lender1).defaultLoan(loanId)).to.be.ok;
                     });
+                    */
     
                     describe("Rejection scenarios", function () {
 

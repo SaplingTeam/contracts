@@ -12,6 +12,13 @@ abstract contract SaplingManagerContext is SaplingContext, ReentrancyGuard {
 
     /// Flag indicating whether or not the pool is closed
     bool private _closed;
+
+    /**
+     * @notice Grace period for the manager to be inactive on a given loan /cancel/default decision. 
+     *         After this grace period of managers inaction on a given loan, lenders who stayed longer than EARLY_EXIT_COOLDOWN 
+     *         can also call cancel() and default(). Other requirements for loan cancellation/default still apply.
+     */
+    uint256 public constant MANAGER_INACTIVITY_GRACE_PERIOD = 90 days;
     
     modifier onlyManager {
         // direct use of msg.sender is intentional
@@ -22,6 +29,11 @@ abstract contract SaplingManagerContext is SaplingContext, ReentrancyGuard {
     modifier managerOrApprovedOnInactive {
         require(msg.sender == manager || authorizedOnInactiveManager(msg.sender),
             "Managed: caller is not the manager or an approved party.");
+        _;
+    }
+
+    modifier onlyUser() {
+        require(msg.sender != manager && msg.sender != governance && msg.sender != protocol, "SaplingPool: Caller is not a valid lender.");
         _;
     }
 

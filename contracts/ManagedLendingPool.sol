@@ -7,13 +7,14 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./IPoolToken.sol";
 import "./SaplingManagerContext.sol";
+import "./SaplingMathContext.sol";
 
 /**
  * @title Sapling Lending Pool
  * @notice Provides the basics of a Sapling lending pool.
  * @dev This contract is abstract. Extend the contract to implement an intended pool functionality.
  */
-abstract contract ManagedLendingPool is SaplingManagerContext {
+abstract contract ManagedLendingPool is SaplingManagerContext, SaplingMathContext {
 
     using SafeMath for uint256;
 
@@ -64,12 +65,6 @@ abstract contract ManagedLendingPool is SaplingManagerContext {
 
     /// Protocol earnings of wallets
     mapping(address => uint256) internal protocolEarnings; 
-    
-    /// Number of decimal digits in integer percent values used across the contract
-    uint16 public constant PERCENT_DECIMALS = 1;
-
-    /// A constant representing 100%
-    uint16 public immutable ONE_HUNDRED_PERCENT;
 
     /// Percentage of paid interest to be allocated as protocol earnings
     uint16 public protocolEarningPercent;
@@ -128,15 +123,13 @@ abstract contract ManagedLendingPool is SaplingManagerContext {
         targetStakePercent = uint16(10 * 10 ** PERCENT_DECIMALS); //10%
         targetLiquidityPercent = 0; //0%
 
-        uint16 oneHundredPercent = uint16(100 * 10 ** PERCENT_DECIMALS);
-        ONE_HUNDRED_PERCENT = oneHundredPercent;
         protocolEarningPercent = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
         MAX_PROTOCOL_EARNING_PERCENT = protocolEarningPercent;
 
         managerEarnFactorMax = uint16(500 * 10 ** PERCENT_DECIMALS); // 150% or 1.5x leverage by default (safe min 100% or 1x)
         managerEarnFactor = uint16(150 * 10 ** PERCENT_DECIMALS);
 
-        managerExcessLeverageComponent = uint256(managerEarnFactor).sub(oneHundredPercent);
+        managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
 
         uint8 decimals = IERC20Metadata(liquidityToken).decimals();
         tokenDecimals = decimals;

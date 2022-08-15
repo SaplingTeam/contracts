@@ -3,53 +3,17 @@
 pragma solidity ^0.8.15;
 
 import "./ManagedLendingPool.sol";
+import "./ILoanDeskHook.sol";
+import "./ILenderHook.sol";
 
 /**
  * @title SaplingPool Lender
  * @notice Extends ManagedLendingPool with lending functionality.
  * @dev This contract is abstract. Extend the contract to implement an intended pool functionality.
  */
-abstract contract Lender is ManagedLendingPool {
+abstract contract Lender is ILenderHook, ManagedLendingPool {
 
     using SafeMath for uint256;
-
-    // do not use zero enum as it is the default value in an uninitialized struct, and some modifiers may use first logical enum state for validation
-    enum LoanApplicationStatus {
-        NULL, 
-        APPLIED,
-        DENIED,
-        OFFER_MADE,
-        OFFER_ACCEPTED,
-        OFFER_CANCELLED
-    }
-
-    /// Loan application object
-    struct LoanApplication {
-        uint256 id;
-        address borrower;
-        uint256 amount;
-        uint256 duration;
-        uint256 requestedTime;
-        LoanApplicationStatus status;
-
-        //TODO replace personal info fields with metadata id and hash 
-        string name;
-        string email;
-        string phone;
-        string businessName;
-    }
-
-    struct LoanOffer {
-        uint256 applicationId;
-        address borrower;
-        uint256 amount;
-        uint256 duration;
-        uint256 gracePeriod;
-        uint16 installments;
-        uint16 apr; 
-        uint16 lateAPRDelta;
-        uint256 offeredTime;
-    }
 
     enum LoanStatus {
         NULL,
@@ -61,6 +25,7 @@ abstract contract Lender is ManagedLendingPool {
     /// Loan object
     struct Loan {
         uint256 id;
+        address loanDeskAddress;
         uint256 applicationId;
         address borrower;
         uint256 amount;
@@ -87,26 +52,14 @@ abstract contract Lender is ManagedLendingPool {
         /// Wallet address of the borrower
         address borrower; 
 
-        /// All time loan request count
-        uint256 countRequested;
-
-        /// All time loan approval count
-        uint256 countApproved;
-
-        /// All time loan denial count
-        uint256 countDenied;
-
-        /// All time loan cancellation count
-        uint256 countCancelled;
+        /// All time loan borrow count
+        uint256 countBorrowed;
 
         /// All time loan closure count
         uint256 countRepaid;
 
         /// All time loan default count
         uint256 countDefaulted;
-
-        /// Current approved loan count
-        uint256 countCurrentApproved;
 
         /// Current outstanding loan count
         uint256 countOutstanding;
@@ -124,11 +77,7 @@ abstract contract Lender is ManagedLendingPool {
         uint256 recentLoanId;
     }
 
-    event LoanRequested(uint256 applicationId, address indexed borrower);
-    event LoanRequestDenied(uint256 applicationId, address indexed borrower);
-    event LoanOffered(uint256 applicationId, address indexed borrower);
-    event LoanOfferUpdated(uint256 applicationId, address indexed borrower);
-    event LoanOfferCancelled(uint256 applicationId, address indexed borrower);
+    event LoanDeskSet(address from, address to);
 
     event LoanBorrowed(uint256 loanId, address indexed borrower, uint256 applicationId);
     event LoanRepaid(uint256 loanId, address indexed borrower);
@@ -141,86 +90,16 @@ abstract contract Lender is ManagedLendingPool {
         _;
     }
 
-    modifier applicationInStatus(uint256 applicationId, LoanApplicationStatus status) {
-        LoanApplication storage app = loanApplications[applicationId];
-        require(app.id != 0, "Loan application is not found.");
-        require(app.status == status, "Loan application does not have a valid status for this operation.");
-        _;
-    }
-
-    modifier onlyUser() {
-        require(msg.sender != manager && msg.sender != protocol && msg.sender != governance, "SaplingPool: Caller is not a valid lender.");
-        _;
-    }
-
-    // APR, to represent a percentage value as int, multiply by (10 ^ percentDecimals)
-
-    /// Safe minimum for APR values
-    uint16 public constant SAFE_MIN_APR = 0; // 0%
-
-    /// Safe maximum for APR values
-    uint16 public immutable SAFE_MAX_APR;
-
-    /// Loan APR to be applied for the new loan requests
-    uint16 public templateLoanAPR;
-
-    /// Loan late payment APR delta to be applied fot the new loan requests
-    uint16 public templateLateLoanAPRDelta;
+    address public loanDesk;
 
     /// Weighted average loan APR on the borrowed funds
     uint256 internal weightedAvgLoanAPR;
 
-    /// Contract math safe minimum loan amount including token decimals
-    uint256 public immutable SAFE_MIN_AMOUNT;
-
-    /// Minimum allowed loan amount 
-    uint256 public minLoanAmount;
-
-    /// Contract math safe minimum loan duration in seconds
-    uint256 public constant SAFE_MIN_DURATION = 1 days;
-
-    /// Contract math safe maximum loan duration in seconds
-    uint256 public constant SAFE_MAX_DURATION = 51 * 365 days;
-
-    /// Minimum loan duration in seconds
-    uint256 public minLoanDuration;
-
-    /// Maximum loan duration in seconds
-    uint256 public maxLoanDuration;
-
-    /// Loan payment grace period after which a loan can be defaulted
-    uint256 public templateLoanGracePeriod = 60 days;
-
-    /// Maximum allowed loan payment grace period
-    uint256 public constant MIN_LOAN_GRACE_PERIOD = 3 days;
-    uint256 public constant MAX_LOAN_GRACE_PERIOD = 365 days;
-
-    /**
-     * @notice Grace period for the manager to be inactive on a given loan /cancel/default decision. 
-     *         After this grace period of managers inaction on a given loan, lenders who stayed longer than EARLY_EXIT_COOLDOWN 
-     *         can also call cancel() and default(). Other requirements for loan cancellation/default still apply.
-     */
-    uint256 public constant MANAGER_INACTIVITY_GRACE_PERIOD = 90 days;
-
-    /// Loan application id generator counter
-    uint256 private nextApplicationId;
-
     /// Loan id generator counter
     uint256 private nextLoanId;
 
-    /// Quick lookup to check an address has pending loan applications
-    mapping(address => bool) private hasOpenApplication;
-
-    mapping(address => uint256) public recentApplicationIdOf;
-
     /// Total borrowed funds allocated for withdrawal but not yet withdrawn by the borrowers
     uint256 public loanFundsPendingWithdrawal;
-
-    /// Loan applications by applicationId
-    mapping(uint256 => LoanApplication) public loanApplications;
-
-    /// Loan offers by applicationId
-    mapping(uint256 => LoanOffer) public loanOffers;
 
     /// Loans by loanId
     mapping(uint256 => Loan) public loans;
@@ -241,23 +120,19 @@ abstract contract Lender is ManagedLendingPool {
      */
     constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) ManagedLendingPool(_poolToken, _liquidityToken, _governance, _protocol, _manager) {
         
-        SAFE_MIN_AMOUNT = ONE_TOKEN;
-        minLoanAmount = ONE_TOKEN.mul(100);
-
-        SAFE_MAX_APR = ONE_HUNDRED_PERCENT;
-        templateLoanAPR = uint16(30 * 10 ** PERCENT_DECIMALS); // 30%
-        templateLateLoanAPRDelta = uint16(5 * 10 ** PERCENT_DECIMALS); //5%
-        weightedAvgLoanAPR = templateLoanAPR;
-        
-        minLoanDuration = SAFE_MIN_DURATION;
-        maxLoanDuration = SAFE_MAX_DURATION;
+        weightedAvgLoanAPR = 0; //templateLoanAPR;
 
         nextLoanId = 1;
-        nextApplicationId = 1;
 
         poolLiquidity = 0;
         borrowedFunds = 0;
         loanFundsPendingWithdrawal = 0;
+    }
+
+    function setLoanDesk(address _loanDesk) external onlyGovernance {
+        address prevLoanDesk = loanDesk;
+        loanDesk = _loanDesk;
+        emit LoanDeskSet(prevLoanDesk, loanDesk);
     }
 
     /**
@@ -269,326 +144,30 @@ abstract contract Lender is ManagedLendingPool {
     }
 
     /**
-     * @notice Set annual loan interest rate for the future loans.
-     * @dev apr must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
-     *      Caller must be the manager.
-     * @param apr Loan APR to be applied for the new loan requests.
-     */
-    function setTemplateLoanAPR(uint16 apr) external onlyManager whenNotPaused {
-        require(SAFE_MIN_APR <= apr && apr <= SAFE_MAX_APR, "APR is out of bounds");
-        templateLoanAPR = apr;
-    }
-
-    /**
-     * @notice Set late payment annual loan interest rate delta for the future loans.
-     * @dev lateAPRDelta must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
-     *      Caller must be the manager.
-     * @param lateAPRDelta Loan late payment APR delta to be applied for the new loan requests.
-     */
-    function setTemplateLateLoanAPRDelta(uint16 lateAPRDelta) external onlyManager whenNotPaused {
-        require(SAFE_MIN_APR <= lateAPRDelta && lateAPRDelta <= SAFE_MAX_APR, "APR is out of bounds");
-        templateLateLoanAPRDelta = lateAPRDelta;
-    }
-
-    /**
-     * @notice Set a minimum loan amount for the future loans.
-     * @dev minLoanAmount must be greater than or equal to SAFE_MIN_AMOUNT.
-     *      Caller must be the manager.
-     * @param _minLoanAmount minimum loan amount to be enforced for the new loan requests.
-     */
-    function setMinLoanAmount(uint256 _minLoanAmount) external onlyManager whenNotPaused {
-        require(SAFE_MIN_AMOUNT <= _minLoanAmount, "New min loan amount is less than the safe limit");
-        minLoanAmount = _minLoanAmount;
-    }
-
-    /**
-     * @notice Set maximum loan duration for the future loans.
-     * @dev Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxLoanDuration.
-     *      Caller must be the manager.
-     * @param duration Maximum loan duration to be enforced for the new loan requests.
-     */
-    function setMinLoanDuration(uint256 duration) external onlyManager whenNotPaused {
-        require(SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration, "New min duration is out of bounds");
-        minLoanDuration = duration;
-    }
-
-    /**
-     * @notice Set maximum loan duration for the future loans.
-     * @dev Duration must be in seconds and inclusively between minLoanDuration and SAFE_MAX_DURATION.
-     *      Caller must be the manager.
-     * @param duration Maximum loan duration to be enforced for the new loan requests.
-     */
-    function setMaxLoanDuration(uint256 duration) external onlyManager whenNotPaused {
-        require(minLoanDuration <= duration && duration <= SAFE_MAX_DURATION, "New max duration is out of bounds");
-        maxLoanDuration = duration;
-    }
-
-    /**
-     * @notice Set loan payment grace period for the future loans.
-     * @dev Duration must be in seconds and inclusively between MIN_LOAN_GRACE_PERIOD and MAX_LOAN_GRACE_PERIOD.
-     *      Caller must be the manager.
-     * @param gracePeriod Loan payment grace period for new loan requests.
-     */
-    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyManager whenNotPaused {
-        require(MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD, "Lender: New grace period is out of bounds.");
-        templateLoanGracePeriod = gracePeriod;
-    }
-
-    /**
-     * @notice Request a new loan.
-     * @dev Requested amount must be greater or equal to minLoanAmount().
-     *      Loan duration must be between minLoanDuration() and maxLoanDuration().
-     *      Caller must not be a lender, protocol, or the manager. 
-     *      Multiple pending applications from the same address are not allowed,
-     *      most recent loan/application of the caller must not have APPLIED status.
-     * @param requestedAmount Token amount to be borrowed.
-     * @param loanDuration Loan duration in seconds. 
-     * @return ID of a new loan application.
-     */
-    //FIXME whenLendingNotPaused
-    function requestLoan(
-        uint256 requestedAmount, 
-        uint256 loanDuration, 
-        string memory _name, 
-        string memory _email, 
-        string memory _phone, 
-        string memory _businessName
-    ) 
-        external 
-        onlyUser
-        whenNotClosed 
-        whenNotPaused 
-        returns (uint256)
-    {
-
-        require(hasOpenApplication[msg.sender] == false, "Another loan application is pending.");
-        require(requestedAmount >= minLoanAmount, "Loan amount is less than the minimum allowed");
-        require(minLoanDuration <= loanDuration, "Loan duration is less than minimum allowed.");
-        require(maxLoanDuration >= loanDuration, "Loan duration is more than maximum allowed.");
-
-        uint256 appId = nextApplicationId;
-        nextApplicationId++;
-
-        loanApplications[appId] = LoanApplication({
-            id: appId,
-            borrower: msg.sender,
-            amount: requestedAmount,
-            duration: loanDuration,
-            requestedTime: block.timestamp,
-            status: LoanApplicationStatus.APPLIED,
-            name: _name,
-            email: _email,
-            phone: _phone,
-            businessName: _businessName
-        });
-
-        hasOpenApplication[msg.sender] = true;
-
-        if (borrowerStats[msg.sender].borrower == address(0)) {
-            borrowerStats[msg.sender] = BorrowerStats({
-                borrower: msg.sender,
-                countRequested: 1, 
-                countApproved: 0, 
-                countDenied: 0, 
-                countCancelled: 0, 
-                countRepaid: 0, 
-                countDefaulted: 0, 
-                countCurrentApproved: 0,
-                countOutstanding: 0, 
-                amountBorrowed: 0, 
-                amountBaseRepaid: 0,
-                amountInterestPaid: 0,
-                recentLoanId: 0
-            });
-        } else {
-            borrowerStats[msg.sender].countRequested++;
-        }
-
-        recentApplicationIdOf[msg.sender] = appId;
-
-        emit LoanRequested(appId, msg.sender);
-
-        return appId;
-    }
-
-    /**
-     * @notice Approve a loan application and offer a loan.
-     * @dev Loan application must be in APPLIED status.
-     *      Caller must be the manager.
-     *      Loan amount must not exceed poolLiquidity();
-     *      Stake to pool funds ratio must be good - poolCanLend() must be true.
-     */
-    //FIXME whenLendingNotPaused
-    function offerLoan(
-        uint256 appId, 
-        uint256 _amount, 
-        uint256 _duration, 
-        uint256 _gracePeriod, 
-        uint16 _installments, 
-        uint16 _apr, 
-        uint16 _lateAPRDelta
-    ) 
-        external 
-        onlyManager 
-        applicationInStatus(appId, LoanApplicationStatus.APPLIED) 
-        whenNotClosed 
-        whenNotPaused 
-    {
-        LoanApplication storage app = loanApplications[appId];
-
-        require(poolLiquidity >= _amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT), 
-            "SaplingPool: Pool liquidity is insufficient to approve this loan.");
-        require(poolCanLend(), "SaplingPool: Stake amount is too low to approve new loans.");
-
-        borrowerStats[app.borrower].countApproved++;
-        borrowerStats[app.borrower].countCurrentApproved++;
-
-        LoanOffer memory offer = LoanOffer({
-            applicationId: appId,
-            borrower: app.borrower,
-            amount: _amount,
-            duration: _duration,
-            gracePeriod: _gracePeriod,
-            installments: _installments,
-            apr: _apr,
-            lateAPRDelta: _lateAPRDelta,
-            offeredTime: block.timestamp
-        });
-
-        loanOffers[appId] = offer;
-
-        loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
-        // hasOpenApplication[loan.borrower] = false; //todo set this on deny, cancel or borrow
-
-        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.add(offer.amount);
-        poolLiquidity = poolLiquidity.sub(offer.amount);
-        uint256 prevBorrowedFunds = borrowedFunds;
-        borrowedFunds = borrowedFunds.add(offer.amount);
-
-        emit LoanOffered(appId, offer.borrower);
-
-        weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).add(offer.amount.mul(offer.apr)).div(borrowedFunds);
-    }
-
-    /**
-     * @notice Update an existing loan offer offer a loan.
-     * @dev Loan application must be in OFFER_MADE status.
-     *      Caller must be the manager.
-     *      Loan amount must not exceed poolLiquidity();
-     *      Stake to pool funds ratio must be good - poolCanLend() must be true.
-     */
-    //FIXME whenLendingNotPaused
-    function updateOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint16 _installments, uint16 _apr, uint16 _lateAPRDelta) external onlyManager applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) whenNotClosed whenNotPaused {
-        LoanOffer memory offer = loanOffers[appId];
-
-        require(offer.amount <= _amount || poolLiquidity + offer.amount >= _amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT), 
-            "SaplingPool: Pool liquidity is insufficient to approve this loan.");
-        require(offer.amount <= _amount || poolCanLend(), "SaplingPool: Stake amount is too low to approve new loans.");
-
-        offer.duration = _duration;
-        offer.gracePeriod = _gracePeriod;
-        offer.installments = _installments;
-        offer.lateAPRDelta = _lateAPRDelta;
-        offer.offeredTime = block.timestamp;
-
-        if (offer.amount != _amount || offer.apr != _apr) {
-
-            // undo effect of previous amount and apt to pool state
-            loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(offer.amount);
-            poolLiquidity = poolLiquidity.add(offer.amount);
-            uint256 prevBorrowedFunds = borrowedFunds;
-            borrowedFunds = borrowedFunds.sub(offer.amount);
-
-            if (borrowedFunds > 0) {
-                weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(offer.amount.mul(offer.apr)).div(borrowedFunds);
-            } else {
-                weightedAvgLoanAPR = templateLoanAPR;
-            }
-
-            //set new amount and apr
-            offer.amount = _amount;
-            offer.apr = _apr;
-
-            // apply effect of the new amount and apr to the pool state
-            loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.add(offer.amount);
-            poolLiquidity = poolLiquidity.sub(offer.amount);
-            prevBorrowedFunds = borrowedFunds;
-            borrowedFunds = borrowedFunds.add(offer.amount);
-
-            weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).add(offer.amount.mul(offer.apr)).div(borrowedFunds);
-        }
-        emit LoanOfferUpdated(appId, offer.borrower);
-    }
-
-    /**
-     * @notice Deny a loan.
-     * @dev Loan must be in APPLIED status.
-     *      Caller must be the manager.
-     */
-    function denyLoan(uint256 appId) external onlyManager applicationInStatus(appId, LoanApplicationStatus.APPLIED) {
-        LoanApplication storage app = loanApplications[appId];
-        app.status = LoanApplicationStatus.DENIED;
-        hasOpenApplication[app.borrower] = false;
-        borrowerStats[app.borrower].countDenied++;
-
-        emit LoanRequestDenied(appId, app.borrower);
-    }
-
-     /**
-     * @notice Cancel a loan.
-     * @dev Loan must be in APPROVED status.
-     *      Caller must be the manager.
-     */
-    function cancelLoan(uint256 appId) external managerOrApprovedOnInactive applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) {
-        LoanOffer storage offer = loanOffers[appId];
-
-        // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
-        if (msg.sender != manager) {
-            // require inactivity grace period
-            require(block.timestamp > offer.offeredTime + MANAGER_INACTIVITY_GRACE_PERIOD, 
-                "It is too early to cancel this loan as a non-manager.");
-        }
-
-        loanApplications[appId].status = LoanApplicationStatus.OFFER_CANCELLED;
-        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(offer.amount);
-        poolLiquidity = poolLiquidity.add(offer.amount);
-        uint256 prevBorrowedFunds = borrowedFunds;
-        borrowedFunds = borrowedFunds.sub(offer.amount);
-
-        borrowerStats[offer.borrower].countCancelled++;
-        borrowerStats[offer.borrower].countCurrentApproved--;
-        
-        emit LoanOfferCancelled(appId, offer.borrower);
-
-        if (borrowedFunds > 0) {
-            weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(offer.amount.mul(offer.apr)).div(borrowedFunds);
-        } else {
-            weightedAvgLoanAPR = templateLoanAPR;
-        }
-    }
-
-    /**
      * @notice Accept loan offer and withdraw funds
      * @dev Caller must be the borrower. 
      *      The loan must be in APPROVED status.
      * @param appId id of the loan application to accept the offer of. 
      */
-    //FIXME whenLendingNotPaused
-    function borrow(uint256 appId) external applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) whenNotClosed whenNotPaused {
-        LoanOffer storage offer = loanOffers[appId];
-        require(offer.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
+    function borrow(uint256 appId) external whenNotClosed whenNotPaused {
 
-        borrowerStats[offer.borrower].countCurrentApproved--;
+        require(ILoanDeskHook(loanDesk).applicationStatus(appId) == ILoanDeskHook.LoanApplicationStatus.OFFER_MADE);
+
+        ILoanDeskHook.LoanOffer memory offer = ILoanDeskHook(loanDesk).loanOfferById(appId);
+
+        require(offer.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
+        ILoanDeskHook(loanDesk).onBorrow(appId);
+
+        // borrowerStats[offer.borrower].countCurrentApproved--;
         borrowerStats[offer.borrower].countOutstanding++;
         borrowerStats[offer.borrower].amountBorrowed = borrowerStats[offer.borrower].amountBorrowed.add(offer.amount);
-        
-        loanApplications[appId].status = LoanApplicationStatus.OFFER_ACCEPTED;
 
         uint256 loanId = nextLoanId;
         nextLoanId++;
 
         loans[loanId] = Loan({
             id: loanId,
+            loanDeskAddress: loanDesk,
             applicationId: appId,
             borrower: offer.borrower,
             amount: offer.amount,
@@ -611,7 +190,11 @@ abstract contract Lender is ManagedLendingPool {
 
         borrowerStats[offer.borrower].recentLoanId = loanId;
 
-        loanFundsPendingWithdrawal = loanFundsPendingWithdrawal.sub(offer.amount);
+        poolLiquidity = poolLiquidity.sub(offer.amount);
+        uint256 prevBorrowedFunds = borrowedFunds;
+        borrowedFunds = borrowedFunds.add(offer.amount);
+
+        weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).add(offer.amount.mul(offer.apr)).div(borrowedFunds);
 
         tokenBalance = tokenBalance.sub(offer.amount);
         bool success = IERC20(liquidityToken).transfer(msg.sender, offer.amount);
@@ -722,7 +305,7 @@ abstract contract Lender is ManagedLendingPool {
         if (borrowedFunds > 0) {
             weightedAvgLoanAPR = borrowedFunds.add(baseAmountPaid).mul(weightedAvgLoanAPR).sub(baseAmountPaid.mul(loan.apr)).div(borrowedFunds);
         } else {
-            weightedAvgLoanAPR = templateLoanAPR;
+            weightedAvgLoanAPR = 0; //templateLoanAPR;
         }
 
         return (transferAmount, interestPaid);
@@ -795,34 +378,18 @@ abstract contract Lender is ManagedLendingPool {
             if (borrowedFunds > 0) {
                 weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(baseAmountLost.mul(loan.apr)).div(borrowedFunds);
             } else {
-                weightedAvgLoanAPR = templateLoanAPR;
+                weightedAvgLoanAPR = 0;//templateLoanAPR;
             }
         }
     }
 
     /**
-     * @notice View indicating whether or not a given loan can be approved by the manager.
-     * @param appId application ID to check
-     * @return True if the given loan can be approved, false otherwise
+     * @notice View indicating whether or not a given loan can be offered by the manager.
+     * @param totalLoansAmount loanOfferAmount
+     * @return True if the given total loan amount can be offered, false otherwise
      */
-    function canOffer(uint256 appId) external view returns (bool) {
-        return poolCanLend() 
-            && poolLiquidity >= loanApplications[appId].amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT);
-    }
-
-    /**
-     * @notice View indicating whether or not a given loan approval qualifies to be cancelled by a given caller.
-     * @param appId application ID to check
-     * @param caller address that intends to call cancel() on the loan
-     * @return True if the given loan approval can be cancelled, false otherwise
-     */
-    function canCancel(uint256 appId, address caller) external view returns (bool) {
-        if (caller != manager && !authorizedOnInactiveManager(caller)) {
-            return false;
-        }
-
-        return loanApplications[appId].status == LoanApplicationStatus.OFFER_MADE 
-            && block.timestamp >= (loanOffers[appId].offeredTime + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
+    function canOffer(uint256 totalLoansAmount) external view override returns (bool) {
+        return poolCanLend() && poolLiquidity >= totalLoansAmount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT);
     }
 
     /**
