@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.15;
 
-import "./SaplingManagerContext.sol";
-import "./SaplingMathContext.sol";
-import "./ILoanDeskHook.sol";
-import "./ILenderHook.sol";
+import "./context/SaplingManagerContext.sol";
+import "./context/SaplingMathContext.sol";
+import "./interfaces/ILoanDeskHook.sol";
+import "./interfaces/ILenderHook.sol";
 
 /**
  * @title SaplingPool Lender
