@@ -2,10 +2,9 @@
 
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./SaplingContext.sol";
 
-abstract contract SaplingManagerContext is SaplingContext, ReentrancyGuard {
+abstract contract SaplingManagerContext is SaplingContext {
 
     /// Pool manager address
     address public manager;
@@ -57,7 +56,7 @@ abstract contract SaplingManagerContext is SaplingContext, ReentrancyGuard {
      * @param _governance Address of the protocol governance.
      * @param _protocol Address of a wallet to accumulate protocol earnings.
      */
-    constructor(address _manager, address _governance, address _protocol) SaplingContext(_governance, _protocol) {
+    constructor(address _governance, address _protocol, address _manager) SaplingContext(_governance, _protocol) {
         require(_manager != address(0), "Sapling: Manager address is not set");
         manager = _manager;
         _closed = false;
