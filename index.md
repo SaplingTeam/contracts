@@ -1,25 +1,9 @@
-[IVerificationHub](IVerificationHub)
-
-[PoolFactory](PoolFactory)
+[SaplingPool](SaplingPool)
 
 [VerificationHub](VerificationHub)
 
-[SaplingContext](SaplingContext)
-
-[SaplingMathContext](SaplingMathContext)
+[PoolToken](PoolToken)
 
 [LoanDesk](LoanDesk)
 
-[SaplingPool](SaplingPool)
-
 [SaplingProtocolPool](SaplingProtocolPool)
-
-[ILoanDeskHook](ILoanDeskHook)
-
-[SaplingManagerContext](SaplingManagerContext)
-
-[ILenderHook](ILenderHook)
-
-[PoolToken](PoolToken)
-
-[IPoolToken](IPoolToken)
