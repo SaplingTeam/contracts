@@ -180,7 +180,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
             expect(await poolContract.poolFunds()).to.equal(0);
             expect(await poolContract.poolLiquidity()).to.equal(0);
             expect(await poolContract.borrowedFunds()).to.equal(0);
-            expect(await poolContract.loanFundsPendingWithdrawal()).to.equal(0);
+            expect(await poolContract.allocatedFunds()).to.equal(0);
         });
     });
 

@@ -759,7 +759,7 @@ describe("SaplingPool", function() {
 
             let borrowRate = loanAmount.mul(ONE_HUNDRED_PERCENT).div(poolFunds).toNumber();
 
-            expect(await poolContract.projectedLenderAPY(borrowRate)).to.equal(expectedLenderAPY);        
+            expect(await poolContract.projectedLenderAPY(borrowRate, apr)).to.equal(expectedLenderAPY);        
         });
 
         it("Increase in borrow rate is linearly reflected on projected lender APY within margin of integer math accuracy", async function () {
@@ -785,15 +785,16 @@ describe("SaplingPool", function() {
 
             let borrowRate = projectedBorrowAmount.mul(ONE_HUNDRED_PERCENT).div(poolFunds).toNumber();
 
-            expect((await poolContract.projectedLenderAPY(borrowRate * 2)) - (expectedLenderAPY * 2)).to.lte(10);
-            expect((await poolContract.projectedLenderAPY(borrowRate * 3)) - (expectedLenderAPY * 3)).to.lte(10);
+            expect((await poolContract.projectedLenderAPY(borrowRate * 2, apr)) - (expectedLenderAPY * 2)).to.lte(10);
+            expect((await poolContract.projectedLenderAPY(borrowRate * 3, apr)) - (expectedLenderAPY * 3)).to.lte(10);
         });
 
 
         describe("Rejection scenarios", function () {
             it("APY projection should fail when borrow rate of over 100% is requested", async function () {
+                let apr = await loanDesk.templateLoanAPR();
                 let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
-                await expect(poolContract.projectedLenderAPY(ONE_HUNDRED_PERCENT + 1)).to.be.reverted;
+                await expect(poolContract.projectedLenderAPY(ONE_HUNDRED_PERCENT + 1, apr)).to.be.reverted;
             });
         });
     });
