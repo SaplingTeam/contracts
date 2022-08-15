@@ -9,7 +9,7 @@ import "./interfaces/ILenderHook.sol";
 /**
  * @title Sapling Lending Pool
  */
-contract SaplingPool is ILenderHook, SaplingPoolContext {
+contract SaplingLendingPool is ILenderHook, SaplingPoolContext {
 
     using SafeMath for uint256;
 

@@ -32,7 +32,7 @@ describe("Contract Deployment", function() {
         let PoolToken = await ethers.getContractFactory("PoolToken");
         poolTokenContract = await PoolToken.deploy("Test Pool Token", "TPT", TOKEN_DECIMALS);
 
-        SaplingPool = await ethers.getContractFactory("SaplingPool");
+        SaplingPool = await ethers.getContractFactory("SaplingLendingPool");
 
         currentGovernance = governance1;
     });
