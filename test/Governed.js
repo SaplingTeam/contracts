@@ -14,9 +14,6 @@ describe("Governed (SaplingPool)", function() {
 
     let currentGovernance;
 
-    let PAUSE_TIMEOUT;
-    let PAUSE_MAX_COOLDOWN;
-
     const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
     beforeEach(async function () {
@@ -31,10 +28,12 @@ describe("Governed (SaplingPool)", function() {
 
         currentGovernance = governance1;
 
-        poolContract = await SaplingPool.deploy(tokenContract.address, currentGovernance.address, protocol.address, manager.address);
+        let PoolFactory = await ethers.getContractFactory("PoolFactory");
+        let poolFactory = await PoolFactory.deploy(currentGovernance.address, protocol.address);
 
-        PAUSE_TIMEOUT = await poolContract.PAUSE_TIMEOUT();
-        PAUSE_MAX_COOLDOWN = await poolContract.PAUSE_MAX_COOLDOWN();
+        let poolContractTx = await (await poolFactory.connect(currentGovernance).create("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
+        let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];
+        poolContract = await SaplingPool.attach(poolAddress);
     });
 
     describe("Initial state", function () {
@@ -44,17 +43,7 @@ describe("Governed (SaplingPool)", function() {
         });
 
         it("Pool is not paused", async function () {
-            expect(await poolContract.isPaused()).to.equal(false);
-            expect(await poolContract.lastPausedTime()).to.equal(1);
-            expect(await poolContract.pauseCooldownTime()).to.equal(1);
-        });
-
-        it("Pause timeout is correct", async function () {
-            expect(PAUSE_TIMEOUT).to.equal(72 *60*60);
-        });
-
-        it("Pause max cooldown is correct", async function () {
-            expect(PAUSE_MAX_COOLDOWN).to.equal(24 *60*60);
+            expect(await poolContract.paused()).to.equal(false);
         });
     });
 
@@ -98,54 +87,9 @@ describe("Governed (SaplingPool)", function() {
     });
 
     describe("Pause", function () {
-
-        let PAUSE_TIMEOUT;
-        let PAUSE_MAX_COOLDOWN;
-
-        beforeEach(async function () {
-            PAUSE_TIMEOUT = await poolContract.PAUSE_TIMEOUT();
-            PAUSE_MAX_COOLDOWN = await poolContract.PAUSE_MAX_COOLDOWN();
-        });
-
         it("Governance can pause", async function () {
             await poolContract.connect(currentGovernance).pause();
-
-            let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
-
-            expect(await poolContract.isPaused()).to.equal(true);
-            expect(await poolContract.lastPausedTime()).to.equal(blockTimestamp);
-        });
-
-        it("Pause timeout is enforced", async function () {
-         
-            await poolContract.connect(currentGovernance).pause();
-            expect(await poolContract.isPaused()).to.equal(true);
-
-            await ethers.provider.send('evm_increaseTime', [PAUSE_TIMEOUT.toNumber()]);
-            await ethers.provider.send('evm_mine');
-
-            expect(await poolContract.isPaused()).to.equal(false);
-        });
-
-        it("Pause cooldown is enforced", async function () {
-            await poolContract.connect(currentGovernance).pause();
-
-            let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
-
-            expect(await poolContract.pauseCooldownTime()).to.equal(PAUSE_TIMEOUT.add(PAUSE_MAX_COOLDOWN).add(blockTimestamp));
-            expect(await poolContract.isPaused()).to.equal(true);
-
-            await ethers.provider.send('evm_increaseTime', [PAUSE_TIMEOUT.toNumber()]);
-            await ethers.provider.send('evm_mine');
-
-            expect(await poolContract.isPaused()).to.equal(false);
-
-            await expect(poolContract.connect(currentGovernance).pause()).to.be.reverted;
-
-            await ethers.provider.send('evm_increaseTime', [PAUSE_MAX_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
-
-            await expect(poolContract.connect(currentGovernance).pause()).to.be.ok;
+            expect(await poolContract.paused()).to.equal(true);
         });
 
         describe("Rejection scenarios", function () {
@@ -166,38 +110,19 @@ describe("Governed (SaplingPool)", function() {
         });
 
         it("Governance can resume", async function () {
-            await poolContract.connect(currentGovernance).resume();
-
-            expect(await poolContract.isPaused()).to.equal(false);
-            expect(await poolContract.lastPausedTime()).to.equal(1);
-        });
-
-        it("Resuming early should reduce pause cooldown", async function () {
-            let PAUSE_TIMEOUT = await poolContract.PAUSE_TIMEOUT();
-            let PAUSE_MAX_COOLDOWN = await poolContract.PAUSE_MAX_COOLDOWN();
-            let prevPauseCooldownTime = await poolContract.pauseCooldownTime();
-
-            await ethers.provider.send('evm_increaseTime', [PAUSE_TIMEOUT.div(2).sub(1).toNumber()]);
-            await ethers.provider.send('evm_mine');
-
-            await poolContract.connect(currentGovernance).resume();
-
-            let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
-            
-            let pauseCooldownTime = await poolContract.pauseCooldownTime();
-            expect(pauseCooldownTime).to.lt(prevPauseCooldownTime);
-            expect(pauseCooldownTime.sub(BigNumber.from(blockTimestamp).add(PAUSE_MAX_COOLDOWN.div(2)))).to.lte(60);
+            await poolContract.connect(currentGovernance).unpause();
+            expect(await poolContract.paused()).to.equal(false);
         });
 
         describe("Rejection scenarios", function () {
 
             it("Resuming when not paused should fail", async function () {
-                await poolContract.connect(currentGovernance).resume();
-                await expect(poolContract.connect(currentGovernance).resume()).to.be.reverted;
+                await poolContract.connect(currentGovernance).unpause();
+                await expect(poolContract.connect(currentGovernance).unpause()).to.be.reverted;
             });
 
             it("Resuming as a non governance should fail", async function () {
-                await expect(poolContract.connect(addrs[0]).resume()).to.be.reverted;
+                await expect(poolContract.connect(addrs[0]).unpause()).to.be.reverted;
             });
         });
     });

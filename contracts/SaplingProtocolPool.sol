@@ -11,75 +11,11 @@ import "./ILoanDeskHook.sol";
 import "./ILenderHook.sol";
 
 /**
- * @title Sapling Lending Pool
+ * @title Sapling Protocol Pool
  */
-contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
+contract SaplingProtocolPool is SaplingManagerContext, SaplingMathContext {
 
     using SafeMath for uint256;
-
-    enum LoanStatus {
-        NULL,
-        OUTSTANDING,
-        REPAID,
-        DEFAULTED
-    }
-
-    /// Loan object
-    struct Loan {
-        uint256 id;
-        address loanDeskAddress;
-        uint256 applicationId;
-        address borrower;
-        uint256 amount;
-        uint256 duration; 
-        uint256 gracePeriod;
-        uint16 installments;
-        uint16 apr;
-        uint16 lateAPRDelta;
-        uint256 borrowedTime;
-        LoanStatus status;
-    }
-
-    struct LoanDetail {
-        uint256 loanId;
-        uint256 totalAmountRepaid; //total amount paid including interest
-        uint256 baseAmountRepaid;
-        uint256 interestPaid;
-        uint256 lastPaymentTime;
-    }
-
-    /// Individual borrower statistics
-    struct BorrowerStats {
-
-        /// Wallet address of the borrower
-        address borrower; 
-
-        /// All time loan borrow count
-        uint256 countBorrowed;
-
-        /// All time loan closure count
-        uint256 countRepaid;
-
-        /// All time loan default count
-        uint256 countDefaulted;
-
-        /// Current outstanding loan count
-        uint256 countOutstanding;
-
-        /// Outstanding loan borrowed amount
-        uint256 amountBorrowed;
-
-        /// Outstanding loan repaid base amount
-        uint256 amountBaseRepaid;
-
-        /// Outstanding loan paid interest amount
-        uint256 amountInterestPaid;
-
-        /// most recent loanId
-        uint256 recentLoanId;
-    }
-
-    address public loanDesk;
 
     //FROM managed lending pool /// Address of an ERC20 token issued by the pool
     address public immutable poolToken;
@@ -106,7 +42,10 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
     uint256 public poolLiquidity;
 
     /// Total funds borrowed at this time, including both withdrawn and allocated for withdrawal.
-    uint256 public borrowedFunds;
+    uint256 public investedFunds;
+
+    /// Weighted average loan APR on the borrowed funds
+    uint256 internal weightedAvgInvestAPR;
 
     /// Total pool shares present
     uint256 public totalPoolShares;
@@ -145,37 +84,9 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
     /// exit fee percentage
     uint256 public exitFeePercent = 5; // 0.5%
 
-    /// Total borrowed funds allocated for withdrawal but not yet withdrawn by the borrowers
-    uint256 public loanFundsPendingWithdrawal;
-
-    /// Weighted average loan APR on the borrowed funds
-    uint256 internal weightedAvgLoanAPR;
-
-    /// Loan id generator counter
-    uint256 private nextLoanId;
-
-    /// Loans by loanId
-    mapping(uint256 => Loan) public loans;
-
-    mapping(uint256 => LoanDetail) public loanDetails;
-
-    /// Borrower statistics by address 
-    mapping(address => BorrowerStats) public borrowerStats;
-
-    event LoanDeskSet(address from, address to);
     event ProtocolWalletTransferred(address from, address to);
-    event LoanBorrowed(uint256 loanId, address indexed borrower, uint256 applicationId);
-    event LoanRepaid(uint256 loanId, address indexed borrower);
-    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 amountLost);
     event UnstakedLoss(uint256 amount);
     event StakedAssetsDepleted();
-
-    modifier loanInStatus(uint256 loanId, LoanStatus status) {
-        Loan storage loan = loans[loanId];
-        require(loan.id != 0, "Loan is not found.");
-        require(loan.status == status, "Loan does not have a valid status for this operation.");
-        _;
-    }
     
     /**
      * @notice Creates a Sapling pool.
@@ -220,13 +131,10 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
 
         assert(IERC20(poolToken).totalSupply() == 0);
         
-        weightedAvgLoanAPR = 0; //templateLoanAPR;
-
-        nextLoanId = 1;
+        weightedAvgInvestAPR = 0; //templateLoanAPR;
 
         poolLiquidity = 0;
-        borrowedFunds = 0;
-        loanFundsPendingWithdrawal = 0;
+        investedFunds = 0;
     }
 
     /**
@@ -300,178 +208,14 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
         require(success);
     }
 
-    /**
-     * @notice Accept loan offer and withdraw funds
-     * @dev Caller must be the borrower. 
-     *      The loan must be in APPROVED status.
-     * @param appId id of the loan application to accept the offer of. 
-     */
-    function borrow(uint256 appId) external whenNotClosed whenNotPaused {
-
-        require(ILoanDeskHook(loanDesk).applicationStatus(appId) == ILoanDeskHook.LoanApplicationStatus.OFFER_MADE);
-
-        ILoanDeskHook.LoanOffer memory offer = ILoanDeskHook(loanDesk).loanOfferById(appId);
-
-        require(offer.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
-        ILoanDeskHook(loanDesk).onBorrow(appId);
-
-        // borrowerStats[offer.borrower].countCurrentApproved--;
-        borrowerStats[offer.borrower].countOutstanding++;
-        borrowerStats[offer.borrower].amountBorrowed = borrowerStats[offer.borrower].amountBorrowed.add(offer.amount);
-
-        uint256 loanId = nextLoanId;
-        nextLoanId++;
-
-        loans[loanId] = Loan({
-            id: loanId,
-            loanDeskAddress: loanDesk,
-            applicationId: appId,
-            borrower: offer.borrower,
-            amount: offer.amount,
-            duration: offer.duration,
-            gracePeriod: offer.gracePeriod,
-            installments: offer.installments,
-            apr: offer.apr,
-            lateAPRDelta: offer.lateAPRDelta,
-            borrowedTime: block.timestamp,
-            status: LoanStatus.OUTSTANDING
-        });
-
-        loanDetails[loanId] = LoanDetail({
-            loanId: loanId,
-            totalAmountRepaid: 0,
-            baseAmountRepaid: 0,
-            interestPaid: 0,
-            lastPaymentTime: 0
-        });
-
-        borrowerStats[offer.borrower].recentLoanId = loanId;
-
-        poolLiquidity = poolLiquidity.sub(offer.amount);
-        uint256 prevBorrowedFunds = borrowedFunds;
-        borrowedFunds = borrowedFunds.add(offer.amount);
-
-        weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).add(offer.amount.mul(offer.apr)).div(borrowedFunds);
-
-        tokenBalance = tokenBalance.sub(offer.amount);
-        bool success = IERC20(liquidityToken).transfer(msg.sender, offer.amount);
-        require(success);
-
-        emit LoanBorrowed(loanId, offer.borrower, appId);
-    }
-
-    /**
-     * @notice Make a payment towards a loan.
-     * @dev Caller must be the borrower.
-     *      Loan must be in OUTSTANDING status.
-     *      Only the necessary sum is charged if amount exceeds amount due.
-     *      Amount charged will not exceed the amount parameter. 
-     * @param loanId ID of the loan to make a payment towards.
-     * @param amount Payment amount in tokens.
-     * @return A pair of total amount changed including interest, and the interest charged.
-     */
-    function repay(uint256 loanId, uint256 amount) external loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
-
-        // require the payer and the borrower to be the same to avoid mispayment
-        require(loans[loanId].borrower == msg.sender, "Payer is not the borrower.");
-
-        return repayBase(loanId, amount);
-    }
-
-    /**
-     * @notice Make a payment towards a loan on behalf od a borrower
-     * @dev Loan must be in OUTSTANDING status.
-     *      Only the necessary sum is charged if amount exceeds amount due.
-     *      Amount charged will not exceed the amount parameter. 
-     * @param loanId ID of the loan to make a payment towards.
-     * @param amount Payment amount in tokens.
-     * @param borrower address of the borrower to make a payment in behalf of.
-     * @return A pair of total amount changed including interest, and the interest charged.
-     */
-    function repayOnBehalf(uint256 loanId, uint256 amount, address borrower) external loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
-
-        // require the payer and the borrower to be the same to avoid mispayment
-        require(loans[loanId].borrower == borrower, "The specified loan does not belong to the borrower.");
-
-        return repayBase(loanId, amount);
-    }
-
-    /**
-     * @notice Default a loan.
-     * @dev Loan must be in OUTSTANDING status.
-     *      Caller must be the manager.
-     *      canDefault(loanId) must return 'true'.
-     * @param loanId ID of the loan to default
-     */
-    function defaultLoan(uint256 loanId) external managerOrApprovedOnInactive loanInStatus(loanId, LoanStatus.OUTSTANDING) whenNotPaused {
-        Loan storage loan = loans[loanId];
-        LoanDetail storage loanDetail = loanDetails[loanId];
-
-        // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
-        if (msg.sender != manager) {
-            // require inactivity grace period
-            require(block.timestamp > loan.borrowedTime + loan.duration + loan.gracePeriod + MANAGER_INACTIVITY_GRACE_PERIOD, 
-                "It is too early to default this loan as a non-manager.");
-        }
-        
-        require(block.timestamp > (loan.borrowedTime + loan.duration + loan.gracePeriod), "Lender: It is too early to default this loan.");
-
-        loan.status = LoanStatus.DEFAULTED;
-        borrowerStats[loan.borrower].countDefaulted++;
-        borrowerStats[loan.borrower].countOutstanding--;
-
-        (, uint256 loss) = loan.amount.trySub(loanDetail.totalAmountRepaid);
-        
-        emit LoanDefaulted(loanId, loan.borrower, loss);
-
-        borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.sub(loan.amount);
-        borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid.sub(loanDetail.baseAmountRepaid);
-        borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid.sub(loanDetail.interestPaid);
-
-        if (loss > 0) {
-            uint256 lostShares = tokensToShares(loss);
-            uint256 remainingLostShares = lostShares;
-
-            poolFunds = poolFunds.sub(loss);
-            
-            if (stakedShares > 0) {
-                uint256 stakedShareLoss = Math.min(lostShares, stakedShares);
-                remainingLostShares = lostShares.sub(stakedShareLoss);
-                stakedShares = stakedShares.sub(stakedShareLoss);
-                updatePoolLimit();
-
-                //burn manager's shares
-                IPoolToken(poolToken).burn(address(this), stakedShareLoss);
-                lockedShares[manager] = lockedShares[manager].sub(stakedShareLoss);
-                totalPoolShares = totalPoolShares.sub(stakedShareLoss);
-
-                if (stakedShares == 0) {
-                    emit StakedAssetsDepleted();
-                }
-            }
-
-            if (remainingLostShares > 0) {
-                emit UnstakedLoss(loss.sub(sharesToTokens(remainingLostShares)));
-            }
-        }
-
-        if (loanDetail.baseAmountRepaid < loan.amount) {
-            uint256 prevBorrowedFunds = borrowedFunds;
-            uint256 baseAmountLost = loan.amount.sub(loanDetail.baseAmountRepaid);
-            borrowedFunds = borrowedFunds.sub(baseAmountLost);
-
-            if (borrowedFunds > 0) {
-                weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).sub(baseAmountLost.mul(loan.apr)).div(borrowedFunds);
-            } else {
-                weightedAvgLoanAPR = 0;//templateLoanAPR;
-            }
-        }
-    }
-
-    function setLoanDesk(address _loanDesk) external onlyGovernance {
-        address prevLoanDesk = loanDesk;
-        loanDesk = _loanDesk;
-        emit LoanDeskSet(prevLoanDesk, loanDesk);
+    function invest(address lendingPool, uint256 liquidityTokenAmount) external onlyManager whenNotPaused {
+        /*
+         * TODO 
+          1. Verify pool liquidity 
+          2. Verify that the lending pool is on the supported list (on contract or via verification hub)
+          3. Call deposit() on the lending pool.
+          4. Update state variables
+         */
     }
 
     /**
@@ -579,55 +323,18 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
      * @return Estimated lender APY
      */
     function currentLenderAPY() external view returns (uint16) {
-        return lenderAPY(borrowedFunds);
+        return lenderAPY(investedFunds);
     }
 
     /**
      * @notice Projected lender APY given the current pool state and a specific borrow rate.
      * @dev represent borrowRate in contract specific percentage format
-     * @param borrowRate percentage of pool funds projected to be borrowed annually
+     * @param investRate percentage of pool funds projected to be borrowed annually
      * @return Projected lender APY
      */
-    function projectedLenderAPY(uint16 borrowRate) external view returns (uint16) {
-        require(borrowRate <= ONE_HUNDRED_PERCENT, "SaplingPool: Invalid borrow rate. Borrow rate must be less than or equal to 100%");
-        return lenderAPY(Math.mulDiv(poolFunds, borrowRate, ONE_HUNDRED_PERCENT));
-    }
-
-    /**
-     * @notice View indicating whether or not a given loan can be offered by the manager.
-     * @param totalLoansAmount loanOfferAmount
-     * @return True if the given total loan amount can be offered, false otherwise
-     */
-    function canOffer(uint256 totalLoansAmount) external view override returns (bool) {
-        return poolCanLend() && poolLiquidity >= totalLoansAmount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT);
-    }
-
-    /**
-     * @notice View indicating whether or not a given loan qualifies to be defaulted by a given caller.
-     * @param loanId loanId ID of the loan to check
-     * @param caller address that intends to call default() on the loan
-     * @return True if the given loan can be defaulted, false otherwise
-     */
-    function canDefault(uint256 loanId, address caller) external view returns (bool) {
-        if (caller != manager && !authorizedOnInactiveManager(caller)) {
-            return false;
-        }
-
-        Loan storage loan = loans[loanId];
-
-        return loan.status == LoanStatus.OUTSTANDING 
-            && block.timestamp > (loan.borrowedTime + loan.duration + loan.gracePeriod + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
-    }
-
-    /**
-     * @notice Loan balance due including interest if paid in full at this time. 
-     * @dev Loan must be in OUTSTANDING status.
-     * @param loanId ID of the loan to check the balance of.
-     * @return Total amount due with interest on this loan.
-     */
-    function loanBalanceDue(uint256 loanId) external view returns(uint256) {
-        (uint256 amountDue,) = loanBalanceDueWithInterest(loanId);
-        return amountDue;
+    function projectedLenderAPY(uint16 investRate) external view returns (uint16) {
+        require(investRate <= ONE_HUNDRED_PERCENT, "SaplingPool: Invalid borrow rate. Borrow rate must be less than or equal to 100%");
+        return lenderAPY(Math.mulDiv(poolFunds, investRate, ONE_HUNDRED_PERCENT));
     }
 
     /**
@@ -687,16 +394,16 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
     /**
      * @notice Lender APY given the current pool state and a specific borrowed funds amount.
      * @dev represent borrowRate in contract specific percentage format
-     * @param _borrowedFunds pool funds to be borrowed annually
+     * @param _investedFunds pool funds to be borrowed annually
      * @return Lender APY
      */
-    function lenderAPY(uint256 _borrowedFunds) private view returns (uint16) {
-        if (poolFunds == 0 || _borrowedFunds == 0) {
+    function lenderAPY(uint256 _investedFunds) private view returns (uint16) {
+        if (poolFunds == 0 || _investedFunds == 0) {
             return 0;
         }
         
         // pool APY
-        uint256 poolAPY = Math.mulDiv(weightedAvgLoanAPR, _borrowedFunds, poolFunds);
+        uint256 poolAPY = Math.mulDiv(weightedAvgInvestAPR, _investedFunds, poolFunds);
         
         // protocol APY
         uint256 protocolAPY = Math.mulDiv(poolAPY, protocolEarningPercent, ONE_HUNDRED_PERCENT);
@@ -709,14 +416,6 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
         uint256 managerWithdrawableAPY = Math.mulDiv(remainingAPY, managerEarningsPercent, managerEarningsPercent + ONE_HUNDRED_PERCENT);
 
         return uint16(remainingAPY.sub(managerWithdrawableAPY));
-    }
-
-    /**
-     * @notice Count of all loan requests in this pool.
-     * @return Loans count.
-     */
-    function loansCount() external view returns(uint256) {
-        return nextLoanId - 1;
     }
 
     /**
@@ -816,112 +515,6 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
     }
 
     /**
-     * @notice Make a payment towards a loan.
-     * @dev Loan must be in OUTSTANDING status.
-     *      Only the necessary sum is charged if amount exceeds amount due.
-     *      Amount charged will not exceed the amount parameter. 
-     * @param loanId ID of the loan to make a payment towards.
-     * @param amount Payment amount in tokens.
-     * @return A pair of total amount charged including interest, and the interest charged.
-     */
-    function repayBase(uint256 loanId, uint256 amount) internal loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
-
-        (uint256 amountDue, uint256 interestPercent) = loanBalanceDueWithInterest(loanId);
-        uint256 transferAmount = Math.min(amountDue, amount);
-
-        // enforce a small minimum payment amount, except for the last payment 
-        require(transferAmount == amountDue || transferAmount >= ONE_TOKEN, "Sapling: Payment amount is less than the required minimum of 1 token.");
-
-        // charge 'amount' tokens from msg.sender
-        bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), transferAmount);
-        require(success);
-        tokenBalance = tokenBalance.add(transferAmount);
-
-        Loan storage loan = loans[loanId];
-        LoanDetail storage loanDetail = loanDetails[loanId];
-        // loan.lastPaymentTime = block.timestamp;
-        
-        uint256 interestPaid = Math.mulDiv(transferAmount, interestPercent, ONE_HUNDRED_PERCENT + interestPercent);
-        uint256 baseAmountPaid = transferAmount.sub(interestPaid);
-
-        //share profits to protocol
-        uint256 protocolEarnedInterest = Math.mulDiv(interestPaid, protocolEarningPercent, ONE_HUNDRED_PERCENT);
-        
-        protocolEarnings[protocol] = protocolEarnings[protocol].add(protocolEarnedInterest); 
-
-        //share profits to manager 
-        uint256 currentStakePercent = Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
-        uint256 managerEarnedInterest = Math
-            .mulDiv(interestPaid.sub(protocolEarnedInterest),
-                    Math.mulDiv(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT), // managerEarningsPercent
-                    ONE_HUNDRED_PERCENT);
-
-        protocolEarnings[manager] = protocolEarnings[manager].add(managerEarnedInterest);
-
-        loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(transferAmount);
-        loanDetail.baseAmountRepaid = loanDetail.baseAmountRepaid.add(baseAmountPaid);
-        loanDetail.interestPaid = loanDetail.interestPaid.add(interestPaid);
-        loanDetail.lastPaymentTime = block.timestamp;
-
-        borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid.add(baseAmountPaid);
-        borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid.add(interestPaid);
-
-        borrowedFunds = borrowedFunds.sub(baseAmountPaid);
-        poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
-
-        if (transferAmount == amountDue) {
-            loan.status = LoanStatus.REPAID;
-            borrowerStats[loan.borrower].countRepaid++;
-            borrowerStats[loan.borrower].countOutstanding--;
-            borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.sub(loan.amount);
-            borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid.sub(loanDetail.baseAmountRepaid);
-            borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid.sub(loanDetail.interestPaid);
-        }
-
-        if (borrowedFunds > 0) {
-            weightedAvgLoanAPR = borrowedFunds.add(baseAmountPaid).mul(weightedAvgLoanAPR).sub(baseAmountPaid.mul(loan.apr)).div(borrowedFunds);
-        } else {
-            weightedAvgLoanAPR = 0; //templateLoanAPR;
-        }
-
-        return (transferAmount, interestPaid);
-    }
-
-    /**
-     * @notice Loan balance due including interest if paid in full at this time. 
-     * @dev Internal method to get the amount due and the interest rate applied.
-     * @param loanId ID of the loan to check the balance of.
-     * @return A pair of a total amount due with interest on this loan, and a percentage representing the interest part of the due amount.
-     */
-    function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256) {
-        Loan storage loan = loans[loanId];
-        if (loan.status != LoanStatus.OUTSTANDING) {
-            return (0, 0);
-        }
-
-        // calculate interest percent
-        uint256 daysPassed = countInterestDays(loan.borrowedTime, block.timestamp);
-        uint256 apr;
-        uint256 loanDueTime = loan.borrowedTime.add(loan.duration);
-        if (block.timestamp <= loanDueTime) { 
-            apr = loan.apr;
-        } else {
-            uint256 lateDays = countInterestDays(loanDueTime, block.timestamp);
-            apr = daysPassed
-                .mul(loan.apr)
-                .add(lateDays.mul(loan.lateAPRDelta))
-                .div(daysPassed);
-        }
-
-        uint256 interestPercent = Math.mulDiv(apr, daysPassed, 365);
-
-        uint256 baseAmountDue = loan.amount.sub(loanDetails[loanId].baseAmountRepaid);
-        uint256 balanceDue = baseAmountDue.add(Math.mulDiv(baseAmountDue, interestPercent, ONE_HUNDRED_PERCENT));
-
-        return (balanceDue, interestPercent);
-    }
-
-    /**
      * @notice Get a token value of shares.
      * @param shares Amount of shares
      */
@@ -954,28 +547,10 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
     }
 
     function canClose() internal view override returns (bool) {
-        return borrowedFunds == 0;
+        return investedFunds == 0;
     }
 
     function authorizedOnInactiveManager(address caller) internal view override returns (bool) {
         return caller == governance || caller == protocol || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= ONE_TOKEN;
-    }
-
-    /**
-     * @notice Get the number of days in a time period to witch an interest can be applied.
-     * @dev Internal helper method. Returns the ceiling of the count. 
-     * @param timeFrom Epoch timestamp of the start of the time period.
-     * @param timeTo Epoch timestamp of the end of the time period. 
-     * @return Ceil count of days in a time period to witch an interest can be applied.
-     */
-    function countInterestDays(uint256 timeFrom, uint256 timeTo) private pure returns(uint256) {
-        uint256 countSeconds = timeTo.sub(timeFrom);
-        uint256 dayCount = countSeconds.div(86400);
-
-        if (countSeconds.mod(86400) > 0) {
-            dayCount++;
-        }
-
-        return dayCount;
     }
 }

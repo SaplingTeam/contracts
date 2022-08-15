@@ -8,6 +8,7 @@ describe("SaplingPool", function() {
 
     let SaplingPool;
     let poolContract;
+    let loanDesk;
 
     let manager;
     let protocol;
@@ -24,6 +25,7 @@ describe("SaplingPool", function() {
 
         TestUSDC = await ethers.getContractFactory("TestUSDC");
         SaplingPool = await ethers.getContractFactory("SaplingPool");
+        LoanDesk = await ethers.getContractFactory("LoanDesk");
 
         tokenContract = await TestUSDC.deploy();
         TOKEN_DECIMALS = await tokenContract.decimals();
@@ -37,7 +39,14 @@ describe("SaplingPool", function() {
         await tokenContract.connect(manager).mint(borrower1.address, mintAmount);
         await tokenContract.connect(manager).mint(borrower2.address, mintAmount);
 
-        poolContract = await SaplingPool.deploy(tokenContract.address, governance.address, protocol.address, manager.address);
+        let PoolFactory = await ethers.getContractFactory("PoolFactory");
+        let poolFactory = await PoolFactory.deploy(governance.address, protocol.address);
+
+        let poolContractTx = await (await poolFactory.connect(governance).create("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
+        let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];
+        poolContract = await SaplingPool.attach(poolAddress);
+        let loanDeskAddress = await poolContract.loanDesk();
+        loanDesk = await LoanDesk.attach(loanDeskAddress);
 
         PERCENT_DECIMALS = await poolContract.PERCENT_DECIMALS();
     });
@@ -103,11 +112,18 @@ describe("SaplingPool", function() {
             let loanAmount = await poolContract.poolFunds();
             let loanDuration = BigNumber.from(365).mul(24*60*60);
 
-            let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-            loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
+            let requestLoanTx = await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            let applicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
 
-            await poolContract.connect(manager).approveLoan(loanId);
-            await poolContract.connect(borrower1).borrow(loanId);
+            let gracePeriod = await loanDesk.templateLoanGracePeriod();
+            let installments = 1;
+            let apr = await loanDesk.templateLoanAPR();
+            let lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
+
+            await loanDesk.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+            await poolContract.connect(borrower1).borrow(applicationId);
+            
+            let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
 
             let loan = await poolContract.loans(loanId);
             await ethers.provider.send('evm_increaseTime', [loan.duration.add(loan.gracePeriod).toNumber()]);
@@ -128,12 +144,6 @@ describe("SaplingPool", function() {
             it ("Staking a zero amount should fail", async function () {         
                 await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
                 await expect(poolContract.connect(manager).stake(0)).to.be.reverted;
-            });
-
-            it ("Staking when lending is paused should fail", async function () {
-                await poolContract.connect(manager).pauseLending();
-                await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
-                await expect(poolContract.connect(manager).stake(stakeAmount)).to.be.reverted;
             });
 
             it ("Staking when the pool is paused should fail", async function () {            
@@ -169,7 +179,7 @@ describe("SaplingPool", function() {
             it ("Staking as a borrower should fail", async function () {
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration)
+                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
 
                 await tokenContract.connect(borrower1).approve(poolContract.address, stakeAmount);
                 await expect(poolContract.connect(borrower1).stake(stakeAmount)).to.be.reverted;
@@ -181,12 +191,14 @@ describe("SaplingPool", function() {
 
         let stakeAmount;
         let unstakeAmount;
-        let EARLY_EXIT_COOLDOWN;
+        let depositAmount;
+        let exitFeePercent;
+        let ONE_HUNDRED_PERCENT;
 
         beforeEach(async function () {
             stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
             unstakeAmount = BigNumber.from(500).mul(TOKEN_MULTIPLIER);
-            let depositAmount = BigNumber.from(9000).mul(TOKEN_MULTIPLIER);
+            depositAmount = BigNumber.from(9000).mul(TOKEN_MULTIPLIER);
 
             await tokenContract.connect(manager).approve(poolContract.address, stakeAmount);
             await poolContract.connect(manager).stake(stakeAmount);
@@ -194,20 +206,21 @@ describe("SaplingPool", function() {
             await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
             await poolContract.connect(lender1).deposit(depositAmount);
 
-            EARLY_EXIT_COOLDOWN = await poolContract.EARLY_EXIT_COOLDOWN();
+            exitFeePercent = await poolContract.exitFeePercent();
+            ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
         });
 
         it("Manager can unstake", async function () {
             let balanceBefore = await tokenContract.balanceOf(manager.address);
 
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
+            let exitFee = unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
+            let exitFeeGain = exitFee.mul(stakeAmount.sub(unstakeAmount)).div(depositAmount.add(stakeAmount.sub(unstakeAmount)));
 
             let stakedBalance = await poolContract.balanceStaked();
             await poolContract.connect(manager).unstake(unstakeAmount);
-            expect(await poolContract.balanceStaked()).to.equal(stakedBalance.sub(unstakeAmount));
+            expect(await poolContract.balanceStaked()).to.equal(stakedBalance.sub(unstakeAmount).add(exitFeeGain));
 
-            expect(await tokenContract.balanceOf(manager.address)).to.equal(balanceBefore.add(unstakeAmount));
+            expect(await tokenContract.balanceOf(manager.address)).to.equal(balanceBefore.add(unstakeAmount).sub(exitFee));
         });
 
         describe("Amount Unstakable", function () {
@@ -215,11 +228,6 @@ describe("SaplingPool", function() {
                 let expectedUnstakable = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
     
                 expect(await poolContract.amountUnstakable()).to.equal(expectedUnstakable);
-            });
-    
-            it("Amount unstakable is zero when lending is paused", async function () {
-                await poolContract.connect(manager).pauseLending();
-                expect(await poolContract.amountUnstakable()).to.equal(0);
             });
 
             it("Amount unstakable is zero when pool is paused", async function () {
@@ -229,8 +237,6 @@ describe("SaplingPool", function() {
         });
 
         it("Unstaking is reflected on the pool contract balance", async function () {
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
 
             let prevBalance = await tokenContract.balanceOf(poolContract.address);
 
@@ -238,13 +244,11 @@ describe("SaplingPool", function() {
 
             let balance = await tokenContract.balanceOf(poolContract.address);
 
-            expect(balance).to.equal(prevBalance.sub(unstakeAmount))
+            expect(balance).to.equal(prevBalance.sub(unstakeAmount).add(unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)))
                 .and.equal(await poolContract.tokenBalance());
         });
 
         it("Unstaking is reflected on pool liquidity", async function () {
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
 
             let prevLiquidity = await poolContract.poolLiquidity();
 
@@ -252,12 +256,10 @@ describe("SaplingPool", function() {
 
             let liquidity = await poolContract.poolLiquidity();
 
-            expect(liquidity).to.equal(prevLiquidity.sub(unstakeAmount));
+            expect(liquidity).to.equal(prevLiquidity.sub(unstakeAmount).add(unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)));
         });
 
         it("Unstaking is reflected on pool funds", async function () {
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
 
             let prevPoolFunds = await poolContract.poolFunds();
 
@@ -265,7 +267,7 @@ describe("SaplingPool", function() {
 
             let poolFunds = await poolContract.poolFunds();
 
-            expect(poolFunds).to.equal(prevPoolFunds.sub(unstakeAmount));
+            expect(poolFunds).to.equal(prevPoolFunds.sub(unstakeAmount).add(unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)));
         });
 
         describe("Rejection scenarios", function () {
@@ -277,11 +279,6 @@ describe("SaplingPool", function() {
             it ("Unstaking an amount greater than unstakable should fail", async function () {     
                 let amountUnstakable = await poolContract.amountUnstakable();   
                 await expect(poolContract.connect(manager).unstake(amountUnstakable.add(1))).to.be.reverted;
-            });
-
-            it ("Unstaking when lending is paused should fail", async function () {
-                await poolContract.connect(manager).pauseLending();
-                await expect(poolContract.connect(manager).unstake(unstakeAmount)).to.be.reverted;
             });
 
             it ("Unstaking when the pool is paused should fail", async function () {            
@@ -304,7 +301,8 @@ describe("SaplingPool", function() {
             it ("Unstaking as a borrower should fail", async function () {
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration)
+                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+
 
                 await expect(poolContract.connect(borrower1).unstake(unstakeAmount)).to.be.reverted;
             });
@@ -333,10 +331,6 @@ describe("SaplingPool", function() {
                 expect(await poolContract.amountDepositable()).to.equal(calculatedDepositable);
             });
     
-            it("Amount depositable is zero when lending is paused", async function () {
-                await poolContract.connect(manager).pauseLending();
-                expect(await poolContract.amountDepositable()).to.equal(0);
-            });
 
             it("Amount depositable is zero when pool is paused", async function () {
                 await poolContract.connect(governance).pause();
@@ -367,13 +361,6 @@ describe("SaplingPool", function() {
             expect(await poolContract.balanceOf(lender1.address)).to.equal(depositAmount);
 
             expect(await tokenContract.balanceOf(lender1.address)).to.equal(balanceBefore.sub(depositAmount));
-        });
-
-        it("Lender that has deposited is valid lender but not a valid borrower", async function () {
-            await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
-            await poolContract.connect(lender1).deposit(depositAmount);
-            expect(await poolContract.isValidLender(lender1.address)).to.equal(true);
-            expect(await poolContract.isValidBorrower(lender1.address)).to.equal(false);
         });
 
         it("Deposit is reflected on the pool contract balance", async function () {
@@ -423,12 +410,6 @@ describe("SaplingPool", function() {
                 await expect(poolContract.connect(lender1).deposit(amountDepositable.add(1))).to.be.reverted;
             });
 
-            it ("Depositing when lending is paused should fail", async function () {
-                await poolContract.connect(manager).pauseLending();
-                await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
-                await expect(poolContract.connect(lender1).deposit(depositAmount)).to.be.reverted;
-            });
-
             it ("Depositing when the pool is paused should fail", async function () {            
                 await poolContract.connect(governance).pause();
                 await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
@@ -457,15 +438,6 @@ describe("SaplingPool", function() {
                 await tokenContract.connect(governance).approve(poolContract.address, depositAmount);
                 await expect(poolContract.connect(governance).deposit(depositAmount)).to.be.reverted;
             });
-
-            it ("Depositing as a borrower should fail", async function () {
-                let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
-                let loanDuration = BigNumber.from(365).mul(24*60*60);
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration)
-
-                await tokenContract.connect(borrower1).approve(poolContract.address, depositAmount);
-                await expect(poolContract.connect(borrower1).deposit(depositAmount)).to.be.reverted;
-            });
         });
     });
 
@@ -474,7 +446,8 @@ describe("SaplingPool", function() {
         let stakeAmount;
         let depositAmount;
         let withdrawAmount;
-        let EARLY_EXIT_COOLDOWN;
+        let exitFeePercent;
+        let ONE_HUNDRED_PERCENT;
 
         beforeEach(async function () {
             stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
@@ -487,38 +460,35 @@ describe("SaplingPool", function() {
             await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
             await poolContract.connect(lender1).deposit(depositAmount);
 
-            EARLY_EXIT_COOLDOWN = await poolContract.EARLY_EXIT_COOLDOWN();
+            exitFeePercent = await poolContract.exitFeePercent();
+            ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
         });
 
         it("Lender can withdraw", async function () {
             let tokenBalanceBefore = await tokenContract.balanceOf(lender1.address);
             let poolBalanceBefore = await poolContract.balanceOf(lender1.address);
 
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
+            let exitFee = withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
+            let exitFeeGain = exitFee.mul(depositAmount.sub(withdrawAmount)).div(stakeAmount.add(depositAmount.sub(withdrawAmount)));
 
             await poolContract.connect(lender1).withdraw(withdrawAmount);
-            expect(await poolContract.balanceOf(lender1.address)).to.equal(poolBalanceBefore.sub(withdrawAmount));
+            expect(await poolContract.balanceOf(lender1.address)).to.equal(poolBalanceBefore.sub(withdrawAmount).add(exitFeeGain));
 
-            expect(await tokenContract.balanceOf(lender1.address)).to.equal(tokenBalanceBefore.add(withdrawAmount));
+            expect(await tokenContract.balanceOf(lender1.address)).to.equal(tokenBalanceBefore.add(withdrawAmount).sub(exitFee));
         });
 
         it("Withdraw is reflected on the pool contract balance", async function () {
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
 
             let prevBalance = await tokenContract.balanceOf(poolContract.address);
 
             await poolContract.connect(lender1).withdraw(withdrawAmount);
 
             let balance = await tokenContract.balanceOf(poolContract.address);
-            expect(balance).to.equal(prevBalance.sub(withdrawAmount))
+            expect(balance).to.equal(prevBalance.sub(withdrawAmount).add(withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)))
                 .and.equal(await poolContract.tokenBalance());
         });
 
         it("Withdraw is reflected on pool liquidity", async function () {
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
 
             let prevLiquidity = await poolContract.poolLiquidity();
 
@@ -526,59 +496,27 @@ describe("SaplingPool", function() {
 
             let liquidity = await poolContract.poolLiquidity();
 
-            expect(liquidity).to.equal(prevLiquidity.sub(withdrawAmount));
+            expect(liquidity).to.equal(prevLiquidity.sub(withdrawAmount).add(withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)));
         });
 
         it("Withdraw is reflected on pool funds", async function () {
-            await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            await ethers.provider.send('evm_mine');
-
             let prevPoolFunds = await poolContract.poolFunds();
 
             await poolContract.connect(lender1).withdraw(withdrawAmount);
 
             let poolFunds = await poolContract.poolFunds();
 
-            expect(poolFunds).to.equal(prevPoolFunds.sub(withdrawAmount));
+            expect(poolFunds).to.equal(prevPoolFunds.sub(withdrawAmount).add(withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)));
         });
 
         it("Early Withdraw should charge an exit fee", async function () {
             let tokenBalanceBefore = await tokenContract.balanceOf(lender1.address);
-            let exitFeePercent = await poolContract.exitFeePercent();
-            let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
 
             let expectedWithdrawalFee = withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
 
             await poolContract.connect(lender1).withdraw(withdrawAmount);
 
             expect(await tokenContract.balanceOf(lender1.address)).to.equal(tokenBalanceBefore.add(withdrawAmount.sub(expectedWithdrawalFee)));
-        });
-
-        describe("Withdrawal with a liquidity request", function () {
-            let liquidityRequestAmount;
-            beforeEach(async function () {
-                liquidityRequestAmount = withdrawAmount.div(2);
-                await poolContract.connect(lender1).requestLiquidity(liquidityRequestAmount);
-                await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-                await ethers.provider.send('evm_mine');
-            });
-
-            it("Withdrawing full requested amount sets the allocated liquidity amount to zero", async function () {
-                await poolContract.connect(lender1).withdraw(liquidityRequestAmount);
-                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(0);
-            });
-
-            it("Withdrawing more than the requested amount sets the allocated liquidity amount to zero", async function () {
-                await poolContract.connect(lender1).withdraw(withdrawAmount);
-                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(0);
-            });
-
-            it("Withdrawing less than the requested amount updates the allocated liquidity amount", async function () {
-                let allocatedLiquidityBefore = await poolContract.requestedLiquidity(lender1.address);
-                let amount = liquidityRequestAmount.div(2);
-                await poolContract.connect(lender1).withdraw(amount);
-                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(allocatedLiquidityBefore.sub(amount));
-            });
         });
 
         describe("Rejection scenarios", function () {
@@ -593,14 +531,17 @@ describe("SaplingPool", function() {
             });
 
             it ("Withdrawing an amount greater than available should fail", async function () {   
+                let gracePeriod = await loanDesk.templateLoanGracePeriod();
+                let installments = 1;
+                let apr = await loanDesk.templateLoanAPR();
+                let lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
                 let loanAmount = BigNumber.from(5000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
 
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-                let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
-
-                await poolContract.connect(manager).approveLoan(loanId);
-                await poolContract.connect(borrower1).borrow(loanId);
+                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                let otherApplicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+                await loanDesk.connect(manager).offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+                await poolContract.connect(borrower1).borrow(otherApplicationId);
 
                 let amountWithdrawable = await poolContract.amountWithdrawable(lender1.address);
 
@@ -618,28 +559,37 @@ describe("SaplingPool", function() {
             });
 
             it ("Withdrawing as a borrower should fail", async function () {
+                let gracePeriod = await loanDesk.templateLoanGracePeriod();
+                let installments = 1;
+                let apr = await loanDesk.templateLoanAPR();
+                let lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-                let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
+                await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                await loanDesk.connect(manager).offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
 
-                await poolContract.connect(manager).approveLoan(loanId);
-
-                await expect(poolContract.connect(borrower1).withdraw(loanAmount)).to.be.reverted;
+                await expect(poolContract.connect(borrower2).withdraw(loanAmount)).to.be.reverted;
             });
         });
 
         describe("Protocol fees", function () {
             beforeEach(async function () {
+                let gracePeriod = await loanDesk.templateLoanGracePeriod();
+                let installments = 1;
+                let apr = await loanDesk.templateLoanAPR();
+                let lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
+
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                
-                let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-                loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
-                await poolContract.connect(manager).approveLoan(loanId);
-                await poolContract.connect(borrower1).borrow(loanId);
+
+                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+                await loanDesk.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+                await poolContract.connect(borrower1).borrow(applicationId);
+                let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
     
-                await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
+                await ethers.provider.send('evm_increaseTime', [loanDuration.toNumber()]);
                 await ethers.provider.send('evm_mine');
     
                 let paymentAmount = await poolContract.loanBalanceDue(loanId);
@@ -679,8 +629,6 @@ describe("SaplingPool", function() {
             });
 
             it("Protocol fee withdrawal is reflected on the pool contract balance", async function () {
-                await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-                await ethers.provider.send('evm_mine');
     
                 let prevBalance = await tokenContract.balanceOf(poolContract.address);
 
@@ -693,9 +641,6 @@ describe("SaplingPool", function() {
             });
     
             it("Protocol fee withdrawal is not reflected on pool liquidity", async function () {
-                await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-                await ethers.provider.send('evm_mine');
-    
                 let prevLiquidity = await poolContract.poolLiquidity();
 
                 await poolContract.connect(protocol).withdrawProtocolEarnings();
@@ -706,9 +651,6 @@ describe("SaplingPool", function() {
             });
     
             it("Protocol fee withdrawal is not reflected on pool funds", async function () {
-                await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-                await ethers.provider.send('evm_mine');
-    
                 let prevPoolFunds = await poolContract.poolFunds();
     
                 let withdrawAmount = await poolContract.protocolEarningsOf(manager.address);
@@ -733,72 +675,6 @@ describe("SaplingPool", function() {
                 });
             });
         });
-
-        describe("Withdrawal requests", function () {
-            beforeEach(async function () {
-                let loanAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
-                let loanDuration = BigNumber.from(365).mul(24*60*60);
-                
-                let requestLoanTx = await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-                loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
-                await poolContract.connect(manager).approveLoan(loanId);
-                await poolContract.connect(borrower1).borrow(loanId);
-            });
-    
-            it("Lender can request liquidity for withdrawal allocation", async function () {
-                let prevTotalRequestedLiquidity = await poolContract.totalRequestedLiquidity();
-                let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
-
-                await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
-    
-                expect(await poolContract.totalRequestedLiquidity()).to.equal(prevTotalRequestedLiquidity.add(withdrawAmount));
-                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(prevRequestedLiquidity.add(withdrawAmount));
-            });
-
-            it("Lender can cancel requested liquidity", async function () {
-                await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
-
-                let prevTotalRequestedLiquidity = await poolContract.totalRequestedLiquidity();
-                let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
-                let cancelAmount = prevRequestedLiquidity.div(2);
-
-                await poolContract.connect(lender1).cancelLiquidityRequest(cancelAmount);
-    
-                expect(await poolContract.totalRequestedLiquidity()).to.equal(prevTotalRequestedLiquidity.sub(cancelAmount));
-                expect(await poolContract.requestedLiquidity(lender1.address)).to.equal(prevRequestedLiquidity.sub(cancelAmount));
-            });
-
-            describe("Rejection scenarios", function () {
-                it("Liquidity request with a zero amount should fail", async function () {
-                    await expect(poolContract.connect(lender1).requestLiquidity(0)).to.be.reverted;
-                });
-
-                it("Liquidity request with an amount greater than the lender's balance should fail", async function () {
-                    let balance = await poolContract.balanceOf(lender1.address);
-                    await expect(poolContract.connect(lender1).requestLiquidity(balance.add(1))).to.be.reverted;
-                });
-
-                it("Liquidity request with a cumulative amount greater than the lender's balance should fail", async function () {
-                    await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
-
-                    let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
-                    let balance = await poolContract.balanceOf(lender1.address);
-
-                    await expect(poolContract.connect(lender1).requestLiquidity(balance.sub(prevRequestedLiquidity).add(1))).to.be.reverted;
-                });
-    
-                it("Liquidity request cancellation with a zero amount should fail", async function () {
-                    await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
-                    await expect(poolContract.connect(lender1).cancelLiquidityRequest(0)).to.be.reverted;
-                });
-
-                it("Liquidity request cancellation with an amount greater than requested should fail", async function () {
-                    await poolContract.connect(lender1).requestLiquidity(withdrawAmount);
-                    let prevRequestedLiquidity = await poolContract.requestedLiquidity(lender1.address);
-                    await expect(poolContract.connect(lender1).cancelLiquidityRequest(prevRequestedLiquidity.add(1))).to.be.reverted;
-                });
-            });
-        });
     });
 
     describe("Projected APY", function () {
@@ -819,17 +695,24 @@ describe("SaplingPool", function() {
 
             loanAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
             let loanDuration = BigNumber.from(365).mul(24*60*60);
-            await poolContract.connect(borrower1).requestLoan(loanAmount, loanDuration);
-            let loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
 
-            await poolContract.connect(manager).approveLoan(loanId);
-            await poolContract.connect(borrower1).borrow(loanId);
+            await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+            let application = await loanDesk.loanApplications(applicationId);
+
+            let gracePeriod = await loanDesk.templateLoanGracePeriod();
+            let installments = 1;
+            let apr = await loanDesk.templateLoanAPR();
+            let lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
+
+            await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
+            await poolContract.connect(borrower1).borrow(applicationId);
 
             poolFunds = stakeAmount.add(depositAmount);
         });
 
         it("Can view lender APY given current pool state", async function () {
-            let apr = await poolContract.templateLoanAPR();
+            let apr = await loanDesk.templateLoanAPR();
             let protocolEarningPercent = await poolContract.protocolEarningPercent();
             let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
             let managersEarnFactor = await poolContract.managerEarnFactor();
@@ -854,7 +737,7 @@ describe("SaplingPool", function() {
         });
 
         it("Can view projected lender APY", async function () {
-            let apr = await poolContract.templateLoanAPR();
+            let apr = await loanDesk.templateLoanAPR();
             let protocolEarningPercent = await poolContract.protocolEarningPercent();
             let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
             let managersEarnFactor = await poolContract.managerEarnFactor();
@@ -880,7 +763,7 @@ describe("SaplingPool", function() {
         });
 
         it("Increase in borrow rate is linearly reflected on projected lender APY within margin of integer math accuracy", async function () {
-            let apr = await poolContract.templateLoanAPR();
+            let apr = await loanDesk.templateLoanAPR();
             let protocolEarningPercent = await poolContract.protocolEarningPercent();
             let ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
             let managersEarnFactor = await poolContract.managerEarnFactor();
