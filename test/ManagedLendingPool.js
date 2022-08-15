@@ -118,10 +118,6 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 .and.lte(maxValue);
         });
 
-        it("Early exit period is correct", async function () {
-            expect(await poolContract.EARLY_EXIT_COOLDOWN()).to.equal(90*24*60*60);
-        });
-
         it("Early exit fee is correct", async function () {
             expect(await poolContract.exitFeePercent()).to.equal(0.5*10**PERCENT_DECIMALS);
         });

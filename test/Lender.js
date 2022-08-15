@@ -536,8 +536,7 @@ describe("Lender (SaplingPool)", function() {
             describe("Cancelling a loan on inactive manager", function () {
                 beforeEach(async function () {
                     let inactivityPeriod = await poolContract.MANAGER_INACTIVITY_GRACE_PERIOD();
-                    let earlyExitCooldown = await poolContract.EARLY_EXIT_COOLDOWN();
-                    let skipTime = Math.max(inactivityPeriod, earlyExitCooldown) + 1;
+                    let skipTime = Math.max(inactivityPeriod, 0) + 1;
     
                     let depositAmount = BigNumber.from(1).mul(TOKEN_MULTIPLIER).div(2);
                     await tokenContract.connect(lender2).approve(poolContract.address, depositAmount);
@@ -1116,8 +1115,7 @@ describe("Lender (SaplingPool)", function() {
                 describe("Defaulting a loan on inactive manager", function () {
                     beforeEach(async function () {
                         let inactivityPeriod = await poolContract.MANAGER_INACTIVITY_GRACE_PERIOD();
-                        let earlyExitCooldown = await poolContract.EARLY_EXIT_COOLDOWN();
-                        let skipTime = Math.max(inactivityPeriod, earlyExitCooldown) + 1;
+                        let skipTime = Math.max(inactivityPeriod, 0) + 1;
     
                         let depositAmount = BigNumber.from(1).mul(TOKEN_MULTIPLIER).div(2);
                         await tokenContract.connect(lender2).approve(poolContract.address, depositAmount);
@@ -1126,6 +1124,7 @@ describe("Lender (SaplingPool)", function() {
                         await ethers.provider.send('evm_increaseTime', [skipTime]);
                         await ethers.provider.send('evm_mine');
                     });
+
                     it ("Protocol can default", async function () {
                         expect(await poolContract.canDefault(loanId, protocol.address)).to.equal(true);
                         await expect(poolContract.connect(protocol).defaultLoan(loanId)).to.be.ok;

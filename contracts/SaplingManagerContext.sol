@@ -15,7 +15,7 @@ abstract contract SaplingManagerContext is SaplingContext, ReentrancyGuard {
 
     /**
      * @notice Grace period for the manager to be inactive on a given loan /cancel/default decision. 
-     *         After this grace period of managers inaction on a given loan, lenders who stayed longer than EARLY_EXIT_COOLDOWN 
+     *         After this grace period of managers inaction on a given loan authorised parties
      *         can also call cancel() and default(). Other requirements for loan cancellation/default still apply.
      */
     uint256 public constant MANAGER_INACTIVITY_GRACE_PERIOD = 90 days;

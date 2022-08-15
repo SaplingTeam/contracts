@@ -192,7 +192,6 @@ describe("SaplingPool", function() {
         let stakeAmount;
         let unstakeAmount;
         let depositAmount;
-        // let EARLY_EXIT_COOLDOWN;
         let exitFeePercent;
         let ONE_HUNDRED_PERCENT;
 
@@ -207,17 +206,12 @@ describe("SaplingPool", function() {
             await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
             await poolContract.connect(lender1).deposit(depositAmount);
 
-            // EARLY_EXIT_COOLDOWN = await poolContract.EARLY_EXIT_COOLDOWN();
-
             exitFeePercent = await poolContract.exitFeePercent();
             ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
         });
 
         it("Manager can unstake", async function () {
             let balanceBefore = await tokenContract.balanceOf(manager.address);
-
-            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            // await ethers.provider.send('evm_mine');
 
             let exitFee = unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
             let exitFeeGain = exitFee.mul(stakeAmount.sub(unstakeAmount)).div(depositAmount.add(stakeAmount.sub(unstakeAmount)));
@@ -243,8 +237,6 @@ describe("SaplingPool", function() {
         });
 
         it("Unstaking is reflected on the pool contract balance", async function () {
-            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            // await ethers.provider.send('evm_mine');
 
             let prevBalance = await tokenContract.balanceOf(poolContract.address);
 
@@ -257,8 +249,6 @@ describe("SaplingPool", function() {
         });
 
         it("Unstaking is reflected on pool liquidity", async function () {
-            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            // await ethers.provider.send('evm_mine');
 
             let prevLiquidity = await poolContract.poolLiquidity();
 
@@ -270,8 +260,6 @@ describe("SaplingPool", function() {
         });
 
         it("Unstaking is reflected on pool funds", async function () {
-            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            // await ethers.provider.send('evm_mine');
 
             let prevPoolFunds = await poolContract.poolFunds();
 
@@ -458,7 +446,6 @@ describe("SaplingPool", function() {
         let stakeAmount;
         let depositAmount;
         let withdrawAmount;
-        // let EARLY_EXIT_COOLDOWN;
         let exitFeePercent;
         let ONE_HUNDRED_PERCENT;
 
@@ -473,8 +460,6 @@ describe("SaplingPool", function() {
             await tokenContract.connect(lender1).approve(poolContract.address, depositAmount);
             await poolContract.connect(lender1).deposit(depositAmount);
 
-            // EARLY_EXIT_COOLDOWN = await poolContract.EARLY_EXIT_COOLDOWN();
-
             exitFeePercent = await poolContract.exitFeePercent();
             ONE_HUNDRED_PERCENT = await poolContract.ONE_HUNDRED_PERCENT();
         });
@@ -482,9 +467,6 @@ describe("SaplingPool", function() {
         it("Lender can withdraw", async function () {
             let tokenBalanceBefore = await tokenContract.balanceOf(lender1.address);
             let poolBalanceBefore = await poolContract.balanceOf(lender1.address);
-
-            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            // await ethers.provider.send('evm_mine');
 
             let exitFee = withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
             let exitFeeGain = exitFee.mul(depositAmount.sub(withdrawAmount)).div(stakeAmount.add(depositAmount.sub(withdrawAmount)));
@@ -496,8 +478,6 @@ describe("SaplingPool", function() {
         });
 
         it("Withdraw is reflected on the pool contract balance", async function () {
-            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            // await ethers.provider.send('evm_mine');
 
             let prevBalance = await tokenContract.balanceOf(poolContract.address);
 
@@ -509,8 +489,6 @@ describe("SaplingPool", function() {
         });
 
         it("Withdraw is reflected on pool liquidity", async function () {
-            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            // await ethers.provider.send('evm_mine');
 
             let prevLiquidity = await poolContract.poolLiquidity();
 
@@ -522,9 +500,6 @@ describe("SaplingPool", function() {
         });
 
         it("Withdraw is reflected on pool funds", async function () {
-            // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-            // await ethers.provider.send('evm_mine');
-
             let prevPoolFunds = await poolContract.poolFunds();
 
             await poolContract.connect(lender1).withdraw(withdrawAmount);
@@ -654,8 +629,6 @@ describe("SaplingPool", function() {
             });
 
             it("Protocol fee withdrawal is reflected on the pool contract balance", async function () {
-                // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-                // await ethers.provider.send('evm_mine');
     
                 let prevBalance = await tokenContract.balanceOf(poolContract.address);
 
@@ -668,9 +641,6 @@ describe("SaplingPool", function() {
             });
     
             it("Protocol fee withdrawal is not reflected on pool liquidity", async function () {
-                // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-                // await ethers.provider.send('evm_mine');
-    
                 let prevLiquidity = await poolContract.poolLiquidity();
 
                 await poolContract.connect(protocol).withdrawProtocolEarnings();
@@ -681,9 +651,6 @@ describe("SaplingPool", function() {
             });
     
             it("Protocol fee withdrawal is not reflected on pool funds", async function () {
-                // await ethers.provider.send('evm_increaseTime', [EARLY_EXIT_COOLDOWN.toNumber()]);
-                // await ethers.provider.send('evm_mine');
-    
                 let prevPoolFunds = await poolContract.poolFunds();
     
                 let withdrawAmount = await poolContract.protocolEarningsOf(manager.address);
