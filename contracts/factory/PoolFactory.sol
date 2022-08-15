@@ -5,12 +5,16 @@ import "../context/SaplingContext.sol";
 import "../PoolToken.sol";
 import "../SaplingLendingPool.sol";
 import "../LoanDesk.sol";
+import "../interfaces/IVerificationHub.sol";
 
 contract PoolFactory is SaplingContext {
 
+    address private verificationHub;
+
     event PoolCreated(address pool);
 
-    constructor(address _governance, address _protocol) SaplingContext(_governance, _protocol) {
+    constructor(address _verificationHub, address _governance, address _protocol) SaplingContext(_governance, _protocol) {
+        verificationHub = _verificationHub;
     }
 
     function create(string memory name, string memory symbol, address manager, address liquidityToken) external onlyGovernance {
@@ -25,6 +29,7 @@ contract PoolFactory is SaplingContext {
 
         pool.transferGovernance(governance);
 
+        IVerificationHub(verificationHub).registerSaplingPool(poolAddress);
         emit PoolCreated(poolAddress);
     }
 }

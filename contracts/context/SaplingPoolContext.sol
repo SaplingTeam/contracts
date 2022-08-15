@@ -5,10 +5,11 @@ pragma solidity ^0.8.15;
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/IPoolToken.sol";
+import "../interfaces/ILender.sol";
 import "./SaplingManagerContext.sol";
 import "./SaplingMathContext.sol";
 
-abstract contract SaplingPoolContext is SaplingManagerContext, SaplingMathContext {
+abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingMathContext {
 
     using SafeMath for uint256;
 
@@ -203,7 +204,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, SaplingMathContex
      *      Caller must not be any of: manager, protocol, current borrower.
      * @param amount Token amount to deposit.
      */
-    function deposit(uint256 amount) external onlyUser whenNotClosed whenNotPaused {
+    function deposit(uint256 amount) external override onlyUser whenNotClosed whenNotPaused {
         enterPool(amount);
     }
 
@@ -213,7 +214,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, SaplingMathContex
      *      Caller must not be any of: manager, protocol, current borrower.
      * @param amount token amount to withdraw.
      */
-    function withdraw(uint256 amount) external whenNotPaused {
+    function withdraw(uint256 amount) external override whenNotPaused {
         require(msg.sender != manager);
         exitPool(amount);
     }
@@ -293,7 +294,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, SaplingMathContex
      * @param wallet Address of the wallet to check the balance of.
      * @return Token balance of the wallet in this pool.
      */
-    function balanceOf(address wallet) public view returns (uint256) {
+    function balanceOf(address wallet) public view override returns (uint256) {
         return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet));
     }
 
@@ -349,6 +350,16 @@ abstract contract SaplingPoolContext is SaplingManagerContext, SaplingMathContex
     function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view returns (uint16) {
         require(strategyRate <= ONE_HUNDRED_PERCENT, "SaplingPool: Invalid borrow rate. Borrow rate must be less than or equal to 100%");
         return lenderAPY(Math.mulDiv(poolFunds, strategyRate, ONE_HUNDRED_PERCENT), _avgStrategyAPR);
+    }
+
+    function strategyLiquidity() public view returns (uint256) {
+        uint256 lenderAllocatedLiquidity = Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT);
+        
+        if (poolLiquidity <= lenderAllocatedLiquidity) {
+            return 0;
+        }
+
+        return poolLiquidity.sub(lenderAllocatedLiquidity);
     }
 
     function getNextStrategyId() internal returns (uint256) {

@@ -28,8 +28,14 @@ describe("Governed (SaplingPool)", function() {
 
         currentGovernance = governance1;
 
+        let VerificationHub = await ethers.getContractFactory("VerificationHub");
+        let verificationHubContract = await VerificationHub.deploy(manager.address, protocol.address);
+
         let PoolFactory = await ethers.getContractFactory("PoolFactory");
-        let poolFactory = await PoolFactory.deploy(currentGovernance.address, protocol.address);
+        let poolFactory = await PoolFactory.deploy(verificationHubContract.address, currentGovernance.address, protocol.address);
+
+        await verificationHubContract.setPoolFactory(poolFactory.address);
+        await verificationHubContract.transferGovernance(currentGovernance.address);
 
         let poolContractTx = await (await poolFactory.connect(currentGovernance).create("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
         let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];

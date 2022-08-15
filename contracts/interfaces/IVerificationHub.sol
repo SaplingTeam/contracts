@@ -12,8 +12,11 @@ interface IVerificationHub {
 
     function unverify(address party) external;
 
+    function registerSaplingPool(address pool) external;
+
     function isBadActor(address party) external view returns (bool);
 
     function isVerified(address party) external view returns (bool);
 
+    function isSaplingPool(address party) external view returns (bool);
 }   

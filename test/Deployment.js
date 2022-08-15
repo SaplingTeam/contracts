@@ -6,7 +6,6 @@ describe("Contract Deployment", function() {
 
     let SaplingPool;
     let poolContract;
-    let poolTokenContract;
     let liquidityTokenContract;
     let TOKEN_MULTIPLIER;
 

@@ -38,8 +38,14 @@ describe("ManagedLendingPool (SaplingPool)", function() {
         await tokenContract.connect(manager).mint(addrs[0].address, mintAmount);
         await tokenContract.connect(manager).mint(addrs[1].address, mintAmount);
 
+        let VerificationHub = await ethers.getContractFactory("VerificationHub");
+        let verificationHubContract = await VerificationHub.deploy(manager.address, protocol.address);
+
         let PoolFactory = await ethers.getContractFactory("PoolFactory");
-        let poolFactory = await PoolFactory.deploy(governance.address, protocol.address);
+        let poolFactory = await PoolFactory.deploy(verificationHubContract.address, governance.address, protocol.address);
+
+        await verificationHubContract.setPoolFactory(poolFactory.address);
+        await verificationHubContract.transferGovernance(governance.address);
 
         let poolContractTx = await (await poolFactory.connect(governance).create("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
         let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];

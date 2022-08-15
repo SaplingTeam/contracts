@@ -5,7 +5,7 @@ pragma solidity ^0.8.15;
 import "./context/SaplingManagerContext.sol";
 import "./context/SaplingMathContext.sol";
 import "./interfaces/ILoanDeskHook.sol";
-import "./interfaces/ILenderHook.sol";
+import "./interfaces/ILendingPoolHook.sol";
 
 /**
  * @title SaplingPool Lender
@@ -330,8 +330,8 @@ contract LoanDesk is ILoanDeskHook, SaplingManagerContext, SaplingMathContext {
 
         LoanApplication storage app = loanApplications[appId];
 
-        require(ILenderHook(pool).canOffer(offeredFunds.add(_amount)), "Sapling: lending pool cannot offer this loan at this time");
-        ILenderHook(pool).onOffer(_amount);
+        require(ILendingPoolHook(pool).canOffer(offeredFunds.add(_amount)), "Sapling: lending pool cannot offer this loan at this time");
+        ILendingPoolHook(pool).onOffer(_amount);
 
         loanOffers[appId] = LoanOffer({
             applicationId: appId,
@@ -381,8 +381,8 @@ contract LoanDesk is ILoanDeskHook, SaplingManagerContext, SaplingMathContext {
         if (offer.amount != _amount) {
             uint256 nextOfferedFunds = offeredFunds.sub(offer.amount).add(_amount);
             
-            require(ILenderHook(pool).canOffer(nextOfferedFunds), "Sapling: lending pool cannot offer this loan at this time");
-            ILenderHook(pool).onOfferUpdate(offer.amount, _amount);
+            require(ILendingPoolHook(pool).canOffer(nextOfferedFunds), "Sapling: lending pool cannot offer this loan at this time");
+            ILendingPoolHook(pool).onOfferUpdate(offer.amount, _amount);
 
             offeredFunds = nextOfferedFunds;
         }
