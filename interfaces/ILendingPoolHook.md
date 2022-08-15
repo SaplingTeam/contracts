@@ -1,6 +1,6 @@
 # Solidity API
 
-## ILenderHook
+## ILendingPoolHook
 
 ### canOffer
 

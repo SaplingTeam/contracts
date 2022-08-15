@@ -2,16 +2,56 @@
 
 ## SaplingProtocolPool
 
+### Investment
+
+```solidity
+struct Investment {
+  address pool;
+  uint256 totalAmount;
+  uint256 outstandingAmount;
+  uint256 baseAmountRecovered;
+  uint256 yieldRecovered;
+  uint256 createdTime;
+  uint256 lastInvestedTime;
+  uint256 lastCollectedTime;
+}
+```
+
+### verificationHub
+
+```solidity
+address verificationHub
+```
+
+### investments
+
+```solidity
+mapping(address => struct SaplingProtocolPool.Investment) investments
+```
+
+### NewInvestment
+
+```solidity
+event NewInvestment(address toPool, uint256 liquidityTokenAmount)
+```
+
+### YieldCollected
+
+```solidity
+event YieldCollected(address fromPool, uint256 liquidityTokenAmount)
+```
+
 ### constructor
 
 ```solidity
-constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) public
+constructor(address _verificationHub, address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) public
 ```
 
 Creates a Sapling pool.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
+| _verificationHub | address |  |
 | _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
 | _liquidityToken | address | ERC20 token contract address to be used as main pool liquid currency. |
 | _governance | address | Address of the protocol governance. |
@@ -24,15 +64,21 @@ Creates a Sapling pool.
 function invest(address lendingPool, uint256 liquidityTokenAmount) external
 ```
 
-### poolCanLend
+### collectYield
 
 ```solidity
-function poolCanLend() public view returns (bool)
+function collectYield(address pool, uint256 amount) external
 ```
 
-Check if the pool can lend based on the current stake levels.
+### collectInvestment
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | bool | True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise. |
+```solidity
+function collectInvestment(address pool, uint256 amount) external
+```
+
+### poolYieldBalanceOn
+
+```solidity
+function poolYieldBalanceOn(address pool) public view returns (uint256)
+```
 

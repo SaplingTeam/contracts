@@ -1,6 +1,6 @@
 # Solidity API
 
-## SaplingPool
+## SaplingLendingPool
 
 ### LoanStatus
 
@@ -28,7 +28,7 @@ struct Loan {
   uint16 apr;
   uint16 lateAPRDelta;
   uint256 borrowedTime;
-  enum SaplingPool.LoanStatus status;
+  enum SaplingLendingPool.LoanStatus status;
 }
 ```
 
@@ -69,7 +69,7 @@ address loanDesk
 ### loans
 
 ```solidity
-mapping(uint256 => struct SaplingPool.Loan) loans
+mapping(uint256 => struct SaplingLendingPool.Loan) loans
 ```
 
 Loans by loanId
@@ -77,13 +77,13 @@ Loans by loanId
 ### loanDetails
 
 ```solidity
-mapping(uint256 => struct SaplingPool.LoanDetail) loanDetails
+mapping(uint256 => struct SaplingLendingPool.LoanDetail) loanDetails
 ```
 
 ### borrowerStats
 
 ```solidity
-mapping(address => struct SaplingPool.BorrowerStats) borrowerStats
+mapping(address => struct SaplingLendingPool.BorrowerStats) borrowerStats
 ```
 
 Borrower statistics by address
@@ -115,7 +115,7 @@ event LoanDefaulted(uint256 loanId, address borrower, uint256 amountLost)
 ### loanInStatus
 
 ```solidity
-modifier loanInStatus(uint256 loanId, enum SaplingPool.LoanStatus status)
+modifier loanInStatus(uint256 loanId, enum SaplingLendingPool.LoanStatus status)
 ```
 
 ### onlyLoanDesk
@@ -329,12 +329,6 @@ Count of all loan requests in this pool.
 
 ```solidity
 function borrowedFunds() external view returns (uint256)
-```
-
-### lendingLiquidity
-
-```solidity
-function lendingLiquidity() public view returns (uint256)
 ```
 
 ### repayBase

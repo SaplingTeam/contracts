@@ -26,6 +26,12 @@ function verify(address party) external
 function unverify(address party) external
 ```
 
+### registerSaplingPool
+
+```solidity
+function registerSaplingPool(address pool) external
+```
+
 ### isBadActor
 
 ```solidity
@@ -36,5 +42,11 @@ function isBadActor(address party) external view returns (bool)
 
 ```solidity
 function isVerified(address party) external view returns (bool)
+```
+
+### isSaplingPool
+
+```solidity
+function isSaplingPool(address party) external view returns (bool)
 ```
 

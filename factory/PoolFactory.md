@@ -2,6 +2,12 @@
 
 ## PoolFactory
 
+### verificationHub
+
+```solidity
+address verificationHub
+```
+
 ### PoolCreated
 
 ```solidity
@@ -11,7 +17,7 @@ event PoolCreated(address pool)
 ### constructor
 
 ```solidity
-constructor(address _governance, address _protocol) public
+constructor(address _verificationHub, address _governance, address _protocol) public
 ```
 
 ### create

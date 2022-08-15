@@ -414,22 +414,6 @@ Check wallet's token balance in the pool. Balance includes acquired earnings.
 | ---- | ---- | ----------- |
 | [0] | uint256 | Token balance of the wallet in this pool. |
 
-### unlockedBalanceOf
-
-```solidity
-function unlockedBalanceOf(address wallet) public view returns (uint256)
-```
-
-Check wallet's unlocked token balance in the pool. Balance includes acquired earnings.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| wallet | address | Address of the wallet to check the unlocked balance of. |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Unlocked token balance of the wallet in this pool. |
-
 ### balanceStaked
 
 ```solidity
@@ -505,6 +489,12 @@ _represent borrowRate in contract specific percentage format_
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | uint16 | Projected lender APY |
+
+### strategyLiquidity
+
+```solidity
+function strategyLiquidity() public view returns (uint256)
+```
 
 ### getNextStrategyId
 
