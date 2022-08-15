@@ -105,7 +105,10 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
     /// Current amount of liquid tokens, available to lend/withdraw/borrow
     uint256 public poolLiquidity;
 
-    /// Total funds borrowed at this time, including both withdrawn and allocated for withdrawal.
+    //funds allocated for poll use cases such as loan offers
+    uint256 public allocatedFunds;
+
+    /// Total funds borrowed at this time
     uint256 public borrowedFunds;
 
     /// Total pool shares present
@@ -119,9 +122,6 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
 
     /// Target percentage of pool funds to keep liquid. 
     uint16 public targetLiquidityPercent;
-
-    /// Locked shares of wallets (i.e. staked shares) 
-    mapping(address => uint256) internal lockedShares;
 
     /// Protocol earnings of wallets
     mapping(address => uint256) internal protocolEarnings; 
@@ -176,6 +176,11 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
         require(loan.status == status, "Loan does not have a valid status for this operation.");
         _;
     }
+
+    modifier onlyLoanDesk() {
+        require(msg.sender == loanDesk, "Sapling: caller is not the LoanDesk");
+        _;
+    }
     
     /**
      * @notice Creates a Sapling pool.
@@ -225,6 +230,7 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
         nextLoanId = 1;
 
         poolLiquidity = 0;
+        allocatedFunds = 0;
         borrowedFunds = 0;
         loanFundsPendingWithdrawal = 0;
     }
@@ -347,8 +353,8 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
 
         borrowerStats[offer.borrower].recentLoanId = loanId;
 
-        poolLiquidity = poolLiquidity.sub(offer.amount);
         uint256 prevBorrowedFunds = borrowedFunds;
+        allocatedFunds = allocatedFunds.sub(offer.amount);
         borrowedFunds = borrowedFunds.add(offer.amount);
 
         weightedAvgLoanAPR = prevBorrowedFunds.mul(weightedAvgLoanAPR).add(offer.amount.mul(offer.apr)).div(borrowedFunds);
@@ -442,7 +448,6 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
 
                 //burn manager's shares
                 IPoolToken(poolToken).burn(address(this), stakedShareLoss);
-                lockedShares[manager] = lockedShares[manager].sub(stakedShareLoss);
                 totalPoolShares = totalPoolShares.sub(stakedShareLoss);
 
                 if (stakedShares == 0) {
@@ -551,6 +556,19 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
         managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
     }
 
+    function onOffer(uint256 amount) external override onlyLoanDesk {
+        require(lendingLiquidity() >= amount, "Sapling: insufficient liquidity for this operation");
+        poolLiquidity = poolLiquidity.sub(amount);
+        allocatedFunds = allocatedFunds.add(amount);
+    }
+
+    function onOfferUpdate(uint256 prevAmount, uint256 amount) external onlyLoanDesk {
+        require(lendingLiquidity().add(prevAmount) >= amount, "Sapling: insufficient liquidity for this operation");
+
+        poolLiquidity = poolLiquidity.add(prevAmount).sub(amount);
+        allocatedFunds = allocatedFunds.sub(prevAmount).add(amount);
+    }
+
     /**
      * @notice Check token amount depositable by lenders at this time.
      * @dev Return value depends on the pool state rather than caller's balance.
@@ -595,11 +613,11 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
 
     /**
      * @notice View indicating whether or not a given loan can be offered by the manager.
-     * @param totalLoansAmount loanOfferAmount
+     * @param totalOfferedAmount loanOfferAmount
      * @return True if the given total loan amount can be offered, false otherwise
      */
-    function canOffer(uint256 totalLoansAmount) external view override returns (bool) {
-        return poolCanLend() && poolLiquidity >= totalLoansAmount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT);
+    function canOffer(uint256 totalOfferedAmount) external view override returns (bool) {
+        return poolCanLend() && lendingLiquidity().add(allocatedFunds) >= totalOfferedAmount;
     }
 
     /**
@@ -637,9 +655,9 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
      */
     function balanceOf(address wallet) public view returns (uint256) {
         if (wallet != manager) {
-            return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet) + lockedShares[wallet]);
+            return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet));
         } else {
-            return sharesToTokens(lockedShares[manager]);
+            return sharesToTokens(stakedShares);
         }
     }
 
@@ -682,6 +700,16 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
      */
     function poolCanLend() public view returns (bool) {
         return !(paused() || closed()) && stakedShares >= Math.mulDiv(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
+    }
+
+    function lendingLiquidity() public view returns (uint256) {
+        uint256 lenderAllocatedLiquidity = Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT);
+        
+        if (poolLiquidity <= lenderAllocatedLiquidity) {
+            return 0;
+        }
+
+        return poolLiquidity.sub(lenderAllocatedLiquidity);
     }
 
     /**
@@ -761,7 +789,6 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
             IPoolToken(poolToken).mint(msg.sender, shares);
         } else {
             IPoolToken(poolToken).mint(address(this), shares);
-            lockedShares[msg.sender] = lockedShares[msg.sender].add(shares);
         }
         
         totalPoolShares = totalPoolShares.add(shares);
@@ -783,14 +810,13 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
 
         uint256 shares = tokensToShares(amount);
 
-        require(msg.sender != manager && shares <= IERC20(poolToken).balanceOf(msg.sender) || shares <= lockedShares[msg.sender],
+        require(msg.sender != manager && shares <= IERC20(poolToken).balanceOf(msg.sender) || shares <= stakedShares,
             "SaplingPool: Insufficient balance for this operation.");
 
         // burn shares
         if (msg.sender != manager) {
             IPoolToken(poolToken).burn(msg.sender, shares);
         } else {
-            lockedShares[msg.sender] = lockedShares[msg.sender].sub(shares);
             IPoolToken(poolToken).burn(address(this), shares);
         }
 

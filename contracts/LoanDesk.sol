@@ -329,12 +329,8 @@ contract LoanDesk is ILoanDeskHook, SaplingManagerContext, SaplingMathContext {
 
         LoanApplication storage app = loanApplications[appId];
 
-        //FIXME
-        // require(poolLiquidity >= _amount + Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT), 
-        //     "SaplingPool: Pool liquidity is insufficient to approve this loan.");
-        // require(poolCanLend(), "SaplingPool: Stake amount is too low to approve new loans.");
-
         require(ILenderHook(pool).canOffer(offeredFunds.add(_amount)), "Sapling: lending pool cannot offer this loan at this time");
+        ILenderHook(pool).onOffer(_amount);
 
         loanOffers[appId] = LoanOffer({
             applicationId: appId,
@@ -382,7 +378,12 @@ contract LoanDesk is ILoanDeskHook, SaplingManagerContext, SaplingMathContext {
         LoanOffer memory offer = loanOffers[appId];
 
         if (offer.amount != _amount) {
-            offeredFunds = offeredFunds.sub(offer.amount).add(_amount);
+            uint256 nextOfferedFunds = offeredFunds.sub(offer.amount).add(_amount);
+            
+            require(ILenderHook(pool).canOffer(nextOfferedFunds), "Sapling: lending pool cannot offer this loan at this time");
+            ILenderHook(pool).onOfferUpdate(offer.amount, _amount);
+
+            offeredFunds = nextOfferedFunds;
         }
 
         offer.amount = _amount;
