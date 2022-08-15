@@ -128,13 +128,19 @@ uint256 poolLiquidity
 
 Current amount of liquid tokens, available to lend/withdraw/borrow
 
+### allocatedFunds
+
+```solidity
+uint256 allocatedFunds
+```
+
 ### borrowedFunds
 
 ```solidity
 uint256 borrowedFunds
 ```
 
-Total funds borrowed at this time, including both withdrawn and allocated for withdrawal.
+Total funds borrowed at this time
 
 ### totalPoolShares
 
@@ -167,14 +173,6 @@ uint16 targetLiquidityPercent
 ```
 
 Target percentage of pool funds to keep liquid.
-
-### lockedShares
-
-```solidity
-mapping(address => uint256) lockedShares
-```
-
-Locked shares of wallets (i.e. staked shares)
 
 ### protocolEarnings
 
@@ -325,6 +323,12 @@ event StakedAssetsDepleted()
 
 ```solidity
 modifier loanInStatus(uint256 loanId, enum SaplingPool.LoanStatus status)
+```
+
+### onlyLoanDesk
+
+```solidity
+modifier onlyLoanDesk()
 ```
 
 ### constructor
@@ -590,6 +594,18 @@ __managerEarnFactorMax must be inclusively between ONE_HUNDRED_PERCENT and manag
 | ---- | ---- | ----------- |
 | _managerEarnFactor | uint16 | new manager's earn factor. |
 
+### onOffer
+
+```solidity
+function onOffer(uint256 amount) external
+```
+
+### onOfferUpdate
+
+```solidity
+function onOfferUpdate(uint256 prevAmount, uint256 amount) external
+```
+
 ### amountDepositable
 
 ```solidity
@@ -655,14 +671,14 @@ _represent borrowRate in contract specific percentage format_
 ### canOffer
 
 ```solidity
-function canOffer(uint256 totalLoansAmount) external view returns (bool)
+function canOffer(uint256 totalOfferedAmount) external view returns (bool)
 ```
 
 View indicating whether or not a given loan can be offered by the manager.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| totalLoansAmount | uint256 | loanOfferAmount |
+| totalOfferedAmount | uint256 | loanOfferAmount |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -772,6 +788,12 @@ Check if the pool can lend based on the current stake levels.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | bool | True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise. |
+
+### lendingLiquidity
+
+```solidity
+function lendingLiquidity() public view returns (uint256)
+```
 
 ### lenderAPY
 
