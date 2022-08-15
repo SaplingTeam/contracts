@@ -285,7 +285,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, SaplingMathContex
      * @return Max amount of tokens withdrawable by msg.sender.
      */
     function amountWithdrawable(address wallet) external view returns (uint256) {
-        return paused() ? 0 : Math.min(poolLiquidity, unlockedBalanceOf(wallet));
+        return paused() ? 0 : Math.min(poolLiquidity, balanceOf(wallet));
     }
 
     /**
@@ -294,19 +294,6 @@ abstract contract SaplingPoolContext is SaplingManagerContext, SaplingMathContex
      * @return Token balance of the wallet in this pool.
      */
     function balanceOf(address wallet) public view returns (uint256) {
-        if (wallet != manager) {
-            return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet));
-        } else {
-            return sharesToTokens(stakedShares);
-        }
-    }
-
-    /**
-     * @notice Check wallet's unlocked token balance in the pool. Balance includes acquired earnings. 
-     * @param wallet Address of the wallet to check the unlocked balance of.
-     * @return Unlocked token balance of the wallet in this pool.
-     */
-    function unlockedBalanceOf(address wallet) public view returns (uint256) {
         return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet));
     }
 
@@ -315,7 +302,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, SaplingMathContex
      * @return Token balance of the manager's stake.
      */
     function balanceStaked() public view returns (uint256) {
-        return balanceOf(manager);
+        return sharesToTokens(stakedShares);
     }
 
         /**
