@@ -35,7 +35,7 @@ async function main() {
         value: ethers.utils.parseEther(MANAGER_ETH),
       });
 
-    let SaplingPool = await ethers.getContractFactory("SaplingPool");
+    let SaplingPool = await ethers.getContractFactory("SaplingLendingPool");
     let poolContract = await SaplingPool.connect(deployer).deploy(tokenContract.address, wallets[config.governanceAddressIndex].address, wallets[config.protocolAddressIndex].address, manager.address)
     console.log("Lending pool deployed at: %s", poolContract.address);
     console.log("Manager: %s", manager.address);

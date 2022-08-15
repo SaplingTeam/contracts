@@ -13,7 +13,7 @@ async function main() {
     PoolToken = await ethers.getContractFactory("PoolToken");
     poolTokenContract = await PoolToken.deploy("Sapling Lending Pool Token", "SLPT", DECIMALS);
 
-    SaplingPool = await ethers.getContractFactory("SaplingPool");
+    SaplingPool = await ethers.getContractFactory("SaplingLendingPool");
     saplingPoolContract = await SaplingPool.deploy(poolTokenContract.address, tokenContract.address, deployer.address, protocol.address, manager.address);
     
 

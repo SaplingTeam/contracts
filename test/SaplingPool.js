@@ -24,7 +24,7 @@ describe("SaplingPool", function() {
         [manager, protocol, governance, lender1, lender2, borrower1, borrower2, ...addrs] = await ethers.getSigners();
 
         TestUSDC = await ethers.getContractFactory("TestUSDC");
-        SaplingPool = await ethers.getContractFactory("SaplingPool");
+        SaplingPool = await ethers.getContractFactory("SaplingLendingPool");
         LoanDesk = await ethers.getContractFactory("LoanDesk");
 
         tokenContract = await TestUSDC.deploy();
@@ -39,8 +39,14 @@ describe("SaplingPool", function() {
         await tokenContract.connect(manager).mint(borrower1.address, mintAmount);
         await tokenContract.connect(manager).mint(borrower2.address, mintAmount);
 
+        let VerificationHub = await ethers.getContractFactory("VerificationHub");
+        let verificationHubContract = await VerificationHub.deploy(manager.address, protocol.address);
+
         let PoolFactory = await ethers.getContractFactory("PoolFactory");
-        let poolFactory = await PoolFactory.deploy(governance.address, protocol.address);
+        let poolFactory = await PoolFactory.deploy(verificationHubContract.address, governance.address, protocol.address);
+
+        await verificationHubContract.setPoolFactory(poolFactory.address);
+        await verificationHubContract.transferGovernance(governance.address);
 
         let poolContractTx = await (await poolFactory.connect(governance).create("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
         let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];

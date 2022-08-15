@@ -8,7 +8,7 @@ async function main() {
     console.log("Deploying contracts with the account:", deployer.address);
     console.log("Account balance:", (await deployer.getBalance()).toString());
 
-    SaplingPool = await ethers.getContractFactory("SaplingPool");
+    SaplingPool = await ethers.getContractFactory("SaplingLendingPool");
     poolContract = await SaplingPool.deploy(...arguments);
     console.log("SaplingPool address:", poolContract.address);
   }

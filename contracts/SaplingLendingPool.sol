@@ -4,12 +4,12 @@ pragma solidity ^0.8.15;
 
 import "./context/SaplingPoolContext.sol";
 import "./interfaces/ILoanDeskHook.sol";
-import "./interfaces/ILenderHook.sol";
+import "./interfaces/ILendingPoolHook.sol";
 
 /**
  * @title Sapling Lending Pool
  */
-contract SaplingPool is ILenderHook, SaplingPoolContext {
+contract SaplingLendingPool is ILendingPoolHook, SaplingPoolContext {
 
     using SafeMath for uint256;
 
@@ -302,13 +302,13 @@ contract SaplingPool is ILenderHook, SaplingPoolContext {
     }
 
     function onOffer(uint256 amount) external override onlyLoanDesk {
-        require(lendingLiquidity() >= amount, "Sapling: insufficient liquidity for this operation");
+        require(strategyLiquidity() >= amount, "Sapling: insufficient liquidity for this operation");
         poolLiquidity = poolLiquidity.sub(amount);
         allocatedFunds = allocatedFunds.add(amount);
     }
 
     function onOfferUpdate(uint256 prevAmount, uint256 amount) external onlyLoanDesk {
-        require(lendingLiquidity().add(prevAmount) >= amount, "Sapling: insufficient liquidity for this operation");
+        require(strategyLiquidity().add(prevAmount) >= amount, "Sapling: insufficient liquidity for this operation");
 
         poolLiquidity = poolLiquidity.add(prevAmount).sub(amount);
         allocatedFunds = allocatedFunds.sub(prevAmount).add(amount);
@@ -320,7 +320,7 @@ contract SaplingPool is ILenderHook, SaplingPoolContext {
      * @return True if the given total loan amount can be offered, false otherwise
      */
     function canOffer(uint256 totalOfferedAmount) external view override returns (bool) {
-        return isPoolFunctional() && lendingLiquidity().add(allocatedFunds) >= totalOfferedAmount;
+        return isPoolFunctional() && strategyLiquidity().add(allocatedFunds) >= totalOfferedAmount;
     }
 
     /**
@@ -369,16 +369,6 @@ contract SaplingPool is ILenderHook, SaplingPoolContext {
 
     function borrowedFunds() external view returns(uint256) {
         return strategizedFunds;
-    }
-
-    function lendingLiquidity() public view returns (uint256) {
-        uint256 lenderAllocatedLiquidity = Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT);
-        
-        if (poolLiquidity <= lenderAllocatedLiquidity) {
-            return 0;
-        }
-
-        return poolLiquidity.sub(lenderAllocatedLiquidity);
     }
 
     /**
