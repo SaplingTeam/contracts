@@ -123,9 +123,6 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
     /// Target percentage of pool funds to keep liquid. 
     uint16 public targetLiquidityPercent;
 
-    /// Locked shares of wallets (i.e. staked shares) 
-    mapping(address => uint256) internal lockedShares;
-
     /// Protocol earnings of wallets
     mapping(address => uint256) internal protocolEarnings; 
 
@@ -451,7 +448,6 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
 
                 //burn manager's shares
                 IPoolToken(poolToken).burn(address(this), stakedShareLoss);
-                lockedShares[manager] = lockedShares[manager].sub(stakedShareLoss);
                 totalPoolShares = totalPoolShares.sub(stakedShareLoss);
 
                 if (stakedShares == 0) {
@@ -659,9 +655,9 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
      */
     function balanceOf(address wallet) public view returns (uint256) {
         if (wallet != manager) {
-            return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet) + lockedShares[wallet]);
+            return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet));
         } else {
-            return sharesToTokens(lockedShares[manager]);
+            return sharesToTokens(stakedShares);
         }
     }
 
@@ -793,7 +789,6 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
             IPoolToken(poolToken).mint(msg.sender, shares);
         } else {
             IPoolToken(poolToken).mint(address(this), shares);
-            lockedShares[msg.sender] = lockedShares[msg.sender].add(shares);
         }
         
         totalPoolShares = totalPoolShares.add(shares);
@@ -815,14 +810,13 @@ contract SaplingPool is ILenderHook, SaplingManagerContext, SaplingMathContext {
 
         uint256 shares = tokensToShares(amount);
 
-        require(msg.sender != manager && shares <= IERC20(poolToken).balanceOf(msg.sender) || shares <= lockedShares[msg.sender],
+        require(msg.sender != manager && shares <= IERC20(poolToken).balanceOf(msg.sender) || shares <= stakedShares,
             "SaplingPool: Insufficient balance for this operation.");
 
         // burn shares
         if (msg.sender != manager) {
             IPoolToken(poolToken).burn(msg.sender, shares);
         } else {
-            lockedShares[msg.sender] = lockedShares[msg.sender].sub(shares);
             IPoolToken(poolToken).burn(address(this), shares);
         }
 
