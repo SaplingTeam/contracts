@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.15;
 
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/IPoolToken.sol";
@@ -9,7 +10,7 @@ import "../interfaces/ILender.sol";
 import "./SaplingManagerContext.sol";
 import "./SaplingMathContext.sol";
 
-abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingMathContext {
+abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingMathContext, ReentrancyGuard {
 
     using SafeMath for uint256;
 
@@ -362,7 +363,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         return poolLiquidity.sub(lenderAllocatedLiquidity);
     }
 
-    function getNextStrategyId() internal returns (uint256) {
+    function getNextStrategyId() internal nonReentrant returns (uint256) {
         uint256 id = nextStrategyId;
         nextStrategyId++;
         return id;
@@ -376,7 +377,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param amount A token amount to add to the pool on behalf of the caller.
      * @return Amount of shares minted and allocated to the caller.
      */
-    function enterPool(uint256 amount) internal returns (uint256) {
+    function enterPool(uint256 amount) internal nonReentrant returns (uint256) {
         require(amount > 0, "SaplingPool: pool deposit amount is 0");
 
         // allow the manager to add funds beyond the current pool limit as all funds of the manager in the pool are staked,
@@ -447,7 +448,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     /**
      * @dev Internal method to update pool limit based on staked funds. 
      */
-    function updatePoolLimit() internal {
+    function updatePoolLimit() internal nonReentrant {
         poolFundsLimit = sharesToTokens(Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, targetStakePercent));
     }
 

@@ -380,7 +380,7 @@ contract SaplingLendingPool is ILendingPoolHook, SaplingPoolContext {
      * @param amount Payment amount in tokens.
      * @return A pair of total amount charged including interest, and the interest charged.
      */
-    function repayBase(uint256 loanId, uint256 amount) internal loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
+    function repayBase(uint256 loanId, uint256 amount) internal nonReentrant loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
 
         (uint256 amountDue, uint256 interestPercent) = loanBalanceDueWithInterest(loanId);
         uint256 transferAmount = Math.min(amountDue, amount);
