@@ -4,11 +4,11 @@ pragma solidity ^0.8.15;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "./SaplingManagerContext.sol";
-import "./SaplingMathContext.sol";
-import "./IPoolToken.sol";
-import "./ILoanDeskHook.sol";
-import "./ILenderHook.sol";
+import "./context/SaplingManagerContext.sol";
+import "./context/SaplingMathContext.sol";
+import "./interfaces/IPoolToken.sol";
+import "./interfaces/ILoanDeskHook.sol";
+import "./interfaces/ILenderHook.sol";
 
 /**
  * @title Sapling Protocol Pool

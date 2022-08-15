@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import "./SaplingContext.sol";
-import "./PoolToken.sol";
-import "./SaplingPool.sol";
-import "./LoanDesk.sol";
+import "../context/SaplingContext.sol";
+import "../PoolToken.sol";
+import "../SaplingPool.sol";
+import "../LoanDesk.sol";
 
 contract PoolFactory is SaplingContext {
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.15;
 
-import "./SaplingContext.sol";
-import "./IVerificationHub.sol";
+import "./context/SaplingContext.sol";
+import "./interfaces/IVerificationHub.sol";
 
 contract VerificationHub is IVerificationHub, SaplingContext {
 
