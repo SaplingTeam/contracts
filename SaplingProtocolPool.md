@@ -1,26 +1,20 @@
 # Solidity API
 
-## ManagedLendingPool
+## SaplingProtocolPool
 
-Provides the basics of a Sapling lending pool.
-
-_This contract is abstract. Extend the contract to implement an intended pool functionality._
-
-### protocol
+### poolToken
 
 ```solidity
-address protocol
+address poolToken
 ```
 
-Protocol wallet address
-
-### token
+### liquidityToken
 
 ```solidity
-address token
+address liquidityToken
 ```
 
-Address of an ERC20 token used by the pool
+Address of an ERC20 liquidity token accepted by the pool
 
 ### tokenDecimals
 
@@ -70,13 +64,21 @@ uint256 poolLiquidity
 
 Current amount of liquid tokens, available to lend/withdraw/borrow
 
-### borrowedFunds
+### investedFunds
 
 ```solidity
-uint256 borrowedFunds
+uint256 investedFunds
 ```
 
 Total funds borrowed at this time, including both withdrawn and allocated for withdrawal.
+
+### weightedAvgInvestAPR
+
+```solidity
+uint256 weightedAvgInvestAPR
+```
+
+Weighted average loan APR on the borrowed funds
 
 ### totalPoolShares
 
@@ -110,14 +112,6 @@ uint16 targetLiquidityPercent
 
 Target percentage of pool funds to keep liquid.
 
-### poolShares
-
-```solidity
-mapping(address => uint256) poolShares
-```
-
-Pool shares of wallets
-
 ### lockedShares
 
 ```solidity
@@ -133,38 +127,6 @@ mapping(address => uint256) protocolEarnings
 ```
 
 Protocol earnings of wallets
-
-### totalRequestedLiquidity
-
-```solidity
-uint256 totalRequestedLiquidity
-```
-
-Total amount of requested withdrawal liquidity
-
-### requestedLiquidity
-
-```solidity
-mapping(address => uint256) requestedLiquidity
-```
-
-Withdrawal liquidity requests by address
-
-### PERCENT_DECIMALS
-
-```solidity
-uint16 PERCENT_DECIMALS
-```
-
-Number of decimal digits in integer percent values used across the contract
-
-### ONE_HUNDRED_PERCENT
-
-```solidity
-uint16 ONE_HUNDRED_PERCENT
-```
-
-A constant representing 100%
 
 ### protocolEarningPercent
 
@@ -207,29 +169,19 @@ uint256 managerExcessLeverageComponent
 Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
 This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
 
-### EARLY_EXIT_COOLDOWN
-
-```solidity
-uint256 EARLY_EXIT_COOLDOWN
-```
-
-Max cooldown period for early exit
-
 ### exitFeePercent
 
 ```solidity
 uint256 exitFeePercent
 ```
 
-Early exit fee percentage
+exit fee percentage
 
-### earlyExitDeadlines
+### ProtocolWalletTransferred
 
 ```solidity
-mapping(address => uint256) earlyExitDeadlines
+event ProtocolWalletTransferred(address from, address to)
 ```
-
-Early exit deadlines by wallets
 
 ### UnstakedLoss
 
@@ -243,30 +195,100 @@ event UnstakedLoss(uint256 amount)
 event StakedAssetsDepleted()
 ```
 
-### ProtocolWalletTransferred
-
-```solidity
-event ProtocolWalletTransferred(address from, address to)
-```
-
-Event emitted when a new protocol wallet is set
-
 ### constructor
 
 ```solidity
-constructor(address _token, address _governance, address _protocol, address _manager) internal
+constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) public
 ```
 
-Create a managed lending pool.
-
-_msg.sender will be assigned as the manager of the created pool._
+Creates a Sapling pool.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _token | address | ERC20 token contract address to be used as main pool liquid currency. |
+| _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
+| _liquidityToken | address | ERC20 token contract address to be used as main pool liquid currency. |
 | _governance | address | Address of the protocol governance. |
 | _protocol | address | Address of a wallet to accumulate protocol earnings. |
-| _manager | address | Address of the pool manager |
+| _manager | address | Address of the pool manager. |
+
+### deposit
+
+```solidity
+function deposit(uint256 amount) external
+```
+
+Deposit tokens to the pool.
+
+_Deposit amount must be non zero and not exceed amountDepositable().
+     An appropriate spend limit must be present at the token contract.
+     Caller must not be any of: manager, protocol, current borrower._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amount | uint256 | Token amount to deposit. |
+
+### withdraw
+
+```solidity
+function withdraw(uint256 amount) external
+```
+
+Withdraw tokens from the pool.
+
+_Withdrawal amount must be non zero and not exceed amountWithdrawable().
+     Caller must not be any of: manager, protocol, current borrower._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amount | uint256 | token amount to withdraw. |
+
+### stake
+
+```solidity
+function stake(uint256 amount) external
+```
+
+Stake tokens into the pool.
+
+_Caller must be the manager.
+     Stake amount must be non zero.
+     An appropriate spend limit must be present at the token contract._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amount | uint256 | Token amount to stake. |
+
+### unstake
+
+```solidity
+function unstake(uint256 amount) external
+```
+
+Unstake tokens from the pool.
+
+_Caller must be the manager.
+     Unstake amount must be non zero and not exceed amountUnstakable()._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amount | uint256 | Token amount to unstake. |
+
+### withdrawProtocolEarnings
+
+```solidity
+function withdrawProtocolEarnings() external
+```
+
+Withdraws protocol earnings belonging to the caller.
+
+_protocolEarningsOf(msg.sender) must be greater than 0.
+     Caller's all accumulated earnings will be withdrawn._
+
+### invest
+
+```solidity
+function invest(address lendingPool, uint256 liquidityTokenAmount) external
+```
 
 ### transferProtocolWallet
 
@@ -359,6 +381,156 @@ __managerEarnFactorMax must be inclusively between ONE_HUNDRED_PERCENT and manag
 | ---- | ---- | ----------- |
 | _managerEarnFactor | uint16 | new manager's earn factor. |
 
+### amountDepositable
+
+```solidity
+function amountDepositable() external view returns (uint256)
+```
+
+Check token amount depositable by lenders at this time.
+
+_Return value depends on the pool state rather than caller's balance._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Max amount of tokens depositable to the pool. |
+
+### amountWithdrawable
+
+```solidity
+function amountWithdrawable(address wallet) external view returns (uint256)
+```
+
+Check token amount withdrawable by the caller at this time.
+
+_Return value depends on the callers balance, and is limited by pool liquidity._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| wallet | address | Address of the wallet to check the withdrawable balance of. |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Max amount of tokens withdrawable by msg.sender. |
+
+### currentLenderAPY
+
+```solidity
+function currentLenderAPY() external view returns (uint16)
+```
+
+Estimated lender APY given the current pool state.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint16 | Estimated lender APY |
+
+### projectedLenderAPY
+
+```solidity
+function projectedLenderAPY(uint16 investRate) external view returns (uint16)
+```
+
+Projected lender APY given the current pool state and a specific borrow rate.
+
+_represent borrowRate in contract specific percentage format_
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| investRate | uint16 | percentage of pool funds projected to be borrowed annually |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint16 | Projected lender APY |
+
+### balanceOf
+
+```solidity
+function balanceOf(address wallet) public view returns (uint256)
+```
+
+Check wallet's token balance in the pool. Balance includes acquired earnings.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| wallet | address | Address of the wallet to check the balance of. |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Token balance of the wallet in this pool. |
+
+### unlockedBalanceOf
+
+```solidity
+function unlockedBalanceOf(address wallet) public view returns (uint256)
+```
+
+Check wallet's unlocked token balance in the pool. Balance includes acquired earnings.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| wallet | address | Address of the wallet to check the unlocked balance of. |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Unlocked token balance of the wallet in this pool. |
+
+### balanceStaked
+
+```solidity
+function balanceStaked() public view returns (uint256)
+```
+
+Check the manager's staked token balance in the pool.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Token balance of the manager's stake. |
+
+### amountUnstakable
+
+```solidity
+function amountUnstakable() public view returns (uint256)
+```
+
+Check token amount unstakable by the manager at this time.
+
+_Return value depends on the manager's stake balance, and is limited by pool liquidity._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Max amount of tokens unstakable by the manager. |
+
+### poolCanLend
+
+```solidity
+function poolCanLend() public view returns (bool)
+```
+
+Check if the pool can lend based on the current stake levels.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise. |
+
+### lenderAPY
+
+```solidity
+function lenderAPY(uint256 _investedFunds) private view returns (uint16)
+```
+
+Lender APY given the current pool state and a specific borrowed funds amount.
+
+_represent borrowRate in contract specific percentage format_
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _investedFunds | uint256 | pool funds to be borrowed annually |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint16 | Lender APY |
+
 ### protocolEarningsOf
 
 ```solidity
@@ -377,29 +549,6 @@ _This method is useful for manager and protocol addresses.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | uint256 | Accumulated earnings of the wallet from the protocol. |
-
-### withdrawProtocolEarnings
-
-```solidity
-function withdrawProtocolEarnings() external
-```
-
-Withdraws protocol earnings belonging to the caller.
-
-_protocolEarningsOf(msg.sender) must be greater than 0.
-     Caller's all accumulated earnings will be withdrawn._
-
-### poolCanLend
-
-```solidity
-function poolCanLend() public view returns (bool)
-```
-
-Check if the pool can lend based on the current stake levels.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | bool | True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise. |
 
 ### enterPool
 
