@@ -73,7 +73,7 @@ modifier whenClosed()
 ### constructor
 
 ```solidity
-constructor(address _manager, address _governance, address _protocol) internal
+constructor(address _governance, address _protocol, address _manager) internal
 ```
 
 Create a managed lending pool.
@@ -82,9 +82,9 @@ _msg.sender will be assigned as the manager of the created pool._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _manager | address | Address of the pool manager |
 | _governance | address | Address of the protocol governance. |
 | _protocol | address | Address of a wallet to accumulate protocol earnings. |
+| _manager | address | Address of the pool manager |
 
 ### close
 
