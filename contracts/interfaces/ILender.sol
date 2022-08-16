@@ -10,4 +10,6 @@ interface ILender {
     //TODO redeem
 
     function balanceOf(address wallet) external view returns (uint256);
+
+    function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view returns (uint16);
 }

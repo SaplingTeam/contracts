@@ -3,8 +3,9 @@
 pragma solidity ^0.8.15;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "../interfaces/IMath.sol";
 
-abstract contract SaplingMathContext {
+abstract contract SaplingMathContext is IMath {
 
     /// Number of decimal digits in integer percent values used across the contract
     uint16 public constant PERCENT_DECIMALS = 1;
