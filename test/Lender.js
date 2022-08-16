@@ -60,16 +60,22 @@ describe("Lender (SaplingPool)", function() {
         await tokenContract.connect(manager).mint(lender3.address, mintAmount);
         await tokenContract.connect(manager).mint(borrower1.address, mintAmount);
 
-        let VerificationHub = await ethers.getContractFactory("VerificationHub");
-        let verificationHubContract = await VerificationHub.deploy(manager.address, protocol.address);
+        let verificationHub = await (await ethers.getContractFactory("VerificationHub")).deploy(manager.address, protocol.address);
 
-        let PoolFactory = await ethers.getContractFactory("PoolFactory");
-        let poolFactory = await PoolFactory.deploy(verificationHubContract.address, governance.address, protocol.address);
+        let tokenFactory = await (await ethers.getContractFactory("TokenFactory")).deploy();
+        let loanDeskFactory = await (await ethers.getContractFactory("LoanDeskFactory")).deploy();
+        let poolFactory = await (await ethers.getContractFactory("PoolFactory")).deploy();
 
-        await verificationHubContract.setPoolFactory(poolFactory.address);
-        await verificationHubContract.transferGovernance(governance.address);
+        let saplingFactory = await (await ethers.getContractFactory("SaplingFactory"))
+            .deploy(tokenFactory.address, loanDeskFactory.address, poolFactory.address, verificationHub.address, governance.address, protocol.address);
 
-        let poolContractTx = await (await poolFactory.connect(governance).create("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
+        await tokenFactory.transferOwnership(saplingFactory.address);
+        await loanDeskFactory.transferOwnership(saplingFactory.address);
+        await poolFactory.transferOwnership(saplingFactory.address);
+        await verificationHub.setSaplingFactory(saplingFactory.address);
+        await verificationHub.transferGovernance(governance.address);
+
+        let poolContractTx = await (await saplingFactory.connect(governance).createLendingPool("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
         let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];
         poolContract = await SaplingPool.attach(poolAddress);
         let loanDeskAddress = await poolContract.loanDesk();

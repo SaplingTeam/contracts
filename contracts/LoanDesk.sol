@@ -4,15 +4,15 @@ pragma solidity ^0.8.15;
 
 import "./context/SaplingManagerContext.sol";
 import "./context/SaplingMathContext.sol";
-import "./interfaces/ILoanDeskHook.sol";
-import "./interfaces/ILendingPoolHook.sol";
+import "./interfaces/ILoanDesk.sol";
+import "./interfaces/ILoanDeskOwner.sol";
 
 /**
  * @title SaplingPool Lender
  * @notice Extends ManagedLendingPool with lending functionality.
  * @dev This contract is abstract. Extend the contract to implement an intended pool functionality.
  */
-contract LoanDesk is ILoanDeskHook, SaplingManagerContext, SaplingMathContext {
+contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
 
     using SafeMath for uint256;
 
@@ -330,8 +330,8 @@ contract LoanDesk is ILoanDeskHook, SaplingManagerContext, SaplingMathContext {
 
         LoanApplication storage app = loanApplications[appId];
 
-        require(ILendingPoolHook(pool).canOffer(offeredFunds.add(_amount)), "Sapling: lending pool cannot offer this loan at this time");
-        ILendingPoolHook(pool).onOffer(_amount);
+        require(ILoanDeskOwner(pool).canOffer(offeredFunds.add(_amount)), "Sapling: lending pool cannot offer this loan at this time");
+        ILoanDeskOwner(pool).onOffer(_amount);
 
         loanOffers[appId] = LoanOffer({
             applicationId: appId,
@@ -381,8 +381,8 @@ contract LoanDesk is ILoanDeskHook, SaplingManagerContext, SaplingMathContext {
         if (offer.amount != _amount) {
             uint256 nextOfferedFunds = offeredFunds.sub(offer.amount).add(_amount);
             
-            require(ILendingPoolHook(pool).canOffer(nextOfferedFunds), "Sapling: lending pool cannot offer this loan at this time");
-            ILendingPoolHook(pool).onOfferUpdate(offer.amount, _amount);
+            require(ILoanDeskOwner(pool).canOffer(nextOfferedFunds), "Sapling: lending pool cannot offer this loan at this time");
+            ILoanDeskOwner(pool).onOfferUpdate(offer.amount, _amount);
 
             offeredFunds = nextOfferedFunds;
         }

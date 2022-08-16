@@ -3,13 +3,13 @@
 pragma solidity ^0.8.15;
 
 import "./context/SaplingPoolContext.sol";
-import "./interfaces/ILoanDeskHook.sol";
-import "./interfaces/ILendingPoolHook.sol";
+import "./interfaces/ILoanDesk.sol";
+import "./interfaces/ILoanDeskOwner.sol";
 
 /**
  * @title Sapling Lending Pool
  */
-contract SaplingLendingPool is ILendingPoolHook, SaplingPoolContext {
+contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
     using SafeMath for uint256;
 
@@ -122,12 +122,12 @@ contract SaplingLendingPool is ILendingPoolHook, SaplingPoolContext {
      */
     function borrow(uint256 appId) external whenNotClosed whenNotPaused {
 
-        require(ILoanDeskHook(loanDesk).applicationStatus(appId) == ILoanDeskHook.LoanApplicationStatus.OFFER_MADE);
+        require(ILoanDesk(loanDesk).applicationStatus(appId) == ILoanDesk.LoanApplicationStatus.OFFER_MADE);
 
-        ILoanDeskHook.LoanOffer memory offer = ILoanDeskHook(loanDesk).loanOfferById(appId);
+        ILoanDesk.LoanOffer memory offer = ILoanDesk(loanDesk).loanOfferById(appId);
 
         require(offer.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
-        ILoanDeskHook(loanDesk).onBorrow(appId);
+        ILoanDesk(loanDesk).onBorrow(appId);
 
         // borrowerStats[offer.borrower].countCurrentApproved--;
         borrowerStats[offer.borrower].countOutstanding++;
