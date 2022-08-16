@@ -20,3 +20,9 @@ function withdraw(uint256 amount) external
 function balanceOf(address wallet) external view returns (uint256)
 ```
 
+### projectedLenderAPY
+
+```solidity
+function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view returns (uint16)
+```
+
