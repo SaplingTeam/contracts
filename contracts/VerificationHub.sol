@@ -6,7 +6,7 @@ import "./interfaces/IVerificationHub.sol";
 
 contract VerificationHub is IVerificationHub, SaplingContext {
 
-    address private poolFactory;
+    address private saplingFactory;
 
     mapping (address => bool) private saplingLendingPools;
     mapping (address => bool) private bannedList;
@@ -14,20 +14,19 @@ contract VerificationHub is IVerificationHub, SaplingContext {
 
     event PoolFactorySet(address from, address to);
 
-    modifier onlyPoolFactory {
+    modifier onlySaplingFactory {
         // direct use of msg.sender is intentional
-        require(msg.sender == poolFactory, "Sapling: Caller is not the manager");
+        require(msg.sender == saplingFactory, "Sapling: Caller is not the manager");
         _;
     }
 
     constructor(address _governance, address _protocol) SaplingContext(_governance, _protocol) {
-        poolFactory = _governance;
     }
 
-    function setPoolFactory(address _poolFactory) external onlyGovernance {
-        require(_poolFactory != address(0) && _poolFactory != poolFactory, "VerificationHub: new address is invalid");
-        address prevAddress = poolFactory;
-        poolFactory = _poolFactory;
+    function setSaplingFactory(address _saplingFactory) external onlyGovernance {
+        require(_saplingFactory != address(0) && _saplingFactory != saplingFactory, "VerificationHub: new address is invalid");
+        address prevAddress = saplingFactory;
+        saplingFactory = _saplingFactory;
         emit PoolFactorySet(prevAddress, protocol);
     }
 
@@ -47,7 +46,7 @@ contract VerificationHub is IVerificationHub, SaplingContext {
         verifiedList[party] = false;
     }
 
-    function registerSaplingPool(address pool) external whenNotPaused onlyPoolFactory {
+    function registerSaplingPool(address pool) external onlySaplingFactory whenNotPaused {
         saplingLendingPools[pool] = true;
     }
     

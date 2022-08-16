@@ -28,16 +28,22 @@ describe("Governed (SaplingPool)", function() {
 
         currentGovernance = governance1;
 
-        let VerificationHub = await ethers.getContractFactory("VerificationHub");
-        let verificationHubContract = await VerificationHub.deploy(manager.address, protocol.address);
+        let verificationHub = await (await ethers.getContractFactory("VerificationHub")).deploy(manager.address, protocol.address);
 
-        let PoolFactory = await ethers.getContractFactory("PoolFactory");
-        let poolFactory = await PoolFactory.deploy(verificationHubContract.address, currentGovernance.address, protocol.address);
+        let tokenFactory = await (await ethers.getContractFactory("TokenFactory")).deploy();
+        let loanDeskFactory = await (await ethers.getContractFactory("LoanDeskFactory")).deploy();
+        let poolFactory = await (await ethers.getContractFactory("PoolFactory")).deploy();
 
-        await verificationHubContract.setPoolFactory(poolFactory.address);
-        await verificationHubContract.transferGovernance(currentGovernance.address);
+        let saplingFactory = await (await ethers.getContractFactory("SaplingFactory"))
+            .deploy(tokenFactory.address, loanDeskFactory.address, poolFactory.address, verificationHub.address, currentGovernance.address, protocol.address);
 
-        let poolContractTx = await (await poolFactory.connect(currentGovernance).create("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
+        await tokenFactory.transferOwnership(saplingFactory.address);
+        await loanDeskFactory.transferOwnership(saplingFactory.address);
+        await poolFactory.transferOwnership(saplingFactory.address);
+        await verificationHub.setSaplingFactory(saplingFactory.address);
+        await verificationHub.transferGovernance(currentGovernance.address);
+
+        let poolContractTx = await (await saplingFactory.connect(currentGovernance).createLendingPool("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
         let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];
         poolContract = await SaplingPool.attach(poolAddress);
     });
