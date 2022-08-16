@@ -348,7 +348,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param strategyRate percentage of pool funds projected to be borrowed annually
      * @return Projected lender APY
      */
-    function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view returns (uint16) {
+    function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view override returns (uint16) {
         require(strategyRate <= ONE_HUNDRED_PERCENT, "SaplingPool: Invalid borrow rate. Borrow rate must be less than or equal to 100%");
         return lenderAPY(Math.mulDiv(poolFunds, strategyRate, ONE_HUNDRED_PERCENT), _avgStrategyAPR);
     }

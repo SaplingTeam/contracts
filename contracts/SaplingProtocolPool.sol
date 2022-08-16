@@ -4,7 +4,6 @@ pragma solidity ^0.8.15;
 
 import "./context/SaplingPoolContext.sol";
 import "./interfaces/IVerificationHub.sol";
-import "./interfaces/ILender.sol";
 
 /**
  * @title Sapling Protocol Pool
@@ -68,9 +67,17 @@ contract SaplingProtocolPool is SaplingPoolContext {
             investment.lastInvestedTime = block.timestamp;
         }
 
+        uint256 prevStrategizedFunds = strategizedFunds;
+
         poolLiquidity = poolLiquidity.sub(liquidityTokenAmount);
         ILender(lendingPool).deposit(liquidityTokenAmount);
         strategizedFunds = strategizedFunds.add(liquidityTokenAmount);
+
+        uint16 poolPercentDecimals = IMath(lendingPool).PERCENT_DECIMALS();
+        uint16 poolLenderAPY = ILender(lendingPool).projectedLenderAPY(uint16(90 * 10**poolPercentDecimals), 30 * 10**poolPercentDecimals);
+        uint256 investmentAPR = Math.mulDiv(poolLenderAPY, 10**PERCENT_DECIMALS, 10**poolPercentDecimals);
+
+        weightedAvgStrategyAPR = prevStrategizedFunds.mul(weightedAvgStrategyAPR).add(liquidityTokenAmount.mul(investmentAPR)).div(strategizedFunds);
 
         emit NewInvestment(lendingPool, liquidityTokenAmount);
     }
