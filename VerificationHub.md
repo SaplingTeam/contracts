@@ -2,10 +2,10 @@
 
 ## VerificationHub
 
-### poolFactory
+### saplingFactory
 
 ```solidity
-address poolFactory
+address saplingFactory
 ```
 
 ### saplingLendingPools
@@ -32,10 +32,10 @@ mapping(address => bool) verifiedList
 event PoolFactorySet(address from, address to)
 ```
 
-### onlyPoolFactory
+### onlySaplingFactory
 
 ```solidity
-modifier onlyPoolFactory()
+modifier onlySaplingFactory()
 ```
 
 ### constructor
@@ -44,10 +44,10 @@ modifier onlyPoolFactory()
 constructor(address _governance, address _protocol) public
 ```
 
-### setPoolFactory
+### setSaplingFactory
 
 ```solidity
-function setPoolFactory(address _poolFactory) external
+function setSaplingFactory(address _saplingFactory) external
 ```
 
 ### ban

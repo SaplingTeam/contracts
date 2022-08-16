@@ -1,12 +1,6 @@
 # Solidity API
 
-## PoolFactory
-
-### PoolCreated
-
-```solidity
-event PoolCreated(address pool)
-```
+## IPoolFactory
 
 ### create
 

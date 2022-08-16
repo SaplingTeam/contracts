@@ -1,6 +1,12 @@
 # Solidity API
 
-## ILendingPoolHook
+## ILoanDeskOwner
+
+### setLoanDesk
+
+```solidity
+function setLoanDesk(address _loanDesk) external
+```
 
 ### canOffer
 

@@ -15,7 +15,7 @@ struct LoanApplication {
   uint256 amount;
   uint256 duration;
   uint256 requestedTime;
-  enum ILoanDeskHook.LoanApplicationStatus status;
+  enum ILoanDesk.LoanApplicationStatus status;
   string name;
   string email;
   string phone;
@@ -195,7 +195,7 @@ Loan applications by applicationId
 ### loanOffers
 
 ```solidity
-mapping(uint256 => struct ILoanDeskHook.LoanOffer) loanOffers
+mapping(uint256 => struct ILoanDesk.LoanOffer) loanOffers
 ```
 
 Loan offers by applicationId
@@ -223,7 +223,7 @@ modifier onlyPool()
 ### applicationInStatus
 
 ```solidity
-modifier applicationInStatus(uint256 applicationId, enum ILoanDeskHook.LoanApplicationStatus status)
+modifier applicationInStatus(uint256 applicationId, enum ILoanDesk.LoanApplicationStatus status)
 ```
 
 ### constructor
@@ -429,13 +429,13 @@ View indicating whether or not a given loan approval qualifies to be cancelled b
 ### applicationStatus
 
 ```solidity
-function applicationStatus(uint256 appId) external view returns (enum ILoanDeskHook.LoanApplicationStatus)
+function applicationStatus(uint256 appId) external view returns (enum ILoanDesk.LoanApplicationStatus)
 ```
 
 ### loanOfferById
 
 ```solidity
-function loanOfferById(uint256 appId) external view returns (struct ILoanDeskHook.LoanOffer)
+function loanOfferById(uint256 appId) external view returns (struct ILoanDesk.LoanOffer)
 ```
 
 ### authorizedOnInactiveManager

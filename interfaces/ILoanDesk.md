@@ -1,6 +1,6 @@
 # Solidity API
 
-## ILoanDeskHook
+## ILoanDesk
 
 ### LoanApplicationStatus
 
@@ -34,13 +34,13 @@ struct LoanOffer {
 ### applicationStatus
 
 ```solidity
-function applicationStatus(uint256 appId) external view returns (enum ILoanDeskHook.LoanApplicationStatus)
+function applicationStatus(uint256 appId) external view returns (enum ILoanDesk.LoanApplicationStatus)
 ```
 
 ### loanOfferById
 
 ```solidity
-function loanOfferById(uint256 appId) external view returns (struct ILoanDeskHook.LoanOffer)
+function loanOfferById(uint256 appId) external view returns (struct ILoanDesk.LoanOffer)
 ```
 
 ### onBorrow
