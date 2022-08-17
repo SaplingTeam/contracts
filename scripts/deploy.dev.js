@@ -28,7 +28,7 @@ async function main() {
     await saplingPoolContract.transferGovernance(governance.address);
 
     console.log("PoolToken address: \t", poolTokenContract.address);
-    console.log("LoanDesk address: \t", saplingPoolContract.address);
+    console.log("LoanDesk address: \t", loanDeskContract.address);
     console.log("LendingPool address: \t", saplingPoolContract.address);
   }
   
