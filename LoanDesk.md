@@ -16,10 +16,8 @@ struct LoanApplication {
   uint256 duration;
   uint256 requestedTime;
   enum ILoanDesk.LoanApplicationStatus status;
-  string name;
-  string email;
-  string phone;
-  string businessName;
+  string profileId;
+  string profileDigest;
 }
 ```
 
@@ -335,7 +333,7 @@ _lateAPRDelta must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
 ### requestLoan
 
 ```solidity
-function requestLoan(uint256 requestedAmount, uint256 loanDuration, string _name, string _email, string _phone, string _businessName) external
+function requestLoan(uint256 _amount, uint256 _duration, string _profileId, string _profileDigest) external
 ```
 
 Request a new loan.
@@ -348,12 +346,10 @@ _Requested amount must be greater or equal to minLoanAmount().
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| requestedAmount | uint256 | Token amount to be borrowed. |
-| loanDuration | uint256 | Loan duration in seconds. |
-| _name | string |  |
-| _email | string |  |
-| _phone | string |  |
-| _businessName | string |  |
+| _amount | uint256 | Token amount to be borrowed. |
+| _duration | uint256 | Loan duration in seconds. |
+| _profileId | string |  |
+| _profileDigest | string |  |
 
 ### denyLoan
 
