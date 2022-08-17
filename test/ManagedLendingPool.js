@@ -216,7 +216,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
 
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
                 let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
                 let gracePeriod = await loanDesk.templateLoanGracePeriod();
                 let installments = 1;

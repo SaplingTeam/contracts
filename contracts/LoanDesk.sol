@@ -25,11 +25,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         uint256 requestedTime;
         LoanApplicationStatus status;
 
-        //TODO replace personal info fields with metadata id and hash 
-        string name;
-        string email;
-        string phone;
-        string businessName;
+        string profileId;
+        string profileDigest;
     }
 
     /// Individual borrower statistics
@@ -232,16 +229,14 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      *      Caller must not be a lender, protocol, or the manager. 
      *      Multiple pending applications from the same address are not allowed,
      *      most recent loan/application of the caller must not have APPLIED status.
-     * @param requestedAmount Token amount to be borrowed.
-     * @param loanDuration Loan duration in seconds. 
+     * @param _amount Token amount to be borrowed.
+     * @param _duration Loan duration in seconds. 
      */
     function requestLoan(
-        uint256 requestedAmount, 
-        uint256 loanDuration, 
-        string memory _name, 
-        string memory _email, 
-        string memory _phone, 
-        string memory _businessName
+        uint256 _amount, 
+        uint256 _duration, 
+        string memory _profileId, 
+        string memory _profileDigest
     ) 
         external 
         onlyUser
@@ -250,9 +245,9 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     {
 
         require(borrowerStats[msg.sender].hasOpenApplication == false, "Sapling: another loan application is pending.");
-        require(requestedAmount >= minLoanAmount, "Sapling: loan amount is less than the minimum allowed");
-        require(minLoanDuration <= loanDuration, "Sapling: loan duration is less than minimum allowed.");
-        require(maxLoanDuration >= loanDuration, "Sapling: loan duration is more than maximum allowed.");
+        require(_amount >= minLoanAmount, "Sapling: loan amount is less than the minimum allowed");
+        require(minLoanDuration <= _duration, "Sapling: loan duration is less than minimum allowed.");
+        require(maxLoanDuration >= _duration, "Sapling: loan duration is more than maximum allowed.");
 
         uint256 appId = nextApplicationId;
         nextApplicationId++;
@@ -260,14 +255,12 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         loanApplications[appId] = LoanApplication({
             id: appId,
             borrower: msg.sender,
-            amount: requestedAmount,
-            duration: loanDuration,
+            amount: _amount,
+            duration: _duration,
             requestedTime: block.timestamp,
             status: LoanApplicationStatus.APPLIED,
-            name: _name,
-            email: _email,
-            phone: _phone,
-            businessName: _businessName
+            profileId: _profileId,
+            profileDigest: _profileDigest
         });
 
         if (borrowerStats[msg.sender].borrower == address(0)) {

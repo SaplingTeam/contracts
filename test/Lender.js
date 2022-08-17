@@ -112,7 +112,7 @@ describe("Lender (SaplingPool)", function() {
         it("Borrower can request a loan", async function () {
             // let nextApplicationId = (await poolContract.loansCount()).add(1);
 
-            let requestLoanTx = await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            let requestLoanTx = await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
             let applicationId = (await requestLoanTx.wait()).events.filter(e => e.event === 'LoanRequested')[0].args.applicationId;
 
             let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
@@ -128,7 +128,7 @@ describe("Lender (SaplingPool)", function() {
         });
 
         it("Can view most recent applicationId by address", async function () {
-            let requestLoanTx = await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            let requestLoanTx = await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
             let applicationId = (await requestLoanTx.wait()).events.filter(e => e.event === 'LoanRequested')[0].args.applicationId;
             expect((await loanDesk.borrowerStats(borrower1.address)).recentApplicationId).to.equal(applicationId);
         });
@@ -138,60 +138,60 @@ describe("Lender (SaplingPool)", function() {
             it ("Requesting a loan with an amount less than the minimum should fail", async function () {            
                 let minAmount = await loanDesk.minLoanAmount();
                 await expect(
-                    loanDesk.connect(borrower1).requestLoan(minAmount.sub(1), loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(borrower1).requestLoan(minAmount.sub(1), loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29")
                     ).to.be.reverted;
             });
 
             it ("Requesting a loan with a duration less than the minimum should fail", async function () {            
                 let minDuration = await loanDesk.minLoanDuration();
                 await expect(
-                    loanDesk.connect(borrower1).requestLoan(loanAmount, minDuration.sub(1), "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(borrower1).requestLoan(loanAmount, minDuration.sub(1), "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29")
                     ).to.be.reverted;
             });
 
             it ("Requesting a loan with a duration greater than the maximum should fail", async function () {            
                 let maxDuration = await loanDesk.maxLoanDuration();
                 await expect(
-                    loanDesk.connect(borrower1).requestLoan(loanAmount, maxDuration.add(1), "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(borrower1).requestLoan(loanAmount, maxDuration.add(1), "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29")
                 ).to.be.reverted;
             });
 
             it("Requesting a loan should fail while another application from the same borrower is pending approval", async function () {
-                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
                 await expect(
-                    loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29")
                 ).to.be.reverted;
             });
 
             it ("Requesting a loan when the loan desk is paused should fail", async function () {            
                 await loanDesk.connect(governance).pause();
                 await expect(
-                    loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29")
                 ).to.be.reverted;
             });
 
             it ("Requesting a loan when the loan desk is closed should fail", async function () {            
                 await loanDesk.connect(manager).close();
                 await expect(
-                    loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29")
                 ).to.be.reverted;
             });
 
             it ("Requesting a loan as the manager should fail", async function () {
                 await expect(
-                    loanDesk.connect(manager).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(manager).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29")
                 ).to.be.reverted;
             });
 
             it ("Requesting a loan as the protocol should fail", async function () {
                 await expect(
-                    loanDesk.connect(protocol).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(protocol).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29")
                 ).to.be.reverted;
             });
 
             it ("Requesting a loan as the governance should fail", async function () {
                 await expect(
-                    loanDesk.connect(governance).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co")
+                    loanDesk.connect(governance).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29")
                 ).to.be.reverted;
             });
         });
@@ -200,7 +200,7 @@ describe("Lender (SaplingPool)", function() {
             it("Loan requests increments all time request count", async function () {
                 let prevCountRequested = (await loanDesk.borrowerStats(borrower1.address)).countRequested;
     
-                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
                 
                 expect((await loanDesk.borrowerStats(borrower1.address)).countRequested).to.equal(prevCountRequested.add(1));
             });
@@ -224,7 +224,7 @@ describe("Lender (SaplingPool)", function() {
 
             let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             let loanDuration = BigNumber.from(365).mul(24*60*60);
-            await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
             applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
             application = await loanDesk.loanApplications(applicationId);
         });
@@ -255,7 +255,7 @@ describe("Lender (SaplingPool)", function() {
                     let amountBorrowable = poolLiquidity.sub(poolFunds.mul(targetLiquidityPercent).div(ONE_HUNDRED_PERCENT));
                     let loanDuration = BigNumber.from(365).mul(24*60*60);
         
-                    await loanDesk.connect(borrower2).requestLoan(amountBorrowable.add(1), loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                    await loanDesk.connect(borrower2).requestLoan(amountBorrowable.add(1), loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
                     let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
                     let otherApplication = await loanDesk.loanApplications(otherApplicationId);
         
@@ -269,7 +269,7 @@ describe("Lender (SaplingPool)", function() {
                     let loanAmount = amountStaked.mul(75).div(100);
                     let loanDuration = BigNumber.from(365).mul(24*60*60);
         
-                    await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                    await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
                     let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
                     let otherApplication = await loanDesk.loanApplications(otherApplicationId);
 
@@ -410,7 +410,7 @@ describe("Lender (SaplingPool)", function() {
 
             let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             let loanDuration = BigNumber.from(365).mul(24*60*60);
-            await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
             applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
             application = await loanDesk.loanApplications(applicationId);
             await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
@@ -496,7 +496,7 @@ describe("Lender (SaplingPool)", function() {
             it("Manager can cancel while other loans are present (Updating weighted avg loan APR", async function () {
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24*60*60);
-                let requestLoanTx = await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                let requestLoanTx = await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
                 let otherApplicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
 
                 let otherApplication = await loanDesk.loanApplications(otherApplicationId);
@@ -619,7 +619,7 @@ describe("Lender (SaplingPool)", function() {
             loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             loanDuration = BigNumber.from(365).mul(24*60*60);
 
-            await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+            await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
             let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
             let gracePeriod = await loanDesk.templateLoanGracePeriod();
             let installments = 1;
@@ -1022,7 +1022,7 @@ describe("Lender (SaplingPool)", function() {
                     let loanAmount = await poolContract.balanceStaked();
                     let loanDuration = BigNumber.from(365).mul(24*60*60);
 
-                    await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                    await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
                     let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
                     let gracePeriod = await loanDesk.templateLoanGracePeriod();
                     let installments = 1;
@@ -1054,7 +1054,7 @@ describe("Lender (SaplingPool)", function() {
                     let loanAmount = (await poolContract.balanceStaked()).mul(2);
                     let loanDuration = BigNumber.from(365).mul(24*60*60);
 
-                    await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "John Smith", "js@example.com", "+1 (555) 123-4567", "JS Co");
+                    await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
                     let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
                     let gracePeriod = await loanDesk.templateLoanGracePeriod();
                     let installments = 1;
