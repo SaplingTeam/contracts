@@ -29,9 +29,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         uint256 amount;
         uint256 duration; 
         uint256 gracePeriod;
+        uint256 installmentAmount;
         uint16 installments;
         uint16 apr;
-        uint16 lateAPRDelta;
         uint256 borrowedTime;
         LoanStatus status;
     }
@@ -41,6 +41,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         uint256 totalAmountRepaid; //total amount paid including interest
         uint256 baseAmountRepaid;
         uint256 interestPaid;
+        uint256 lateInterestPaid;
+        uint256 interestPaidTillTime;
         uint256 lastPaymentTime;
     }
 
@@ -91,9 +93,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 amountLost);
 
     modifier loanInStatus(uint256 loanId, LoanStatus status) {
-        Loan storage loan = loans[loanId];
-        require(loan.id != 0, "Loan is not found.");
-        require(loan.status == status, "Loan does not have a valid status for this operation.");
+        require(loans[loanId].status == status, "Loan does not have a valid status for this operation or does not exist.");
         _;
     }
 
@@ -143,9 +143,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             amount: offer.amount,
             duration: offer.duration,
             gracePeriod: offer.gracePeriod,
+            installmentAmount: offer.installmentAmount,
             installments: offer.installments,
             apr: offer.apr,
-            lateAPRDelta: offer.lateAPRDelta,
             borrowedTime: block.timestamp,
             status: LoanStatus.OUTSTANDING
         });
@@ -155,6 +155,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             totalAmountRepaid: 0,
             baseAmountRepaid: 0,
             interestPaid: 0,
+            lateInterestPaid: 0,
+            interestPaidTillTime: block.timestamp,
             lastPaymentTime: 0
         });
 
@@ -336,8 +338,28 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         Loan storage loan = loans[loanId];
 
-        return loan.status == LoanStatus.OUTSTANDING 
-            && block.timestamp > (loan.borrowedTime + loan.duration + loan.gracePeriod + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
+        if (loan.status != LoanStatus.OUTSTANDING) {
+            return false;
+        }
+
+        uint256 paymentDueTime;
+
+        if (loan.installments > 1) {
+            uint256 installmentPeriod = loan.duration.div(loan.installments);
+            uint256 pastInstallments = block.timestamp.sub(loan.borrowedTime).div(installmentPeriod);
+            uint256 minTotalPayment = loan.installmentAmount.mul(pastInstallments);
+
+            LoanDetail storage detail = loanDetails[loanId];
+            if (detail.baseAmountRepaid + detail.interestPaid >= minTotalPayment) {
+                return false;
+            }
+
+            paymentDueTime = loan.borrowedTime + pastInstallments * installmentPeriod;
+        } else {
+            paymentDueTime = loan.borrowedTime + loan.duration;
+        }
+        
+        return block.timestamp > (paymentDueTime + loan.gracePeriod + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
     }
 
     /**
@@ -347,8 +369,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @return Total amount due with interest on this loan.
      */
     function loanBalanceDue(uint256 loanId) external view returns(uint256) {
-        (uint256 amountDue,) = loanBalanceDueWithInterest(loanId);
-        return amountDue;
+        (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
+        return principalOutstanding.add(interestOutstanding);
     }
 
     /**
@@ -380,52 +402,51 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param amount Payment amount in tokens.
      * @return A pair of total amount charged including interest, and the interest charged.
      */
-    function repayBase(uint256 loanId, uint256 amount) internal nonReentrant loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
+    function repayBase(uint256 loanId, uint256 amount) internal nonReentrant returns (uint256, uint256) {
 
-        (uint256 amountDue, uint256 interestPercent) = loanBalanceDueWithInterest(loanId);
-        uint256 transferAmount = Math.min(amountDue, amount);
+        Loan storage loan = loans[loanId];
+        require(loan.id == loanId && loan.status == LoanStatus.OUTSTANDING, "Loan does not have a valid status for this operation or does not exist");
 
-        // enforce a small minimum payment amount, except for the last payment 
-        require(transferAmount == amountDue || transferAmount >= ONE_TOKEN, "Sapling: Payment amount is less than the required minimum of 1 token.");
+        (uint256 transferAmount, uint256 interestPayable, uint256 payableInterestDays) = payableLoanBalance(loanId, amount);
+
+        // TODO enforce a small minimum payment amount, except for the last payment 
+        // require(transferAmount == totalAmountPayable || transferAmount >= ONE_TOKEN, "Sapling: Payment amount is less than the required minimum of 1 token.");
 
         // charge 'amount' tokens from msg.sender
         bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), transferAmount);
         require(success);
         tokenBalance = tokenBalance.add(transferAmount);
-
-        Loan storage loan = loans[loanId];
-        LoanDetail storage loanDetail = loanDetails[loanId];
-        // loan.lastPaymentTime = block.timestamp;
         
-        uint256 interestPaid = Math.mulDiv(transferAmount, interestPercent, ONE_HUNDRED_PERCENT + interestPercent);
-        uint256 baseAmountPaid = transferAmount.sub(interestPaid);
+        uint256 principalPaid = transferAmount.sub(interestPayable);
 
         //share profits to protocol
-        uint256 protocolEarnedInterest = Math.mulDiv(interestPaid, protocolEarningPercent, ONE_HUNDRED_PERCENT);
+        uint256 protocolEarnedInterest = Math.mulDiv(interestPayable, protocolEarningPercent, ONE_HUNDRED_PERCENT);
         
         protocolEarnings[protocol] = protocolEarnings[protocol].add(protocolEarnedInterest); 
 
         //share profits to manager 
         uint256 currentStakePercent = Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
         uint256 managerEarnedInterest = Math
-            .mulDiv(interestPaid.sub(protocolEarnedInterest),
+            .mulDiv(interestPayable.sub(protocolEarnedInterest),
                     Math.mulDiv(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT), // managerEarningsPercent
                     ONE_HUNDRED_PERCENT);
 
         protocolEarnings[manager] = protocolEarnings[manager].add(managerEarnedInterest);
 
+        LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(transferAmount);
-        loanDetail.baseAmountRepaid = loanDetail.baseAmountRepaid.add(baseAmountPaid);
-        loanDetail.interestPaid = loanDetail.interestPaid.add(interestPaid);
+        loanDetail.baseAmountRepaid = loanDetail.baseAmountRepaid.add(principalPaid);
+        loanDetail.interestPaid = loanDetail.interestPaid.add(interestPayable);
         loanDetail.lastPaymentTime = block.timestamp;
+        loanDetail.interestPaidTillTime = loanDetail.interestPaidTillTime.add(payableInterestDays.mul(86400));
 
-        borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid.add(baseAmountPaid);
-        borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid.add(interestPaid);
+        borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid.add(principalPaid);
+        borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid.add(interestPayable);
 
-        strategizedFunds = strategizedFunds.sub(baseAmountPaid);
+        strategizedFunds = strategizedFunds.sub(principalPaid);
         poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
 
-        if (transferAmount == amountDue) {
+        if (loanDetail.baseAmountRepaid >= loan.amount) {
             loan.status = LoanStatus.REPAID;
             borrowerStats[loan.borrower].countRepaid++;
             borrowerStats[loan.borrower].countOutstanding--;
@@ -435,46 +456,55 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         }
 
         if (strategizedFunds > 0) {
-            weightedAvgStrategyAPR = strategizedFunds.add(baseAmountPaid).mul(weightedAvgStrategyAPR).sub(baseAmountPaid.mul(loan.apr)).div(strategizedFunds);
+            weightedAvgStrategyAPR = strategizedFunds.add(principalPaid).mul(weightedAvgStrategyAPR).sub(principalPaid.mul(loan.apr)).div(strategizedFunds);
         } else {
             weightedAvgStrategyAPR = 0; //templateLoanAPR;
         }
 
-        return (transferAmount, interestPaid);
+        return (transferAmount, interestPayable);
+    }
+
+    function payableLoanBalance(uint256 loanId, uint256 maxPaymentAmount) internal view returns (uint256, uint256, uint256) {
+        (uint256 principalOutstanding, uint256 interestOutstanding, uint256 interestDays) = loanBalanceDueWithInterest(loanId);
+
+        uint256 transferAmount = Math.min(principalOutstanding.add(interestOutstanding), maxPaymentAmount);
+
+        uint256 interestPayable;
+        uint256 payableInterestDays;
+        
+        if (maxPaymentAmount >= interestOutstanding) {
+            payableInterestDays = interestDays;
+            interestPayable = interestOutstanding;
+        } else {
+            //round down payable interest amount to cover a whole number of days 
+            payableInterestDays = Math.mulDiv(interestPayable, interestDays, interestOutstanding);
+            interestPayable = Math.mulDiv(interestOutstanding, Math.mulDiv(interestPayable, interestDays, interestOutstanding), interestDays);
+        }
+
+        return (transferAmount, interestPayable, payableInterestDays);
     }
 
     /**
      * @notice Loan balance due including interest if paid in full at this time. 
      * @dev Internal method to get the amount due and the interest rate applied.
      * @param loanId ID of the loan to check the balance of.
-     * @return A pair of a total amount due with interest on this loan, and a percentage representing the interest part of the due amount.
+     * @return A pair of a principal and  interest amounts due on this loan
      */
-    function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256) {
+    function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256, uint256) {
         Loan storage loan = loans[loanId];
         if (loan.status != LoanStatus.OUTSTANDING) {
-            return (0, 0);
+            return (0, 0, 0);
         }
 
-        // calculate interest percent
-        uint256 daysPassed = countInterestDays(loan.borrowedTime, block.timestamp);
-        uint256 apr;
-        uint256 loanDueTime = loan.borrowedTime.add(loan.duration);
-        if (block.timestamp <= loanDueTime) { 
-            apr = loan.apr;
-        } else {
-            uint256 lateDays = countInterestDays(loanDueTime, block.timestamp);
-            apr = daysPassed
-                .mul(loan.apr)
-                .add(lateDays.mul(loan.lateAPRDelta))
-                .div(daysPassed);
-        }
+        LoanDetail storage detail = loanDetails[loanId];
 
-        uint256 interestPercent = Math.mulDiv(apr, daysPassed, 365);
+        uint256 daysPassed = countInterestDays(detail.interestPaidTillTime, block.timestamp);
+        uint256 interestPercent = Math.mulDiv(loan.apr, daysPassed, 365);
 
-        uint256 baseAmountDue = loan.amount.sub(loanDetails[loanId].baseAmountRepaid);
-        uint256 balanceDue = baseAmountDue.add(Math.mulDiv(baseAmountDue, interestPercent, ONE_HUNDRED_PERCENT));
+        uint256 principalOutstanding = loan.amount.sub(detail.baseAmountRepaid);
+        uint256 interestOutstanding = Math.mulDiv(principalOutstanding, interestPercent, ONE_HUNDRED_PERCENT);
 
-        return (balanceDue, interestPercent);
+        return (principalOutstanding, interestOutstanding, daysPassed);
     }
 
     /**
