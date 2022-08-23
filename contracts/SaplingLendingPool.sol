@@ -41,7 +41,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         uint256 totalAmountRepaid; //total amount paid including interest
         uint256 baseAmountRepaid;
         uint256 interestPaid;
-        uint256 lateInterestPaid;
         uint256 interestPaidTillTime;
         uint256 lastPaymentTime;
     }
@@ -155,7 +154,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             totalAmountRepaid: 0,
             baseAmountRepaid: 0,
             interestPaid: 0,
-            lateInterestPaid: 0,
             interestPaidTillTime: block.timestamp,
             lastPaymentTime: 0
         });
@@ -515,6 +513,10 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @return Ceil count of days in a time period to witch an interest can be applied.
      */
     function countInterestDays(uint256 timeFrom, uint256 timeTo) private pure returns(uint256) {
+        if (timeTo <= timeFrom) {
+            return 0;
+        }
+
         uint256 countSeconds = timeTo.sub(timeFrom);
         uint256 dayCount = countSeconds.div(86400);
 
