@@ -212,7 +212,6 @@ describe("Lender (SaplingPool)", function() {
         let gracePeriod;
         let installments;
         let apr;
-        let lateAPRDelta;
         let applicationId;
         let application;
 
@@ -220,7 +219,6 @@ describe("Lender (SaplingPool)", function() {
             gracePeriod = await loanDesk.templateLoanGracePeriod();
             installments = 1;
             apr = await loanDesk.templateLoanAPR();
-            lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
 
             let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             let loanDuration = BigNumber.from(365).mul(24*60*60);
@@ -233,7 +231,7 @@ describe("Lender (SaplingPool)", function() {
             it("Manager can offer loans", async function () {
                 expect(await poolContract.canOffer(applicationId)).to.equal(true);
 
-                await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
+                await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr);
                 let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
     
                 expect((await loanDesk.loanApplications(applicationId)).status).to.equal(LoanApplicationStatus.OFFER_MADE);
@@ -242,8 +240,8 @@ describe("Lender (SaplingPool)", function() {
 
             describe("Rejection scenarios", function () {
                 it ("Offering a loan that is not in APPLIED status should fail", async function () {            
-                    await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
-                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr);
+                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                 });
 
                 it ("Offering a loan with an amount greater than available liquidity should fail", async function () {        
@@ -259,7 +257,7 @@ describe("Lender (SaplingPool)", function() {
                     let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
                     let otherApplication = await loanDesk.loanApplications(otherApplicationId);
         
-                    await expect(loanDesk.connect(manager).offerLoan(otherApplicationId, otherApplication.amount, otherApplication.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(manager).offerLoan(otherApplicationId, otherApplication.amount, otherApplication.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                 });
         
                 it ("Offering a loan while pool stake is insufficient should fail", async function () {   
@@ -273,7 +271,7 @@ describe("Lender (SaplingPool)", function() {
                     let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
                     let otherApplication = await loanDesk.loanApplications(otherApplicationId);
 
-                    await loanDesk.connect(manager).offerLoan(otherApplicationId, otherApplication.amount, otherApplication.duration, gracePeriod, installments, apr, lateAPRDelta);
+                    await loanDesk.connect(manager).offerLoan(otherApplicationId, otherApplication.amount, otherApplication.duration, gracePeriod, 0, installments, apr);
 
                     await poolContract.connect(borrower2).borrow(otherApplicationId);
 
@@ -284,48 +282,48 @@ describe("Lender (SaplingPool)", function() {
                     
                     await poolContract.connect(manager).defaultLoan(otherLoanId);
         
-                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                 });
 
                 /*
                 it ("Offering a loan when lending is paused should fail", async function () {
                     await poolContract.connect(manager).pauseLending();
-                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                 });
                 */
         
                 it ("Offering a loan when the pool is paused should fail", async function () {            
                     await loanDesk.connect(governance).pause();
-                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                 });
         
                 it ("Offering a loan when the pool is closed should fail", async function () {            
                     await loanDesk.connect(manager).close();
-                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                 });
 
                 it ("Offering a nonexistent loan should fail", async function () {
-                    await expect(loanDesk.connect(manager).offerLoan(applicationId.add(1), application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(manager).offerLoan(applicationId.add(1), application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                 });
         
                 it ("Offering a loan as the protocol should fail", async function () {
-                    await expect(loanDesk.connect(protocol).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(protocol).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                 });
         
                 it ("Offering a loan as the governance should fail", async function () {
-                    await expect(loanDesk.connect(governance).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(governance).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                 });
         
                 it ("Offering a loan as a lender should fail", async function () {
-                    await expect(loanDesk.connect(lender1).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(lender1).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                 });
         
                 it ("Offering a loan as the borrower should fail", async function () {
-                    await expect(loanDesk.connect(borrower1).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(borrower1).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                 });
         
                 it ("Offering a loan from an unrelated address should fail", async function () {
-                    await expect(loanDesk.connect(addrs[0]).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)).to.be.reverted;
+                    await expect(loanDesk.connect(addrs[0]).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                 });
             });
 
@@ -333,7 +331,7 @@ describe("Lender (SaplingPool)", function() {
                 it("Loan approval increments all time approval count", async function () {
                     let prevStat = await loanDesk.borrowerStats(borrower1.address);
                     
-                    await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta)
+                    await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)
         
                     let stat = await loanDesk.borrowerStats(borrower1.address);
         
@@ -350,7 +348,7 @@ describe("Lender (SaplingPool)", function() {
 
             describe("Rejection scenarios", function () {
                 it ("Denying a loan that is not in APPLIED status should fail", async function () {            
-                    await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
+                    await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr);
                     await expect(loanDesk.connect(manager).denyLoan(applicationId)).to.be.reverted;
                 });
         
@@ -398,7 +396,6 @@ describe("Lender (SaplingPool)", function() {
         let gracePeriod;
         let installments;
         let apr;
-        let lateAPRDelta;
         let applicationId;
         let application;
 
@@ -406,14 +403,13 @@ describe("Lender (SaplingPool)", function() {
             gracePeriod = await loanDesk.templateLoanGracePeriod();
             installments = 1;
             apr = await loanDesk.templateLoanAPR();
-            lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
 
             let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             let loanDuration = BigNumber.from(365).mul(24*60*60);
             await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, "a937074e-85a7-42a9-b858-9795d9471759", "6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29");
             applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
             application = await loanDesk.loanApplications(applicationId);
-            await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, installments, apr, lateAPRDelta);
+            await loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr);
         });
 
         describe("Borrow", function () {
@@ -500,7 +496,7 @@ describe("Lender (SaplingPool)", function() {
                 let otherApplicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
 
                 let otherApplication = await loanDesk.loanApplications(otherApplicationId);
-                await loanDesk.connect(manager).offerLoan(otherApplicationId, otherApplication.amount, otherApplication.duration, gracePeriod, installments, apr, lateAPRDelta);
+                await loanDesk.connect(manager).offerLoan(otherApplicationId, otherApplication.amount, otherApplication.duration, gracePeriod, 0, installments, apr);
 
                 await loanDesk.connect(manager).cancelLoan(applicationId);
                 expect((await loanDesk.loanApplications(applicationId)).status).to.equal(LoanApplicationStatus.OFFER_CANCELLED);
@@ -624,8 +620,7 @@ describe("Lender (SaplingPool)", function() {
             let gracePeriod = await loanDesk.templateLoanGracePeriod();
             let installments = 1;
             let apr = await loanDesk.templateLoanAPR();
-            let lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
-            await loanDesk.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+            await loanDesk.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
         
             await poolContract.connect(borrower1).borrow(applicationId);
             loanId = (await poolContract.borrowerStats(borrower1.address)).recentLoanId;
@@ -1027,8 +1022,7 @@ describe("Lender (SaplingPool)", function() {
                     let gracePeriod = await loanDesk.templateLoanGracePeriod();
                     let installments = 1;
                     let apr = await loanDesk.templateLoanAPR();
-                    let lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
-                    await loanDesk.connect(manager).offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+                    await loanDesk.connect(manager).offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                     await poolContract.connect(borrower2).borrow(otherApplicationId);
 
                     await ethers.provider.send('evm_increaseTime', [loanDuration.add(gracePeriod).add(1).toNumber()]);
@@ -1059,8 +1053,7 @@ describe("Lender (SaplingPool)", function() {
                     let gracePeriod = await loanDesk.templateLoanGracePeriod();
                     let installments = 1;
                     let apr = await loanDesk.templateLoanAPR();
-                    let lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
-                    await loanDesk.connect(manager).offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+                    await loanDesk.connect(manager).offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                     await poolContract.connect(borrower2).borrow(otherApplicationId);
 
                     await ethers.provider.send('evm_increaseTime', [loanDuration.add(gracePeriod).add(1).toNumber()]);

@@ -146,18 +146,6 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 .and.lte(maxValue);
         });
 
-        it("Loan late APR delta is correct", async function () {
-            let minValue = 0 * 10**PERCENT_DECIMALS;
-            let maxValue = 100 * 10**PERCENT_DECIMALS;
-            let defaultValue = 5 * 10**PERCENT_DECIMALS;
-
-            expect(await loanDesk.SAFE_MIN_APR()).to.equal(minValue);
-            expect(await loanDesk.SAFE_MAX_APR()).to.equal(maxValue);
-            expect(await loanDesk.templateLateLoanAPRDelta()).to.equal(defaultValue)
-                .and.gte(minValue)
-                .and.lte(maxValue);
-        });
-
         it("Empty pool lenderAPY is correct", async function () {
             expect(await poolContract.currentLenderAPY()).to.equal(0);
         });
@@ -221,8 +209,7 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                 let gracePeriod = await loanDesk.templateLoanGracePeriod();
                 let installments = 1;
                 let apr = await loanDesk.templateLoanAPR();
-                let lateAPRDelta = await loanDesk.templateLateLoanAPRDelta();
-                await loanDesk.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, installments, apr, lateAPRDelta);
+                await loanDesk.connect(manager).offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                 await poolContract.connect(borrower1).borrow(applicationId);
             
                 await expect(poolContract.connect(manager).close()).to.be.reverted;
@@ -506,59 +493,6 @@ describe("ManagedLendingPool (SaplingPool)", function() {
                     assert(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
     
                     await expect(loanDesk.connect(governance).setTemplateLoanAPR(newValue)).to.be.reverted;
-                });
-
-            });
-        });
-
-        describe("Loan late payment APR delta", function () {
-            it("Manager can set a template loan late payment APR delta", async function () {
-                let currentValue = await loanDesk.templateLateLoanAPRDelta();
-                let minValue = await loanDesk.SAFE_MIN_APR();
-                let maxValue = await loanDesk.SAFE_MAX_APR();
-
-                let newValue = 40 * 10 ** PERCENT_DECIMALS;
-                assert(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
-
-                await loanDesk.connect(manager).setTemplateLateLoanAPRDelta(newValue);
-                expect(await loanDesk.templateLateLoanAPRDelta()).to.equal(newValue);
-            });
-
-            describe("Rejection scenarios", function () {
-                it("Loan late payment APR delta cannot be set to a value less than the allowed minimum", async function () {
-                    let minValue = await loanDesk.SAFE_MIN_APR();
-                    if (minValue > 0) {
-                        await expect(loanDesk.connect(manager).setTemplateLateLoanAPRDelta(minValue - 1)).to.be.reverted;
-                    }
-                });
-
-                it("Loan late payment APR delta cannot be set to a value greater than the allowed maximum", async function () {
-                    let maxValue = await loanDesk.SAFE_MAX_APR();
-                    await expect(loanDesk.connect(manager).setTemplateLateLoanAPRDelta(maxValue + 1)).to.be.reverted;
-                });
-
-                it("Loan late payment APR delta cannot be set while the pool is paused", async function () {
-                    let currentValue = await loanDesk.templateLateLoanAPRDelta();
-                    let minValue = await loanDesk.SAFE_MIN_APR();
-                    let maxValue = await loanDesk.SAFE_MAX_APR();
-
-                    let newValue = 40 * 10 ** PERCENT_DECIMALS;
-                    assert(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
-
-                    await loanDesk.connect(governance).pause();
-
-                    await expect(loanDesk.connect(manager).setTemplateLateLoanAPRDelta(newValue)).to.be.reverted;
-                });
-
-                it("A non-manager cannot set the loan late payment APR delta", async function () {
-                    let currentValue = await loanDesk.templateLateLoanAPRDelta();
-                    let minValue = await loanDesk.SAFE_MIN_APR();
-                    let maxValue = await loanDesk.SAFE_MAX_APR();
-
-                    let newValue = 40 * 10 ** PERCENT_DECIMALS;
-                    assert(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
-    
-                    await expect(loanDesk.connect(governance).setTemplateLateLoanAPRDelta(newValue)).to.be.reverted;
                 });
 
             });

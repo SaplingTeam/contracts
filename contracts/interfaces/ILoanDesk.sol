@@ -18,9 +18,9 @@ interface ILoanDesk {
         uint256 amount;
         uint256 duration;
         uint256 gracePeriod;
+        uint256 installmentAmount;
         uint16 installments;
-        uint16 apr; 
-        uint16 lateAPRDelta;
+        uint16 apr;
         uint256 offeredTime;
     }
 

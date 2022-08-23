@@ -101,9 +101,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     /// Loan APR to be applied for the new loan requests
     uint16 public templateLoanAPR;
 
-    /// Loan late payment APR delta to be applied fot the new loan requests
-    uint16 public templateLateLoanAPRDelta;
-
     /// Loan application id generator counter
     uint256 private nextApplicationId;
 
@@ -150,7 +147,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
 
         SAFE_MAX_APR = ONE_HUNDRED_PERCENT;
         templateLoanAPR = uint16(30 * 10 ** PERCENT_DECIMALS); // 30%
-        templateLateLoanAPRDelta = uint16(5 * 10 ** PERCENT_DECIMALS); //5%
 
         offeredFunds = 0;
         nextApplicationId = 1;
@@ -209,17 +205,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     function setTemplateLoanAPR(uint16 apr) external onlyManager whenNotPaused {
         require(SAFE_MIN_APR <= apr && apr <= SAFE_MAX_APR, "APR is out of bounds");
         templateLoanAPR = apr;
-    }
-
-    /**
-     * @notice Set late payment annual loan interest rate delta for the future loans.
-     * @dev lateAPRDelta must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
-     *      Caller must be the manager.
-     * @param lateAPRDelta Loan late payment APR delta to be applied for the new loan requests.
-     */
-    function setTemplateLateLoanAPRDelta(uint16 lateAPRDelta) external onlyManager whenNotPaused {
-        require(SAFE_MIN_APR <= lateAPRDelta && lateAPRDelta <= SAFE_MAX_APR, "APR is out of bounds");
-        templateLateLoanAPRDelta = lateAPRDelta;
     }
 
     /**
@@ -309,9 +294,9 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         uint256 _amount, 
         uint256 _duration, 
         uint256 _gracePeriod, 
+        uint256 _installmentAmount,
         uint16 _installments, 
-        uint16 _apr, 
-        uint16 _lateAPRDelta
+        uint16 _apr
     ) 
         external 
         onlyManager 
@@ -319,7 +304,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         whenNotClosed 
         whenNotPaused 
     {
-        require(validLoanParams(_amount, _duration, _gracePeriod, _installments, _apr, _lateAPRDelta));
+        require(validLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr));
 
         LoanApplication storage app = loanApplications[appId];
 
@@ -332,9 +317,9 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
             amount: _amount,
             duration: _duration,
             gracePeriod: _gracePeriod,
+            installmentAmount: _installmentAmount,
             installments: _installments,
             apr: _apr,
-            lateAPRDelta: _lateAPRDelta,
             offeredTime: block.timestamp
         });
 
@@ -357,9 +342,9 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         uint256 _amount, 
         uint256 _duration, 
         uint256 _gracePeriod, 
+        uint256 _installmentAmount,
         uint16 _installments, 
-        uint16 _apr, 
-        uint16 _lateAPRDelta
+        uint16 _apr
     ) 
         external 
         onlyManager 
@@ -367,7 +352,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         whenNotClosed
         whenNotPaused 
     {
-        require(validLoanParams(_amount, _duration, _gracePeriod, _installments, _apr, _lateAPRDelta));
+        require(validLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr));
 
         LoanOffer memory offer = loanOffers[appId];
 
@@ -383,9 +368,9 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         offer.amount = _amount;
         offer.duration = _duration;
         offer.gracePeriod = _gracePeriod;
+        offer.installmentAmount = _installmentAmount;
         offer.installments = _installments;
         offer.apr = _apr;
-        offer.lateAPRDelta = _lateAPRDelta;
         offer.offeredTime = block.timestamp;
 
         emit LoanOfferUpdated(appId, offer.borrower);
@@ -458,17 +443,17 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         uint256 _amount, 
         uint256 _duration, 
         uint256 _gracePeriod, 
+        uint256 _installmentAmount,
         uint16 _installments, 
-        uint16 _apr, 
-        uint16 _lateAPRDelta
+        uint16 _apr
     ) private view returns (bool)
     {
         require(_amount >= minLoanAmount);
         require(minLoanDuration <= _duration && _duration <= maxLoanDuration);
         require(MIN_LOAN_GRACE_PERIOD <= _gracePeriod && _gracePeriod <= MAX_LOAN_GRACE_PERIOD);
+        require(_installmentAmount == 0 || _installmentAmount >= SAFE_MIN_AMOUNT);
         require(1 <= _installments && _installments <= 4096); //FIXME set upper bound for installments
         require(SAFE_MIN_APR <= _apr && _apr <= SAFE_MAX_APR, "APR is out of bounds");
-        require(SAFE_MIN_APR <= _lateAPRDelta && _lateAPRDelta <= SAFE_MAX_APR, "APR is out of bounds");
         return true;
     }
 }
