@@ -24,9 +24,9 @@ struct Loan {
   uint256 amount;
   uint256 duration;
   uint256 gracePeriod;
+  uint256 installmentAmount;
   uint16 installments;
   uint16 apr;
-  uint16 lateAPRDelta;
   uint256 borrowedTime;
   enum SaplingLendingPool.LoanStatus status;
 }
@@ -40,6 +40,7 @@ struct LoanDetail {
   uint256 totalAmountRepaid;
   uint256 baseAmountRepaid;
   uint256 interestPaid;
+  uint256 interestPaidTillTime;
   uint256 lastPaymentTime;
 }
 ```
@@ -286,7 +287,7 @@ View indicating whether or not a given loan qualifies to be defaulted by a given
 ### loanBalanceDue
 
 ```solidity
-function loanBalanceDue(uint256 loanId) external view returns (uint256)
+function loanBalanceDue(uint256 loanId) public view returns (uint256)
 ```
 
 Loan balance due including interest if paid in full at this time.
@@ -356,7 +357,7 @@ _Loan must be in OUTSTANDING status.
 ### loanBalanceDueWithInterest
 
 ```solidity
-function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256)
+function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256, uint256)
 ```
 
 Loan balance due including interest if paid in full at this time.
@@ -369,8 +370,15 @@ _Internal method to get the amount due and the interest rate applied._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | A pair of a total amount due with interest on this loan, and a percentage representing the interest part of the due amount. |
+| [0] | uint256 | A pair of a principal and  interest amounts due on this loan |
 | [1] | uint256 |  |
+| [2] | uint256 |  |
+
+### payableLoanBalance
+
+```solidity
+function payableLoanBalance(uint256 loanId, uint256 maxPaymentAmount) private view returns (uint256, uint256, uint256)
+```
 
 ### countInterestDays
 

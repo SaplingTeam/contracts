@@ -24,9 +24,9 @@ struct LoanOffer {
   uint256 amount;
   uint256 duration;
   uint256 gracePeriod;
+  uint256 installmentAmount;
   uint16 installments;
   uint16 apr;
-  uint16 lateAPRDelta;
   uint256 offeredTime;
 }
 ```

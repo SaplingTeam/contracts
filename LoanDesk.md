@@ -166,14 +166,6 @@ uint16 templateLoanAPR
 
 Loan APR to be applied for the new loan requests
 
-### templateLateLoanAPRDelta
-
-```solidity
-uint16 templateLateLoanAPRDelta
-```
-
-Loan late payment APR delta to be applied fot the new loan requests
-
 ### nextApplicationId
 
 ```solidity
@@ -315,21 +307,6 @@ _apr must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
 | ---- | ---- | ----------- |
 | apr | uint16 | Loan APR to be applied for the new loan requests. |
 
-### setTemplateLateLoanAPRDelta
-
-```solidity
-function setTemplateLateLoanAPRDelta(uint16 lateAPRDelta) external
-```
-
-Set late payment annual loan interest rate delta for the future loans.
-
-_lateAPRDelta must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
-     Caller must be the manager._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| lateAPRDelta | uint16 | Loan late payment APR delta to be applied for the new loan requests. |
-
 ### requestLoan
 
 ```solidity
@@ -365,7 +342,7 @@ _Loan must be in APPLIED status.
 ### offerLoan
 
 ```solidity
-function offerLoan(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint16 _installments, uint16 _apr, uint16 _lateAPRDelta) external
+function offerLoan(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint16 _apr) external
 ```
 
 Approve a loan application and offer a loan.
@@ -378,7 +355,7 @@ _Loan application must be in APPLIED status.
 ### updateOffer
 
 ```solidity
-function updateOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint16 _installments, uint16 _apr, uint16 _lateAPRDelta) external
+function updateOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint16 _apr) external
 ```
 
 Update an existing loan offer offer a loan.
@@ -449,6 +426,6 @@ function canClose() internal pure returns (bool)
 ### validLoanParams
 
 ```solidity
-function validLoanParams(uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint16 _installments, uint16 _apr, uint16 _lateAPRDelta) private view returns (bool)
+function validLoanParams(uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint16 _apr) private view returns (bool)
 ```
 
