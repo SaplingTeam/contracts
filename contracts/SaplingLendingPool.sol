@@ -366,7 +366,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param loanId ID of the loan to check the balance of.
      * @return Total amount due with interest on this loan.
      */
-    function loanBalanceDue(uint256 loanId) external view returns(uint256) {
+    function loanBalanceDue(uint256 loanId) public view returns(uint256) {
         (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
         return principalOutstanding.add(interestOutstanding);
     }
@@ -407,14 +407,14 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         (uint256 transferAmount, uint256 interestPayable, uint256 payableInterestDays) = payableLoanBalance(loanId, amount);
 
-        // TODO enforce a small minimum payment amount, except for the last payment 
-        // require(transferAmount == totalAmountPayable || transferAmount >= ONE_TOKEN, "Sapling: Payment amount is less than the required minimum of 1 token.");
+        // enforce a small minimum payment amount, except for the last payment equal to the total amount due 
+        require(transferAmount >= ONE_TOKEN || transferAmount == loanBalanceDue(loanId), "Sapling: Payment amount is less than the required minimum of 1 token.");
 
         // charge 'amount' tokens from msg.sender
         bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), transferAmount);
         require(success);
         tokenBalance = tokenBalance.add(transferAmount);
-        
+
         uint256 principalPaid = transferAmount.sub(interestPayable);
 
         //share profits to protocol
@@ -462,26 +462,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         return (transferAmount, interestPayable);
     }
 
-    function payableLoanBalance(uint256 loanId, uint256 maxPaymentAmount) internal view returns (uint256, uint256, uint256) {
-        (uint256 principalOutstanding, uint256 interestOutstanding, uint256 interestDays) = loanBalanceDueWithInterest(loanId);
-
-        uint256 transferAmount = Math.min(principalOutstanding.add(interestOutstanding), maxPaymentAmount);
-
-        uint256 interestPayable;
-        uint256 payableInterestDays;
-        
-        if (maxPaymentAmount >= interestOutstanding) {
-            payableInterestDays = interestDays;
-            interestPayable = interestOutstanding;
-        } else {
-            //round down payable interest amount to cover a whole number of days 
-            payableInterestDays = Math.mulDiv(interestPayable, interestDays, interestOutstanding);
-            interestPayable = Math.mulDiv(interestOutstanding, Math.mulDiv(interestPayable, interestDays, interestOutstanding), interestDays);
-        }
-
-        return (transferAmount, interestPayable, payableInterestDays);
-    }
-
     /**
      * @notice Loan balance due including interest if paid in full at this time. 
      * @dev Internal method to get the amount due and the interest rate applied.
@@ -503,6 +483,25 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         uint256 interestOutstanding = Math.mulDiv(principalOutstanding, interestPercent, ONE_HUNDRED_PERCENT);
 
         return (principalOutstanding, interestOutstanding, daysPassed);
+    }
+
+    function payableLoanBalance(uint256 loanId, uint256 maxPaymentAmount) private view returns (uint256, uint256, uint256) {
+        (uint256 principalOutstanding, uint256 interestOutstanding, uint256 interestDays) = loanBalanceDueWithInterest(loanId);
+        uint256 transferAmount = Math.min(principalOutstanding.add(interestOutstanding), maxPaymentAmount);
+
+        uint256 interestPayable;
+        uint256 payableInterestDays;
+        
+        if (maxPaymentAmount >= interestOutstanding) {
+            payableInterestDays = interestDays;
+            interestPayable = interestOutstanding;
+        } else {
+            //round down payable interest amount to cover a whole number of days 
+            payableInterestDays = Math.mulDiv(interestPayable, interestDays, interestOutstanding);
+            interestPayable = Math.mulDiv(interestOutstanding, Math.mulDiv(interestPayable, interestDays, interestOutstanding), interestDays);
+        }
+
+        return (transferAmount, interestPayable, payableInterestDays);
     }
 
     /**

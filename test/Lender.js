@@ -777,7 +777,7 @@ describe("Lender (SaplingPool)", function() {
                 expect(walletBalance).to.equal(prevWalletBalance.sub(loanBalanceDue));
             });
 
-            it.only("Borrower can do a payment with amount less than the required minimum but equal to outstanding balance", async function () {
+            it("Borrower can do a payment with amount less than the required minimum but equal to outstanding balance", async function () {
                 let loan = await poolContract.loans(loanId);
     
                 await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
