@@ -15,7 +15,7 @@ async function main() {
 
     let deployer = await ethers.Wallet.fromMnemonic(wallets[DEPLOYER_ADDRESS_INDEX].mnemonic.phrase).connect(ethers.provider);
 
-    let TestUSDC = await ethers.getContractFactory("TestUSDC");
+    let TestUSDC = await ethers.getContractFactory("TestToken");
     let tokenContract;
     if (config.dryRun === true) {
         tokenContract = await TestUSDC.connect(deployer).deploy();

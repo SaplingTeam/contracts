@@ -22,8 +22,8 @@ describe("Contract Deployment", function() {
     beforeEach(async function () {
         [manager, protocol, governance1, governance2, ...addrs] = await ethers.getSigners();
 
-        let TestUSDC = await ethers.getContractFactory("TestUSDC");
-        liquidityTokenContract = await TestUSDC.deploy();
+        let TestUSDC = await ethers.getContractFactory("TestToken");
+        liquidityTokenContract = await TestUSDC.deploy("Test USDC", "TestUSDC", 6);
 
         let TOKEN_DECIMALS = await liquidityTokenContract.decimals();
         TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
