@@ -21,7 +21,7 @@ async function main() {
 
     console.log("\nDeploying pool token contract ...");
     PoolToken = await ethers.getContractFactory("PoolToken");
-    poolTokenContract = await PoolToken.deploy("Sapling Lending Pool Token", "SLPT", DECIMALS);
+    poolTokenContract = await PoolToken.deploy("Sapling Test Lending Pool Token", "SLPT", DECIMALS);
     console.log("PoolToken address: \t\t", poolTokenContract.address);
 
     console.log("\nDeploying lending pool contract ...");
