@@ -17,7 +17,7 @@ async function main() {
     liquidityTokenContract = await TestToken.attach(liquidityTokenAddress);
     console.log("LiquidityToken address: \t", liquidityTokenContract.address);
 
-    const DECIMALS = await tokenContract.decimals();
+    const DECIMALS = await liquidityTokenContract.decimals();
 
     console.log("\nDeploying pool token contract ...");
     PoolToken = await ethers.getContractFactory("PoolToken");
