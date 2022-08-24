@@ -21,11 +21,11 @@ describe("ManagedLendingPool (SaplingPool)", function() {
     beforeEach(async function () {
         [manager, protocol, governance, lender1, borrower1, ...addrs] = await ethers.getSigners();
 
-        let TestUSDC = await ethers.getContractFactory("TestUSDC");
+        let TestUSDC = await ethers.getContractFactory("TestToken");
         let SaplingPool = await ethers.getContractFactory("SaplingLendingPool");
         LoanDesk = await ethers.getContractFactory("LoanDesk");
 
-        tokenContract = await TestUSDC.deploy();
+        tokenContract = await TestUSDC.deploy("Test USDC", "TestUSDC", 6);
 
         TOKEN_DECIMALS = await tokenContract.decimals();
         TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);

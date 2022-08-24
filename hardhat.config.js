@@ -8,7 +8,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 32
+        runs: 1024
       },
     },
   },
@@ -39,6 +39,14 @@ module.exports = {
       url: "https://mainnet.optimism.io/",
       chainId: 10,
       gas: 5500000,
+    },
+    polygonMumbai: {
+      url: "https://rpc-mumbai.maticvigil.com",
+      chainId: 80001,
+      gas: 5500000,
+      accounts: {
+        mnemonic: process.env.TESTNET_MNEMONIC
+      }
     }
   },
   docgen: {
@@ -49,6 +57,7 @@ module.exports = {
       kovan: process.env.ETHERSCAN_API_KEY,
       optimisticKovan: process.env.OPTIMISTIC_ETHERSCAN_API_KEY,
       optimisticEthereum: process.env.OPTIMISTIC_ETHERSCAN_API_KEY,
+      polygonMumbai: process.env.MUMBAI_POLYGONSCAN_API_KEY,
     }
   },
 };
