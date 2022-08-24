@@ -133,12 +133,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @param _protocol Address of a wallet to accumulate protocol earnings.
      * @param _manager Address of the pool manager.
      */
-    constructor(address _pool, address _governance, address _protocol, address _manager, uint256 _oneToken) 
+    constructor(address _pool, address _governance, address _protocol, address _manager, uint8 _decimals) 
         SaplingManagerContext(_governance, _protocol, _manager) {
         require(_pool != address(0), "Sapling: Pool address is not set");
 
         pool = _pool;
 
+        uint256 _oneToken = 10 ** uint256(_decimals);
         SAFE_MIN_AMOUNT = _oneToken;
         minLoanAmount = _oneToken.mul(100);
 
