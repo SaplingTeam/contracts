@@ -9,8 +9,10 @@
     "doc": "rimraf docs && hardhat docgen",
     "test": "hardhat test",
     "coverage": "hardhat coverage",
-    "deploy-testnet": "hardhat run scripts/deploy.test.js --network optimisticKovan",
-    "verify-testnet": "hardhat verify --network optimisticKovan --constructor-args scripts/arguments.optimistic.kovan.js",
+    "deploy-testnet-optimism": "hardhat run scripts/deploy.test.js --network optimisticKovan",
+    "verify-testnet-optimism": "hardhat verify --network optimisticKovan --constructor-args scripts/arguments.optimistic.kovan.js",
+    "deploy-testnet-polygon": "hardhat run scripts/deploy.test.js --network polygonMumbai",
+    "verify-testnet-polygon": "hardhat verify --network polygonMumbai",
     "deploy-dev": "hardhat run scripts/deploy.dev.js",
     "gen-test-wallets": "hardhat run scripts/create-wallets.js > scripts/data/wallets.json"
   },
