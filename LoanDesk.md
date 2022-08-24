@@ -219,7 +219,7 @@ modifier applicationInStatus(uint256 applicationId, enum ILoanDesk.LoanApplicati
 ### constructor
 
 ```solidity
-constructor(address _pool, address _governance, address _protocol, address _manager, uint256 _oneToken) public
+constructor(address _pool, address _governance, address _protocol, address _manager, uint8 _decimals) public
 ```
 
 Create a Lender that ManagedLendingPool.
@@ -230,7 +230,7 @@ Create a Lender that ManagedLendingPool.
 | _governance | address | Address of the protocol governance. |
 | _protocol | address | Address of a wallet to accumulate protocol earnings. |
 | _manager | address | Address of the pool manager. |
-| _oneToken | uint256 |  |
+| _decimals | uint8 |  |
 
 ### setMinLoanAmount
 

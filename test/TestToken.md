@@ -1,6 +1,6 @@
 # Solidity API
 
-## TestUSDC
+## TestToken
 
 ### MINTER_ROLE
 
@@ -17,7 +17,7 @@ uint8 _DECIMALS
 ### constructor
 
 ```solidity
-constructor() public
+constructor(string name_, string symbol_, uint8 decimals_) public
 ```
 
 ### decimals
