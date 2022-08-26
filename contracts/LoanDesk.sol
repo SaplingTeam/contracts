@@ -355,7 +355,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     {
         require(validLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr));
 
-        LoanOffer memory offer = loanOffers[appId];
+        LoanOffer storage offer = loanOffers[appId];
 
         if (offer.amount != _amount) {
             uint256 nextOfferedFunds = offeredFunds.sub(offer.amount).add(_amount);
