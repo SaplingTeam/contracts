@@ -398,6 +398,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         borrowerStats[offer.borrower].hasOpenApplication = false;
         
         offeredFunds = offeredFunds.sub(offer.amount);
+        ILoanDeskOwner(pool).onOfferUpdate(offer.amount, 0);
 
         emit LoanOfferCancelled(appId, offer.borrower);
     }
