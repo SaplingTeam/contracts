@@ -19,13 +19,13 @@ abstract contract SaplingContext is Pausable {
 
     /// Event for when a new governance is set
     event GovernanceTransferred(address from, address to);
-    event ProtocolWalletSet(address from, address to);
 
     /// Event for when a new protocol wallet is set
+    event ProtocolWalletTransferred(address from, address to);
 
     /// A modifier to limit access only to the governance
     modifier onlyGovernance {
-        require(msg.sender == governance, "Managed: Caller is not the governance");
+        require(msg.sender == governance, "Sapling: Caller is not the governance");
         _;
     }
 
@@ -55,17 +55,18 @@ abstract contract SaplingContext is Pausable {
         emit GovernanceTransferred(prevGovernance, governance);
     }
 
-    function setProtocolWallet(address _protocol) external onlyGovernance {
     /**
      * @notice Transfer the protocol wallet.
      * @dev Caller must be the governance. 
      *      New governance address must not be 0, and must not be the same as current governance address.
      * @param _protocol New protocol wallet address.
      */
+    function transferProtocolWallet(address _protocol) external onlyGovernance {
         require(_protocol != address(0) && _protocol != protocol, "Governed: New protocol wallet address is invalid.");
         address prevProtocol = protocol;
         protocol = _protocol;
-        emit ProtocolWalletSet(prevProtocol, protocol);
+        emit ProtocolWalletTransferred(prevProtocol, protocol);
+        afterProtocolWalletTransfer(prevProtocol);
     }
 
     /**
@@ -85,4 +86,10 @@ abstract contract SaplingContext is Pausable {
     function unpause() external onlyGovernance {
         _unpause();
     }
+
+    /**
+     * @notice Hook that is called after a new protocol wallet address has been set.
+     * @param from Address of the previous protocol wallet.
+     */
+    function afterProtocolWalletTransfer(address from) internal virtual {}
 }

@@ -314,15 +314,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      *      Caller must be the LoanDesk.
      * @param amount Loan offer amount.
      */
-    function transferProtocolWallet(address _protocol) external onlyGovernance {
-        require(_protocol != address(0) && _protocol != protocol, "Governed: New protocol address is invalid.");
-        protocolEarnings[_protocol] = protocolEarnings[_protocol].add(protocolEarnings[protocol]);
-        protocolEarnings[protocol] = 0;
-
-        emit ProtocolWalletTransferred(protocol, _protocol);
-        protocol = _protocol;
-    }
-
     function onOffer(uint256 amount) external override onlyLoanDesk {
         require(strategyLiquidity() >= amount, "Sapling: insufficient liquidity for this operation");
         poolLiquidity = poolLiquidity.sub(amount);
@@ -423,6 +414,17 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      */
     function borrowedFunds() external view returns(uint256) {
         return strategizedFunds;
+    }
+
+    /**
+     * @notice Transfer the previous protocol wallet's accumulated fees to current protocol wallet.
+     * @dev Overrides a hook in SaplingContext.
+     * @param from Address of the previous protocol wallet.
+     */
+    function afterProtocolWalletTransfer(address from) internal override {
+        require(from != address(0), "Sapling: Invalid call of protocol wallet transfer hook.");
+        protocolEarnings[protocol] = protocolEarnings[protocol].add(protocolEarnings[from]);
+        protocolEarnings[from] = 0;
     }
 
     /**
