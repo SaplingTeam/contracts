@@ -4,6 +4,11 @@ pragma solidity ^0.8.15;
 
 import "@openzeppelin/contracts/security/Pausable.sol";
 
+/**
+ * @title Sapling Context
+ * @notice Provides governance access control, a common reverence to the protocol wallet address, and basic pause 
+ *         functionality by extending OpenZeppelin's Pausable contract.
+ */
 abstract contract SaplingContext is Pausable {
 
     /// Protocol governance
@@ -12,21 +17,23 @@ abstract contract SaplingContext is Pausable {
     /// Protocol wallet address
     address public protocol;
 
-    /// Event emitted when a new governance is set
+    /// Event for when a new governance is set
     event GovernanceTransferred(address from, address to);
-    event ProtocolWalletSet(address from, address to);
 
-    /// A modifier to limit access to the governance
+    /// Event for when a new protocol wallet is set
+    event ProtocolWalletTransferred(address from, address to);
+
+    /// A modifier to limit access only to the governance
     modifier onlyGovernance {
-        // direct use of msg.sender is intentional
-        require(msg.sender == governance, "Managed: Caller is not the governance");
+        require(msg.sender == governance, "Sapling: Caller is not the governance");
         _;
     }
 
     /**
-     * @notice Creates new SaplingContext instance.
-     * @dev _governance must not be 0
-     * @param _governance Address of the protocol governance.
+     * @notice Creates a new SaplingContext.
+     * @dev Addresses must not be 0.
+     * @param _governance Governance address
+     * @param _protocol Protocol wallet address
      */
     constructor(address _governance, address _protocol) {
         require(_governance != address(0), "Sapling: Governance address is not set");
@@ -37,9 +44,9 @@ abstract contract SaplingContext is Pausable {
 
     /**
      * @notice Transfer the governance.
-     * @dev Caller must be governance. 
-     *      _governance must not be 0.
-     * @param _governance Address of the new governance.
+     * @dev Caller must be the governance. 
+     *      New governance address must not be 0, and must not be the same as current governance address.
+     * @param _governance New governance address.
      */
     function transferGovernance(address _governance) external onlyGovernance {
         require(_governance != address(0) && _governance != governance, "Governed: New governance address is invalid.");
@@ -48,18 +55,41 @@ abstract contract SaplingContext is Pausable {
         emit GovernanceTransferred(prevGovernance, governance);
     }
 
-    function setProtocolWallet(address _protocol) external onlyGovernance {
+    /**
+     * @notice Transfer the protocol wallet.
+     * @dev Caller must be the governance. 
+     *      New governance address must not be 0, and must not be the same as current governance address.
+     * @param _protocol New protocol wallet address.
+     */
+    function transferProtocolWallet(address _protocol) external onlyGovernance {
         require(_protocol != address(0) && _protocol != protocol, "Governed: New protocol wallet address is invalid.");
         address prevProtocol = protocol;
         protocol = _protocol;
-        emit ProtocolWalletSet(prevProtocol, protocol);
+        emit ProtocolWalletTransferred(prevProtocol, protocol);
+        afterProtocolWalletTransfer(prevProtocol);
     }
 
+    /**
+     * @notice Pause the contract. 
+     * @dev Caller must be the governance. 
+     *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause.
+     */
     function pause() external onlyGovernance {
         _pause();
     }
 
+    /**
+     * @notice Resume the contract. 
+     * @dev Caller must be the governance. 
+     *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause.
+     */
     function unpause() external onlyGovernance {
         _unpause();
     }
+
+    /**
+     * @notice Hook that is called after a new protocol wallet address has been set.
+     * @param from Address of the previous protocol wallet.
+     */
+    function afterProtocolWalletTransfer(address from) internal virtual {}
 }

@@ -8,15 +8,14 @@ import "./interfaces/ILoanDesk.sol";
 import "./interfaces/ILoanDeskOwner.sol";
 
 /**
- * @title SaplingPool Lender
- * @notice Extends ManagedLendingPool with lending functionality.
- * @dev This contract is abstract. Extend the contract to implement an intended pool functionality.
+ * @title Loan Desk
+ * @notice Provides loan application and offer management.
  */
 contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
 
     using SafeMath for uint256;
 
-    /// Loan application object
+    /// Loan application object template
     struct LoanApplication {
         uint256 id;
         address borrower;
@@ -47,33 +46,44 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         /// All time loan borrow count
         uint256 countBorrowed;
 
-        /// All time loan cancellation count
+        /// All time loan offer cancellation count
         uint256 countCancelled;
 
-        /// most recent applicationId
+        /// Most recent application id
         uint256 recentApplicationId;
 
+        /// Whether or not this borrower has a pending application
         bool hasOpenApplication;
     }
 
+    /// Event for when a new loan is requested, and an application is created
     event LoanRequested(uint256 applicationId, address indexed borrower);
+
+    /// Event for when a loan request is denied
     event LoanRequestDenied(uint256 applicationId, address indexed borrower);
+
+    /// Event for when a loan offer is made
     event LoanOffered(uint256 applicationId, address indexed borrower);
+
+    /// Event for when a loan offer is updated
     event LoanOfferUpdated(uint256 applicationId, address indexed borrower);
+
+    /// Event for when a loan offer is cancelled
     event LoanOfferCancelled(uint256 applicationId, address indexed borrower);
 
+    /// Address of the lending pool contract
     address public pool;
 
-    /// Contract math safe minimum loan amount including token decimals
+    /// Math safe minimum loan amount including token decimals
     uint256 public immutable SAFE_MIN_AMOUNT;
 
     /// Minimum allowed loan amount 
     uint256 public minLoanAmount;
 
-    /// Contract math safe minimum loan duration in seconds
+    /// Math safe minimum loan duration in seconds
     uint256 public constant SAFE_MIN_DURATION = 1 days;
 
-    /// Contract math safe maximum loan duration in seconds
+    /// Math safe maximum loan duration in seconds
     uint256 public constant SAFE_MAX_DURATION = 51 * 365 days;
 
     /// Minimum loan duration in seconds
@@ -85,12 +95,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     /// Loan payment grace period after which a loan can be defaulted
     uint256 public templateLoanGracePeriod = 60 days;
 
-    /// Maximum allowed loan payment grace period
+    /// Minimum allowed loan payment grace period
     uint256 public constant MIN_LOAN_GRACE_PERIOD = 3 days;
-
+    
+    /// Maximum allowed loan payment grace period
     uint256 public constant MAX_LOAN_GRACE_PERIOD = 365 days;
-
-    // APR, to represent a percentage value as int, multiply by (10 ^ percentDecimals)
 
     /// Safe minimum for APR values
     uint16 public constant SAFE_MIN_APR = 0; // 0%
@@ -113,13 +122,16 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     /// Borrower statistics by address 
     mapping(address => BorrowerStats) public borrowerStats;
 
+    /// Total liquidity tokens allocated for loan offers and pending acceptance by the borrowers
     uint256 public offeredFunds;
 
+    /// A modifier to limit access only to the lending pool contract
     modifier onlyPool() {
         require(msg.sender == pool, "Sapling: caller is not the lending pool");
         _;
     }
 
+    /// A modifier to limit access only to when the application exists and has the specified status
     modifier applicationInStatus(uint256 applicationId, LoanApplicationStatus status) {
         LoanApplication storage app = loanApplications[applicationId];
         require(app.id != 0, "Loan application is not found.");
@@ -128,10 +140,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     }
 
     /**
-     * @notice Create a Lender that ManagedLendingPool.
-     * @param _governance Address of the protocol governance.
-     * @param _protocol Address of a wallet to accumulate protocol earnings.
-     * @param _manager Address of the pool manager.
+     * @notice Create a new LoanDesk.
+     * @dev Addresses must not be 0.
+     * @param _pool Lending pool address
+     * @param _governance Governance address
+     * @param _protocol Protocol wallet address
+     * @param _manager Manager address
+     * @param _decimals Lending pool liquidity token decimals
      */
     constructor(address _pool, address _governance, address _protocol, address _manager, uint8 _decimals) 
         SaplingManagerContext(_governance, _protocol, _manager) {
@@ -154,10 +169,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     }
 
     /**
-     * @notice Set a minimum loan amount for the future loans.
+     * @notice Set a minimum loan amount.
      * @dev minLoanAmount must be greater than or equal to SAFE_MIN_AMOUNT.
      *      Caller must be the manager.
-     * @param _minLoanAmount minimum loan amount to be enforced for the new loan requests.
+     * @param _minLoanAmount Minimum loan amount to be enforced on new loan requests and offers
      */
     function setMinLoanAmount(uint256 _minLoanAmount) external onlyManager whenNotPaused {
         require(SAFE_MIN_AMOUNT <= _minLoanAmount, "New min loan amount is less than the safe limit");
@@ -165,10 +180,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     }
 
     /**
-     * @notice Set maximum loan duration for the future loans.
+     * @notice Set the minimum loan duration
      * @dev Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxLoanDuration.
      *      Caller must be the manager.
-     * @param duration Maximum loan duration to be enforced for the new loan requests.
+     * @param duration Minimum loan duration to be enforced on new loan requests and offers
      */
     function setMinLoanDuration(uint256 duration) external onlyManager whenNotPaused {
         require(SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration, "New min duration is out of bounds");
@@ -176,10 +191,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     }
 
     /**
-     * @notice Set maximum loan duration for the future loans.
+     * @notice Set the maximum loan duration.
      * @dev Duration must be in seconds and inclusively between minLoanDuration and SAFE_MAX_DURATION.
      *      Caller must be the manager.
-     * @param duration Maximum loan duration to be enforced for the new loan requests.
+     * @param duration Maximum loan duration to be enforced on new loan requests and offers
      */
     function setMaxLoanDuration(uint256 duration) external onlyManager whenNotPaused {
         require(minLoanDuration <= duration && duration <= SAFE_MAX_DURATION, "New max duration is out of bounds");
@@ -187,10 +202,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     }
 
     /**
-     * @notice Set loan payment grace period for the future loans.
-     * @dev Duration must be in seconds and inclusively between MIN_LOAN_GRACE_PERIOD and MAX_LOAN_GRACE_PERIOD.
+     * @notice Set the template loan payment grace period.
+     * @dev Grace period must be in seconds and inclusively between MIN_LOAN_GRACE_PERIOD and MAX_LOAN_GRACE_PERIOD.
      *      Caller must be the manager.
-     * @param gracePeriod Loan payment grace period for new loan requests.
+     * @param gracePeriod Loan payment grace period for new loan offers
      */
     function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyManager whenNotPaused {
         require(MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD, "Lender: New grace period is out of bounds.");
@@ -198,10 +213,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     }
 
     /**
-     * @notice Set annual loan interest rate for the future loans.
-     * @dev apr must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
+     * @notice Set a template loan APR
+     * @dev APR must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
      *      Caller must be the manager.
-     * @param apr Loan APR to be applied for the new loan requests.
+     * @param apr Loan APR to be enforced on the new loan offers.
      */
     function setTemplateLoanAPR(uint16 apr) external onlyManager whenNotPaused {
         require(SAFE_MIN_APR <= apr && apr <= SAFE_MAX_APR, "APR is out of bounds");
@@ -213,10 +228,12 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @dev Requested amount must be greater or equal to minLoanAmount().
      *      Loan duration must be between minLoanDuration() and maxLoanDuration().
      *      Caller must not be a lender, protocol, or the manager. 
-     *      Multiple pending applications from the same address are not allowed,
+     *      Multiple pending applications from the same address are not allowed - 
      *      most recent loan/application of the caller must not have APPLIED status.
-     * @param _amount Token amount to be borrowed.
-     * @param _duration Loan duration in seconds. 
+     * @param _amount Liquidity token amount to be borrowed
+     * @param _duration Loan duration in seconds
+     * @param _profileId Borrower metadata profile id obtained from the borrower service
+     * @param _profileDigest Borrower metadata digest obtained from the borrower service
      */
     function requestLoan(
         uint256 _amount, 
@@ -229,7 +246,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         whenNotClosed 
         whenNotPaused
     {
-
         require(borrowerStats[msg.sender].hasOpenApplication == false, "Sapling: another loan application is pending.");
         require(_amount >= minLoanAmount, "Sapling: loan amount is less than the minimum allowed");
         require(minLoanDuration <= _duration, "Sapling: loan duration is less than minimum allowed.");
@@ -287,8 +303,15 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @notice Approve a loan application and offer a loan.
      * @dev Loan application must be in APPLIED status.
      *      Caller must be the manager.
-     *      Loan amount must not exceed poolLiquidity();
-     *      Stake to pool funds ratio must be good - poolCanLend() must be true.
+     *      Loan amount must not exceed available liquidity - 
+     *      canOffer(offeredFunds.add(_amount)) must be true on the lending pool.
+     * @param appId Loan application id
+     * @param _amount Loan amount in liquidity tokens
+     * @param _duration Loan term in seconds
+     * @param _gracePeriod Loan payment grace period in seconds
+     * @param _installmentAmount Minimum payment amount on each instalment in liquidity tokens
+     * @param _installments The number of payment installments
+     * @param _apr Annual percentage rate of this loan
      */
     function offerLoan(
         uint256 appId, 
@@ -332,11 +355,18 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     }
 
     /**
-     * @notice Update an existing loan offer offer a loan.
+     * @notice Update an existing loan offer.
      * @dev Loan application must be in OFFER_MADE status.
      *      Caller must be the manager.
-     *      Loan amount must not exceed poolLiquidity();
-     *      Stake to pool funds ratio must be good - poolCanLend() must be true.
+     *      Loan amount must not exceed available liquidity - 
+     *      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool.
+     * @param appId Loan application id
+     * @param _amount Loan amount in liquidity tokens
+     * @param _duration Loan term in seconds
+     * @param _gracePeriod Loan payment grace period in seconds
+     * @param _installmentAmount Minimum payment amount on each instalment in liquidity tokens
+     * @param _installments The number of payment installments
+     * @param _apr Annual percentage rate of this loan
      */
     function updateOffer(
         uint256 appId, 
@@ -380,8 +410,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     
     /**
      * @notice Cancel a loan.
-     * @dev Loan must be in APPROVED status.
-     *      Caller must be the manager.
+     * @dev Loan application must be in OFFER_MADE status.
+     *      Caller must be the manager or approved party when the manager is inactive.
      */
     function cancelLoan(uint256 appId) external managerOrApprovedOnInactive applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) {
         LoanOffer storage offer = loanOffers[appId];
@@ -403,6 +433,12 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         emit LoanOfferCancelled(appId, offer.borrower);
     }
 
+    /**
+     * @notice Hook to be called when a loan offer is accepted. Updates the loan offer and liquidity state.
+     * @dev Loan application must be in OFFER_MADE status.
+     *      Caller must be the lending pool.
+     * @param appId ID of the application the accepted offer was made for.
+     */
     function onBorrow(uint256 appId) external override onlyPool applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) {
         LoanApplication storage app = loanApplications[appId];
         app.status = LoanApplicationStatus.OFFER_ACCEPTED;
@@ -411,10 +447,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     }
 
     /**
-     * @notice View indicating whether or not a given loan approval qualifies to be cancelled by a given caller.
-     * @param appId application ID to check
-     * @param caller address that intends to call cancel() on the loan
-     * @return True if the given loan approval can be cancelled, false otherwise
+     * @notice View indicating whether or not a given loan offer qualifies to be cancelled by a given caller.
+     * @param appId Application ID of the loan offer in question
+     * @param caller Address that intends to call cancel() on the loan offer
+     * @return True if the given loan approval can be cancelled and can be cancelled by the specified caller, 
+     *         false otherwise.
      */
     function canCancel(uint256 appId, address caller) external view returns (bool) {
         if (caller != manager && !authorizedOnInactiveManager(caller)) {
@@ -425,22 +462,56 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
             && block.timestamp >= (loanOffers[appId].offeredTime + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
     }
 
+    /**
+     * @notice Accessor for application status. 
+     * @dev NULL status is returned for nonexistent applications.
+     * @param appId ID of the application in question.
+     * @return Current status of the application with the specified ID.
+     */
     function applicationStatus(uint256 appId) external view override returns (LoanApplicationStatus) {
         return loanApplications[appId].status;
     }
 
+    /**
+     * @notice Accessor for loan offer.
+     * @dev Loan offer is valid when the loan application is present and has OFFER_MADE status. 
+     * @param appId ID of the application the offer was made for.
+     * @return LoanOffer struct instance for the specified application ID.
+     */
     function loanOfferById(uint256 appId) external view override returns (LoanOffer memory) {
         return loanOffers[appId];
     }
 
+    /**
+     * @notice Indicates whether or not the the caller is authorized to take applicable managing actions when the 
+     *         manager is inactive.
+     * @dev Overrides a hook in SaplingManagerContext.
+     * @param caller Caller's address.
+     * @return True if the caller is authorized at this time, false otherwise.
+     */
     function authorizedOnInactiveManager(address caller) override internal view returns (bool) {
         return caller == governance || caller == protocol;
     }
 
+    /**
+     * @notice Indicates whether or not the contract can be closed in it's current state.
+     * @dev Overrides a hook in SaplingManagerContext.
+     * @return True if the contract is closed, false otherwise.
+     */
     function canClose() override internal pure returns (bool) {
         return true;
     }
 
+    /**
+     * @dev Validates loan offer parameters
+     * @param _amount Loan amount in liquidity tokens
+     * @param _duration Loan term in seconds
+     * @param _gracePeriod Loan payment grace period in seconds
+     * @param _installmentAmount Minimum payment amount on each instalment in liquidity tokens
+     * @param _installments The number of payment installments
+     * @param _apr Annual percentage rate of this loan
+     * @return True if all parameters are valid, throws a require exception otherwise.
+     */
     function validLoanParams(
         uint256 _amount, 
         uint256 _duration, 

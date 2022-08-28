@@ -10,15 +10,37 @@ import "./ILoanDeskFactory.sol";
 import "./IPoolFactory.sol";
 import "./IOwnable.sol";
 
+/**
+ * @title Sapling Factory
+ * @notice Facilitates on-chain deployment and setup of protocol components.
+ */
 contract SaplingFactory is SaplingContext {
 
+    /// Verification hub contract address
     address public verificationHub;
+
+    /// Token factory contract address
     address public tokenFactory;
+
+    /// LoanDesk factory contract address
     address public loanDeskFactory;
+
+    /// Lending pool factory contract address
     address public poolFactory;
 
-    event PoolCreated(address pool);
+    /// Event for when a Lending pool and it's components are deployed, linked and ready for use.
+    event LendingPoolReady(address pool);
 
+    /**
+     * @notice Create a new SaplingFactory.
+     * @dev Addresses must not be 0.
+     * @param _tokenFactory Toke factory address
+     * @param _loanDeskFactory LoanDesk factory address
+     * @param _poolFactory Lending Pool factory address address
+     * @param _verificationHub Verification hub address
+     * @param _governance Governance address
+     * @param _protocol Protocol wallet address
+     */
     constructor(
         address _tokenFactory, 
         address _loanDeskFactory, 
@@ -34,6 +56,14 @@ contract SaplingFactory is SaplingContext {
         verificationHub = _verificationHub;
     }
 
+    /**
+     * @notice Deploys a lending pool and it's components
+     * @dev Caller must be the governance.
+     * @param name Token name
+     * @param symbol Token symbol
+     * @param manager Manager address
+     * @param liquidityToken Liquidity token address
+     */
     function createLendingPool(string memory name, string memory symbol, address manager, address liquidityToken) external onlyGovernance whenNotPaused {
         uint8 decimals = IERC20Metadata(liquidityToken).decimals();
         address poolToken = ITokenFactory(tokenFactory).create(string.concat(name, " Token"), symbol, decimals);
@@ -47,6 +77,6 @@ contract SaplingFactory is SaplingContext {
         
         IVerificationHub(verificationHub).registerSaplingPool(pool);
 
-        emit PoolCreated(pool);
+        emit LendingPoolReady(pool);
     }
 }

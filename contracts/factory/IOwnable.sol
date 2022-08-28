@@ -3,7 +3,8 @@
 pragma solidity ^0.8.15;
 
 /**
- * @dev interface to make Ownable contract functions callable without importing the whole Ownable contract and it's dependencies.
+ * @dev Interface to make Openzeppelin's Ownable contract functions easily callable without importing the whole Ownable 
+ *      contract and it's dependencies.
  */
 interface IOwnable {
     function transferOwnership(address newOwner) external;
