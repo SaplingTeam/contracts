@@ -218,7 +218,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      *      Caller must not be any of: manager, protocol, governance.
      * @param amount Liquidity token amount to deposit.
      */
-    function deposit(uint256 amount) external override onlyUser whenNotClosed whenNotPaused {
+    function deposit(uint256 amount) external override onlyUser whenNotPaused whenNotClosed {
         enterPool(amount);
     }
 
@@ -242,7 +242,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      *      An appropriate spend limit must be present at the token contract.
      * @param amount Liquidity token amount to stake.
      */
-    function stake(uint256 amount) external onlyManager whenNotClosed whenNotPaused {
+    function stake(uint256 amount) external onlyManager whenNotPaused whenNotClosed {
         require(amount > 0, "SaplingPoolContext: stake amount is 0");
 
         uint256 shares = enterPool(amount);
@@ -308,39 +308,11 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired yield.
-     *         This balance does not included staked balance, leveraged earnings or protocol earnings.
-     * @param wallet Address of the wallet to check the balance of.
-     * @return Liquidity token balance of the wallet in this pool.
-     */
-    function balanceOf(address wallet) public view override returns (uint256) {
-        return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet));
-    }
-
-    /**
      * @notice Check the manager's staked liquidity token balance in the pool.
      * @return Liquidity token balance of the manager's stake.
      */
-    function balanceStaked() public view returns (uint256) {
+    function balanceStaked() external view returns (uint256) {
         return sharesToTokens(stakedShares);
-    }
-
-    /**
-     * @notice Check liquidity token amount unstakable by the manager at this time.
-     * @dev Return value depends on the manager's stake balance and targetStakePercent, and is limited by pool liquidity.
-     * @return Max amount of tokens unstakable by the manager.
-     */
-    function amountUnstakable() public view returns (uint256) {
-        if (paused() || targetStakePercent >= ONE_HUNDRED_PERCENT && totalPoolShares > stakedShares) {
-            return 0;
-        } else if (closed() || totalPoolShares == stakedShares) {
-            return Math.min(poolLiquidity, sharesToTokens(stakedShares));
-        }
-
-        uint256 lenderShares = totalPoolShares.sub(stakedShares);
-        uint256 lockedStakeShares = Math.mulDiv(lenderShares, targetStakePercent, ONE_HUNDRED_PERCENT - targetStakePercent);
-
-        return Math.min(poolLiquidity, sharesToTokens(stakedShares.sub(lockedStakeShares)));
     }
 
     /**
@@ -372,6 +344,34 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         require(strategyRate <= ONE_HUNDRED_PERCENT, 
             "SaplingPoolContext: invalid borrow rate; borrow rate is not less than or equal to 100%");
         return lenderAPY(Math.mulDiv(poolFunds, strategyRate, ONE_HUNDRED_PERCENT), _avgStrategyAPR);
+    }
+
+    /**
+     * @notice Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired yield.
+     *         This balance does not included staked balance, leveraged earnings or protocol earnings.
+     * @param wallet Address of the wallet to check the balance of.
+     * @return Liquidity token balance of the wallet in this pool.
+     */
+    function balanceOf(address wallet) public view override returns (uint256) {
+        return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet));
+    }
+
+    /**
+     * @notice Check liquidity token amount unstakable by the manager at this time.
+     * @dev Return value depends on the manager's stake balance and targetStakePercent, and is limited by pool liquidity.
+     * @return Max amount of tokens unstakable by the manager.
+     */
+    function amountUnstakable() public view returns (uint256) {
+        if (paused() || targetStakePercent >= ONE_HUNDRED_PERCENT && totalPoolShares > stakedShares) {
+            return 0;
+        } else if (closed() || totalPoolShares == stakedShares) {
+            return Math.min(poolLiquidity, sharesToTokens(stakedShares));
+        }
+
+        uint256 lenderShares = totalPoolShares.sub(stakedShares);
+        uint256 lockedStakeShares = Math.mulDiv(lenderShares, targetStakePercent, ONE_HUNDRED_PERCENT - targetStakePercent);
+
+        return Math.min(poolLiquidity, sharesToTokens(stakedShares.sub(lockedStakeShares)));
     }
 
     /**

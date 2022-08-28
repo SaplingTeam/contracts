@@ -22,6 +22,12 @@ abstract contract SaplingManagerContext is SaplingContext {
      *         can also call cancel() and default(). Other requirements for loan cancellation/default still apply.
      */
     uint256 public constant MANAGER_INACTIVITY_GRACE_PERIOD = 90 days;
+
+    /// Event for when the contract is closed
+    event Closed(address account);
+
+    /// Event for when the contract is reopened
+    event Opened(address account);
     
     /// A modifier to limit access only to the manager
     modifier onlyManager {
@@ -42,12 +48,6 @@ abstract contract SaplingManagerContext is SaplingContext {
              "SaplingManagerContext: caller is not a user");
         _;
     }
-
-    /// Event for when the contract is closed
-    event Closed(address account);
-
-    /// Event for when the contract is reopened
-    event Opened(address account);
 
     /// Modifier to limit function access to when the contract is not closed
     modifier whenNotClosed {
@@ -112,7 +112,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @dev A hook for the extending contract to implement.
      * @return True if the contract is closed, false otherwise.
      */
-    function canClose() virtual internal view returns (bool);
+    function canClose() internal view virtual returns (bool);
 
     /**
      * @notice Indicates whether or not the the caller is authorized to take applicable managing actions when the 
@@ -121,5 +121,5 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @param caller Caller's address.
      * @return True if the caller is authorized at this time, false otherwise.
      */
-    function authorizedOnInactiveManager(address caller) virtual internal view returns (bool);
+    function authorizedOnInactiveManager(address caller) internal view virtual returns (bool);
 }

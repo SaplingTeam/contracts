@@ -133,6 +133,17 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     }
 
     /**
+     * @notice Links a new loan desk for the pool to use. Intended for use upon initial pool deployment.
+     * @dev Caller must be the governance.
+     * @param _loanDesk New LoanDesk address
+     */
+    function setLoanDesk(address _loanDesk) external onlyGovernance {
+        address prevLoanDesk = loanDesk;
+        loanDesk = _loanDesk;
+        emit LoanDeskSet(prevLoanDesk, loanDesk);
+    }
+
+    /**
      * @notice Accept a loan offer and withdraw funds
      * @dev Caller must be the borrower of the loan in question.
      *      The loan must be in OFFER_MADE status.
@@ -293,17 +304,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     }
 
     /**
-     * @notice Links a new loan desk for the pool to use. Intended for use upon initial pool deployment.
-     * @dev Caller must be the governance.
-     * @param _loanDesk New LoanDesk address
-     */
-    function setLoanDesk(address _loanDesk) external onlyGovernance {
-        address prevLoanDesk = loanDesk;
-        loanDesk = _loanDesk;
-        emit LoanDeskSet(prevLoanDesk, loanDesk);
-    }
-
-    /**
      * @notice Handles liquidity state changes on a loan offer.
      * @dev Hook to be called when a new loan offer is made.
      *      Caller must be the LoanDesk.
@@ -337,6 +337,30 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      */
     function canOffer(uint256 totalOfferedAmount) external view override returns (bool) {
         return isPoolFunctional() && strategyLiquidity().add(allocatedFunds) >= totalOfferedAmount;
+    }
+
+    /**
+     * @notice Check if the pool can lend based on the current stake levels.
+     * @return True if the staked funds provide at least a minimum ratio to the pool funds, false otherwise.
+     */
+    function poolCanLend() external view returns (bool) {
+        return isPoolFunctional();
+    }
+
+    /**
+     * @notice Count of all loan requests in this pool.
+     * @return Loans count.
+     */
+    function loansCount() external view returns(uint256) {
+        return strategyCount();
+    }
+
+    /**
+     * @notice Current pool funds borrowed.
+     * @return Amount of funds borrowed in liquidity tokens.
+     */
+    function borrowedFunds() external view returns(uint256) {
+        return strategizedFunds;
     }
 
     /**
@@ -385,30 +409,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     function loanBalanceDue(uint256 loanId) public view returns(uint256) {
         (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
         return principalOutstanding.add(interestOutstanding);
-    }
-
-    /**
-     * @notice Check if the pool can lend based on the current stake levels.
-     * @return True if the staked funds provide at least a minimum ratio to the pool funds, false otherwise.
-     */
-    function poolCanLend() external view returns (bool) {
-        return isPoolFunctional();
-    }
-
-    /**
-     * @notice Count of all loan requests in this pool.
-     * @return Loans count.
-     */
-    function loansCount() external view returns(uint256) {
-        return strategyCount();
-    }
-
-    /**
-     * @notice Current pool funds borrowed.
-     * @return Amount of funds borrowed in liquidity tokens.
-     */
-    function borrowedFunds() external view returns(uint256) {
-        return strategizedFunds;
     }
 
     /**

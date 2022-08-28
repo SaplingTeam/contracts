@@ -43,6 +43,24 @@ abstract contract SaplingContext is Pausable {
     }
 
     /**
+     * @notice Pause the contract. 
+     * @dev Caller must be the governance. 
+     *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause.
+     */
+    function pause() external onlyGovernance {
+        _pause();
+    }
+
+    /**
+     * @notice Resume the contract. 
+     * @dev Caller must be the governance. 
+     *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause.
+     */
+    function unpause() external onlyGovernance {
+        _unpause();
+    }
+    
+    /**
      * @notice Transfer the governance.
      * @dev Caller must be the governance. 
      *      New governance address must not be 0, and must not be the same as current governance address.
@@ -67,24 +85,6 @@ abstract contract SaplingContext is Pausable {
         protocol = _protocol;
         emit ProtocolWalletTransferred(prevProtocol, protocol);
         afterProtocolWalletTransfer(prevProtocol);
-    }
-
-    /**
-     * @notice Pause the contract. 
-     * @dev Caller must be the governance. 
-     *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause.
-     */
-    function pause() external onlyGovernance {
-        _pause();
-    }
-
-    /**
-     * @notice Resume the contract. 
-     * @dev Caller must be the governance. 
-     *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause.
-     */
-    function unpause() external onlyGovernance {
-        _unpause();
     }
 
     /**

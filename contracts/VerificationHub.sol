@@ -56,21 +56,12 @@ contract VerificationHub is IVerificationHub, SaplingContext {
     }
 
     /**
-     * @notice Set an address as a bad actor.
-     * @dev Caller must be the governance.
-     * @param party Address to set as a bad actor
+     * @notice Register a new Sapling Lending Pool.
+     * @dev Caller must be the SaplingFactory
+     * @param pool Address of the new lending pool.
      */
-    function ban(address party) external onlyGovernance {
-        bannedList[party] = true;
-    }
-
-    /**
-     * @notice Unset an address as a bad actor.
-     * @dev Caller must be the governance.
-     * @param party Address to unset as a bad actor
-     */
-    function unban(address party) external onlyGovernance {
-        bannedList[party] = false;
+    function registerSaplingPool(address pool) external onlySaplingFactory whenNotPaused {
+        saplingLendingPools[pool] = true;
     }
 
     /**
@@ -92,21 +83,30 @@ contract VerificationHub is IVerificationHub, SaplingContext {
     }
 
     /**
-     * @notice Register a new Sapling Lending Pool.
-     * @dev Caller must be the SaplingFactory
-     * @param pool Address of the new lending pool.
+     * @notice Set an address as a bad actor.
+     * @dev Caller must be the governance.
+     * @param party Address to set as a bad actor
      */
-    function registerSaplingPool(address pool) external onlySaplingFactory whenNotPaused {
-        saplingLendingPools[pool] = true;
+    function ban(address party) external onlyGovernance {
+        bannedList[party] = true;
     }
-    
+
     /**
-     * @notice Check if an address is a bad actor.
-     * @param party An address to check
-     * @return True if the specified address is a bad actor, false otherwise.
+     * @notice Unset an address as a bad actor.
+     * @dev Caller must be the governance.
+     * @param party Address to unset as a bad actor
      */
-    function isBadActor(address party) external view returns (bool) {
-        return bannedList[party];
+    function unban(address party) external onlyGovernance {
+        bannedList[party] = false;
+    }
+
+    /**
+     * @notice Check if an address is a registered Sapling Lending Pool
+     * @param party An address to check
+     * @return True if the specified address is registered with this verification hub, false otherwise.
+     */
+    function isSaplingPool(address party) external view returns (bool) {
+        return saplingLendingPools[party];
     }
 
     /**
@@ -117,13 +117,13 @@ contract VerificationHub is IVerificationHub, SaplingContext {
     function isVerified(address party) external view returns (bool) {
         return !bannedList[party] && verifiedList[party];
     }
-
+    
     /**
-     * @notice Check if an address is a registered Sapling Lending Pool
+     * @notice Check if an address is a bad actor.
      * @param party An address to check
-     * @return True if the specified address is registered with this verification hub, false otherwise.
+     * @return True if the specified address is a bad actor, false otherwise.
      */
-    function isSaplingPool(address party) external view returns (bool) {
-        return saplingLendingPools[party];
+    function isBadActor(address party) external view returns (bool) {
+        return bannedList[party];
     }
 }

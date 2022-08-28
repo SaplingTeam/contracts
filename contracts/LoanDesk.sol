@@ -56,21 +56,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         bool hasOpenApplication;
     }
 
-    /// Event for when a new loan is requested, and an application is created
-    event LoanRequested(uint256 applicationId, address indexed borrower);
-
-    /// Event for when a loan request is denied
-    event LoanRequestDenied(uint256 applicationId, address indexed borrower);
-
-    /// Event for when a loan offer is made
-    event LoanOffered(uint256 applicationId, address indexed borrower);
-
-    /// Event for when a loan offer is updated
-    event LoanOfferUpdated(uint256 applicationId, address indexed borrower);
-
-    /// Event for when a loan offer is cancelled
-    event LoanOfferCancelled(uint256 applicationId, address indexed borrower);
-
     /// Address of the lending pool contract
     address public pool;
 
@@ -124,6 +109,21 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
 
     /// Total liquidity tokens allocated for loan offers and pending acceptance by the borrowers
     uint256 public offeredFunds;
+
+    /// Event for when a new loan is requested, and an application is created
+    event LoanRequested(uint256 applicationId, address indexed borrower);
+
+    /// Event for when a loan request is denied
+    event LoanRequestDenied(uint256 applicationId, address indexed borrower);
+
+    /// Event for when a loan offer is made
+    event LoanOffered(uint256 applicationId, address indexed borrower);
+
+    /// Event for when a loan offer is updated
+    event LoanOfferUpdated(uint256 applicationId, address indexed borrower);
+
+    /// Event for when a loan offer is cancelled
+    event LoanOfferCancelled(uint256 applicationId, address indexed borrower);
 
     /// A modifier to limit access only to the lending pool contract
     modifier onlyPool() {

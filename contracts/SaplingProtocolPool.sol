@@ -30,7 +30,6 @@ contract SaplingProtocolPool is SaplingPoolContext {
     /// Investment profile by lending pool address
     mapping (address => Investment) public investments;
 
-
     /// Event for when funds are invested into a lending pool
     event NewInvestment(address toPool, uint256 liquidityTokenAmount);
 

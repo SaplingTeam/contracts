@@ -34,6 +34,12 @@ interface ILoanDesk {
     }
 
     /**
+     * @dev Hook to be called when a loan offer is accepted.
+     * @param appId ID of the application the accepted offer was made for.
+     */
+    function onBorrow(uint256 appId) external;
+
+    /**
      * @notice Accessor for application status. 
      * @dev NULL status is returned for nonexistent applications.
      * @param appId ID of the application in question.
@@ -48,10 +54,4 @@ interface ILoanDesk {
      * @return LoanOffer struct instance for the specified application ID.
      */
     function loanOfferById(uint256 appId) external view returns (LoanOffer memory);
-
-    /**
-     * @dev Hook to be called when a loan offer is accepted.
-     * @param appId ID of the application the accepted offer was made for.
-     */
-    function onBorrow(uint256 appId) external;
 }
