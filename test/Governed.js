@@ -19,7 +19,7 @@ describe("Governed (SaplingPool)", function() {
     beforeEach(async function () {
         [manager, protocol, governance1, governance2, ...addrs] = await ethers.getSigners();
 
-        let TestUSDC = await ethers.getContractFactory("TestToken");
+        let TestUSDC = await ethers.getContractFactory("PoolToken");
         let SaplingPool = await ethers.getContractFactory("SaplingLendingPool");
 
         let tokenContract = await TestUSDC.deploy("Test USDC", "TestUSDC", 6);
