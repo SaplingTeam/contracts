@@ -492,13 +492,20 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         uint256 interestPayable;
         uint256 payableInterestDays;
         
-        if (maxPaymentAmount >= interestOutstanding) {
+        if (transferAmount >= interestOutstanding) {
             payableInterestDays = interestDays;
             interestPayable = interestOutstanding;
         } else {
-            //round down payable interest amount to cover a whole number of days 
-            payableInterestDays = Math.mulDiv(interestPayable, interestDays, interestOutstanding);
-            interestPayable = Math.mulDiv(interestOutstanding, Math.mulDiv(interestPayable, interestDays, interestOutstanding), interestDays);
+            /*
+             * Round down payable interest amount to cover a whole number of days.
+             *
+             * payableInterestDays = transferAmount / (interestOutstanding / interestDays) /// gives the whole number of days the transfer amount can cover
+             * interestPayable = (interestOutstanding / interestDays) * payableInterestDays
+             * 
+             * Equations above are transformed into (a * b) / c format for best mulDiv() compatibility.
+             */
+            payableInterestDays = Math.mulDiv(transferAmount, interestDays, interestOutstanding);
+            interestPayable = Math.mulDiv(interestOutstanding, payableInterestDays, interestDays);
         }
 
         return (transferAmount, interestPayable, payableInterestDays);
