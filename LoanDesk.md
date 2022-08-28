@@ -517,13 +517,15 @@ _Overrides a hook in SaplingManagerContext._
 | ---- | ---- | ----------- |
 | [0] | bool | True if the contract is closed, false otherwise. |
 
-### validLoanParams
+### validateLoanParams
 
 ```solidity
-function validLoanParams(uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint16 _apr) private view returns (bool)
+function validateLoanParams(uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint16 _apr) private view
 ```
 
-_Validates loan offer parameters_
+Validates loan offer parameters
+
+_Throws a require-type exception on invalid loan parameter_
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -533,8 +535,4 @@ _Validates loan offer parameters_
 | _installmentAmount | uint256 | Minimum payment amount on each instalment in liquidity tokens |
 | _installments | uint16 | The number of payment installments |
 | _apr | uint16 | Annual percentage rate of this loan |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | bool | True if all parameters are valid, throws a require exception otherwise. |
 

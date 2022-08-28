@@ -304,7 +304,7 @@ _Hook for checking if the lending pool can provide liquidity for the total offer
 ### canDefault
 
 ```solidity
-function canDefault(uint256 loanId, address caller) external view returns (bool)
+function canDefault(uint256 loanId, address caller) public view returns (bool)
 ```
 
 View indicating whether or not a given loan qualifies to be defaulted by a given caller.

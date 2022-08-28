@@ -446,7 +446,7 @@ function amountUnstakable() public view returns (uint256)
 
 Check liquidity token amount unstakable by the manager at this time.
 
-_Return value depends on the manager's stake balance, and is limited by pool liquidity._
+_Return value depends on the manager's stake balance and targetStakePercent, and is limited by pool liquidity._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
