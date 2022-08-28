@@ -1,34 +1,5 @@
 async function main() {
     [deployer, governance, protocol, manager, ...addrs] = await ethers.getSigners();
-  
-    // console.log("Deployer address: \t\t", deployer.address);
-    // console.log("Balance before: \t\t", (await deployer.getBalance()).toString());
-
-    // TestToken = await ethers.getContractFactory("TestToken");
-    // tokenContract = await TestToken.deploy("Test USDC", "TestUSDC", 6);
-
-    // const DECIMALS = tokenContract.decimals();
-
-    // PoolToken = await ethers.getContractFactory("PoolToken");
-    // poolTokenContract = await PoolToken.deploy("Sapling Test Lending Pool Token", "SLPT", DECIMALS);
-
-    // SaplingPool = await ethers.getContractFactory("SaplingLendingPool");
-    // saplingPoolContract = await SaplingPool.deploy(poolTokenContract.address, tokenContract.address, deployer.address, protocol.address, manager.address);
-
-    // LoanDesk = await ethers.getContractFactory("LoanDesk");
-    // loanDeskContract = await LoanDesk.deploy(saplingPoolContract.address, governance.address, protocol.address, manager.address, DECIMALS);
-    
-    // await poolTokenContract.transferOwnership(saplingPoolContract.address);
-    // await saplingPoolContract.setLoanDesk(loanDeskContract.address);
-    // await saplingPoolContract.transferGovernance(governance.address);
-
-    // console.log ("");
-    // console.log("LiquidityToken address: \t", tokenContract.address);
-    // console.log("PoolToken address: \t\t", poolTokenContract.address);
-    // console.log("LoanDesk address: \t\t", loanDeskContract.address);
-    // console.log("LendingPool address: \t\t", saplingPoolContract.address);
-    // console.log ("");
-    // console.log("Balance after:  \t\t", (await deployer.getBalance()).toString());
 
     const governanceAddress = governance.address;
     const protocolAddress = protocol.address;
@@ -38,7 +9,7 @@ async function main() {
     console.log("Balance before: \t\t", (await deployer.getBalance()).toString());
 
     console.log("\nLoading liquidity token contract ...");
-    TestToken = await ethers.getContractFactory("TestToken");
+    TestToken = await ethers.getContractFactory("PoolToken");
     liquidityTokenContract = await TestToken.deploy("Test USDC", "TestUSDC", 6);
     const liquidityTokenAddress = liquidityTokenContract.address;
     console.log("LiquidityToken address: \t", liquidityTokenContract.address);

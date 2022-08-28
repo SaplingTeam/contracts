@@ -23,7 +23,7 @@ describe("SaplingPool", function() {
     beforeEach(async function () {
         [manager, protocol, governance, lender1, lender2, borrower1, borrower2, ...addrs] = await ethers.getSigners();
 
-        TestUSDC = await ethers.getContractFactory("TestToken");
+        TestUSDC = await ethers.getContractFactory("PoolToken");
         SaplingPool = await ethers.getContractFactory("SaplingLendingPool");
         LoanDesk = await ethers.getContractFactory("LoanDesk");
 

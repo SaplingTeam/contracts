@@ -22,7 +22,7 @@ describe("Contract Deployment", function() {
     beforeEach(async function () {
         [manager, protocol, governance1, governance2, ...addrs] = await ethers.getSigners();
 
-        let TestUSDC = await ethers.getContractFactory("TestToken");
+        let TestUSDC = await ethers.getContractFactory("PoolToken");
         liquidityTokenContract = await TestUSDC.deploy("Test USDC", "TestUSDC", 6);
 
         let TOKEN_DECIMALS = await liquidityTokenContract.decimals();
