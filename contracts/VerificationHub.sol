@@ -18,7 +18,7 @@ contract VerificationHub is IVerificationHub, SaplingContext {
     mapping (address => bool) private saplingLendingPools;
 
     /// Registered bad actors
-    mapping (address => bool) private bannedList;
+    mapping (address => bool) private badActorList;
 
     /// ID verified addresses
     mapping (address => bool) private verifiedList;
@@ -83,21 +83,21 @@ contract VerificationHub is IVerificationHub, SaplingContext {
     }
 
     /**
-     * @notice Set an address as a bad actor.
+     * @notice Register an address as a bad actor.
      * @dev Caller must be the governance.
      * @param party Address to set as a bad actor
      */
-    function ban(address party) external onlyGovernance {
-        bannedList[party] = true;
+    function registerBadActor(address party) external onlyGovernance {
+        badActorList[party] = true;
     }
 
     /**
-     * @notice Unset an address as a bad actor.
+     * @notice Unregister an address as a bad actor.
      * @dev Caller must be the governance.
      * @param party Address to unset as a bad actor
      */
-    function unban(address party) external onlyGovernance {
-        bannedList[party] = false;
+    function unregisterBadActor(address party) external onlyGovernance {
+        badActorList[party] = false;
     }
 
     /**
@@ -115,7 +115,7 @@ contract VerificationHub is IVerificationHub, SaplingContext {
      * @return True if the specified address is ID verified, false otherwise.
      */
     function isVerified(address party) external view returns (bool) {
-        return !bannedList[party] && verifiedList[party];
+        return verifiedList[party];
     }
     
     /**
@@ -124,6 +124,6 @@ contract VerificationHub is IVerificationHub, SaplingContext {
      * @return True if the specified address is a bad actor, false otherwise.
      */
     function isBadActor(address party) external view returns (bool) {
-        return bannedList[party];
+        return badActorList[party];
     }
 }

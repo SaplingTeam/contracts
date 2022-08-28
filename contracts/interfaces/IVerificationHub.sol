@@ -28,18 +28,18 @@ interface IVerificationHub {
     function unverify(address party) external;
 
     /**
-     * @notice Set an address as a bad actor.
+     * @notice Register an address as a bad actor.
      * @dev Caller must be the governance.
      * @param party Address to set as a bad actor
      */
-    function ban(address party) external;
+    function registerBadActor(address party) external;
 
     /**
-     * @notice Unset an address as a bad actor.
+     * @notice Unregister an address as a bad actor.
      * @dev Caller must be the governance.
      * @param party Address to unset as a bad actor
      */
-    function unban(address party) external;
+    function unregisterBadActor(address party) external;
 
     /**
      * @notice Check if an address is a registered Sapling Lending Pool
