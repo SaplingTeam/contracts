@@ -322,12 +322,14 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
     /**
      * @notice Check liquidity token amount unstakable by the manager at this time.
-     * @dev Return value depends on the manager's stake balance, and is limited by pool liquidity.
+     * @dev Return value depends on the manager's stake balance and targetStakePercent, and is limited by pool liquidity.
      * @return Max amount of tokens unstakable by the manager.
      */
     function amountUnstakable() public view returns (uint256) {
-        if (paused()) {
+        if (paused() || targetStakePercent >= ONE_HUNDRED_PERCENT && totalPoolShares > stakedShares) {
             return 0;
+        } else if (closed() || totalPoolShares == stakedShares) {
+            return Math.min(poolLiquidity, sharesToTokens(stakedShares));
         }
 
         uint256 lenderShares = totalPoolShares.sub(stakedShares);
