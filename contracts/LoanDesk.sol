@@ -328,7 +328,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         whenNotClosed 
         whenNotPaused 
     {
-        require(validLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr));
+        validateLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr);
 
         LoanApplication storage app = loanApplications[appId];
 
@@ -383,7 +383,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         whenNotClosed
         whenNotPaused 
     {
-        require(validLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr));
+        validateLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr);
 
         LoanOffer storage offer = loanOffers[appId];
 
@@ -503,23 +503,23 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     }
 
     /**
-     * @dev Validates loan offer parameters
+     * @notice Validates loan offer parameters
+     * @dev Throws a require-type exception on invalid loan parameter
      * @param _amount Loan amount in liquidity tokens
      * @param _duration Loan term in seconds
      * @param _gracePeriod Loan payment grace period in seconds
      * @param _installmentAmount Minimum payment amount on each instalment in liquidity tokens
      * @param _installments The number of payment installments
      * @param _apr Annual percentage rate of this loan
-     * @return True if all parameters are valid, throws a require exception otherwise.
      */
-    function validLoanParams(
+    function validateLoanParams(
         uint256 _amount, 
         uint256 _duration, 
         uint256 _gracePeriod, 
         uint256 _installmentAmount,
         uint16 _installments, 
         uint16 _apr
-    ) private view returns (bool)
+    ) private view
     {
         require(_amount >= minLoanAmount);
         require(minLoanDuration <= _duration && _duration <= maxLoanDuration);
@@ -527,6 +527,5 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         require(_installmentAmount == 0 || _installmentAmount >= SAFE_MIN_AMOUNT);
         require(1 <= _installments && _installments <= 4096); //FIXME set upper bound for installments
         require(SAFE_MIN_APR <= _apr && _apr <= SAFE_MAX_APR, "APR is out of bounds");
-        return true;
     }
 }
