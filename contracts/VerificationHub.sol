@@ -28,7 +28,7 @@ contract VerificationHub is IVerificationHub, SaplingContext {
 
     /// A modifier to limit access to the SaplingFactory
     modifier onlySaplingFactory {
-        require(msg.sender == saplingFactory, "Sapling: Caller is not the manager");
+        require(msg.sender == saplingFactory, "VerificationHub: caller is not the manager");
         _;
     }
 
@@ -48,7 +48,8 @@ contract VerificationHub is IVerificationHub, SaplingContext {
      * @param _saplingFactory Address of the new SaplingFactory
      */
     function setSaplingFactory(address _saplingFactory) external onlyGovernance {
-        require(_saplingFactory != address(0) && _saplingFactory != saplingFactory, "VerificationHub: new address is invalid");
+        require(_saplingFactory != address(0) && _saplingFactory != saplingFactory, 
+            "VerificationHub: invalid sapling factory address");
         address prevAddress = saplingFactory;
         saplingFactory = _saplingFactory;
         emit PoolFactorySet(prevAddress, protocol);

@@ -108,13 +108,14 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
     /// A modifier to limit access to when a loan has the specified status
     modifier loanInStatus(uint256 loanId, LoanStatus status) {
-        require(loans[loanId].status == status, "Loan does not have a valid status for this operation or does not exist.");
+        require(loans[loanId].status == status, 
+            "SaplingLendingPool: not found or invalid loan status");
         _;
     }
 
     /// A modifier to limit access only to the loan desk contract
     modifier onlyLoanDesk() {
-        require(msg.sender == loanDesk, "Sapling: caller is not the LoanDesk");
+        require(msg.sender == loanDesk, "SaplingLendingPool: caller is not the LoanDesk");
         _;
     }
     
@@ -139,11 +140,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      */
     function borrow(uint256 appId) external whenNotClosed whenNotPaused {
 
-        require(ILoanDesk(loanDesk).applicationStatus(appId) == ILoanDesk.LoanApplicationStatus.OFFER_MADE);
+        require(ILoanDesk(loanDesk).applicationStatus(appId) == ILoanDesk.LoanApplicationStatus.OFFER_MADE, 
+            "SaplingLendingPool: invalid offer status");
 
         ILoanDesk.LoanOffer memory offer = ILoanDesk(loanDesk).loanOfferById(appId);
 
-        require(offer.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
+        require(offer.borrower == msg.sender, "SaplingLendingPool: msg.sender is not the borrower on this loan");
         ILoanDesk(loanDesk).onBorrow(appId);
 
         borrowerStats[offer.borrower].countOutstanding++;
@@ -185,7 +187,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         tokenBalance = tokenBalance.sub(offer.amount);
         bool success = IERC20(liquidityToken).transfer(msg.sender, offer.amount);
-        require(success);
+        require(success, "SaplingLendingPool: liquidity token (ERC20) transfer to msg.sender has failed");
 
         emit LoanBorrowed(loanId, offer.borrower, appId);
     }
@@ -203,7 +205,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     function repay(uint256 loanId, uint256 amount) external loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
 
         // require the payer and the borrower to be the same to avoid mispayment
-        require(loans[loanId].borrower == msg.sender, "Payer is not the borrower.");
+        require(loans[loanId].borrower == msg.sender, "SaplingLendingPool: payer is not the borrower");
 
         return repayBase(loanId, amount);
     }
@@ -221,7 +223,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     function repayOnBehalf(uint256 loanId, uint256 amount, address borrower) external loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
 
         // require the borrower being paid on behalf off and the loan borrower to be the same to avoid mispayment
-        require(loans[loanId].borrower == borrower, "The specified loan does not belong to the borrower.");
+        require(loans[loanId].borrower == borrower, "SaplingLendingPool: invalid borrower");
 
         return repayBase(loanId, amount);
     }
@@ -234,7 +236,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param loanId ID of the loan to default
      */
     function defaultLoan(uint256 loanId) external managerOrApprovedOnInactive loanInStatus(loanId, LoanStatus.OUTSTANDING) whenNotPaused {
-        require(canDefault(loanId, msg.sender), "Sapling: The loan cannot be defaulted at this time");
+        require(canDefault(loanId, msg.sender), "SaplingLendingPool: cannot defaulted this loan at this time");
 
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
@@ -308,7 +310,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param amount Loan offer amount.
      */
     function onOffer(uint256 amount) external override onlyLoanDesk {
-        require(strategyLiquidity() >= amount, "Sapling: insufficient liquidity for this operation");
+        require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
         poolLiquidity = poolLiquidity.sub(amount);
         allocatedFunds = allocatedFunds.add(amount);
     }
@@ -321,7 +323,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param amount New offer amount. Cancelled offer must register an amount of 0 (zero).
      */
     function onOfferUpdate(uint256 prevAmount, uint256 amount) external onlyLoanDesk {
-        require(strategyLiquidity().add(prevAmount) >= amount, "Sapling: insufficient liquidity for this operation");
+        require(strategyLiquidity().add(prevAmount) >= amount, "SaplingLendingPool: insufficient liquidity");
 
         poolLiquidity = poolLiquidity.add(prevAmount).sub(amount);
         allocatedFunds = allocatedFunds.sub(prevAmount).add(amount);
@@ -415,7 +417,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param from Address of the previous protocol wallet.
      */
     function afterProtocolWalletTransfer(address from) internal override {
-        require(from != address(0), "Sapling: Invalid call of protocol wallet transfer hook.");
+        require(from != address(0), "SaplingLendingPool: invalid from address");
         protocolEarnings[protocol] = protocolEarnings[protocol].add(protocolEarnings[from]);
         protocolEarnings[from] = 0;
     }
@@ -432,16 +434,18 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     function repayBase(uint256 loanId, uint256 amount) internal nonReentrant returns (uint256, uint256) {
 
         Loan storage loan = loans[loanId];
-        require(loan.id == loanId && loan.status == LoanStatus.OUTSTANDING, "Loan does not have a valid status for this operation or does not exist");
+        require(loan.id == loanId && loan.status == LoanStatus.OUTSTANDING, 
+            "SaplingLendingPool: not found or invalid loan status");
 
         (uint256 transferAmount, uint256 interestPayable, uint256 payableInterestDays) = payableLoanBalance(loanId, amount);
 
         // enforce a small minimum payment amount, except for the last payment equal to the total amount due 
-        require(transferAmount >= ONE_TOKEN || transferAmount == loanBalanceDue(loanId), "Sapling: Payment amount is less than the required minimum of 1 token.");
+        require(transferAmount >= ONE_TOKEN || transferAmount == loanBalanceDue(loanId), 
+            "SaplingLendingPool: payment amount is less than the required minimum of 1.00 token(s)");
 
         // charge 'amount' tokens from msg.sender
         bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), transferAmount);
-        require(success);
+        require(success, "SaplingLendingPool: liquidity token (ERC20) transfer from msg.sender has failed");
         tokenBalance = tokenBalance.add(transferAmount);
 
         uint256 principalPaid = transferAmount.sub(interestPayable);

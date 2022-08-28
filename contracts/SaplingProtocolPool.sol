@@ -59,9 +59,10 @@ contract SaplingProtocolPool is SaplingPoolContext {
      * @param liquidityTokenAmount Amount of investment in liquidity tokens
      */
     function invest(address lendingPool, uint256 liquidityTokenAmount) external onlyManager whenNotPaused {
-         require(isPoolFunctional());
-         require(strategyLiquidity() >= liquidityTokenAmount);
-         require(IVerificationHub(verificationHub).isSaplingPool(lendingPool));
+         require(isPoolFunctional(), 
+            "SaplingProtocolPool: invalid pool state for the operation due to insufficient stake, pause, or closure");
+         require(strategyLiquidity() >= liquidityTokenAmount, "SaplingProtocolPool: insufficient liquidity");
+         require(IVerificationHub(verificationHub).isSaplingPool(lendingPool), "SaplingProtocolPool: unregistered lending pool");
 
         Investment storage investment = investments[lendingPool];
         if(investment.pool == address(0)) {
@@ -132,8 +133,9 @@ contract SaplingProtocolPool is SaplingPoolContext {
      */
     function collectInvestment(address pool, uint256 amount) external onlyManager whenNotPaused {
         Investment storage investment = investments[pool];
-        require(investment.pool != address(0));
-        require(0 < amount && amount <= investment.outstandingAmount.add(poolYieldBalanceOn(pool)));
+        require(investment.pool != address(0), "SaplingProtocolPool: investment profile is not fount");
+        require(0 < amount && amount <= investment.outstandingAmount.add(poolYieldBalanceOn(pool)), 
+            "SaplingProtocolPool: invalid amount");
     
         /* 
          External pool liquidity and balance checks are not necessary here as withdraw() call will fail on insufficient liquidity or balance,

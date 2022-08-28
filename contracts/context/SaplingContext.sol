@@ -25,7 +25,7 @@ abstract contract SaplingContext is Pausable {
 
     /// A modifier to limit access only to the governance
     modifier onlyGovernance {
-        require(msg.sender == governance, "Sapling: Caller is not the governance");
+        require(msg.sender == governance, "SaplingContext: caller is not the governance");
         _;
     }
 
@@ -36,8 +36,8 @@ abstract contract SaplingContext is Pausable {
      * @param _protocol Protocol wallet address
      */
     constructor(address _governance, address _protocol) {
-        require(_governance != address(0), "Sapling: Governance address is not set");
-        require(_protocol != address(0), "Sapling: Protocol wallet address is not set");
+        require(_governance != address(0), "SaplingContext: governance address is not set");
+        require(_protocol != address(0), "SaplingContext: protocol wallet address is not set");
         governance = _governance;
         protocol = _protocol;
     }
@@ -49,7 +49,7 @@ abstract contract SaplingContext is Pausable {
      * @param _governance New governance address.
      */
     function transferGovernance(address _governance) external onlyGovernance {
-        require(_governance != address(0) && _governance != governance, "Governed: New governance address is invalid.");
+        require(_governance != address(0) && _governance != governance, "SaplingContext: new governance address is invalid");
         address prevGovernance = governance;
         governance = _governance;
         emit GovernanceTransferred(prevGovernance, governance);
@@ -62,7 +62,7 @@ abstract contract SaplingContext is Pausable {
      * @param _protocol New protocol wallet address.
      */
     function transferProtocolWallet(address _protocol) external onlyGovernance {
-        require(_protocol != address(0) && _protocol != protocol, "Governed: New protocol wallet address is invalid.");
+        require(_protocol != address(0) && _protocol != protocol, "SaplingContext: new protocol wallet address is invalid");
         address prevProtocol = protocol;
         protocol = _protocol;
         emit ProtocolWalletTransferred(prevProtocol, protocol);

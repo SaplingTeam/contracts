@@ -50,6 +50,11 @@ contract SaplingFactory is SaplingContext {
         address _protocol) 
     SaplingContext(_governance, _protocol) 
     {
+        require(_tokenFactory != address(0), "SaplingFactory: invalid token factory address");
+        require(_loanDeskFactory != address(0), "SaplingFactory: invalid LoanDesk factory address");
+        require(_poolFactory != address(0), "SaplingFactory: invalid pool factory address");
+        require(_verificationHub != address(0), "SaplingFactory: invalid verification hub address");
+
         tokenFactory = _tokenFactory;
         loanDeskFactory = _loanDeskFactory;
         poolFactory = _poolFactory;
