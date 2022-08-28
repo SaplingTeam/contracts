@@ -234,18 +234,11 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param loanId ID of the loan to default
      */
     function defaultLoan(uint256 loanId) external managerOrApprovedOnInactive loanInStatus(loanId, LoanStatus.OUTSTANDING) whenNotPaused {
+        require(canDefault(loanId, msg.sender), "Sapling: The loan cannot be defaulted at this time");
+
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
-
-        // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
-        if (msg.sender != manager) {
-            // require inactivity grace period
-            require(block.timestamp > loan.borrowedTime + loan.duration + loan.gracePeriod + MANAGER_INACTIVITY_GRACE_PERIOD, 
-                "It is too early to default this loan as a non-manager.");
-        }
         
-        require(block.timestamp > (loan.borrowedTime + loan.duration + loan.gracePeriod), "Lender: It is too early to default this loan.");
-
         loan.status = LoanStatus.DEFAULTED;
         borrowerStats[loan.borrower].countDefaulted++;
         borrowerStats[loan.borrower].countOutstanding--;
@@ -350,7 +343,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param caller An address that intends to call default() on the loan
      * @return True if the given loan can be defaulted, false otherwise
      */
-    function canDefault(uint256 loanId, address caller) external view returns (bool) {
+    function canDefault(uint256 loanId, address caller) public view returns (bool) {
         if (caller != manager && !authorizedOnInactiveManager(caller)) {
             return false;
         }
