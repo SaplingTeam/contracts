@@ -44,7 +44,7 @@ describe("Governed (SaplingPool)", function() {
         await verificationHub.transferGovernance(currentGovernance.address);
 
         let poolContractTx = await (await saplingFactory.connect(currentGovernance).createLendingPool("Test Pool", "TPT", manager.address, tokenContract.address)).wait();
-        let poolAddress = poolContractTx.events.filter(e => e.event === 'PoolCreated')[0].args['pool'];
+        let poolAddress = poolContractTx.events.filter(e => e.event === 'LendingPoolReady')[0].args['pool'];
         poolContract = await SaplingPool.attach(poolAddress);
     });
 
