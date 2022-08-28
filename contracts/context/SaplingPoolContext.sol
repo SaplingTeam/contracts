@@ -10,41 +10,45 @@ import "../interfaces/ILender.sol";
 import "./SaplingManagerContext.sol";
 import "./SaplingMathContext.sol";
 
+/**
+ * @title Sapling Pool Context
+ * @notice Provides common pool functionality with lender deposits, manager's first loss capital staking, and reward distribution. 
+ */
 abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingMathContext, ReentrancyGuard {
 
     using SafeMath for uint256;
 
-    //FROM managed lending pool /// Address of an ERC20 token issued by the pool
+    /// Address of an ERC20 token managed and issued by the pool
     address public immutable poolToken;
 
     /// Address of an ERC20 liquidity token accepted by the pool
     address public immutable liquidityToken;
 
-    /// tokenDecimals value retrieved from the token contract upon contract construction
+    /// tokenDecimals value retrieved from the liquidity token contract upon contract construction
     uint8 public immutable tokenDecimals;
 
     /// A value representing 1.0 token amount, padded with zeros for decimals
     uint256 public immutable ONE_TOKEN;
 
-    /// Total tokens currently held by this contract
+    /// Total liquidity tokens currently held by this contract
     uint256 public tokenBalance;
 
-    /// MAX amount of tokens allowed in the pool based on staked assets
+    /// MAX amount of liquidity tokens allowed in the pool based on staked assets
     uint256 public poolFundsLimit;
 
-    /// Current amount of tokens in the pool, including both liquid and borrowed funds
-    uint256 public poolFunds; //poolLiquidity + borrowedFunds
+    /// Current amount of liquidity tokens in the pool, including both liquid and allocated funds
+    uint256 public poolFunds;
 
-    /// Current amount of liquid tokens, available to lend/withdraw/borrow
+    /// Current amount of liquid tokens, available to for pool strategies or withdrawals
     uint256 public poolLiquidity;
 
-    //funds allocated for pool strategies
+    /// Current funds allocated for pool strategies
     uint256 public allocatedFunds;
 
-    /// Total funds committed to strategies such as borrowing or investing
+    /// Current funds committed to strategies such as borrowing or investing
     uint256 public strategizedFunds;
 
-    /// Total pool shares present
+    /// Current pool shares present, this also represents current total pool tokens in circulation
     uint256 public totalPoolShares;
 
     /// Manager's staked shares
@@ -72,7 +76,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     /// Percentage of paid interest to be allocated as protocol earnings
     uint16 public protocolEarningPercent;
 
-    /// Percentage of paid interest to be allocated as protocol earnings
+    /// An upper bound for percentage of paid interest to be allocated as protocol earnings
     uint16 public immutable MAX_PROTOCOL_EARNING_PERCENT;
 
     /// Protocol earnings of wallets
@@ -81,20 +85,23 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     /// Weighted average loan APR on the borrowed funds
     uint256 internal weightedAvgStrategyAPR;
 
-    /// strategy id generator counter
+    /// Strategy id generator counter
     uint256 private nextStrategyId;
 
-    event ProtocolWalletTransferred(address from, address to);
+    /// Event for when the lender capital is lost due to defaults
     event UnstakedLoss(uint256 amount);
+
+    /// Event for when the Manager's staked assets are depleted due to defaults
     event StakedAssetsDepleted();
 
     /**
-     * @notice Creates a Sapling pool.
+     * @notice Creates a SaplingPoolContext.
+     * @dev Addresses must not be 0.
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
-     * @param _liquidityToken ERC20 token contract address to be used as main pool liquid currency.
-     * @param _governance Address of the protocol governance.
-     * @param _protocol Address of a wallet to accumulate protocol earnings.
-     * @param _manager Address of the pool manager.
+     * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
+     * @param _governance Governance address
+     * @param _protocol Protocol wallet address
+     * @param _manager Manager address
      */
     constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) 
         SaplingManagerContext(_governance, _protocol, _manager) {
@@ -132,7 +139,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         allocatedFunds = 0;
         strategizedFunds = 0;
 
-        weightedAvgStrategyAPR = 0; //templateLoanAPR;
+        weightedAvgStrategyAPR = 0;
         nextStrategyId = 1;
     }
 
@@ -140,7 +147,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @notice Set the target stake percent for the pool.
      * @dev _targetStakePercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
      *      Caller must be the governance.
-     * @param _targetStakePercent new target stake percent.
+     * @param _targetStakePercent New target stake percent.
      */
     function setTargetStakePercent(uint16 _targetStakePercent) external onlyGovernance {
         require(0 <= _targetStakePercent && _targetStakePercent <= ONE_HUNDRED_PERCENT, "Target stake percent is out of bounds");
@@ -169,7 +176,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         protocolEarningPercent = _protocolEarningPercent;
     }
 
-        /**
+    /**
      * @notice Set an upper bound for the manager's earn factor percent.
      * @dev _managerEarnFactorMax must be greater than or equal to ONE_HUNDRED_PERCENT.
      *      Caller must be the governance.
@@ -199,21 +206,23 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Deposit tokens to the pool.
+     * @notice Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an equivalent amount of pool 
+     *         tokens and transfer it to the caller. Exact exchange rate depends on the current pool state.
      * @dev Deposit amount must be non zero and not exceed amountDepositable().
      *      An appropriate spend limit must be present at the token contract.
-     *      Caller must not be any of: manager, protocol, current borrower.
-     * @param amount Token amount to deposit.
+     *      Caller must not be any of: manager, protocol, governance.
+     * @param amount Liquidity token amount to deposit.
      */
     function deposit(uint256 amount) external override onlyUser whenNotClosed whenNotPaused {
         enterPool(amount);
     }
 
     /**
-     * @notice Withdraw tokens from the pool.
+     * @notice Withdraw liquidity tokens from the pool. Withdrawals redeem equivalent amount of the caller's pool tokens
+     *         by burning the tokens in question.
+     *         Exact exchange rate depends on the current pool state.
      * @dev Withdrawal amount must be non zero and not exceed amountWithdrawable().
-     *      Caller must not be any of: manager, protocol, current borrower.
-     * @param amount token amount to withdraw.
+     * @param amount Liquidity token amount to withdraw.
      */
     function withdraw(uint256 amount) external override whenNotPaused {
         require(msg.sender != manager);
@@ -221,11 +230,12 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Stake tokens into the pool.
+     * @notice Stake liquidity tokens into the pool. Staking liquidity tokens will mint an equivalent amount of pool 
+     *         tokens and lock them in the pool. Exact exchange rate depends on the current pool state.
      * @dev Caller must be the manager.
      *      Stake amount must be non zero.
      *      An appropriate spend limit must be present at the token contract.
-     * @param amount Token amount to stake.
+     * @param amount Liquidity token amount to stake.
      */
     function stake(uint256 amount) external onlyManager whenNotClosed whenNotPaused {
         require(amount > 0, "SaplingPool: stake amount is 0");
@@ -236,10 +246,11 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Unstake tokens from the pool.
+     * @notice Unstake liquidity tokens from the pool. Unstaking redeems equivalent amount of the caller's pool tokens 
+     *         locked in the pool by burning the tokens in question.
      * @dev Caller must be the manager.
      *      Unstake amount must be non zero and not exceed amountUnstakable().
-     * @param amount Token amount to unstake.
+     * @param amount Liquidity token amount to unstake.
      */
     function unstake(uint256 amount) external onlyManager whenNotPaused {
         require(amount > 0, "SaplingPool: unstake amount is 0");
@@ -251,10 +262,11 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         exitPool(amount);
     }
 
-        /**
+    /**
      * @notice Withdraws protocol earnings belonging to the caller.
      * @dev protocolEarningsOf(msg.sender) must be greater than 0.
      *      Caller's all accumulated earnings will be withdrawn.
+     *      Protocol earnings are represented in liquidity tokens.
      */
     function withdrawProtocolEarnings() external whenNotPaused {
         require(protocolEarnings[msg.sender] > 0, "SaplingPool: protocol earnings is zero on this account");
@@ -268,7 +280,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Check token amount depositable by lenders at this time.
+     * @notice Check liquidity token amount depositable by lenders at this time.
      * @dev Return value depends on the pool state rather than caller's balance.
      * @return Max amount of tokens depositable to the pool.
      */
@@ -281,34 +293,35 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Check token amount withdrawable by the caller at this time.
+     * @notice Check liquidity token amount withdrawable by the caller at this time.
      * @dev Return value depends on the callers balance, and is limited by pool liquidity.
      * @param wallet Address of the wallet to check the withdrawable balance of.
-     * @return Max amount of tokens withdrawable by msg.sender.
+     * @return Max amount of tokens withdrawable by the caller.
      */
     function amountWithdrawable(address wallet) external view returns (uint256) {
         return paused() ? 0 : Math.min(poolLiquidity, balanceOf(wallet));
     }
 
     /**
-     * @notice Check wallet's token balance in the pool. Balance includes acquired earnings. 
+     * @notice Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired yield.
+     *         This balance does not included staked balance, leveraged earnings or protocol earnings.
      * @param wallet Address of the wallet to check the balance of.
-     * @return Token balance of the wallet in this pool.
+     * @return Liquidity token balance of the wallet in this pool.
      */
     function balanceOf(address wallet) public view override returns (uint256) {
         return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet));
     }
 
     /**
-     * @notice Check the manager's staked token balance in the pool.
-     * @return Token balance of the manager's stake.
+     * @notice Check the manager's staked liquidity token balance in the pool.
+     * @return Liquidity token balance of the manager's stake.
      */
     function balanceStaked() public view returns (uint256) {
         return sharesToTokens(stakedShares);
     }
 
-        /**
-     * @notice Check token amount unstakable by the manager at this time.
+    /**
+     * @notice Check liquidity token amount unstakable by the manager at this time.
      * @dev Return value depends on the manager's stake balance, and is limited by pool liquidity.
      * @return Max amount of tokens unstakable by the manager.
      */
@@ -328,7 +341,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @dev This method is useful for manager and protocol addresses. 
      *      Calling this method for a non-protocol associated addresses will return 0.
      * @param wallet Address of the wallet to check the earnings balance of.
-     * @return Accumulated earnings of the wallet from the protocol.
+     * @return Accumulated liquidity token earnings of the wallet from the protocol.
      */
     function protocolEarningsOf(address wallet) external view returns (uint256) {
         return protocolEarnings[wallet];
@@ -336,16 +349,16 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
     /**
      * @notice Estimated lender APY given the current pool state.
-     * @return Estimated lender APY
+     * @return Estimated current lender APY
      */
     function currentLenderAPY() external view returns (uint16) {
         return lenderAPY(strategizedFunds, weightedAvgStrategyAPR);
     }
 
     /**
-     * @notice Projected lender APY given the current pool state and a specific borrow rate.
-     * @dev represent borrowRate in contract specific percentage format
-     * @param strategyRate percentage of pool funds projected to be borrowed annually
+     * @notice Projected lender APY given the current pool state and a specific strategy rate and an average apr.
+     * @dev Represent percentage parameter values in contract specific format.
+     * @param strategyRate Percentage of pool funds projected to be used in strategies.
      * @return Projected lender APY
      */
     function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view override returns (uint16) {
@@ -353,6 +366,10 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         return lenderAPY(Math.mulDiv(poolFunds, strategyRate, ONE_HUNDRED_PERCENT), _avgStrategyAPR);
     }
 
+    /**
+     * @notice Current liquidity available for pool strategies such as lending or investing. 
+     * @return Strategy liquidity amount.
+     */
     function strategyLiquidity() public view returns (uint256) {
         uint256 lenderAllocatedLiquidity = Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT);
         
@@ -363,6 +380,10 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         return poolLiquidity.sub(lenderAllocatedLiquidity);
     }
 
+    /**
+     * @dev Generator for next strategy id. i.e. loan, investment.
+     * @return Next available id.
+     */
     function getNextStrategyId() internal nonReentrant returns (uint256) {
         uint256 id = nextStrategyId;
         nextStrategyId++;
@@ -370,12 +391,13 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @dev Internal method to enter the pool with a token amount.
+     * @dev Internal method to enter the pool with a liquidity token amount.
      *      With the exception of the manager's call, amount must not exceed amountDepositable().
      *      If the caller is the pool manager, entered funds are considered staked.
-     *      New shares are minted in a way that will not influence the current share price.
-     * @param amount A token amount to add to the pool on behalf of the caller.
-     * @return Amount of shares minted and allocated to the caller.
+     *      New pool tokens are minted in a way that will not influence the current share price.
+     * @dev Shares are equivalent to pool tokens and are represented by them. 
+     * @param amount Liquidity token amount to add to the pool on behalf of the caller.
+     * @return Amount of pool tokens minted and allocated to the caller.
      */
     function enterPool(uint256 amount) internal nonReentrant returns (uint256) {
         require(amount > 0, "SaplingPool: pool deposit amount is 0");
@@ -408,12 +430,13 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @dev Internal method to exit the pool with a token amount.
+     * @dev Internal method to exit the pool with a liquidity token amount.
      *      Amount must not exceed amountWithdrawable() for non managers, and amountUnstakable() for the manager.
      *      If the caller is the pool manager, exited funds are considered unstaked.
-     *      Shares are burned in a way that will not influence the current share price.
-     * @param amount A token amount to withdraw from the pool on behalf of the caller.
-     * @return Amount of shares burned and taken from the caller.
+     *      Pool tokens are burned in a way that will not influence the current share price.
+     * @dev Shares are equivalent to pool tokens and are represented by them. 
+     * @param amount Liquidity token amount to withdraw from the pool on behalf of the caller.
+     * @return Amount of pool tokens burned and taken from the caller.
      */
     function exitPool(uint256 amount) internal returns (uint256) {
         require(amount > 0, "SaplingPool: pool withdrawal amount is 0");
@@ -446,14 +469,15 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @dev Internal method to update pool limit based on staked funds. 
+     * @dev Internal method to update the pool funds limit based on the staked funds. 
      */
     function updatePoolLimit() internal nonReentrant {
         poolFundsLimit = sharesToTokens(Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, targetStakePercent));
     }
 
-        /**
-     * @notice Get a token value of shares.
+    /**
+     * @notice Get liquidity token value of shares. 
+     * @dev Shares are equivalent to pool tokens and are represented by them. 
      * @param shares Amount of shares
      */
     function sharesToTokens(uint256 shares) internal view returns (uint256) {
@@ -465,8 +489,9 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Get a share value of tokens.
-     * @param tokens Amount of tokens
+     * @notice Get a share value of liquidity tokens.
+     * @dev Shares are equivalent to pool tokens and are represented by them. 
+     * @param tokens Amount of liquidity tokens.
      */
     function tokensToShares(uint256 tokens) internal view returns (uint256) {
         if (totalPoolShares == 0) {
@@ -484,14 +509,17 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         return Math.mulDiv(tokens, totalPoolShares, poolFunds);
     }
 
+    /**
+     * @dev All time count of created strategies. i.e. Loans and investments
+     */
     function strategyCount() internal view returns(uint256) {
         return nextStrategyId - 1;
     }
 
     /**
-     * @notice Lender APY given the current pool state and a specific borrowed funds amount.
-     * @dev represent borrowRate in contract specific percentage format
-     * @param _strategizedFunds pool funds to be borrowed annually
+     * @notice Lender APY given the current pool state, a specific strategized funds, and an average apr.
+     * @dev Represent percentage parameter values in contract specific format.
+     * @param _strategizedFunds Pool funds to be borrowed annually.
      * @return Lender APY
      */
     function lenderAPY(uint256 _strategizedFunds, uint256 _avgStrategyAPR) internal view returns (uint16) {
@@ -523,10 +551,20 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         return !(paused() || closed()) && stakedShares >= Math.mulDiv(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
     }
 
+
+    /**
+     * @dev Implementation of the abstract hook in SaplingManagedContext.
+     *      Governance, protocol wallet addresses and lenders with at least 1.00 liquidity tokens are authorised to take
+     *      certain actions when the manager is inactive.
+     */
     function authorizedOnInactiveManager(address caller) internal view override returns (bool) {
         return caller == governance || caller == protocol || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= ONE_TOKEN;
     }
 
+    /**
+     * @dev Implementation of the abstract hook in SaplingManagedContext.
+     *      Pool can be close when no funds remain committed to strategies.
+     */
     function canClose() internal view override returns (bool) {
         return strategizedFunds == 0;
     }

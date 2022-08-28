@@ -8,11 +8,16 @@ import "./interfaces/ILoanDeskOwner.sol";
 
 /**
  * @title Sapling Lending Pool
+ * @dev Extends SaplingPoolContext with lending strategy.
  */
 contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
     using SafeMath for uint256;
 
+    /**
+     * Loan statuses. Initial value is defines as 'NULL' to differentiate the unintitialized state from the logical 
+     * initial state.
+     */
     enum LoanStatus {
         NULL,
         OUTSTANDING,
@@ -20,7 +25,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         DEFAULTED
     }
 
-    /// Loan object
+    /// Loan object template
     struct Loan {
         uint256 id;
         address loanDeskAddress;
@@ -36,9 +41,10 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         LoanStatus status;
     }
 
+    /// Loan payment details object template
     struct LoanDetail {
         uint256 loanId;
-        uint256 totalAmountRepaid; //total amount paid including interest
+        uint256 totalAmountRepaid;
         uint256 baseAmountRepaid;
         uint256 interestPaid;
         uint256 interestPaidTillTime;
@@ -66,36 +72,47 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         /// Outstanding loan borrowed amount
         uint256 amountBorrowed;
 
-        /// Outstanding loan repaid base amount
+        /// Outstanding loan repaid principal amount
         uint256 amountBaseRepaid;
 
         /// Outstanding loan paid interest amount
         uint256 amountInterestPaid;
 
-        /// most recent loanId
+        /// Most recent loanId
         uint256 recentLoanId;
-    }
-
+        }
+        
+    /// Address of the loan desk contract
     address public loanDesk;
 
-    /// Loans by loanId
+    /// Loans by loan ID
     mapping(uint256 => Loan) public loans;
 
+    /// LoanDetails by loan ID
     mapping(uint256 => LoanDetail) public loanDetails;
 
     /// Borrower statistics by address 
     mapping(address => BorrowerStats) public borrowerStats;
 
+    /// Event for when a new loan desk is set
     event LoanDeskSet(address from, address to);
+
+    /// Event for when loan offer is accepted and the loan is borrowed
     event LoanBorrowed(uint256 loanId, address indexed borrower, uint256 applicationId);
+
+    /// Event for when a loan is fully repaid
     event LoanRepaid(uint256 loanId, address indexed borrower);
+
+    /// Event for when a loan is defaulted
     event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 amountLost);
 
+    /// A modifier to limit access to when a loan has the specified status
     modifier loanInStatus(uint256 loanId, LoanStatus status) {
         require(loans[loanId].status == status, "Loan does not have a valid status for this operation or does not exist.");
         _;
     }
 
+    /// A modifier to limit access only to the loan desk contract
     modifier onlyLoanDesk() {
         require(msg.sender == loanDesk, "Sapling: caller is not the LoanDesk");
         _;
@@ -103,21 +120,22 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     
     /**
      * @notice Creates a Sapling pool.
+     * @dev Addresses must not be 0.
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
-     * @param _liquidityToken ERC20 token contract address to be used as main pool liquid currency.
-     * @param _governance Address of the protocol governance.
-     * @param _protocol Address of a wallet to accumulate protocol earnings.
-     * @param _manager Address of the pool manager.
+     * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
+     * @param _governance Governance address
+     * @param _protocol Protocol wallet address
+     * @param _manager Manager address
      */
     constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) 
         SaplingPoolContext(_poolToken, _liquidityToken, _governance, _protocol, _manager) {
     }
 
     /**
-     * @notice Accept loan offer and withdraw funds
-     * @dev Caller must be the borrower. 
-     *      The loan must be in APPROVED status.
-     * @param appId id of the loan application to accept the offer of. 
+     * @notice Accept a loan offer and withdraw funds
+     * @dev Caller must be the borrower of the loan in question.
+     *      The loan must be in OFFER_MADE status.
+     * @param appId ID of the loan application to accept the offer of
      */
     function borrow(uint256 appId) external whenNotClosed whenNotPaused {
 
@@ -128,7 +146,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         require(offer.borrower == msg.sender, "SaplingPool: Withdrawal requester is not the borrower on this loan.");
         ILoanDesk(loanDesk).onBorrow(appId);
 
-        // borrowerStats[offer.borrower].countCurrentApproved--;
         borrowerStats[offer.borrower].countOutstanding++;
         borrowerStats[offer.borrower].amountBorrowed = borrowerStats[offer.borrower].amountBorrowed.add(offer.amount);
 
@@ -181,7 +198,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      *      Amount charged will not exceed the amount parameter. 
      * @param loanId ID of the loan to make a payment towards.
      * @param amount Payment amount in tokens.
-     * @return A pair of total amount changed including interest, and the interest charged.
+     * @return A pair of total amount charged including interest, and the interest charged.
      */
     function repay(uint256 loanId, uint256 amount) external loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
 
@@ -192,18 +209,18 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     }
 
     /**
-     * @notice Make a payment towards a loan on behalf od a borrower
+     * @notice Make a payment towards a loan on behalf of a borrower.
      * @dev Loan must be in OUTSTANDING status.
      *      Only the necessary sum is charged if amount exceeds amount due.
      *      Amount charged will not exceed the amount parameter. 
      * @param loanId ID of the loan to make a payment towards.
      * @param amount Payment amount in tokens.
-     * @param borrower address of the borrower to make a payment in behalf of.
-     * @return A pair of total amount changed including interest, and the interest charged.
+     * @param borrower address of the borrower to make a payment on behalf of.
+     * @return A pair of total amount charged including interest, and the interest charged.
      */
     function repayOnBehalf(uint256 loanId, uint256 amount, address borrower) external loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (uint256, uint256) {
 
-        // require the payer and the borrower to be the same to avoid mispayment
+        // require the borrower being paid on behalf off and the loan borrower to be the same to avoid mispayment
         require(loans[loanId].borrower == borrower, "The specified loan does not belong to the borrower.");
 
         return repayBase(loanId, amount);
@@ -213,7 +230,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @notice Default a loan.
      * @dev Loan must be in OUTSTANDING status.
      *      Caller must be the manager.
-     *      canDefault(loanId) must return 'true'.
+     *      canDefault(loanId, msg.sender) must return 'true'.
      * @param loanId ID of the loan to default
      */
     function defaultLoan(uint256 loanId) external managerOrApprovedOnInactive loanInStatus(loanId, LoanStatus.OUTSTANDING) whenNotPaused {
@@ -280,6 +297,11 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         }
     }
 
+    /**
+     * @notice Links a new loan desk for the pool to use. Intended for use upon initial pool deployment.
+     * @dev Caller must be the governance.
+     * @param _loanDesk New LoanDesk address
+     */
     function setLoanDesk(address _loanDesk) external onlyGovernance {
         address prevLoanDesk = loanDesk;
         loanDesk = _loanDesk;
@@ -287,10 +309,10 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     }
 
     /**
-     * @notice Transfer the protocol wallet and accumulated fees to a new wallet.
-     * @dev Caller must be governance. 
-     *      _protocol must not be 0.
-     * @param _protocol Address of the new protocol wallet.
+     * @notice Handles liquidity state changes on a loan offer.
+     * @dev Hook to be called when a new loan offer is made.
+     *      Caller must be the LoanDesk.
+     * @param amount Loan offer amount.
      */
     function transferProtocolWallet(address _protocol) external onlyGovernance {
         require(_protocol != address(0) && _protocol != protocol, "Governed: New protocol address is invalid.");
@@ -307,6 +329,13 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         allocatedFunds = allocatedFunds.add(amount);
     }
 
+    /**
+     * @notice Handles liquidity state changes on a loan offer update.
+     * @dev Hook to be called when a loan offer amount is updated. Amount update can be due to offer update or 
+     *      cancellation. Caller must be the LoanDesk.
+     * @param prevAmount The original, now previous, offer amount.
+     * @param amount New offer amount. Cancelled offer must register an amount of 0 (zero).
+     */
     function onOfferUpdate(uint256 prevAmount, uint256 amount) external onlyLoanDesk {
         require(strategyLiquidity().add(prevAmount) >= amount, "Sapling: insufficient liquidity for this operation");
 
@@ -316,8 +345,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
     /**
      * @notice View indicating whether or not a given loan can be offered by the manager.
-     * @param totalOfferedAmount loanOfferAmount
-     * @return True if the given total loan amount can be offered, false otherwise
+     * @dev Hook for checking if the lending pool can provide liquidity for the total offered loans amount. 
+     * @param totalOfferedAmount Total sum of offered loan amount including outstanding offers and the one to be offered.
+     * @return True if the pool has sufficient lending liquidity, false otherwise.
      */
     function canOffer(uint256 totalOfferedAmount) external view override returns (bool) {
         return isPoolFunctional() && strategyLiquidity().add(allocatedFunds) >= totalOfferedAmount;
@@ -325,8 +355,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
     /**
      * @notice View indicating whether or not a given loan qualifies to be defaulted by a given caller.
-     * @param loanId loanId ID of the loan to check
-     * @param caller address that intends to call default() on the loan
+     * @param loanId ID of the loan to check
+     * @param caller An address that intends to call default() on the loan
      * @return True if the given loan can be defaulted, false otherwise
      */
     function canDefault(uint256 loanId, address caller) external view returns (bool) {
@@ -363,8 +393,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     /**
      * @notice Loan balance due including interest if paid in full at this time. 
      * @dev Loan must be in OUTSTANDING status.
-     * @param loanId ID of the loan to check the balance of.
-     * @return Total amount due with interest on this loan.
+     * @param loanId ID of the loan to check the balance of
+     * @return Total amount due with interest on this loan
      */
     function loanBalanceDue(uint256 loanId) public view returns(uint256) {
         (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
@@ -373,7 +403,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
     /**
      * @notice Check if the pool can lend based on the current stake levels.
-     * @return True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise.
+     * @return True if the staked funds provide at least a minimum ratio to the pool funds, false otherwise.
      */
     function poolCanLend() external view returns (bool) {
         return isPoolFunctional();
@@ -387,6 +417,10 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         return strategyCount();
     }
 
+    /**
+     * @notice Current pool funds borrowed.
+     * @return Amount of funds borrowed in liquidity tokens.
+     */
     function borrowedFunds() external view returns(uint256) {
         return strategizedFunds;
     }
@@ -396,9 +430,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @dev Loan must be in OUTSTANDING status.
      *      Only the necessary sum is charged if amount exceeds amount due.
      *      Amount charged will not exceed the amount parameter. 
-     * @param loanId ID of the loan to make a payment towards.
-     * @param amount Payment amount in tokens.
-     * @return A pair of total amount charged including interest, and the interest charged.
+     * @param loanId ID of the loan to make a payment towards
+     * @param amount Payment amount in tokens
+     * @return A pair of total amount charged including interest, and the interest charged
      */
     function repayBase(uint256 loanId, uint256 amount) internal nonReentrant returns (uint256, uint256) {
 
@@ -463,10 +497,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     }
 
     /**
-     * @notice Loan balance due including interest if paid in full at this time. 
-     * @dev Internal method to get the amount due and the interest rate applied.
-     * @param loanId ID of the loan to check the balance of.
-     * @return A pair of a principal and  interest amounts due on this loan
+     * @notice Loan balances due if paid in full at this time. 
+     * @param loanId ID of the loan to check the balance of
+     * @return Principal outstanding, interest outstanding, and the number of interest acquired days
      */
     function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256, uint256) {
         Loan storage loan = loans[loanId];
@@ -485,6 +518,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         return (principalOutstanding, interestOutstanding, daysPassed);
     }
 
+    /**
+     * @notice Loan balances payable given a max payment amount. 
+     * @param loanId ID of the loan to check the balance of
+     * @param maxPaymentAmount Maximum liquidity token amount user has agreed to pay towards the loan
+     * @return Total amount payable, interest payable, and the number of payable interest days
+     */
     function payableLoanBalance(uint256 loanId, uint256 maxPaymentAmount) private view returns (uint256, uint256, uint256) {
         (uint256 principalOutstanding, uint256 interestOutstanding, uint256 interestDays) = loanBalanceDueWithInterest(loanId);
         uint256 transferAmount = Math.min(principalOutstanding.add(interestOutstanding), maxPaymentAmount);
@@ -513,7 +552,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
     /**
      * @notice Get the number of days in a time period to witch an interest can be applied.
-     * @dev Internal helper method. Returns the ceiling of the count. 
+     * @dev Returns the ceiling of the count. 
      * @param timeFrom Epoch timestamp of the start of the time period.
      * @param timeTo Epoch timestamp of the end of the time period. 
      * @return Ceil count of days in a time period to witch an interest can be applied.

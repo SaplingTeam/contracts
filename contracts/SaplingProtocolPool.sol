@@ -12,6 +12,7 @@ contract SaplingProtocolPool is SaplingPoolContext {
 
     using SafeMath for uint256;
 
+    /// Investment profile object template
     struct Investment {
         address pool;
         uint256 totalAmount;
@@ -23,27 +24,40 @@ contract SaplingProtocolPool is SaplingPoolContext {
         uint256 lastCollectedTime;
     }
 
+    ///  Address of the verification hub
     address private verificationHub;
 
+    /// Investment profile by lending pool address
     mapping (address => Investment) public investments;
 
+
+    /// Event for when funds are invested into a lending pool
     event NewInvestment(address toPool, uint256 liquidityTokenAmount);
 
+    /// Event for when an investment yield is collected from a lending pool
     event YieldCollected(address fromPool, uint256 liquidityTokenAmount);
 
     /**
      * @notice Creates a Sapling pool.
+     * @param _verificationHub verification hub address
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
-     * @param _liquidityToken ERC20 token contract address to be used as main pool liquid currency.
-     * @param _governance Address of the protocol governance.
-     * @param _protocol Address of a wallet to accumulate protocol earnings.
-     * @param _manager Address of the pool manager.
+     * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
+     * @param _governance Governance address
+     * @param _protocol Protocol wallet address
+     * @param _manager Manager address
      */
     constructor(address _verificationHub, address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) 
         SaplingPoolContext(_poolToken, _liquidityToken, _governance, _protocol, _manager) {
         verificationHub = _verificationHub;
     }
 
+    /**
+     * @notice Create new investment or add to an existing investment on a lending pool.
+     * @dev Caller must be the manager. Stake to pool ratio must be good, protocol pool must have sufficient liquidity, 
+     *      and the lending pool must be registered on the Verification Hub.
+     * @param lendingPool Address of a lending pool the investment is being made to
+     * @param liquidityTokenAmount Amount of investment in liquidity tokens
+     */
     function invest(address lendingPool, uint256 liquidityTokenAmount) external onlyManager whenNotPaused {
          require(isPoolFunctional());
          require(strategyLiquidity() >= liquidityTokenAmount);
@@ -82,6 +96,12 @@ contract SaplingProtocolPool is SaplingPoolContext {
         emit NewInvestment(lendingPool, liquidityTokenAmount);
     }
 
+    /**
+     * @notice Collect investment yield from a lending pool. 
+     * @dev Caller must be the manager. Yield balance on the lending pool must be sufficient.
+     * @param pool Address of the lending pool to collect from
+     * @param amount Amount to collect in liquidity tokens
+     */
     function collectYield(address pool, uint256 amount) external onlyManager whenNotPaused {
         require(poolYieldBalanceOn(pool) >= amount);
 
@@ -103,6 +123,13 @@ contract SaplingProtocolPool is SaplingPoolContext {
         emit YieldCollected(pool, amount);
     }
 
+    /**
+     * @notice Collect/Withdraw investment principal from a lending pool.
+     * @dev Caller must be the manager. Lending pool must have sufficient withdrawable liquidity, which can be checked 
+     *      independently.
+     * @param pool Address of the lending pool to collect from
+     * @param amount Amount to collect in liquidity tokens
+     */
     function collectInvestment(address pool, uint256 amount) external onlyManager whenNotPaused {
         Investment storage investment = investments[pool];
         require(investment.pool != address(0));
@@ -131,6 +158,10 @@ contract SaplingProtocolPool is SaplingPoolContext {
         emit YieldCollected(pool, amount);
     }
 
+    /**
+     * @notice Helper function to check the accumulated yield balance of the protocol pool on a specific lending pool.
+     * @return Yield balance of the protocol pool on a lending pool.
+     */
     function poolYieldBalanceOn(address pool) public view returns (uint256) {
         Investment storage investment = investments[pool];
         if(investment.pool == address(0)) {
