@@ -2,6 +2,9 @@
 
 ## SaplingContext
 
+Provides governance access control, a common reverence to the protocol wallet address, and basic pause 
+        functionality by extending OpenZeppelin's Pausable contract.
+
 ### governance
 
 ```solidity
@@ -24,13 +27,15 @@ Protocol wallet address
 event GovernanceTransferred(address from, address to)
 ```
 
-Event emitted when a new governance is set
+Event for when a new governance is set
 
-### ProtocolWalletSet
+### ProtocolWalletTransferred
 
 ```solidity
-event ProtocolWalletSet(address from, address to)
+event ProtocolWalletTransferred(address from, address to)
 ```
+
+Event for when a new protocol wallet is set
 
 ### onlyGovernance
 
@@ -38,7 +43,7 @@ event ProtocolWalletSet(address from, address to)
 modifier onlyGovernance()
 ```
 
-A modifier to limit access to the governance
+A modifier to limit access only to the governance
 
 ### constructor
 
@@ -46,14 +51,14 @@ A modifier to limit access to the governance
 constructor(address _governance, address _protocol) internal
 ```
 
-Creates new SaplingContext instance.
+Creates a new SaplingContext.
 
-__governance must not be 0_
+_Addresses must not be 0._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _governance | address | Address of the protocol governance. |
-| _protocol | address |  |
+| _governance | address | Governance address |
+| _protocol | address | Protocol wallet address |
 
 ### transferGovernance
 
@@ -63,18 +68,27 @@ function transferGovernance(address _governance) external
 
 Transfer the governance.
 
-_Caller must be governance. 
-     _governance must not be 0._
+_Caller must be the governance. 
+     New governance address must not be 0, and must not be the same as current governance address._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _governance | address | Address of the new governance. |
+| _governance | address | New governance address. |
 
-### setProtocolWallet
+### transferProtocolWallet
 
 ```solidity
-function setProtocolWallet(address _protocol) external
+function transferProtocolWallet(address _protocol) external
 ```
+
+Transfer the protocol wallet.
+
+_Caller must be the governance. 
+     New governance address must not be 0, and must not be the same as current governance address._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _protocol | address | New protocol wallet address. |
 
 ### pause
 
@@ -82,9 +96,31 @@ function setProtocolWallet(address _protocol) external
 function pause() external
 ```
 
+Pause the contract.
+
+_Caller must be the governance. 
+     Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause._
+
 ### unpause
 
 ```solidity
 function unpause() external
 ```
+
+Resume the contract.
+
+_Caller must be the governance. 
+     Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause._
+
+### afterProtocolWalletTransfer
+
+```solidity
+function afterProtocolWalletTransfer(address from) internal virtual
+```
+
+Hook that is called after a new protocol wallet address has been set.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| from | address | Address of the previous protocol wallet. |
 

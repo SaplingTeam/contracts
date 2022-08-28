@@ -2,6 +2,8 @@
 
 ## SaplingLendingPool
 
+_Extends SaplingPoolContext with lending strategy._
+
 ### LoanStatus
 
 ```solidity
@@ -67,19 +69,23 @@ struct BorrowerStats {
 address loanDesk
 ```
 
+Address of the loan desk contract
+
 ### loans
 
 ```solidity
 mapping(uint256 => struct SaplingLendingPool.Loan) loans
 ```
 
-Loans by loanId
+Loans by loan ID
 
 ### loanDetails
 
 ```solidity
 mapping(uint256 => struct SaplingLendingPool.LoanDetail) loanDetails
 ```
+
+LoanDetails by loan ID
 
 ### borrowerStats
 
@@ -95,11 +101,15 @@ Borrower statistics by address
 event LoanDeskSet(address from, address to)
 ```
 
+Event for when a new loan desk is set
+
 ### LoanBorrowed
 
 ```solidity
 event LoanBorrowed(uint256 loanId, address borrower, uint256 applicationId)
 ```
+
+Event for when loan offer is accepted and the loan is borrowed
 
 ### LoanRepaid
 
@@ -107,11 +117,15 @@ event LoanBorrowed(uint256 loanId, address borrower, uint256 applicationId)
 event LoanRepaid(uint256 loanId, address borrower)
 ```
 
+Event for when a loan is fully repaid
+
 ### LoanDefaulted
 
 ```solidity
 event LoanDefaulted(uint256 loanId, address borrower, uint256 amountLost)
 ```
+
+Event for when a loan is defaulted
 
 ### loanInStatus
 
@@ -119,11 +133,15 @@ event LoanDefaulted(uint256 loanId, address borrower, uint256 amountLost)
 modifier loanInStatus(uint256 loanId, enum SaplingLendingPool.LoanStatus status)
 ```
 
+A modifier to limit access to when a loan has the specified status
+
 ### onlyLoanDesk
 
 ```solidity
 modifier onlyLoanDesk()
 ```
+
+A modifier to limit access only to the loan desk contract
 
 ### constructor
 
@@ -133,13 +151,15 @@ constructor(address _poolToken, address _liquidityToken, address _governance, ad
 
 Creates a Sapling pool.
 
+_Addresses must not be 0._
+
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
-| _liquidityToken | address | ERC20 token contract address to be used as main pool liquid currency. |
-| _governance | address | Address of the protocol governance. |
-| _protocol | address | Address of a wallet to accumulate protocol earnings. |
-| _manager | address | Address of the pool manager. |
+| _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
+| _governance | address | Governance address |
+| _protocol | address | Protocol wallet address |
+| _manager | address | Manager address |
 
 ### borrow
 
@@ -147,14 +167,14 @@ Creates a Sapling pool.
 function borrow(uint256 appId) external
 ```
 
-Accept loan offer and withdraw funds
+Accept a loan offer and withdraw funds
 
-_Caller must be the borrower. 
-     The loan must be in APPROVED status._
+_Caller must be the borrower of the loan in question.
+     The loan must be in OFFER_MADE status._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| appId | uint256 | id of the loan application to accept the offer of. |
+| appId | uint256 | ID of the loan application to accept the offer of |
 
 ### repay
 
@@ -176,7 +196,7 @@ _Caller must be the borrower.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | A pair of total amount changed including interest, and the interest charged. |
+| [0] | uint256 | A pair of total amount charged including interest, and the interest charged. |
 | [1] | uint256 |  |
 
 ### repayOnBehalf
@@ -185,7 +205,7 @@ _Caller must be the borrower.
 function repayOnBehalf(uint256 loanId, uint256 amount, address borrower) external returns (uint256, uint256)
 ```
 
-Make a payment towards a loan on behalf od a borrower
+Make a payment towards a loan on behalf of a borrower.
 
 _Loan must be in OUTSTANDING status.
      Only the necessary sum is charged if amount exceeds amount due.
@@ -195,11 +215,11 @@ _Loan must be in OUTSTANDING status.
 | ---- | ---- | ----------- |
 | loanId | uint256 | ID of the loan to make a payment towards. |
 | amount | uint256 | Payment amount in tokens. |
-| borrower | address | address of the borrower to make a payment in behalf of. |
+| borrower | address | address of the borrower to make a payment on behalf of. |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | A pair of total amount changed including interest, and the interest charged. |
+| [0] | uint256 | A pair of total amount charged including interest, and the interest charged. |
 | [1] | uint256 |  |
 
 ### defaultLoan
@@ -212,7 +232,7 @@ Default a loan.
 
 _Loan must be in OUTSTANDING status.
      Caller must be the manager.
-     canDefault(loanId) must return 'true'._
+     canDefault(loanId, msg.sender) must return 'true'._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -224,20 +244,13 @@ _Loan must be in OUTSTANDING status.
 function setLoanDesk(address _loanDesk) external
 ```
 
-### transferProtocolWallet
+Links a new loan desk for the pool to use. Intended for use upon initial pool deployment.
 
-```solidity
-function transferProtocolWallet(address _protocol) external
-```
-
-Transfer the protocol wallet and accumulated fees to a new wallet.
-
-_Caller must be governance. 
-     _protocol must not be 0._
+_Caller must be the governance._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _protocol | address | Address of the new protocol wallet. |
+| _loanDesk | address | New LoanDesk address |
 
 ### onOffer
 
@@ -245,11 +258,30 @@ _Caller must be governance.
 function onOffer(uint256 amount) external
 ```
 
+Handles liquidity state changes on a loan offer.
+
+_Hook to be called when a new loan offer is made.
+     Caller must be the LoanDesk._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amount | uint256 | Loan offer amount. |
+
 ### onOfferUpdate
 
 ```solidity
 function onOfferUpdate(uint256 prevAmount, uint256 amount) external
 ```
+
+Handles liquidity state changes on a loan offer update.
+
+_Hook to be called when a loan offer amount is updated. Amount update can be due to offer update or 
+     cancellation. Caller must be the LoanDesk._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| prevAmount | uint256 | The original, now previous, offer amount. |
+| amount | uint256 | New offer amount. Cancelled offer must register an amount of 0 (zero). |
 
 ### canOffer
 
@@ -259,13 +291,15 @@ function canOffer(uint256 totalOfferedAmount) external view returns (bool)
 
 View indicating whether or not a given loan can be offered by the manager.
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| totalOfferedAmount | uint256 | loanOfferAmount |
+_Hook for checking if the lending pool can provide liquidity for the total offered loans amount._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | bool | True if the given total loan amount can be offered, false otherwise |
+| totalOfferedAmount | uint256 | Total sum of offered loan amount including outstanding offers and the one to be offered. |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the pool has sufficient lending liquidity, false otherwise. |
 
 ### canDefault
 
@@ -277,8 +311,8 @@ View indicating whether or not a given loan qualifies to be defaulted by a given
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| loanId | uint256 | loanId ID of the loan to check |
-| caller | address | address that intends to call default() on the loan |
+| loanId | uint256 | ID of the loan to check |
+| caller | address | An address that intends to call default() on the loan |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -296,11 +330,11 @@ _Loan must be in OUTSTANDING status._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan to check the balance of. |
+| loanId | uint256 | ID of the loan to check the balance of |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Total amount due with interest on this loan. |
+| [0] | uint256 | Total amount due with interest on this loan |
 
 ### poolCanLend
 
@@ -312,7 +346,7 @@ Check if the pool can lend based on the current stake levels.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | bool | True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise. |
+| [0] | bool | True if the staked funds provide at least a minimum ratio to the pool funds, false otherwise. |
 
 ### loansCount
 
@@ -332,6 +366,26 @@ Count of all loan requests in this pool.
 function borrowedFunds() external view returns (uint256)
 ```
 
+Current pool funds borrowed.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Amount of funds borrowed in liquidity tokens. |
+
+### afterProtocolWalletTransfer
+
+```solidity
+function afterProtocolWalletTransfer(address from) internal
+```
+
+Transfer the previous protocol wallet's accumulated fees to current protocol wallet.
+
+_Overrides a hook in SaplingContext._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| from | address | Address of the previous protocol wallet. |
+
 ### repayBase
 
 ```solidity
@@ -346,12 +400,12 @@ _Loan must be in OUTSTANDING status.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan to make a payment towards. |
-| amount | uint256 | Payment amount in tokens. |
+| loanId | uint256 | ID of the loan to make a payment towards |
+| amount | uint256 | Payment amount in tokens |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | A pair of total amount charged including interest, and the interest charged. |
+| [0] | uint256 | A pair of total amount charged including interest, and the interest charged |
 | [1] | uint256 |  |
 
 ### loanBalanceDueWithInterest
@@ -360,17 +414,15 @@ _Loan must be in OUTSTANDING status.
 function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256, uint256)
 ```
 
-Loan balance due including interest if paid in full at this time.
-
-_Internal method to get the amount due and the interest rate applied._
+Loan balances due if paid in full at this time.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan to check the balance of. |
+| loanId | uint256 | ID of the loan to check the balance of |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | A pair of a principal and  interest amounts due on this loan |
+| [0] | uint256 | Principal outstanding, interest outstanding, and the number of interest acquired days |
 | [1] | uint256 |  |
 | [2] | uint256 |  |
 
@@ -380,6 +432,19 @@ _Internal method to get the amount due and the interest rate applied._
 function payableLoanBalance(uint256 loanId, uint256 maxPaymentAmount) private view returns (uint256, uint256, uint256)
 ```
 
+Loan balances payable given a max payment amount.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan to check the balance of |
+| maxPaymentAmount | uint256 | Maximum liquidity token amount user has agreed to pay towards the loan |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Total amount payable, interest payable, and the number of payable interest days |
+| [1] | uint256 |  |
+| [2] | uint256 |  |
+
 ### countInterestDays
 
 ```solidity
@@ -388,7 +453,7 @@ function countInterestDays(uint256 timeFrom, uint256 timeTo) private pure return
 
 Get the number of days in a time period to witch an interest can be applied.
 
-_Internal helper method. Returns the ceiling of the count._
+_Returns the ceiling of the count._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |

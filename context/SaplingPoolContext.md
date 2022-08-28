@@ -2,11 +2,15 @@
 
 ## SaplingPoolContext
 
+Provides common pool functionality with lender deposits, manager's first loss capital staking, and reward distribution.
+
 ### poolToken
 
 ```solidity
 address poolToken
 ```
+
+Address of an ERC20 token managed and issued by the pool
 
 ### liquidityToken
 
@@ -22,7 +26,7 @@ Address of an ERC20 liquidity token accepted by the pool
 uint8 tokenDecimals
 ```
 
-tokenDecimals value retrieved from the token contract upon contract construction
+tokenDecimals value retrieved from the liquidity token contract upon contract construction
 
 ### ONE_TOKEN
 
@@ -38,7 +42,7 @@ A value representing 1.0 token amount, padded with zeros for decimals
 uint256 tokenBalance
 ```
 
-Total tokens currently held by this contract
+Total liquidity tokens currently held by this contract
 
 ### poolFundsLimit
 
@@ -46,7 +50,7 @@ Total tokens currently held by this contract
 uint256 poolFundsLimit
 ```
 
-MAX amount of tokens allowed in the pool based on staked assets
+MAX amount of liquidity tokens allowed in the pool based on staked assets
 
 ### poolFunds
 
@@ -54,7 +58,7 @@ MAX amount of tokens allowed in the pool based on staked assets
 uint256 poolFunds
 ```
 
-Current amount of tokens in the pool, including both liquid and borrowed funds
+Current amount of liquidity tokens in the pool, including both liquid and allocated funds
 
 ### poolLiquidity
 
@@ -62,7 +66,7 @@ Current amount of tokens in the pool, including both liquid and borrowed funds
 uint256 poolLiquidity
 ```
 
-Current amount of liquid tokens, available to lend/withdraw/borrow
+Current amount of liquid tokens, available to for pool strategies or withdrawals
 
 ### allocatedFunds
 
@@ -70,13 +74,15 @@ Current amount of liquid tokens, available to lend/withdraw/borrow
 uint256 allocatedFunds
 ```
 
+Current funds allocated for pool strategies
+
 ### strategizedFunds
 
 ```solidity
 uint256 strategizedFunds
 ```
 
-Total funds committed to strategies such as borrowing or investing
+Current funds committed to strategies such as borrowing or investing
 
 ### totalPoolShares
 
@@ -84,7 +90,7 @@ Total funds committed to strategies such as borrowing or investing
 uint256 totalPoolShares
 ```
 
-Total pool shares present
+Current pool shares present, this also represents current total pool tokens in circulation
 
 ### stakedShares
 
@@ -157,7 +163,7 @@ Percentage of paid interest to be allocated as protocol earnings
 uint16 MAX_PROTOCOL_EARNING_PERCENT
 ```
 
-Percentage of paid interest to be allocated as protocol earnings
+An upper bound for percentage of paid interest to be allocated as protocol earnings
 
 ### protocolEarnings
 
@@ -181,13 +187,7 @@ Weighted average loan APR on the borrowed funds
 uint256 nextStrategyId
 ```
 
-strategy id generator counter
-
-### ProtocolWalletTransferred
-
-```solidity
-event ProtocolWalletTransferred(address from, address to)
-```
+Strategy id generator counter
 
 ### UnstakedLoss
 
@@ -195,11 +195,15 @@ event ProtocolWalletTransferred(address from, address to)
 event UnstakedLoss(uint256 amount)
 ```
 
+Event for when the lender capital is lost due to defaults
+
 ### StakedAssetsDepleted
 
 ```solidity
 event StakedAssetsDepleted()
 ```
+
+Event for when the Manager's staked assets are depleted due to defaults
 
 ### constructor
 
@@ -207,15 +211,17 @@ event StakedAssetsDepleted()
 constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) internal
 ```
 
-Creates a Sapling pool.
+Creates a SaplingPoolContext.
+
+_Addresses must not be 0._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
-| _liquidityToken | address | ERC20 token contract address to be used as main pool liquid currency. |
-| _governance | address | Address of the protocol governance. |
-| _protocol | address | Address of a wallet to accumulate protocol earnings. |
-| _manager | address | Address of the pool manager. |
+| _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
+| _governance | address | Governance address |
+| _protocol | address | Protocol wallet address |
+| _manager | address | Manager address |
 
 ### setTargetStakePercent
 
@@ -230,7 +236,7 @@ __targetStakePercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _targetStakePercent | uint16 | new target stake percent. |
+| _targetStakePercent | uint16 | New target stake percent. |
 
 ### setTargetLiquidityPercent
 
@@ -299,15 +305,16 @@ __managerEarnFactorMax must be inclusively between ONE_HUNDRED_PERCENT and manag
 function deposit(uint256 amount) external
 ```
 
-Deposit tokens to the pool.
+Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an equivalent amount of pool 
+        tokens and transfer it to the caller. Exact exchange rate depends on the current pool state.
 
 _Deposit amount must be non zero and not exceed amountDepositable().
      An appropriate spend limit must be present at the token contract.
-     Caller must not be any of: manager, protocol, current borrower._
+     Caller must not be any of: manager, protocol, governance._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| amount | uint256 | Token amount to deposit. |
+| amount | uint256 | Liquidity token amount to deposit. |
 
 ### withdraw
 
@@ -315,14 +322,15 @@ _Deposit amount must be non zero and not exceed amountDepositable().
 function withdraw(uint256 amount) external
 ```
 
-Withdraw tokens from the pool.
+Withdraw liquidity tokens from the pool. Withdrawals redeem equivalent amount of the caller's pool tokens
+        by burning the tokens in question.
+        Exact exchange rate depends on the current pool state.
 
-_Withdrawal amount must be non zero and not exceed amountWithdrawable().
-     Caller must not be any of: manager, protocol, current borrower._
+_Withdrawal amount must be non zero and not exceed amountWithdrawable()._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| amount | uint256 | token amount to withdraw. |
+| amount | uint256 | Liquidity token amount to withdraw. |
 
 ### stake
 
@@ -330,7 +338,8 @@ _Withdrawal amount must be non zero and not exceed amountWithdrawable().
 function stake(uint256 amount) external
 ```
 
-Stake tokens into the pool.
+Stake liquidity tokens into the pool. Staking liquidity tokens will mint an equivalent amount of pool 
+        tokens and lock them in the pool. Exact exchange rate depends on the current pool state.
 
 _Caller must be the manager.
      Stake amount must be non zero.
@@ -338,7 +347,7 @@ _Caller must be the manager.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| amount | uint256 | Token amount to stake. |
+| amount | uint256 | Liquidity token amount to stake. |
 
 ### unstake
 
@@ -346,14 +355,15 @@ _Caller must be the manager.
 function unstake(uint256 amount) external
 ```
 
-Unstake tokens from the pool.
+Unstake liquidity tokens from the pool. Unstaking redeems equivalent amount of the caller's pool tokens 
+        locked in the pool by burning the tokens in question.
 
 _Caller must be the manager.
      Unstake amount must be non zero and not exceed amountUnstakable()._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| amount | uint256 | Token amount to unstake. |
+| amount | uint256 | Liquidity token amount to unstake. |
 
 ### withdrawProtocolEarnings
 
@@ -364,7 +374,8 @@ function withdrawProtocolEarnings() external
 Withdraws protocol earnings belonging to the caller.
 
 _protocolEarningsOf(msg.sender) must be greater than 0.
-     Caller's all accumulated earnings will be withdrawn._
+     Caller's all accumulated earnings will be withdrawn.
+     Protocol earnings are represented in liquidity tokens._
 
 ### amountDepositable
 
@@ -372,7 +383,7 @@ _protocolEarningsOf(msg.sender) must be greater than 0.
 function amountDepositable() external view returns (uint256)
 ```
 
-Check token amount depositable by lenders at this time.
+Check liquidity token amount depositable by lenders at this time.
 
 _Return value depends on the pool state rather than caller's balance._
 
@@ -386,7 +397,7 @@ _Return value depends on the pool state rather than caller's balance._
 function amountWithdrawable(address wallet) external view returns (uint256)
 ```
 
-Check token amount withdrawable by the caller at this time.
+Check liquidity token amount withdrawable by the caller at this time.
 
 _Return value depends on the callers balance, and is limited by pool liquidity._
 
@@ -396,7 +407,7 @@ _Return value depends on the callers balance, and is limited by pool liquidity._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Max amount of tokens withdrawable by msg.sender. |
+| [0] | uint256 | Max amount of tokens withdrawable by the caller. |
 
 ### balanceOf
 
@@ -404,7 +415,8 @@ _Return value depends on the callers balance, and is limited by pool liquidity._
 function balanceOf(address wallet) public view returns (uint256)
 ```
 
-Check wallet's token balance in the pool. Balance includes acquired earnings.
+Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired yield.
+        This balance does not included staked balance, leveraged earnings or protocol earnings.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -412,7 +424,7 @@ Check wallet's token balance in the pool. Balance includes acquired earnings.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Token balance of the wallet in this pool. |
+| [0] | uint256 | Liquidity token balance of the wallet in this pool. |
 
 ### balanceStaked
 
@@ -420,11 +432,11 @@ Check wallet's token balance in the pool. Balance includes acquired earnings.
 function balanceStaked() public view returns (uint256)
 ```
 
-Check the manager's staked token balance in the pool.
+Check the manager's staked liquidity token balance in the pool.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Token balance of the manager's stake. |
+| [0] | uint256 | Liquidity token balance of the manager's stake. |
 
 ### amountUnstakable
 
@@ -432,7 +444,7 @@ Check the manager's staked token balance in the pool.
 function amountUnstakable() public view returns (uint256)
 ```
 
-Check token amount unstakable by the manager at this time.
+Check liquidity token amount unstakable by the manager at this time.
 
 _Return value depends on the manager's stake balance, and is limited by pool liquidity._
 
@@ -457,7 +469,7 @@ _This method is useful for manager and protocol addresses.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Accumulated earnings of the wallet from the protocol. |
+| [0] | uint256 | Accumulated liquidity token earnings of the wallet from the protocol. |
 
 ### currentLenderAPY
 
@@ -469,7 +481,7 @@ Estimated lender APY given the current pool state.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint16 | Estimated lender APY |
+| [0] | uint16 | Estimated current lender APY |
 
 ### projectedLenderAPY
 
@@ -477,13 +489,13 @@ Estimated lender APY given the current pool state.
 function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view returns (uint16)
 ```
 
-Projected lender APY given the current pool state and a specific borrow rate.
+Projected lender APY given the current pool state and a specific strategy rate and an average apr.
 
-_represent borrowRate in contract specific percentage format_
+_Represent percentage parameter values in contract specific format._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| strategyRate | uint16 | percentage of pool funds projected to be borrowed annually |
+| strategyRate | uint16 | Percentage of pool funds projected to be used in strategies. |
 | _avgStrategyAPR | uint256 |  |
 
 | Name | Type | Description |
@@ -496,11 +508,23 @@ _represent borrowRate in contract specific percentage format_
 function strategyLiquidity() public view returns (uint256)
 ```
 
+Current liquidity available for pool strategies such as lending or investing.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Strategy liquidity amount. |
+
 ### getNextStrategyId
 
 ```solidity
 function getNextStrategyId() internal returns (uint256)
 ```
+
+_Generator for next strategy id. i.e. loan, investment._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Next available id. |
 
 ### enterPool
 
@@ -508,18 +532,19 @@ function getNextStrategyId() internal returns (uint256)
 function enterPool(uint256 amount) internal returns (uint256)
 ```
 
-_Internal method to enter the pool with a token amount.
+_Internal method to enter the pool with a liquidity token amount.
      With the exception of the manager's call, amount must not exceed amountDepositable().
      If the caller is the pool manager, entered funds are considered staked.
-     New shares are minted in a way that will not influence the current share price._
+     New pool tokens are minted in a way that will not influence the current share price.
+Shares are equivalent to pool tokens and are represented by them._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| amount | uint256 | A token amount to add to the pool on behalf of the caller. |
+| amount | uint256 | Liquidity token amount to add to the pool on behalf of the caller. |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Amount of shares minted and allocated to the caller. |
+| [0] | uint256 | Amount of pool tokens minted and allocated to the caller. |
 
 ### exitPool
 
@@ -527,18 +552,19 @@ _Internal method to enter the pool with a token amount.
 function exitPool(uint256 amount) internal returns (uint256)
 ```
 
-_Internal method to exit the pool with a token amount.
+_Internal method to exit the pool with a liquidity token amount.
      Amount must not exceed amountWithdrawable() for non managers, and amountUnstakable() for the manager.
      If the caller is the pool manager, exited funds are considered unstaked.
-     Shares are burned in a way that will not influence the current share price._
+     Pool tokens are burned in a way that will not influence the current share price.
+Shares are equivalent to pool tokens and are represented by them._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| amount | uint256 | A token amount to withdraw from the pool on behalf of the caller. |
+| amount | uint256 | Liquidity token amount to withdraw from the pool on behalf of the caller. |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Amount of shares burned and taken from the caller. |
+| [0] | uint256 | Amount of pool tokens burned and taken from the caller. |
 
 ### updatePoolLimit
 
@@ -546,7 +572,7 @@ _Internal method to exit the pool with a token amount.
 function updatePoolLimit() internal
 ```
 
-_Internal method to update pool limit based on staked funds._
+_Internal method to update the pool funds limit based on the staked funds._
 
 ### sharesToTokens
 
@@ -554,7 +580,9 @@ _Internal method to update pool limit based on staked funds._
 function sharesToTokens(uint256 shares) internal view returns (uint256)
 ```
 
-Get a token value of shares.
+Get liquidity token value of shares.
+
+_Shares are equivalent to pool tokens and are represented by them._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -566,11 +594,13 @@ Get a token value of shares.
 function tokensToShares(uint256 tokens) internal view returns (uint256)
 ```
 
-Get a share value of tokens.
+Get a share value of liquidity tokens.
+
+_Shares are equivalent to pool tokens and are represented by them._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| tokens | uint256 | Amount of tokens |
+| tokens | uint256 | Amount of liquidity tokens. |
 
 ### strategyCount
 
@@ -578,19 +608,21 @@ Get a share value of tokens.
 function strategyCount() internal view returns (uint256)
 ```
 
+_All time count of created strategies. i.e. Loans and investments_
+
 ### lenderAPY
 
 ```solidity
 function lenderAPY(uint256 _strategizedFunds, uint256 _avgStrategyAPR) internal view returns (uint16)
 ```
 
-Lender APY given the current pool state and a specific borrowed funds amount.
+Lender APY given the current pool state, a specific strategized funds, and an average apr.
 
-_represent borrowRate in contract specific percentage format_
+_Represent percentage parameter values in contract specific format._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _strategizedFunds | uint256 | pool funds to be borrowed annually |
+| _strategizedFunds | uint256 | Pool funds to be borrowed annually. |
 | _avgStrategyAPR | uint256 |  |
 
 | Name | Type | Description |
@@ -615,9 +647,16 @@ Check if the pool is functional based on the current stake levels.
 function authorizedOnInactiveManager(address caller) internal view returns (bool)
 ```
 
+_Implementation of the abstract hook in SaplingManagedContext.
+     Governance, protocol wallet addresses and lenders with at least 1.00 liquidity tokens are authorised to take
+     certain actions when the manager is inactive._
+
 ### canClose
 
 ```solidity
 function canClose() internal view returns (bool)
 ```
+
+_Implementation of the abstract hook in SaplingManagedContext.
+     Pool can be close when no funds remain committed to strategies._
 

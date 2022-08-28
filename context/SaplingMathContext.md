@@ -2,6 +2,8 @@
 
 ## SaplingMathContext
 
+Provides common math constants and library imports.
+
 ### PERCENT_DECIMALS
 
 ```solidity
@@ -23,4 +25,6 @@ A constant representing 100%
 ```solidity
 constructor() internal
 ```
+
+Create a new SaplingMathContext.
 

@@ -2,13 +2,15 @@
 
 ## SaplingManagerContext
 
+Provides manager access control, and a basic close functionality.
+
 ### manager
 
 ```solidity
 address manager
 ```
 
-Pool manager address
+Manager address
 
 ### _closed
 
@@ -25,7 +27,7 @@ uint256 MANAGER_INACTIVITY_GRACE_PERIOD
 ```
 
 Grace period for the manager to be inactive on a given loan /cancel/default decision. 
-        After this grace period of managers inaction on a given loan authorised parties
+        After this grace period of managers inaction on a given loan authorized parties
         can also call cancel() and default(). Other requirements for loan cancellation/default still apply.
 
 ### onlyManager
@@ -34,11 +36,15 @@ Grace period for the manager to be inactive on a given loan /cancel/default deci
 modifier onlyManager()
 ```
 
+A modifier to limit access only to the manager
+
 ### managerOrApprovedOnInactive
 
 ```solidity
 modifier managerOrApprovedOnInactive()
 ```
+
+A modifier to limit access to the manager or to other applicable parties when the manager is considered inactive
 
 ### onlyUser
 
@@ -46,11 +52,15 @@ modifier managerOrApprovedOnInactive()
 modifier onlyUser()
 ```
 
+A modifier to limit access only to non-management users
+
 ### Closed
 
 ```solidity
 event Closed(address account)
 ```
+
+Event for when the contract is closed
 
 ### Opened
 
@@ -58,11 +68,15 @@ event Closed(address account)
 event Opened(address account)
 ```
 
+Event for when the contract is reopened
+
 ### whenNotClosed
 
 ```solidity
 modifier whenNotClosed()
 ```
+
+Modifier to limit function access to when the contract is not closed
 
 ### whenClosed
 
@@ -70,21 +84,23 @@ modifier whenNotClosed()
 modifier whenClosed()
 ```
 
+Modifier to limit function access to when the contract is closed
+
 ### constructor
 
 ```solidity
 constructor(address _governance, address _protocol, address _manager) internal
 ```
 
-Create a managed lending pool.
+Create a new SaplingManagedContext.
 
-_msg.sender will be assigned as the manager of the created pool._
+_Addresses must not be 0._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _governance | address | Address of the protocol governance. |
-| _protocol | address | Address of a wallet to accumulate protocol earnings. |
-| _manager | address | Address of the pool manager |
+| _governance | address | Governance address |
+| _protocol | address | Protocol wallet address |
+| _manager | address | Manager address |
 
 ### close
 
@@ -118,15 +134,42 @@ _Caller must be the manager.
 function closed() public view returns (bool)
 ```
 
+Indicates whether or not the contract is closed.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the contract is closed, false otherwise. |
+
 ### canClose
 
 ```solidity
 function canClose() internal view virtual returns (bool)
 ```
 
+Indicates whether or not the contract can be closed in it's current state.
+
+_A hook for the extending contract to implement._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the contract is closed, false otherwise. |
+
 ### authorizedOnInactiveManager
 
 ```solidity
 function authorizedOnInactiveManager(address caller) internal view virtual returns (bool)
 ```
+
+Indicates whether or not the the caller is authorized to take applicable managing actions when the 
+        manager is inactive.
+
+_A hook for the extending contract to implement._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| caller | address | Caller's address. |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the caller is authorized at this time, false otherwise. |
 

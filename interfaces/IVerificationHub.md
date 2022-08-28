@@ -8,11 +8,27 @@
 function ban(address party) external
 ```
 
+Set an address as a bad actor.
+
+_Caller must be the governance._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| party | address | Address to set as a bad actor |
+
 ### unban
 
 ```solidity
 function unban(address party) external
 ```
+
+Unset an address as a bad actor.
+
+_Caller must be the governance._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| party | address | Address to unset as a bad actor |
 
 ### verify
 
@@ -20,11 +36,27 @@ function unban(address party) external
 function verify(address party) external
 ```
 
+Set an address as ID verified.
+
+_Caller must be the governance._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| party | address | Address to set as ID verified |
+
 ### unverify
 
 ```solidity
 function unverify(address party) external
 ```
+
+Unset an address as ID verified.
+
+_Caller must be the governance._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| party | address | Address to unset as ID verified |
 
 ### registerSaplingPool
 
@@ -32,11 +64,29 @@ function unverify(address party) external
 function registerSaplingPool(address pool) external
 ```
 
+Register a new Sapling Lending Pool.
+
+_Caller must be the SaplingFactory_
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| pool | address | Address of the new lending pool. |
+
 ### isBadActor
 
 ```solidity
 function isBadActor(address party) external view returns (bool)
 ```
+
+Check if an address is a bad actor.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| party | address | An address to check |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the specified address is a bad actor, false otherwise. |
 
 ### isVerified
 
@@ -44,9 +94,29 @@ function isBadActor(address party) external view returns (bool)
 function isVerified(address party) external view returns (bool)
 ```
 
+Check if an address is ID verified.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| party | address | An address to check |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the specified address is ID verified, false otherwise. |
+
 ### isSaplingPool
 
 ```solidity
 function isSaplingPool(address party) external view returns (bool)
 ```
+
+Check if an address is a registered Sapling Lending Pool
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| party | address | An address to check |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the specified address is registered with this verification hub, false otherwise. |
 
