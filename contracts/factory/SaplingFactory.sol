@@ -28,8 +28,8 @@ contract SaplingFactory is SaplingContext {
     /// Lending pool factory contract address
     address public poolFactory;
 
-    event PoolCreated(address pool);
     /// Event for when a Lending pool and it's components are deployed, linked and ready for use.
+    event LendingPoolReady(address pool);
 
     /**
      * @notice Create a new SaplingFactory.
@@ -77,6 +77,6 @@ contract SaplingFactory is SaplingContext {
         
         IVerificationHub(verificationHub).registerSaplingPool(pool);
 
-        emit PoolCreated(pool);
+        emit LendingPoolReady(pool);
     }
 }

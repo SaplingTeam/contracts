@@ -284,7 +284,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @dev Return value depends on the pool state rather than caller's balance.
      * @return Max amount of tokens depositable to the pool.
      */
-    function amountDepositable() external view returns (uint256) {
+    function amountDepositable() external view override returns (uint256) {
         if (poolFundsLimit <= poolFunds || closed() || paused()) {
             return 0;
         }
@@ -298,7 +298,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param wallet Address of the wallet to check the withdrawable balance of.
      * @return Max amount of tokens withdrawable by the caller.
      */
-    function amountWithdrawable(address wallet) external view returns (uint256) {
+    function amountWithdrawable(address wallet) external view override returns (uint256) {
         return paused() ? 0 : Math.min(poolLiquidity, balanceOf(wallet));
     }
 
