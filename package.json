@@ -5,6 +5,7 @@
   "author": "",
   "license": "",
   "scripts": {
+    "check": "solhint 'contracts/**/*.sol'",
     "compile": "hardhat compile",
     "doc": "rimraf docs && hardhat docgen",
     "test": "hardhat test",
@@ -21,9 +22,10 @@
     "solc": "^0.8.15"
   },
   "devDependencies": {
-    "hardhat": "^2.10.2",
     "@nomicfoundation/hardhat-toolbox": "^1.0.2",
-    "solidity-docgen": "^0.6.0-beta.22",
-    "dotenv": "^16.0.1"
+    "dotenv": "^16.0.1",
+    "hardhat": "^2.10.2",
+    "solhint": "^3.3.7",
+    "solidity-docgen": "^0.6.0-beta.22"
   }
 }
