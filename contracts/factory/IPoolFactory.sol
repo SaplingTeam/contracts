@@ -9,7 +9,7 @@ interface IPoolFactory {
 
     /**
      * @notice Deploys a new instance of SaplingLendingPool.
-     * @dev Pool token must implement IPoolToken. 
+     * @dev Pool token must implement IPoolToken.
      *      Caller must be the owner.
      * @param poolToken LendingPool address
      * @param liquidityToken Liquidity token address
@@ -18,5 +18,13 @@ interface IPoolFactory {
      * @param manager Manager address
      * @return Address of the deployed contract
      */
-    function create(address poolToken, address liquidityToken, address governance, address protocol, address manager) external returns (address);
+    function create(
+        address poolToken,
+        address liquidityToken,
+        address governance,
+        address protocol,
+        address manager
+    )
+        external
+        returns (address);
 }

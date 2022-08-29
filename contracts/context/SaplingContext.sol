@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 
 /**
  * @title Sapling Context
- * @notice Provides governance access control, a common reverence to the protocol wallet address, and basic pause 
+ * @notice Provides governance access control, a common reverence to the protocol wallet address, and basic pause
  *         functionality by extending OpenZeppelin's Pausable contract.
  */
 abstract contract SaplingContext is Pausable {
@@ -43,8 +43,8 @@ abstract contract SaplingContext is Pausable {
     }
 
     /**
-     * @notice Pause the contract. 
-     * @dev Caller must be the governance. 
+     * @notice Pause the contract.
+     * @dev Caller must be the governance.
      *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause.
      */
     function pause() external onlyGovernance {
@@ -52,22 +52,25 @@ abstract contract SaplingContext is Pausable {
     }
 
     /**
-     * @notice Resume the contract. 
-     * @dev Caller must be the governance. 
+     * @notice Resume the contract.
+     * @dev Caller must be the governance.
      *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause.
      */
     function unpause() external onlyGovernance {
         _unpause();
     }
-    
+
     /**
      * @notice Transfer the governance.
-     * @dev Caller must be the governance. 
+     * @dev Caller must be the governance.
      *      New governance address must not be 0, and must not be the same as current governance address.
      * @param _governance New governance address.
      */
     function transferGovernance(address _governance) external onlyGovernance {
-        require(_governance != address(0) && _governance != governance, "SaplingContext: new governance address is invalid");
+        require(
+            _governance != address(0) && _governance != governance,
+            "SaplingContext: new governance address is invalid"
+        );
         address prevGovernance = governance;
         governance = _governance;
         emit GovernanceTransferred(prevGovernance, governance);
@@ -75,12 +78,12 @@ abstract contract SaplingContext is Pausable {
 
     /**
      * @notice Transfer the protocol wallet.
-     * @dev Caller must be the governance. 
+     * @dev Caller must be the governance.
      *      New governance address must not be 0, and must not be the same as current governance address.
      * @param _protocol New protocol wallet address.
      */
     function transferProtocolWallet(address _protocol) external onlyGovernance {
-        require(_protocol != address(0) && _protocol != protocol, "SaplingContext: new protocol wallet address is invalid");
+        require(_protocol != address(0) && _protocol != protocol, "SaplingContext: invalid protocol wallet address");
         address prevProtocol = protocol;
         protocol = _protocol;
         emit ProtocolWalletTransferred(prevProtocol, protocol);

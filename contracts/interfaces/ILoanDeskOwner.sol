@@ -32,7 +32,7 @@ interface ILoanDeskOwner {
 
     /**
      * @dev Hook for checking if the lending pool can provide liquidity for the total offered loans amount.
-     * @param totalOfferedAmount Total sum of offered loan amount including outstanding offers and the one to be offered.
+     * @param totalOfferedAmount Total sum of offered loan amount including outstanding offers
      * @return True if the pool has sufficient lending liquidity, false otherwise.
      */
     function canOffer(uint256 totalOfferedAmount) external view returns (bool);

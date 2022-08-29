@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./IPoolFactory.sol";
 import "../SaplingLendingPool.sol";
 
+
 /**
  * @title Pool Factory
  * @notice Facilitates on-chain deployment of new SaplingLendingPool contracts.
@@ -16,7 +17,7 @@ contract PoolFactory is IPoolFactory, Ownable {
 
     /**
      * @notice Deploys a new instance of SaplingLendingPool.
-     * @dev Pool token must implement IPoolToken. 
+     * @dev Pool token must implement IPoolToken.
      *      Caller must be the owner.
      * @param poolToken LendingPool address
      * @param liquidityToken Liquidity token address
@@ -26,14 +27,14 @@ contract PoolFactory is IPoolFactory, Ownable {
      * @return Address of the deployed contract
      */
     function create(
-        address poolToken, 
-        address liquidityToken, 
-        address governance, 
-        address protocol, 
+        address poolToken,
+        address liquidityToken,
+        address governance,
+        address protocol,
         address manager
     )
-        external 
-        onlyOwner 
+        external
+        onlyOwner
         returns (address)
     {
         SaplingLendingPool pool = new SaplingLendingPool(poolToken, liquidityToken, governance, protocol, manager);

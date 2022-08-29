@@ -4,9 +4,10 @@ pragma solidity ^0.8.15;
 import "./context/SaplingContext.sol";
 import "./interfaces/IVerificationHub.sol";
 
+
 /**
  * @title Verification Hub
- * @notice Provides a single point for on-chain address verification for Sapling protocol and others who may wish to 
+ * @notice Provides a single point for on-chain address verification for Sapling protocol and others who may wish to
  *         use the address verification database maintained in the contract.
  */
 contract VerificationHub is IVerificationHub, SaplingContext {
@@ -38,8 +39,7 @@ contract VerificationHub is IVerificationHub, SaplingContext {
      * @param _governance Governance address
      * @param _protocol Protocol wallet address
      */
-    constructor(address _governance, address _protocol) SaplingContext(_governance, _protocol) {
-    }
+    constructor(address _governance, address _protocol) SaplingContext(_governance, _protocol) {}
 
     /**
      * @notice Set new SaplingFactory.
@@ -48,8 +48,10 @@ contract VerificationHub is IVerificationHub, SaplingContext {
      * @param _saplingFactory Address of the new SaplingFactory
      */
     function setSaplingFactory(address _saplingFactory) external onlyGovernance {
-        require(_saplingFactory != address(0) && _saplingFactory != saplingFactory, 
-            "VerificationHub: invalid sapling factory address");
+        require(
+            _saplingFactory != address(0) && _saplingFactory != saplingFactory,
+            "VerificationHub: invalid sapling factory address"
+            );
         address prevAddress = saplingFactory;
         saplingFactory = _saplingFactory;
         emit PoolFactorySet(prevAddress, protocol);
@@ -117,7 +119,7 @@ contract VerificationHub is IVerificationHub, SaplingContext {
     function isVerified(address party) external view returns (bool) {
         return verifiedList[party];
     }
-    
+
     /**
      * @notice Check if an address is a bad actor.
      * @param party An address to check

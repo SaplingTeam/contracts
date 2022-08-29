@@ -32,7 +32,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     struct BorrowerStats {
 
         /// Wallet address of the borrower
-        address borrower; 
+        address borrower;
 
         /// All time loan request count
         uint256 countRequested;
@@ -62,7 +62,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     /// Math safe minimum loan amount including token decimals
     uint256 public immutable SAFE_MIN_AMOUNT;
 
-    /// Minimum allowed loan amount 
+    /// Minimum allowed loan amount
     uint256 public minLoanAmount;
 
     /// Math safe minimum loan duration in seconds
@@ -82,7 +82,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
 
     /// Minimum allowed loan payment grace period
     uint256 public constant MIN_LOAN_GRACE_PERIOD = 3 days;
-    
+
     /// Maximum allowed loan payment grace period
     uint256 public constant MAX_LOAN_GRACE_PERIOD = 365 days;
 
@@ -104,7 +104,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     /// Loan offers by applicationId
     mapping(uint256 => LoanOffer) public loanOffers;
 
-    /// Borrower statistics by address 
+    /// Borrower statistics by address
     mapping(address => BorrowerStats) public borrowerStats;
 
     /// Total liquidity tokens allocated for loan offers and pending acceptance by the borrowers
@@ -148,7 +148,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @param _manager Manager address
      * @param _decimals Lending pool liquidity token decimals
      */
-    constructor(address _pool, address _governance, address _protocol, address _manager, uint8 _decimals) 
+    constructor(address _pool, address _governance, address _protocol, address _manager, uint8 _decimals)
         SaplingManagerContext(_governance, _protocol, _manager) {
         require(_pool != address(0), "LoanDesk: invalid pool address");
 
@@ -186,7 +186,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @param duration Minimum loan duration to be enforced on new loan requests and offers
      */
     function setMinLoanDuration(uint256 duration) external onlyManager whenNotPaused {
-        require(SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration, 
+        require(SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration,
             "LoanDesk: new min duration is out of bounds");
         minLoanDuration = duration;
     }
@@ -198,7 +198,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @param duration Maximum loan duration to be enforced on new loan requests and offers
      */
     function setMaxLoanDuration(uint256 duration) external onlyManager whenNotPaused {
-        require(minLoanDuration <= duration && duration <= SAFE_MAX_DURATION, 
+        require(minLoanDuration <= duration && duration <= SAFE_MAX_DURATION,
             "LoanDesk: new max duration is out of bounds");
         maxLoanDuration = duration;
     }
@@ -210,7 +210,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @param gracePeriod Loan payment grace period for new loan offers
      */
     function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyManager whenNotPaused {
-        require(MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD, 
+        require(MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD,
             "LoanDesk: new grace period is out of bounds.");
         templateLoanGracePeriod = gracePeriod;
     }
@@ -230,8 +230,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @notice Request a new loan.
      * @dev Requested amount must be greater or equal to minLoanAmount().
      *      Loan duration must be between minLoanDuration() and maxLoanDuration().
-     *      Caller must not be a lender, protocol, or the manager. 
-     *      Multiple pending applications from the same address are not allowed - 
+     *      Caller must not be a lender, protocol, or the manager.
+     *      Multiple pending applications from the same address are not allowed -
      *      most recent loan/application of the caller must not have APPLIED status.
      * @param _amount Liquidity token amount to be borrowed
      * @param _duration Loan duration in seconds
@@ -239,14 +239,14 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @param _profileDigest Borrower metadata digest obtained from the borrower service
      */
     function requestLoan(
-        uint256 _amount, 
-        uint256 _duration, 
-        string memory _profileId, 
+        uint256 _amount,
+        uint256 _duration,
+        string memory _profileId,
         string memory _profileDigest
-    ) 
-        external 
+    )
+        external
         onlyUser
-        whenNotClosed 
+        whenNotClosed
         whenNotPaused
     {
         require(borrowerStats[msg.sender].hasOpenApplication == false, "LoanDesk: another loan application is pending");
@@ -271,11 +271,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         if (borrowerStats[msg.sender].borrower == address(0)) {
             borrowerStats[msg.sender] = BorrowerStats({
                 borrower: msg.sender,
-                countRequested: 1, 
+                countRequested: 1,
                 countDenied: 0,
-                countOffered: 0, 
+                countOffered: 0,
                 countBorrowed: 0,
-                countCancelled: 0, 
+                countCancelled: 0,
                 recentApplicationId: appId,
                 hasOpenApplication: true
             });
@@ -298,7 +298,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         app.status = LoanApplicationStatus.DENIED;
         borrowerStats[app.borrower].countDenied++;
         borrowerStats[app.borrower].hasOpenApplication = false;
-        
+
         emit LoanRequestDenied(appId, app.borrower);
     }
 
@@ -306,7 +306,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @notice Approve a loan application and offer a loan.
      * @dev Loan application must be in APPLIED status.
      *      Caller must be the manager.
-     *      Loan amount must not exceed available liquidity - 
+     *      Loan amount must not exceed available liquidity -
      *      canOffer(offeredFunds.add(_amount)) must be true on the lending pool.
      * @param appId Loan application id
      * @param _amount Loan amount in liquidity tokens
@@ -317,25 +317,25 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @param _apr Annual percentage rate of this loan
      */
     function offerLoan(
-        uint256 appId, 
-        uint256 _amount, 
-        uint256 _duration, 
-        uint256 _gracePeriod, 
+        uint256 appId,
+        uint256 _amount,
+        uint256 _duration,
+        uint256 _gracePeriod,
         uint256 _installmentAmount,
-        uint16 _installments, 
+        uint16 _installments,
         uint16 _apr
-    ) 
-        external 
-        onlyManager 
-        applicationInStatus(appId, LoanApplicationStatus.APPLIED) 
-        whenNotClosed 
-        whenNotPaused 
+    )
+        external
+        onlyManager
+        applicationInStatus(appId, LoanApplicationStatus.APPLIED)
+        whenNotClosed
+        whenNotPaused
     {
         validateLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr);
 
         LoanApplication storage app = loanApplications[appId];
 
-        require(ILoanDeskOwner(pool).canOffer(offeredFunds.add(_amount)), 
+        require(ILoanDeskOwner(pool).canOffer(offeredFunds.add(_amount)),
             "LoanDesk: lending pool cannot offer this loan at this time");
         ILoanDeskOwner(pool).onOffer(_amount);
 
@@ -354,7 +354,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         offeredFunds = offeredFunds.add(_amount);
         borrowerStats[app.borrower].countOffered++;
         loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
-        
+
         emit LoanOffered(appId, app.borrower);
     }
 
@@ -362,7 +362,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @notice Update an existing loan offer.
      * @dev Loan application must be in OFFER_MADE status.
      *      Caller must be the manager.
-     *      Loan amount must not exceed available liquidity - 
+     *      Loan amount must not exceed available liquidity -
      *      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool.
      * @param appId Loan application id
      * @param _amount Loan amount in liquidity tokens
@@ -373,19 +373,19 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @param _apr Annual percentage rate of this loan
      */
     function updateOffer(
-        uint256 appId, 
-        uint256 _amount, 
-        uint256 _duration, 
-        uint256 _gracePeriod, 
+        uint256 appId,
+        uint256 _amount,
+        uint256 _duration,
+        uint256 _gracePeriod,
         uint256 _installmentAmount,
-        uint16 _installments, 
+        uint16 _installments,
         uint16 _apr
-    ) 
-        external 
-        onlyManager 
+    )
+        external
+        onlyManager
         applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE)
         whenNotClosed
-        whenNotPaused 
+        whenNotPaused
     {
         validateLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr);
 
@@ -393,8 +393,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
 
         if (offer.amount != _amount) {
             uint256 nextOfferedFunds = offeredFunds.sub(offer.amount).add(_amount);
-            
-            require(ILoanDeskOwner(pool).canOffer(nextOfferedFunds), 
+
+            require(ILoanDeskOwner(pool).canOffer(nextOfferedFunds),
                 "LoanDesk: lending pool cannot offer this loan at this time");
             ILoanDeskOwner(pool).onOfferUpdate(offer.amount, _amount);
 
@@ -412,26 +412,32 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         emit LoanOfferUpdated(appId, offer.borrower);
     }
 
-    
+
     /**
      * @notice Cancel a loan.
      * @dev Loan application must be in OFFER_MADE status.
      *      Caller must be the manager or approved party when the manager is inactive.
      */
-    function cancelLoan(uint256 appId) external managerOrApprovedOnInactive applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) {
+    function cancelLoan(
+        uint256 appId
+    )
+        external
+        managerOrApprovedOnInactive
+        applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE)
+    {
         LoanOffer storage offer = loanOffers[appId];
 
         // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
         if (msg.sender != manager) {
             // require inactivity grace period
-            require(block.timestamp > offer.offeredTime + MANAGER_INACTIVITY_GRACE_PERIOD, 
+            require(block.timestamp > offer.offeredTime + MANAGER_INACTIVITY_GRACE_PERIOD,
                 "LoanDesk: too early to cancel this loan as a non-manager");
         }
 
         loanApplications[appId].status = LoanApplicationStatus.OFFER_CANCELLED;
         borrowerStats[offer.borrower].countCancelled++;
         borrowerStats[offer.borrower].hasOpenApplication = false;
-        
+
         offeredFunds = offeredFunds.sub(offer.amount);
         ILoanDeskOwner(pool).onOfferUpdate(offer.amount, 0);
 
@@ -444,7 +450,14 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      *      Caller must be the lending pool.
      * @param appId ID of the application the accepted offer was made for.
      */
-    function onBorrow(uint256 appId) external override onlyPool applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE) {
+    function onBorrow(
+        uint256 appId
+    )
+        external
+        override
+        onlyPool
+        applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE)
+    {
         LoanApplication storage app = loanApplications[appId];
         app.status = LoanApplicationStatus.OFFER_ACCEPTED;
         borrowerStats[app.borrower].hasOpenApplication = false;
@@ -455,7 +468,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @notice View indicating whether or not a given loan offer qualifies to be cancelled by a given caller.
      * @param appId Application ID of the loan offer in question
      * @param caller Address that intends to call cancel() on the loan offer
-     * @return True if the given loan approval can be cancelled and can be cancelled by the specified caller, 
+     * @return True if the given loan approval can be cancelled and can be cancelled by the specified caller,
      *         false otherwise.
      */
     function canCancel(uint256 appId, address caller) external view returns (bool) {
@@ -463,12 +476,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
             return false;
         }
 
-        return loanApplications[appId].status == LoanApplicationStatus.OFFER_MADE 
-            && block.timestamp >= (loanOffers[appId].offeredTime + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD));
+        return loanApplications[appId].status == LoanApplicationStatus.OFFER_MADE && block.timestamp >= (
+                loanOffers[appId].offeredTime + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD)
+            );
     }
 
     /**
-     * @notice Accessor for application status. 
+     * @notice Accessor for application status.
      * @dev NULL status is returned for nonexistent applications.
      * @param appId ID of the application in question.
      * @return Current status of the application with the specified ID.
@@ -479,7 +493,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
 
     /**
      * @notice Accessor for loan offer.
-     * @dev Loan offer is valid when the loan application is present and has OFFER_MADE status. 
+     * @dev Loan offer is valid when the loan application is present and has OFFER_MADE status.
      * @param appId ID of the application the offer was made for.
      * @return LoanOffer struct instance for the specified application ID.
      */
@@ -488,7 +502,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     }
 
     /**
-     * @notice Indicates whether or not the the caller is authorized to take applicable managing actions when the 
+     * @notice Indicates whether or not the the caller is authorized to take applicable managing actions when the
      *         manager is inactive.
      * @dev Overrides a hook in SaplingManagerContext.
      * @param caller Caller's address.
@@ -518,21 +532,24 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @param _apr Annual percentage rate of this loan
      */
     function validateLoanParams(
-        uint256 _amount, 
-        uint256 _duration, 
-        uint256 _gracePeriod, 
+        uint256 _amount,
+        uint256 _duration,
+        uint256 _gracePeriod,
         uint256 _installmentAmount,
-        uint16 _installments, 
+        uint16 _installments,
         uint16 _apr
     ) private view
     {
         require(_amount >= minLoanAmount, "LoanDesk: invalid amount");
         require(minLoanDuration <= _duration && _duration <= maxLoanDuration, "LoanDesk: invalid duration");
-        require(MIN_LOAN_GRACE_PERIOD <= _gracePeriod && _gracePeriod <= MAX_LOAN_GRACE_PERIOD, 
+        require(MIN_LOAN_GRACE_PERIOD <= _gracePeriod && _gracePeriod <= MAX_LOAN_GRACE_PERIOD,
             "LoanDesk: invalid grace period");
-        require(_installmentAmount == 0 || _installmentAmount >= SAFE_MIN_AMOUNT, "LoanDesk: invalid installment amount");
+        require(
+            _installmentAmount == 0 || _installmentAmount >= SAFE_MIN_AMOUNT,
+            "LoanDesk: invalid installment amount"
+        );
         //FIXME set upper bound for installments
-        require(1 <= _installments && _installments <= 4096, "LoanDesk: invalid installments"); 
+        require(1 <= _installments && _installments <= 4096, "LoanDesk: invalid installments");
         require(SAFE_MIN_APR <= _apr && _apr <= SAFE_MAX_APR, "LoanDesk: invalid APR");
     }
 }

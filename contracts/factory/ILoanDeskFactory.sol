@@ -18,5 +18,13 @@ interface ILoanDeskFactory {
      * @param decimals Decimals of the tokens used in the pool
      * @return Address of the deployed contract
      */
-    function create(address pool, address governance, address protocol, address manager, uint8 decimals) external returns (address);
+    function create(
+        address pool,
+        address governance,
+        address protocol,
+        address manager,
+        uint8 decimals
+    )
+        external
+        returns (address);
 }

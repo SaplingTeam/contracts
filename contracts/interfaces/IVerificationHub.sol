@@ -61,4 +61,4 @@ interface IVerificationHub {
      * @return True if the specified address is a bad actor, false otherwise.
      */
     function isBadActor(address party) external view returns (bool);
-}   
+}

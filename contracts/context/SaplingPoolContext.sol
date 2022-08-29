@@ -12,7 +12,8 @@ import "./SaplingMathContext.sol";
 
 /**
  * @title Sapling Pool Context
- * @notice Provides common pool functionality with lender deposits, manager's first loss capital staking, and reward distribution. 
+ * @notice Provides common pool functionality with lender deposits, manager's first loss capital staking,
+ *         and reward distribution.
  */
 abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingMathContext, ReentrancyGuard {
 
@@ -57,7 +58,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     /// Target percentage ratio of staked shares to total shares
     uint16 public targetStakePercent;
 
-    /// Target percentage of pool funds to keep liquid. 
+    /// Target percentage of pool funds to keep liquid.
     uint16 public targetLiquidityPercent;
 
     /// exit fee percentage
@@ -65,7 +66,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
     /// Manager's leveraged earn factor represented as a percentage
     uint16 public managerEarnFactor;
-    
+
     /// Governance set upper bound for the manager's leveraged earn factor
     uint16 public managerEarnFactorMax;
 
@@ -80,7 +81,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     uint16 public immutable MAX_PROTOCOL_EARNING_PERCENT;
 
     /// Protocol earnings of wallets
-    mapping(address => uint256) internal protocolEarnings; 
+    mapping(address => uint256) internal protocolEarnings;
 
     /// Weighted average loan APR on the borrowed funds
     uint256 internal weightedAvgStrategyAPR;
@@ -103,13 +104,13 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param _protocol Protocol wallet address
      * @param _manager Manager address
      */
-    constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) 
+    constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager)
         SaplingManagerContext(_governance, _protocol, _manager) {
 
         require(_poolToken != address(0), "SaplingPoolContext: pool token address is not set");
         require(_liquidityToken != address(0), "SaplingPoolContext: liquidity token address is not set");
         assert(IERC20(_poolToken).totalSupply() == 0);
-        
+
         poolToken = _poolToken;
         liquidityToken = _liquidityToken;
         tokenBalance = 0;
@@ -127,7 +128,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         protocolEarningPercent = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
         MAX_PROTOCOL_EARNING_PERCENT = protocolEarningPercent;
 
-        managerEarnFactorMax = uint16(500 * 10 ** PERCENT_DECIMALS); // 150% or 1.5x leverage by default (safe min 100% or 1x)
+        managerEarnFactorMax = uint16(500 * 10 ** PERCENT_DECIMALS); // 500% or 5x leverage by default
         managerEarnFactor = uint16(150 * 10 ** PERCENT_DECIMALS);
         managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
 
@@ -150,7 +151,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param _targetStakePercent New target stake percent.
      */
     function setTargetStakePercent(uint16 _targetStakePercent) external onlyGovernance {
-        require(0 <= _targetStakePercent && _targetStakePercent <= ONE_HUNDRED_PERCENT, 
+        require(0 <= _targetStakePercent && _targetStakePercent <= ONE_HUNDRED_PERCENT,
             "SaplingPoolContext: target stake percent is out of bounds");
         targetStakePercent = _targetStakePercent;
     }
@@ -162,7 +163,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param _targetLiquidityPercent new target liquidity percent.
      */
     function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external onlyManager {
-        require(0 <= _targetLiquidityPercent && _targetLiquidityPercent <= ONE_HUNDRED_PERCENT, 
+        require(0 <= _targetLiquidityPercent && _targetLiquidityPercent <= ONE_HUNDRED_PERCENT,
             "SaplingPoolContext: target liquidity percent is out of bounds");
         targetLiquidityPercent = _targetLiquidityPercent;
     }
@@ -174,20 +175,20 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param _protocolEarningPercent new protocol earning percent.
      */
     function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyGovernance {
-        require(0 <= _protocolEarningPercent && _protocolEarningPercent <= MAX_PROTOCOL_EARNING_PERCENT, 
+        require(0 <= _protocolEarningPercent && _protocolEarningPercent <= MAX_PROTOCOL_EARNING_PERCENT,
             "SaplingPoolContext: protocol earning percent is out of bounds");
         protocolEarningPercent = _protocolEarningPercent;
     }
 
     /**
      * @notice Set an upper bound for the manager's earn factor percent.
-     * @dev _managerEarnFactorMax must be greater than or equal to ONE_HUNDRED_PERCENT.
+     * @dev _managerEarnFactorMax must be greater than or equal to ONE_HUNDRED_PERCENT. If the current earn factor is
+     *      greater than the new maximum, then the current earn factor is set to the new maximum.
      *      Caller must be the governance.
-     *      If the current earn factor is greater than the new maximum, then the current earn factor is set to the new maximum. 
      * @param _managerEarnFactorMax new maximum for manager's earn factor.
      */
     function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external onlyGovernance {
-        require(ONE_HUNDRED_PERCENT <= _managerEarnFactorMax , 
+        require(ONE_HUNDRED_PERCENT <= _managerEarnFactorMax ,
             "SaplingPoolContext: _managerEarnFactorMax is out of bounds");
         managerEarnFactorMax = _managerEarnFactorMax;
 
@@ -204,14 +205,14 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param _managerEarnFactor new manager's earn factor.
      */
     function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager whenNotPaused {
-        require(ONE_HUNDRED_PERCENT <= _managerEarnFactor && _managerEarnFactor <= managerEarnFactorMax, 
+        require(ONE_HUNDRED_PERCENT <= _managerEarnFactor && _managerEarnFactor <= managerEarnFactorMax,
             "SaplingPoolContext: _managerEarnFactor is out of bounds");
         managerEarnFactor = _managerEarnFactor;
         managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
     }
 
     /**
-     * @notice Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an equivalent amount of pool 
+     * @notice Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an equivalent amount of pool
      *         tokens and transfer it to the caller. Exact exchange rate depends on the current pool state.
      * @dev Deposit amount must be non zero and not exceed amountDepositable().
      *      An appropriate spend limit must be present at the token contract.
@@ -230,12 +231,14 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param amount Liquidity token amount to withdraw.
      */
     function withdraw(uint256 amount) external override whenNotPaused {
-        require(msg.sender != manager);
+        require(msg.sender != manager, "SaplingPoolContext: pool manager address cannot use withdraw");
+
+        //FIXME handle differentiating unstaking from withdraw and let pool manager withdraw
         exitPool(amount);
     }
 
     /**
-     * @notice Stake liquidity tokens into the pool. Staking liquidity tokens will mint an equivalent amount of pool 
+     * @notice Stake liquidity tokens into the pool. Staking liquidity tokens will mint an equivalent amount of pool
      *         tokens and lock them in the pool. Exact exchange rate depends on the current pool state.
      * @dev Caller must be the manager.
      *      Stake amount must be non zero.
@@ -251,7 +254,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Unstake liquidity tokens from the pool. Unstaking redeems equivalent amount of the caller's pool tokens 
+     * @notice Unstake liquidity tokens from the pool. Unstaking redeems equivalent amount of the caller's pool tokens
      *         locked in the pool by burning the tokens in question.
      * @dev Caller must be the manager.
      *      Unstake amount must be non zero and not exceed amountUnstakable().
@@ -276,12 +279,12 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     function withdrawProtocolEarnings() external whenNotPaused {
         require(protocolEarnings[msg.sender] > 0, "SaplingPoolContext: zero protocol earnings");
         uint256 amount = protocolEarnings[msg.sender];
-        protocolEarnings[msg.sender] = 0; 
+        protocolEarnings[msg.sender] = 0;
 
         // give tokens
         tokenBalance = tokenBalance.sub(amount);
         bool success = IERC20(liquidityToken).transfer(msg.sender, amount);
-        require(success);
+        require(success, "SaplingPoolContext: ERC20 transfer failed");
     }
 
     /**
@@ -316,8 +319,8 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Check the special addresses' earnings from the protocol. 
-     * @dev This method is useful for manager and protocol addresses. 
+     * @notice Check the special addresses' earnings from the protocol.
+     * @dev This method is useful for manager and protocol addresses.
      *      Calling this method for a non-protocol associated addresses will return 0.
      * @param wallet Address of the wallet to check the earnings balance of.
      * @return Accumulated liquidity token earnings of the wallet from the protocol.
@@ -341,14 +344,13 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @return Projected lender APY
      */
     function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view override returns (uint16) {
-        require(strategyRate <= ONE_HUNDRED_PERCENT, 
-            "SaplingPoolContext: invalid borrow rate; borrow rate is not less than or equal to 100%");
+        require(strategyRate <= ONE_HUNDRED_PERCENT, "SaplingPoolContext: invalid borrow rate");
         return lenderAPY(Math.mulDiv(poolFunds, strategyRate, ONE_HUNDRED_PERCENT), _avgStrategyAPR);
     }
 
     /**
-     * @notice Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired yield.
-     *         This balance does not included staked balance, leveraged earnings or protocol earnings.
+     * @notice Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired
+     *         yield. This balance does not included staked balance, leveraged earnings or protocol earnings.
      * @param wallet Address of the wallet to check the balance of.
      * @return Liquidity token balance of the wallet in this pool.
      */
@@ -358,7 +360,8 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
     /**
      * @notice Check liquidity token amount unstakable by the manager at this time.
-     * @dev Return value depends on the manager's stake balance and targetStakePercent, and is limited by pool liquidity.
+     * @dev Return value depends on the manager's stake balance and targetStakePercent, and is limited by pool
+     *      liquidity.
      * @return Max amount of tokens unstakable by the manager.
      */
     function amountUnstakable() public view returns (uint256) {
@@ -369,18 +372,22 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         }
 
         uint256 lenderShares = totalPoolShares.sub(stakedShares);
-        uint256 lockedStakeShares = Math.mulDiv(lenderShares, targetStakePercent, ONE_HUNDRED_PERCENT - targetStakePercent);
+        uint256 lockedStakeShares = Math.mulDiv(
+            lenderShares,
+            targetStakePercent,
+            ONE_HUNDRED_PERCENT - targetStakePercent
+        );
 
         return Math.min(poolLiquidity, sharesToTokens(stakedShares.sub(lockedStakeShares)));
     }
 
     /**
-     * @notice Current liquidity available for pool strategies such as lending or investing. 
+     * @notice Current liquidity available for pool strategies such as lending or investing.
      * @return Strategy liquidity amount.
      */
     function strategyLiquidity() public view returns (uint256) {
         uint256 lenderAllocatedLiquidity = Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT);
-        
+
         if (poolLiquidity <= lenderAllocatedLiquidity) {
             return 0;
         }
@@ -403,15 +410,14 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      *      With the exception of the manager's call, amount must not exceed amountDepositable().
      *      If the caller is the pool manager, entered funds are considered staked.
      *      New pool tokens are minted in a way that will not influence the current share price.
-     * @dev Shares are equivalent to pool tokens and are represented by them. 
+     * @dev Shares are equivalent to pool tokens and are represented by them.
      * @param amount Liquidity token amount to add to the pool on behalf of the caller.
      * @return Amount of pool tokens minted and allocated to the caller.
      */
     function enterPool(uint256 amount) internal nonReentrant returns (uint256) {
         require(amount > 0, "SaplingPoolContext: pool deposit amount is 0");
 
-        // allow the manager to add funds beyond the current pool limit as all funds of the manager in the pool are staked,
-        // and staking additional funds will in turn increase pool limit
+        // allow the manager to add funds beyond the current pool limit
         require(msg.sender == manager || (poolFundsLimit > poolFunds && amount <= poolFundsLimit.sub(poolFunds)),
             "SaplingPoolContext: deposit amount is over the remaining pool limit");
 
@@ -419,7 +425,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
         // charge 'amount' tokens from msg.sender
         bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), amount);
-        require(success);
+        require(success, "SaplingPoolContext: ERC20 transfer failed");
         tokenBalance = tokenBalance.add(amount);
 
         poolLiquidity = poolLiquidity.add(amount);
@@ -431,7 +437,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         } else {
             IPoolToken(poolToken).mint(address(this), shares);
         }
-        
+
         totalPoolShares = totalPoolShares.add(shares);
 
         return shares;
@@ -442,7 +448,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      *      Amount must not exceed amountWithdrawable() for non managers, and amountUnstakable() for the manager.
      *      If the caller is the pool manager, exited funds are considered unstaked.
      *      Pool tokens are burned in a way that will not influence the current share price.
-     * @dev Shares are equivalent to pool tokens and are represented by them. 
+     * @dev Shares are equivalent to pool tokens and are represented by them.
      * @param amount Liquidity token amount to withdraw from the pool on behalf of the caller.
      * @return Amount of pool tokens burned and taken from the caller.
      */
@@ -471,21 +477,21 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
         tokenBalance = tokenBalance.sub(transferAmount);
         bool success = IERC20(liquidityToken).transfer(msg.sender, transferAmount);
-        require(success);
+        require(success, "SaplingPoolContext: ERC20 transfer failed");
 
         return shares;
     }
 
     /**
-     * @dev Internal method to update the pool funds limit based on the staked funds. 
+     * @dev Internal method to update the pool funds limit based on the staked funds.
      */
     function updatePoolLimit() internal nonReentrant {
         poolFundsLimit = sharesToTokens(Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, targetStakePercent));
     }
 
     /**
-     * @notice Get liquidity token value of shares. 
-     * @dev Shares are equivalent to pool tokens and are represented by them. 
+     * @notice Get liquidity token value of shares.
+     * @dev Shares are equivalent to pool tokens and are represented by them.
      * @param shares Amount of shares
      */
     function sharesToTokens(uint256 shares) internal view returns (uint256) {
@@ -498,7 +504,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
     /**
      * @notice Get a share value of liquidity tokens.
-     * @dev Shares are equivalent to pool tokens and are represented by them. 
+     * @dev Shares are equivalent to pool tokens and are represented by them.
      * @param tokens Amount of liquidity tokens.
      */
     function tokensToShares(uint256 tokens) internal view returns (uint256) {
@@ -506,10 +512,12 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
             // a pool with no positions
             return tokens;
         } else if (poolFunds == 0) {
-            /* 
+            /*
                 Handle failed pool case, where: poolFunds == 0, but totalPoolShares > 0
-                To minimize loss for the new depositor, assume the total value of existing shares is the minimum possible nonzero integer, which is 1
-                simplify (tokens * totalPoolShares) / 1 as tokens * totalPoolShares
+                To minimize loss for the new depositor, assume the total value of existing shares is the minimum
+                possible nonzero integer, which is 1.
+
+                Simplify (tokens * totalPoolShares) / 1 as tokens * totalPoolShares.
             */
             return tokens.mul(totalPoolShares);
         }
@@ -534,19 +542,27 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         if (poolFunds == 0 || _strategizedFunds == 0 || _avgStrategyAPR == 0) {
             return 0;
         }
-        
+
         // pool APY
         uint256 poolAPY = Math.mulDiv(_avgStrategyAPR, _strategizedFunds, poolFunds);
-        
+
         // protocol APY
         uint256 protocolAPY = Math.mulDiv(poolAPY, protocolEarningPercent, ONE_HUNDRED_PERCENT);
-        
+
         uint256 remainingAPY = poolAPY.sub(protocolAPY);
 
         // manager withdrawableAPY
         uint256 currentStakePercent = Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
-        uint256 managerEarningsPercent = Math.mulDiv(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT);
-        uint256 managerWithdrawableAPY = Math.mulDiv(remainingAPY, managerEarningsPercent, managerEarningsPercent + ONE_HUNDRED_PERCENT);
+        uint256 managerEarningsPercent = Math.mulDiv(
+            currentStakePercent,
+            managerExcessLeverageComponent,
+            ONE_HUNDRED_PERCENT);
+
+        uint256 managerWithdrawableAPY = Math.mulDiv(
+            remainingAPY,
+            managerEarningsPercent,
+            managerEarningsPercent + ONE_HUNDRED_PERCENT
+        );
 
         return uint16(remainingAPY.sub(managerWithdrawableAPY));
     }
@@ -556,7 +572,8 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @return True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise.
      */
     function isPoolFunctional() internal view returns (bool) {
-        return !(paused() || closed()) && stakedShares >= Math.mulDiv(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
+        return !(paused() || closed())
+            && stakedShares >= Math.mulDiv(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
     }
 
 
@@ -566,7 +583,8 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      *      certain actions when the manager is inactive.
      */
     function authorizedOnInactiveManager(address caller) internal view override returns (bool) {
-        return caller == governance || caller == protocol || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= ONE_TOKEN;
+        return caller == governance || caller == protocol
+            || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= ONE_TOKEN;
     }
 
     /**
