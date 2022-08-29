@@ -17,11 +17,11 @@
     "gen-test-wallets": "hardhat run scripts/create-wallets.js > scripts/data/wallets.json"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.7.2",
+    "@openzeppelin/contracts": "^4.7.3",
     "solc": "^0.8.15"
   },
   "devDependencies": {
-    "hardhat": "^2.10.1",
+    "hardhat": "^2.10.2",
     "@nomicfoundation/hardhat-toolbox": "^1.0.2",
     "solidity-docgen": "^0.6.0-beta.22",
     "dotenv": "^16.0.1"
