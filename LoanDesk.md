@@ -34,46 +34,6 @@ struct BorrowerStats {
 }
 ```
 
-### LoanRequested
-
-```solidity
-event LoanRequested(uint256 applicationId, address borrower)
-```
-
-Event for when a new loan is requested, and an application is created
-
-### LoanRequestDenied
-
-```solidity
-event LoanRequestDenied(uint256 applicationId, address borrower)
-```
-
-Event for when a loan request is denied
-
-### LoanOffered
-
-```solidity
-event LoanOffered(uint256 applicationId, address borrower)
-```
-
-Event for when a loan offer is made
-
-### LoanOfferUpdated
-
-```solidity
-event LoanOfferUpdated(uint256 applicationId, address borrower)
-```
-
-Event for when a loan offer is updated
-
-### LoanOfferCancelled
-
-```solidity
-event LoanOfferCancelled(uint256 applicationId, address borrower)
-```
-
-Event for when a loan offer is cancelled
-
 ### pool
 
 ```solidity
@@ -218,6 +178,46 @@ uint256 offeredFunds
 
 Total liquidity tokens allocated for loan offers and pending acceptance by the borrowers
 
+### LoanRequested
+
+```solidity
+event LoanRequested(uint256 applicationId, address borrower)
+```
+
+Event for when a new loan is requested, and an application is created
+
+### LoanRequestDenied
+
+```solidity
+event LoanRequestDenied(uint256 applicationId, address borrower)
+```
+
+Event for when a loan request is denied
+
+### LoanOffered
+
+```solidity
+event LoanOffered(uint256 applicationId, address borrower)
+```
+
+Event for when a loan offer is made
+
+### LoanOfferUpdated
+
+```solidity
+event LoanOfferUpdated(uint256 applicationId, address borrower)
+```
+
+Event for when a loan offer is updated
+
+### LoanOfferCancelled
+
+```solidity
+event LoanOfferCancelled(uint256 applicationId, address borrower)
+```
+
+Event for when a loan offer is cancelled
+
 ### onlyPool
 
 ```solidity
@@ -337,8 +337,8 @@ Request a new loan.
 
 _Requested amount must be greater or equal to minLoanAmount().
      Loan duration must be between minLoanDuration() and maxLoanDuration().
-     Caller must not be a lender, protocol, or the manager. 
-     Multiple pending applications from the same address are not allowed - 
+     Caller must not be a lender, protocol, or the manager.
+     Multiple pending applications from the same address are not allowed -
      most recent loan/application of the caller must not have APPLIED status._
 
 | Name | Type | Description |
@@ -369,7 +369,7 @@ Approve a loan application and offer a loan.
 
 _Loan application must be in APPLIED status.
      Caller must be the manager.
-     Loan amount must not exceed available liquidity - 
+     Loan amount must not exceed available liquidity -
      canOffer(offeredFunds.add(_amount)) must be true on the lending pool._
 
 | Name | Type | Description |
@@ -392,7 +392,7 @@ Update an existing loan offer.
 
 _Loan application must be in OFFER_MADE status.
      Caller must be the manager.
-     Loan amount must not exceed available liquidity - 
+     Loan amount must not exceed available liquidity -
      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool._
 
 | Name | Type | Description |
@@ -446,7 +446,7 @@ View indicating whether or not a given loan offer qualifies to be cancelled by a
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | bool | True if the given loan approval can be cancelled and can be cancelled by the specified caller,          false otherwise. |
+| [0] | bool | True if the given loan approval can be cancelled and can be cancelled by the specified caller,         false otherwise. |
 
 ### applicationStatus
 
@@ -490,7 +490,7 @@ _Loan offer is valid when the loan application is present and has OFFER_MADE sta
 function authorizedOnInactiveManager(address caller) internal view returns (bool)
 ```
 
-Indicates whether or not the the caller is authorized to take applicable managing actions when the 
+Indicates whether or not the the caller is authorized to take applicable managing actions when the
         manager is inactive.
 
 _Overrides a hook in SaplingManagerContext._

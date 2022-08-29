@@ -161,6 +161,20 @@ _Addresses must not be 0._
 | _protocol | address | Protocol wallet address |
 | _manager | address | Manager address |
 
+### setLoanDesk
+
+```solidity
+function setLoanDesk(address _loanDesk) external
+```
+
+Links a new loan desk for the pool to use. Intended for use upon initial pool deployment.
+
+_Caller must be the governance._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _loanDesk | address | New LoanDesk address |
+
 ### borrow
 
 ```solidity
@@ -238,20 +252,6 @@ _Loan must be in OUTSTANDING status.
 | ---- | ---- | ----------- |
 | loanId | uint256 | ID of the loan to default |
 
-### setLoanDesk
-
-```solidity
-function setLoanDesk(address _loanDesk) external
-```
-
-Links a new loan desk for the pool to use. Intended for use upon initial pool deployment.
-
-_Caller must be the governance._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _loanDesk | address | New LoanDesk address |
-
 ### onOffer
 
 ```solidity
@@ -275,7 +275,7 @@ function onOfferUpdate(uint256 prevAmount, uint256 amount) external
 
 Handles liquidity state changes on a loan offer update.
 
-_Hook to be called when a loan offer amount is updated. Amount update can be due to offer update or 
+_Hook to be called when a loan offer amount is updated. Amount update can be due to offer update or
      cancellation. Caller must be the LoanDesk._
 
 | Name | Type | Description |
@@ -295,46 +295,11 @@ _Hook for checking if the lending pool can provide liquidity for the total offer
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| totalOfferedAmount | uint256 | Total sum of offered loan amount including outstanding offers and the one to be offered. |
+| totalOfferedAmount | uint256 | Total sum of offered loan amount including outstanding offers |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | bool | True if the pool has sufficient lending liquidity, false otherwise. |
-
-### canDefault
-
-```solidity
-function canDefault(uint256 loanId, address caller) public view returns (bool)
-```
-
-View indicating whether or not a given loan qualifies to be defaulted by a given caller.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan to check |
-| caller | address | An address that intends to call default() on the loan |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | bool | True if the given loan can be defaulted, false otherwise |
-
-### loanBalanceDue
-
-```solidity
-function loanBalanceDue(uint256 loanId) public view returns (uint256)
-```
-
-Loan balance due including interest if paid in full at this time.
-
-_Loan must be in OUTSTANDING status._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan to check the balance of |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Total amount due with interest on this loan |
+| [0] | bool | True if the pool has sufficient lending liquidity, false otherwise |
 
 ### poolCanLend
 
@@ -371,6 +336,41 @@ Current pool funds borrowed.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | uint256 | Amount of funds borrowed in liquidity tokens. |
+
+### canDefault
+
+```solidity
+function canDefault(uint256 loanId, address caller) public view returns (bool)
+```
+
+View indicating whether or not a given loan qualifies to be defaulted by a given caller.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan to check |
+| caller | address | An address that intends to call default() on the loan |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the given loan can be defaulted, false otherwise |
+
+### loanBalanceDue
+
+```solidity
+function loanBalanceDue(uint256 loanId) public view returns (uint256)
+```
+
+Loan balance due including interest if paid in full at this time.
+
+_Loan must be in OUTSTANDING status._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan to check the balance of |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Total amount due with interest on this loan |
 
 ### afterProtocolWalletTransfer
 

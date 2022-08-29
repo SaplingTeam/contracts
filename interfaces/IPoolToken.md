@@ -18,7 +18,7 @@ _Hook for the lending pool for mining tokens upon pool entry operations.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | to | address | Address the tokens are minted for |
-| amount | uint256 | The amount of tokens to minte |
+| amount | uint256 | The amount of tokens to mint |
 
 ### burn
 

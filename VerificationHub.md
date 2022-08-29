@@ -2,7 +2,7 @@
 
 ## VerificationHub
 
-Provides a single point for on-chain address verification for Sapling protocol and others who may wish to 
+Provides a single point for on-chain address verification for Sapling protocol and others who may wish to
         use the address verification database maintained in the contract.
 
 ### saplingFactory
@@ -21,10 +21,10 @@ mapping(address => bool) saplingLendingPools
 
 Registered lending pools
 
-### bannedList
+### badActorList
 
 ```solidity
-mapping(address => bool) bannedList
+mapping(address => bool) badActorList
 ```
 
 Registered bad actors
@@ -83,33 +83,19 @@ _New address must not be zero and must be different from the previous address.
 | ---- | ---- | ----------- |
 | _saplingFactory | address | Address of the new SaplingFactory |
 
-### ban
+### registerSaplingPool
 
 ```solidity
-function ban(address party) external
+function registerSaplingPool(address pool) external
 ```
 
-Set an address as a bad actor.
+Register a new Sapling Lending Pool.
 
-_Caller must be the governance._
+_Caller must be the SaplingFactory_
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| party | address | Address to set as a bad actor |
-
-### unban
-
-```solidity
-function unban(address party) external
-```
-
-Unset an address as a bad actor.
-
-_Caller must be the governance._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| party | address | Address to unset as a bad actor |
+| pool | address | Address of the new lending pool. |
 
 ### verify
 
@@ -139,27 +125,41 @@ _Caller must be the governance._
 | ---- | ---- | ----------- |
 | party | address | Address to unset as ID verified |
 
-### registerSaplingPool
+### registerBadActor
 
 ```solidity
-function registerSaplingPool(address pool) external
+function registerBadActor(address party) external
 ```
 
-Register a new Sapling Lending Pool.
+Register an address as a bad actor.
 
-_Caller must be the SaplingFactory_
+_Caller must be the governance._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| pool | address | Address of the new lending pool. |
+| party | address | Address to set as a bad actor |
 
-### isBadActor
+### unregisterBadActor
 
 ```solidity
-function isBadActor(address party) external view returns (bool)
+function unregisterBadActor(address party) external
 ```
 
-Check if an address is a bad actor.
+Unregister an address as a bad actor.
+
+_Caller must be the governance._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| party | address | Address to unset as a bad actor |
+
+### isSaplingPool
+
+```solidity
+function isSaplingPool(address party) external view returns (bool)
+```
+
+Check if an address is a registered Sapling Lending Pool
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -167,7 +167,7 @@ Check if an address is a bad actor.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | bool | True if the specified address is a bad actor, false otherwise. |
+| [0] | bool | True if the specified address is registered with this verification hub, false otherwise. |
 
 ### isVerified
 
@@ -185,13 +185,13 @@ Check if an address is ID verified.
 | ---- | ---- | ----------- |
 | [0] | bool | True if the specified address is ID verified, false otherwise. |
 
-### isSaplingPool
+### isBadActor
 
 ```solidity
-function isSaplingPool(address party) external view returns (bool)
+function isBadActor(address party) external view returns (bool)
 ```
 
-Check if an address is a registered Sapling Lending Pool
+Check if an address is a bad actor.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -199,5 +199,5 @@ Check if an address is a registered Sapling Lending Pool
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | bool | True if the specified address is registered with this verification hub, false otherwise. |
+| [0] | bool | True if the specified address is a bad actor, false otherwise. |
 

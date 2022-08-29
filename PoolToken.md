@@ -32,7 +32,7 @@ function mint(address to, uint256 amount) external
 
 Mint tokens.
 
-_Hook for the lending pool for mining tokens upon pool entry operations. 
+_Hook for the lending pool for mining tokens upon pool entry operations.
      Caller must be the lending pool that owns this token._
 
 | Name | Type | Description |
@@ -48,7 +48,7 @@ function burn(address from, uint256 amount) external
 
 Burn tokens.
 
-_Hook for the lending pool for burning tokens upon pool exit or stake loss operations. 
+_Hook for the lending pool for burning tokens upon pool exit or stake loss operations.
      Caller must be the lending pool that owns this token._
 
 | Name | Type | Description |

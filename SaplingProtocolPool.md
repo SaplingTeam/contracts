@@ -74,7 +74,7 @@ function invest(address lendingPool, uint256 liquidityTokenAmount) external
 
 Create new investment or add to an existing investment on a lending pool.
 
-_Caller must be the manager. Stake to pool ratio must be good, protocol pool must have sufficient liquidity, 
+_Caller must be the manager. Stake to pool ratio must be good, protocol pool must have sufficient liquidity,
      and the lending pool must be registered on the Verification Hub._
 
 | Name | Type | Description |
@@ -105,7 +105,7 @@ function collectInvestment(address pool, uint256 amount) external
 
 Collect/Withdraw investment principal from a lending pool.
 
-_Caller must be the manager. Lending pool must have sufficient withdrawable liquidity, which can be checked 
+_Caller must be the manager. Lending pool must have sufficient withdrawable liquidity, which can be checked
      independently._
 
 | Name | Type | Description |

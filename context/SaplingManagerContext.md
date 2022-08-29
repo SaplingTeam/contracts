@@ -30,6 +30,22 @@ Grace period for the manager to be inactive on a given loan /cancel/default deci
         After this grace period of managers inaction on a given loan authorized parties
         can also call cancel() and default(). Other requirements for loan cancellation/default still apply.
 
+### Closed
+
+```solidity
+event Closed(address account)
+```
+
+Event for when the contract is closed
+
+### Opened
+
+```solidity
+event Opened(address account)
+```
+
+Event for when the contract is reopened
+
 ### onlyManager
 
 ```solidity
@@ -53,22 +69,6 @@ modifier onlyUser()
 ```
 
 A modifier to limit access only to non-management users
-
-### Closed
-
-```solidity
-event Closed(address account)
-```
-
-Event for when the contract is closed
-
-### Opened
-
-```solidity
-event Opened(address account)
-```
-
-Event for when the contract is reopened
 
 ### whenNotClosed
 

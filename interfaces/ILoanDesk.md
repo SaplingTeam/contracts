@@ -33,6 +33,18 @@ struct LoanOffer {
 }
 ```
 
+### onBorrow
+
+```solidity
+function onBorrow(uint256 appId) external
+```
+
+_Hook to be called when a loan offer is accepted._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| appId | uint256 | ID of the application the accepted offer was made for. |
+
 ### applicationStatus
 
 ```solidity
@@ -68,16 +80,4 @@ _Loan offer is valid when the loan application is present and has OFFER_MADE sta
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | struct ILoanDesk.LoanOffer | LoanOffer struct instance for the specified application ID. |
-
-### onBorrow
-
-```solidity
-function onBorrow(uint256 appId) external
-```
-
-_Hook to be called when a loan offer is accepted._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| appId | uint256 | ID of the application the accepted offer was made for. |
 

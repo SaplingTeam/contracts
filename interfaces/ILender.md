@@ -10,7 +10,7 @@ _Lender interface providing a simple way for other contracts to be lenders into 
 function deposit(uint256 amount) external
 ```
 
-Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an equivalent amount of pool 
+Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an equivalent amount of pool
         tokens and transfer it to the caller. Exact exchange rate depends on the current pool state.
 
 _Deposit amount must be non zero and not exceed amountDepositable().
@@ -43,8 +43,8 @@ _Withdrawal amount must be non zero and not exceed amountWithdrawable()._
 function balanceOf(address wallet) external view returns (uint256)
 ```
 
-Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired yield.
-        This balance does not included staked balance, leveraged earnings or protocol earnings.
+Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired
+        yield. This balance does not included staked balance, leveraged earnings or protocol earnings.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |

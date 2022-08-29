@@ -2,7 +2,7 @@
 
 ## SaplingContext
 
-Provides governance access control, a common reverence to the protocol wallet address, and basic pause 
+Provides governance access control, a common reverence to the protocol wallet address, and basic pause
         functionality by extending OpenZeppelin's Pausable contract.
 
 ### governance
@@ -60,6 +60,28 @@ _Addresses must not be 0._
 | _governance | address | Governance address |
 | _protocol | address | Protocol wallet address |
 
+### pause
+
+```solidity
+function pause() external
+```
+
+Pause the contract.
+
+_Caller must be the governance.
+     Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause._
+
+### unpause
+
+```solidity
+function unpause() external
+```
+
+Resume the contract.
+
+_Caller must be the governance.
+     Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause._
+
 ### transferGovernance
 
 ```solidity
@@ -68,7 +90,7 @@ function transferGovernance(address _governance) external
 
 Transfer the governance.
 
-_Caller must be the governance. 
+_Caller must be the governance.
      New governance address must not be 0, and must not be the same as current governance address._
 
 | Name | Type | Description |
@@ -83,34 +105,12 @@ function transferProtocolWallet(address _protocol) external
 
 Transfer the protocol wallet.
 
-_Caller must be the governance. 
+_Caller must be the governance.
      New governance address must not be 0, and must not be the same as current governance address._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _protocol | address | New protocol wallet address. |
-
-### pause
-
-```solidity
-function pause() external
-```
-
-Pause the contract.
-
-_Caller must be the governance. 
-     Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause._
-
-### unpause
-
-```solidity
-function unpause() external
-```
-
-Resume the contract.
-
-_Caller must be the governance. 
-     Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause._
 
 ### afterProtocolWalletTransfer
 

@@ -2,7 +2,8 @@
 
 ## SaplingPoolContext
 
-Provides common pool functionality with lender deposits, manager's first loss capital staking, and reward distribution.
+Provides common pool functionality with lender deposits, manager's first loss capital staking,
+        and reward distribution.
 
 ### poolToken
 
@@ -276,9 +277,9 @@ function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external
 
 Set an upper bound for the manager's earn factor percent.
 
-__managerEarnFactorMax must be greater than or equal to ONE_HUNDRED_PERCENT.
-     Caller must be the governance.
-     If the current earn factor is greater than the new maximum, then the current earn factor is set to the new maximum._
+__managerEarnFactorMax must be greater than or equal to ONE_HUNDRED_PERCENT. If the current earn factor is
+     greater than the new maximum, then the current earn factor is set to the new maximum.
+     Caller must be the governance._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -305,7 +306,7 @@ __managerEarnFactorMax must be inclusively between ONE_HUNDRED_PERCENT and manag
 function deposit(uint256 amount) external
 ```
 
-Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an equivalent amount of pool 
+Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an equivalent amount of pool
         tokens and transfer it to the caller. Exact exchange rate depends on the current pool state.
 
 _Deposit amount must be non zero and not exceed amountDepositable().
@@ -338,7 +339,7 @@ _Withdrawal amount must be non zero and not exceed amountWithdrawable()._
 function stake(uint256 amount) external
 ```
 
-Stake liquidity tokens into the pool. Staking liquidity tokens will mint an equivalent amount of pool 
+Stake liquidity tokens into the pool. Staking liquidity tokens will mint an equivalent amount of pool
         tokens and lock them in the pool. Exact exchange rate depends on the current pool state.
 
 _Caller must be the manager.
@@ -355,7 +356,7 @@ _Caller must be the manager.
 function unstake(uint256 amount) external
 ```
 
-Unstake liquidity tokens from the pool. Unstaking redeems equivalent amount of the caller's pool tokens 
+Unstake liquidity tokens from the pool. Unstaking redeems equivalent amount of the caller's pool tokens
         locked in the pool by burning the tokens in question.
 
 _Caller must be the manager.
@@ -409,27 +410,10 @@ _Return value depends on the callers balance, and is limited by pool liquidity._
 | ---- | ---- | ----------- |
 | [0] | uint256 | Max amount of tokens withdrawable by the caller. |
 
-### balanceOf
-
-```solidity
-function balanceOf(address wallet) public view returns (uint256)
-```
-
-Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired yield.
-        This balance does not included staked balance, leveraged earnings or protocol earnings.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| wallet | address | Address of the wallet to check the balance of. |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Liquidity token balance of the wallet in this pool. |
-
 ### balanceStaked
 
 ```solidity
-function balanceStaked() public view returns (uint256)
+function balanceStaked() external view returns (uint256)
 ```
 
 Check the manager's staked liquidity token balance in the pool.
@@ -437,20 +421,6 @@ Check the manager's staked liquidity token balance in the pool.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | uint256 | Liquidity token balance of the manager's stake. |
-
-### amountUnstakable
-
-```solidity
-function amountUnstakable() public view returns (uint256)
-```
-
-Check liquidity token amount unstakable by the manager at this time.
-
-_Return value depends on the manager's stake balance and targetStakePercent, and is limited by pool liquidity._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Max amount of tokens unstakable by the manager. |
 
 ### protocolEarningsOf
 
@@ -460,7 +430,7 @@ function protocolEarningsOf(address wallet) external view returns (uint256)
 
 Check the special addresses' earnings from the protocol.
 
-_This method is useful for manager and protocol addresses. 
+_This method is useful for manager and protocol addresses.
      Calling this method for a non-protocol associated addresses will return 0._
 
 | Name | Type | Description |
@@ -501,6 +471,38 @@ _Represent percentage parameter values in contract specific format._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | uint16 | Projected lender APY |
+
+### balanceOf
+
+```solidity
+function balanceOf(address wallet) public view returns (uint256)
+```
+
+Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired
+        yield. This balance does not included staked balance, leveraged earnings or protocol earnings.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| wallet | address | Address of the wallet to check the balance of. |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Liquidity token balance of the wallet in this pool. |
+
+### amountUnstakable
+
+```solidity
+function amountUnstakable() public view returns (uint256)
+```
+
+Check liquidity token amount unstakable by the manager at this time.
+
+_Return value depends on the manager's stake balance and targetStakePercent, and is limited by pool
+     liquidity._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Max amount of tokens unstakable by the manager. |
 
 ### strategyLiquidity
 

@@ -20,7 +20,7 @@ function create(address poolToken, address liquidityToken, address governance, a
 
 Deploys a new instance of SaplingLendingPool.
 
-_Pool token must implement IPoolToken. 
+_Pool token must implement IPoolToken.
      Caller must be the owner._
 
 | Name | Type | Description |
