@@ -4,9 +4,10 @@ pragma solidity ^0.8.15;
 import "./context/SaplingContext.sol";
 import "./interfaces/IVerificationHub.sol";
 
+
 /**
  * @title Verification Hub
- * @notice Provides a single point for on-chain address verification for Sapling protocol and others who may wish to 
+ * @notice Provides a single point for on-chain address verification for Sapling protocol and others who may wish to
  *         use the address verification database maintained in the contract.
  */
 contract VerificationHub is IVerificationHub, SaplingContext {
@@ -18,7 +19,7 @@ contract VerificationHub is IVerificationHub, SaplingContext {
     mapping (address => bool) private saplingLendingPools;
 
     /// Registered bad actors
-    mapping (address => bool) private bannedList;
+    mapping (address => bool) private badActorList;
 
     /// ID verified addresses
     mapping (address => bool) private verifiedList;
@@ -28,7 +29,7 @@ contract VerificationHub is IVerificationHub, SaplingContext {
 
     /// A modifier to limit access to the SaplingFactory
     modifier onlySaplingFactory {
-        require(msg.sender == saplingFactory, "Sapling: Caller is not the manager");
+        require(msg.sender == saplingFactory, "VerificationHub: caller is not the manager");
         _;
     }
 
@@ -38,8 +39,7 @@ contract VerificationHub is IVerificationHub, SaplingContext {
      * @param _governance Governance address
      * @param _protocol Protocol wallet address
      */
-    constructor(address _governance, address _protocol) SaplingContext(_governance, _protocol) {
-    }
+    constructor(address _governance, address _protocol) SaplingContext(_governance, _protocol) {}
 
     /**
      * @notice Set new SaplingFactory.
@@ -48,28 +48,22 @@ contract VerificationHub is IVerificationHub, SaplingContext {
      * @param _saplingFactory Address of the new SaplingFactory
      */
     function setSaplingFactory(address _saplingFactory) external onlyGovernance {
-        require(_saplingFactory != address(0) && _saplingFactory != saplingFactory, "VerificationHub: new address is invalid");
+        require(
+            _saplingFactory != address(0) && _saplingFactory != saplingFactory,
+            "VerificationHub: invalid sapling factory address"
+            );
         address prevAddress = saplingFactory;
         saplingFactory = _saplingFactory;
         emit PoolFactorySet(prevAddress, protocol);
     }
 
     /**
-     * @notice Set an address as a bad actor.
-     * @dev Caller must be the governance.
-     * @param party Address to set as a bad actor
+     * @notice Register a new Sapling Lending Pool.
+     * @dev Caller must be the SaplingFactory
+     * @param pool Address of the new lending pool.
      */
-    function ban(address party) external onlyGovernance {
-        bannedList[party] = true;
-    }
-
-    /**
-     * @notice Unset an address as a bad actor.
-     * @dev Caller must be the governance.
-     * @param party Address to unset as a bad actor
-     */
-    function unban(address party) external onlyGovernance {
-        bannedList[party] = false;
+    function registerSaplingPool(address pool) external onlySaplingFactory whenNotPaused {
+        saplingLendingPools[pool] = true;
     }
 
     /**
@@ -91,30 +85,21 @@ contract VerificationHub is IVerificationHub, SaplingContext {
     }
 
     /**
-     * @notice Register a new Sapling Lending Pool.
-     * @dev Caller must be the SaplingFactory
-     * @param pool Address of the new lending pool.
+     * @notice Register an address as a bad actor.
+     * @dev Caller must be the governance.
+     * @param party Address to set as a bad actor
      */
-    function registerSaplingPool(address pool) external onlySaplingFactory whenNotPaused {
-        saplingLendingPools[pool] = true;
-    }
-    
-    /**
-     * @notice Check if an address is a bad actor.
-     * @param party An address to check
-     * @return True if the specified address is a bad actor, false otherwise.
-     */
-    function isBadActor(address party) external view returns (bool) {
-        return bannedList[party];
+    function registerBadActor(address party) external onlyGovernance {
+        badActorList[party] = true;
     }
 
     /**
-     * @notice Check if an address is ID verified.
-     * @param party An address to check
-     * @return True if the specified address is ID verified, false otherwise.
+     * @notice Unregister an address as a bad actor.
+     * @dev Caller must be the governance.
+     * @param party Address to unset as a bad actor
      */
-    function isVerified(address party) external view returns (bool) {
-        return !bannedList[party] && verifiedList[party];
+    function unregisterBadActor(address party) external onlyGovernance {
+        badActorList[party] = false;
     }
 
     /**
@@ -124,5 +109,23 @@ contract VerificationHub is IVerificationHub, SaplingContext {
      */
     function isSaplingPool(address party) external view returns (bool) {
         return saplingLendingPools[party];
+    }
+
+    /**
+     * @notice Check if an address is ID verified.
+     * @param party An address to check
+     * @return True if the specified address is ID verified, false otherwise.
+     */
+    function isVerified(address party) external view returns (bool) {
+        return verifiedList[party];
+    }
+
+    /**
+     * @notice Check if an address is a bad actor.
+     * @param party An address to check
+     * @return True if the specified address is a bad actor, false otherwise.
+     */
+    function isBadActor(address party) external view returns (bool) {
+        return badActorList[party];
     }
 }

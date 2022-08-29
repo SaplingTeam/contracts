@@ -10,6 +10,7 @@ import "./ILoanDeskFactory.sol";
 import "./IPoolFactory.sol";
 import "./IOwnable.sol";
 
+
 /**
  * @title Sapling Factory
  * @notice Facilitates on-chain deployment and setup of protocol components.
@@ -42,14 +43,19 @@ contract SaplingFactory is SaplingContext {
      * @param _protocol Protocol wallet address
      */
     constructor(
-        address _tokenFactory, 
-        address _loanDeskFactory, 
+        address _tokenFactory,
+        address _loanDeskFactory,
         address _poolFactory,
-        address _verificationHub, 
-        address _governance, 
-        address _protocol) 
-    SaplingContext(_governance, _protocol) 
+        address _verificationHub,
+        address _governance,
+        address _protocol)
+    SaplingContext(_governance, _protocol)
     {
+        require(_tokenFactory != address(0), "SaplingFactory: invalid token factory address");
+        require(_loanDeskFactory != address(0), "SaplingFactory: invalid LoanDesk factory address");
+        require(_poolFactory != address(0), "SaplingFactory: invalid pool factory address");
+        require(_verificationHub != address(0), "SaplingFactory: invalid verification hub address");
+
         tokenFactory = _tokenFactory;
         loanDeskFactory = _loanDeskFactory;
         poolFactory = _poolFactory;
@@ -64,17 +70,28 @@ contract SaplingFactory is SaplingContext {
      * @param manager Manager address
      * @param liquidityToken Liquidity token address
      */
-    function createLendingPool(string memory name, string memory symbol, address manager, address liquidityToken) external onlyGovernance whenNotPaused {
+    function createLendingPool(
+        string memory name,
+        string memory symbol,
+        address manager,
+        address liquidityToken
+    )
+        external
+        onlyGovernance
+        whenNotPaused
+    {
         uint8 decimals = IERC20Metadata(liquidityToken).decimals();
         address poolToken = ITokenFactory(tokenFactory).create(string.concat(name, " Token"), symbol, decimals);
-        address pool = IPoolFactory(poolFactory).create(poolToken, liquidityToken, address(this), protocol, manager);
+        address pool = IPoolFactory(poolFactory)
+            .create(poolToken, liquidityToken, address(this), protocol, manager);
 
-        address loanDesk = ILoanDeskFactory(loanDeskFactory).create(pool, governance, protocol, manager, decimals);
+        address loanDesk = ILoanDeskFactory(loanDeskFactory)
+            .create(pool, governance, protocol, manager, decimals);
 
         IOwnable(poolToken).transferOwnership(pool);
         ILoanDeskOwner(pool).setLoanDesk(loanDesk);
         SaplingContext(pool).transferGovernance(governance);
-        
+
         IVerificationHub(verificationHub).registerSaplingPool(pool);
 
         emit LendingPoolReady(pool);

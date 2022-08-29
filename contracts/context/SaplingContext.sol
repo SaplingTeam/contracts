@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 
 /**
  * @title Sapling Context
- * @notice Provides governance access control, a common reverence to the protocol wallet address, and basic pause 
+ * @notice Provides governance access control, a common reverence to the protocol wallet address, and basic pause
  *         functionality by extending OpenZeppelin's Pausable contract.
  */
 abstract contract SaplingContext is Pausable {
@@ -25,7 +25,7 @@ abstract contract SaplingContext is Pausable {
 
     /// A modifier to limit access only to the governance
     modifier onlyGovernance {
-        require(msg.sender == governance, "Sapling: Caller is not the governance");
+        require(msg.sender == governance, "SaplingContext: caller is not the governance");
         _;
     }
 
@@ -36,42 +36,15 @@ abstract contract SaplingContext is Pausable {
      * @param _protocol Protocol wallet address
      */
     constructor(address _governance, address _protocol) {
-        require(_governance != address(0), "Sapling: Governance address is not set");
-        require(_protocol != address(0), "Sapling: Protocol wallet address is not set");
+        require(_governance != address(0), "SaplingContext: governance address is not set");
+        require(_protocol != address(0), "SaplingContext: protocol wallet address is not set");
         governance = _governance;
         protocol = _protocol;
     }
 
     /**
-     * @notice Transfer the governance.
-     * @dev Caller must be the governance. 
-     *      New governance address must not be 0, and must not be the same as current governance address.
-     * @param _governance New governance address.
-     */
-    function transferGovernance(address _governance) external onlyGovernance {
-        require(_governance != address(0) && _governance != governance, "Governed: New governance address is invalid.");
-        address prevGovernance = governance;
-        governance = _governance;
-        emit GovernanceTransferred(prevGovernance, governance);
-    }
-
-    /**
-     * @notice Transfer the protocol wallet.
-     * @dev Caller must be the governance. 
-     *      New governance address must not be 0, and must not be the same as current governance address.
-     * @param _protocol New protocol wallet address.
-     */
-    function transferProtocolWallet(address _protocol) external onlyGovernance {
-        require(_protocol != address(0) && _protocol != protocol, "Governed: New protocol wallet address is invalid.");
-        address prevProtocol = protocol;
-        protocol = _protocol;
-        emit ProtocolWalletTransferred(prevProtocol, protocol);
-        afterProtocolWalletTransfer(prevProtocol);
-    }
-
-    /**
-     * @notice Pause the contract. 
-     * @dev Caller must be the governance. 
+     * @notice Pause the contract.
+     * @dev Caller must be the governance.
      *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause.
      */
     function pause() external onlyGovernance {
@@ -79,12 +52,42 @@ abstract contract SaplingContext is Pausable {
     }
 
     /**
-     * @notice Resume the contract. 
-     * @dev Caller must be the governance. 
+     * @notice Resume the contract.
+     * @dev Caller must be the governance.
      *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause.
      */
     function unpause() external onlyGovernance {
         _unpause();
+    }
+
+    /**
+     * @notice Transfer the governance.
+     * @dev Caller must be the governance.
+     *      New governance address must not be 0, and must not be the same as current governance address.
+     * @param _governance New governance address.
+     */
+    function transferGovernance(address _governance) external onlyGovernance {
+        require(
+            _governance != address(0) && _governance != governance,
+            "SaplingContext: new governance address is invalid"
+        );
+        address prevGovernance = governance;
+        governance = _governance;
+        emit GovernanceTransferred(prevGovernance, governance);
+    }
+
+    /**
+     * @notice Transfer the protocol wallet.
+     * @dev Caller must be the governance.
+     *      New governance address must not be 0, and must not be the same as current governance address.
+     * @param _protocol New protocol wallet address.
+     */
+    function transferProtocolWallet(address _protocol) external onlyGovernance {
+        require(_protocol != address(0) && _protocol != protocol, "SaplingContext: invalid protocol wallet address");
+        address prevProtocol = protocol;
+        protocol = _protocol;
+        emit ProtocolWalletTransferred(prevProtocol, protocol);
+        afterProtocolWalletTransfer(prevProtocol);
     }
 
     /**

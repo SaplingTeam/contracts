@@ -11,8 +11,8 @@ import "./interfaces/IPoolToken.sol";
  */
 contract PoolToken is IPoolToken, ERC20, Ownable {
 
-    uint8 immutable _decimals;
-    
+    uint8 private immutable _decimals;
+
     /**
      * @notice Creates a new PoolToken.
      * @param name Token name
@@ -25,7 +25,7 @@ contract PoolToken is IPoolToken, ERC20, Ownable {
 
     /**
      * @notice Mint tokens.
-     * @dev Hook for the lending pool for mining tokens upon pool entry operations. 
+     * @dev Hook for the lending pool for mining tokens upon pool entry operations.
      *      Caller must be the lending pool that owns this token.
      * @param to Address the tokens are minted for
      * @param amount The amount of tokens to minte
@@ -36,7 +36,7 @@ contract PoolToken is IPoolToken, ERC20, Ownable {
 
     /**
      * @notice Burn tokens.
-     * @dev Hook for the lending pool for burning tokens upon pool exit or stake loss operations. 
+     * @dev Hook for the lending pool for burning tokens upon pool exit or stake loss operations.
      *      Caller must be the lending pool that owns this token.
      * @param from Address the tokens are burned from
      * @param amount The amount of tokens to burn

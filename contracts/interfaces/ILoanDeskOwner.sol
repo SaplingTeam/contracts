@@ -15,13 +15,6 @@ interface ILoanDeskOwner {
     function setLoanDesk(address _loanDesk) external;
 
     /**
-     * @dev Hook for checking if the lending pool can provide liquidity for the total offered loans amount.
-     * @param totalOfferedAmount Total sum of offered loan amount including outstanding offers and the one to be offered.
-     * @return True if the pool has sufficient lending liquidity, false otherwise.
-     */
-    function canOffer(uint256 totalOfferedAmount) external view returns (bool);
-
-    /**
      * @notice Handles liquidity state changes on a loan offer.
      * @dev Hook to be called when a new loan offer is made.
      *      Caller must be the LoanDesk.
@@ -36,4 +29,11 @@ interface ILoanDeskOwner {
      * @param amount New offer amount. Cancelled offer must register an amount of 0 (zero).
      */
     function onOfferUpdate(uint256 prevAmount, uint256 amount) external;
+
+    /**
+     * @dev Hook for checking if the lending pool can provide liquidity for the total offered loans amount.
+     * @param totalOfferedAmount Total sum of offered loan amount including outstanding offers
+     * @return True if the pool has sufficient lending liquidity, false otherwise.
+     */
+    function canOffer(uint256 totalOfferedAmount) external view returns (bool);
 }

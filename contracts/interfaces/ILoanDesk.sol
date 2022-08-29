@@ -2,17 +2,17 @@
 pragma solidity ^0.8.15;
 
 /**
- * @title LoanDesk Interface 
+ * @title LoanDesk Interface
  * @dev LoanDesk interface defining common structures and hooks for the lending pools.
  */
 interface ILoanDesk {
 
     /**
-     * Loan application statuses. Initial value is defines as 'NULL' to differentiate the unintitialized state from 
+     * Loan application statuses. Initial value is defines as 'NULL' to differentiate the unintitialized state from
      * the logical initial state.
      */
     enum LoanApplicationStatus {
-        NULL, 
+        NULL,
         APPLIED,
         DENIED,
         OFFER_MADE,
@@ -34,7 +34,13 @@ interface ILoanDesk {
     }
 
     /**
-     * @notice Accessor for application status. 
+     * @dev Hook to be called when a loan offer is accepted.
+     * @param appId ID of the application the accepted offer was made for.
+     */
+    function onBorrow(uint256 appId) external;
+
+    /**
+     * @notice Accessor for application status.
      * @dev NULL status is returned for nonexistent applications.
      * @param appId ID of the application in question.
      * @return Current status of the application with the specified ID.
@@ -43,15 +49,9 @@ interface ILoanDesk {
 
     /**
      * @notice Accessor for loan offer.
-     * @dev Loan offer is valid when the loan application is present and has OFFER_MADE status. 
+     * @dev Loan offer is valid when the loan application is present and has OFFER_MADE status.
      * @param appId ID of the application the offer was made for.
      * @return LoanOffer struct instance for the specified application ID.
      */
     function loanOfferById(uint256 appId) external view returns (LoanOffer memory);
-
-    /**
-     * @dev Hook to be called when a loan offer is accepted.
-     * @param appId ID of the application the accepted offer was made for.
-     */
-    function onBorrow(uint256 appId) external;
 }

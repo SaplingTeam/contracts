@@ -22,41 +22,42 @@ abstract contract SaplingManagerContext is SaplingContext {
      *         can also call cancel() and default(). Other requirements for loan cancellation/default still apply.
      */
     uint256 public constant MANAGER_INACTIVITY_GRACE_PERIOD = 90 days;
-    
-    /// A modifier to limit access only to the manager
-    modifier onlyManager {
-        require(msg.sender == manager, "Sapling: Caller is not the manager");
-        _;
-    }    
-
-    /// A modifier to limit access to the manager or to other applicable parties when the manager is considered inactive
-    modifier managerOrApprovedOnInactive {
-        require(msg.sender == manager || authorizedOnInactiveManager(msg.sender),
-            "Managed: caller is not the manager or an approved party.");
-        _;
-    }
-
-    /// A modifier to limit access only to non-management users
-    modifier onlyUser() {
-        require(msg.sender != manager && msg.sender != governance && msg.sender != protocol, "SaplingPool: Caller is not a valid lender.");
-        _;
-    }
 
     /// Event for when the contract is closed
     event Closed(address account);
 
     /// Event for when the contract is reopened
     event Opened(address account);
+    
+    /// A modifier to limit access only to the manager
+    modifier onlyManager {
+        require(msg.sender == manager, "SaplingManagerContext: caller is not the manager");
+        _;
+    }    
+
+    /// A modifier to limit access to the manager or to other applicable parties when the manager is considered inactive
+    modifier managerOrApprovedOnInactive {
+        require(msg.sender == manager || authorizedOnInactiveManager(msg.sender),
+            "SaplingManagerContext: caller is neither the manager nor an approved party");
+        _;
+    }
+
+    /// A modifier to limit access only to non-management users
+    modifier onlyUser() {
+        require(msg.sender != manager && msg.sender != governance && msg.sender != protocol,
+             "SaplingManagerContext: caller is not a user");
+        _;
+    }
 
     /// Modifier to limit function access to when the contract is not closed
     modifier whenNotClosed {
-        require(!_closed, "Sapling: closed");
+        require(!_closed, "SaplingManagerContext: closed");
         _;
     }
 
     /// Modifier to limit function access to when the contract is closed
     modifier whenClosed {
-        require(_closed, "Sapling: not closed");
+        require(_closed, "SaplingManagerContext: not closed");
         _;
     }
 
@@ -68,7 +69,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @param _manager Manager address
      */
     constructor(address _governance, address _protocol, address _manager) SaplingContext(_governance, _protocol) {
-        require(_manager != address(0), "Sapling: Manager address is not set");
+        require(_manager != address(0), "SaplingManagerContext: manager address is not set");
         manager = _manager;
         _closed = false;
     }
@@ -81,7 +82,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      *      Emits 'PoolClosed' event.
      */
     function close() external onlyManager whenNotClosed {
-        require(canClose(), "Cannot close pool with outstanding loans.");
+        require(canClose(), "SaplingManagerContext: cannot close the pool with outstanding loans");
         _closed = true;
         emit Closed(msg.sender);
     }
@@ -111,7 +112,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @dev A hook for the extending contract to implement.
      * @return True if the contract is closed, false otherwise.
      */
-    function canClose() virtual internal view returns (bool);
+    function canClose() internal view virtual returns (bool);
 
     /**
      * @notice Indicates whether or not the the caller is authorized to take applicable managing actions when the 
@@ -120,5 +121,5 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @param caller Caller's address.
      * @return True if the caller is authorized at this time, false otherwise.
      */
-    function authorizedOnInactiveManager(address caller) virtual internal view returns (bool);
+    function authorizedOnInactiveManager(address caller) internal view virtual returns (bool);
 }

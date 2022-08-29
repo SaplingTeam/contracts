@@ -14,7 +14,7 @@ interface IPoolToken is IERC20 {
      * @dev Hook for the lending pool for mining tokens upon pool entry operations. 
      *      Caller must be the lending pool that owns this token.
      * @param to Address the tokens are minted for
-     * @param amount The amount of tokens to minte
+     * @param amount The amount of tokens to mint
      */
     function mint(address to, uint256 amount) external;
 

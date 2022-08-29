@@ -3,12 +3,12 @@ pragma solidity ^0.8.15;
 
 /**
  * @title Lender Interface
- * @dev Lender interface providing a simple way for other contracts to be lenders into lending pools. 
+ * @dev Lender interface providing a simple way for other contracts to be lenders into lending pools.
  */
 interface ILender {
-    
+
     /**
-     * @notice Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an equivalent amount of pool 
+     * @notice Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an equivalent amount of pool
      *         tokens and transfer it to the caller. Exact exchange rate depends on the current pool state.
      * @dev Deposit amount must be non zero and not exceed amountDepositable().
      *      An appropriate spend limit must be present at the token contract.
@@ -27,8 +27,8 @@ interface ILender {
     function withdraw(uint256 amount) external;
 
     /**
-     * @notice Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired yield.
-     *         This balance does not included staked balance, leveraged earnings or protocol earnings.
+     * @notice Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired
+     *         yield. This balance does not included staked balance, leveraged earnings or protocol earnings.
      * @param wallet Address of the wallet to check the balance of.
      * @return Liquidity token balance of the wallet in this pool.
      */
