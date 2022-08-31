@@ -85,14 +85,6 @@ uint256 strategizedFunds
 
 Current funds committed to strategies such as borrowing or investing
 
-### totalPoolShares
-
-```solidity
-uint256 totalPoolShares
-```
-
-Current pool shares present, this also represents current total pool tokens in circulation
-
 ### stakedShares
 
 ```solidity
