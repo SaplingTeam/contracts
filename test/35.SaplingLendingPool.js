@@ -423,7 +423,7 @@ describe('Sapling Lending Pool)', function () {
                 });
 
                 it('Repaying a loan will allocate protocol fees to the protocol', async function () {
-                    let balanceBefore = await lendingPool.protocolEarningsOf(protocol.address);
+                    let balanceBefore = await lendingPool.revenueBalanceOf(protocol.address);
                     let loan = await lendingPool.loans(loanId);
 
                     await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
@@ -441,13 +441,13 @@ describe('Sapling Lending Pool)', function () {
                     let expectedProtocolFee = loanDetail.interestPaid
                         .mul(protocolEarningPercent)
                         .div(ONE_HUNDRED_PERCENT);
-                    expect(await lendingPool.protocolEarningsOf(protocol.address)).to.equal(
+                    expect(await lendingPool.revenueBalanceOf(protocol.address)).to.equal(
                         balanceBefore.add(expectedProtocolFee),
                     );
                 });
 
                 it('Repaying a loan will allocate protocol fees to the manager', async function () {
-                    let balanceBefore = await lendingPool.protocolEarningsOf(manager.address);
+                    let balanceBefore = await lendingPool.revenueBalanceOf(manager.address);
                     let loan = await lendingPool.loans(loanId);
 
                     await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
@@ -480,7 +480,7 @@ describe('Sapling Lending Pool)', function () {
                         .mul(managerEarningsPercent)
                         .div(ONE_HUNDRED_PERCENT);
 
-                    expect(await lendingPool.protocolEarningsOf(manager.address)).to.equal(
+                    expect(await lendingPool.revenueBalanceOf(manager.address)).to.equal(
                         balanceBefore.add(managerEarnedInterest),
                     );
                 });

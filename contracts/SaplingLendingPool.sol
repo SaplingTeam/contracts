@@ -442,8 +442,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      */
     function afterProtocolWalletTransfer(address from) internal override {
         require(from != address(0), "SaplingLendingPool: invalid from address");
-        protocolEarnings[protocol] = protocolEarnings[protocol].add(protocolEarnings[from]);
-        protocolEarnings[from] = 0;
+        nonUserRevenues[protocol] = nonUserRevenues[protocol].add(nonUserRevenues[from]);
+        nonUserRevenues[from] = 0;
     }
 
     /**
@@ -485,7 +485,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         //share profits to protocol
         uint256 protocolEarnedInterest = Math.mulDiv(interestPayable, protocolEarningPercent, ONE_HUNDRED_PERCENT);
 
-        protocolEarnings[protocol] = protocolEarnings[protocol].add(protocolEarnedInterest);
+        nonUserRevenues[protocol] = nonUserRevenues[protocol].add(protocolEarnedInterest);
 
         //share profits to manager
         uint256 currentStakePercent = Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, IERC20(poolToken).totalSupply());
@@ -495,7 +495,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
                 ONE_HUNDRED_PERCENT
             );
 
-        protocolEarnings[manager] = protocolEarnings[manager].add(managerEarnedInterest);
+        nonUserRevenues[manager] = nonUserRevenues[manager].add(managerEarnedInterest);
 
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(transferAmount);

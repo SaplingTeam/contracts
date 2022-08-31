@@ -77,8 +77,8 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     /// An upper bound for percentage of paid interest to be allocated as protocol earnings
     uint16 public immutable MAX_PROTOCOL_EARNING_PERCENT;
 
-    /// Protocol earnings of wallets
-    mapping(address => uint256) internal protocolEarnings; //FIXME rename
+    /// Protocol revenues of non-user addresses
+    mapping(address => uint256) internal nonUserRevenues;
 
     /// Weighted average loan APR on the borrowed funds
     uint256 internal weightedAvgStrategyAPR;
@@ -267,15 +267,15 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Withdraws protocol earnings belonging to the caller.
-     * @dev protocolEarningsOf(msg.sender) must be greater than 0.
+     * @notice Withdraws protocol revenue belonging to the caller.
+     * @dev revenueBalanceOf(msg.sender) must be greater than 0.
      *      Caller's all accumulated earnings will be withdrawn.
      *      Protocol earnings are represented in liquidity tokens.
      */
-    function withdrawProtocolEarnings() external whenNotPaused {
-        require(protocolEarnings[msg.sender] > 0, "SaplingPoolContext: zero protocol earnings");
-        uint256 amount = protocolEarnings[msg.sender];
-        protocolEarnings[msg.sender] = 0;
+    function withdrawRevenue() external whenNotPaused {
+        require(nonUserRevenues[msg.sender] > 0, "SaplingPoolContext: zero protocol earnings");
+        uint256 amount = nonUserRevenues[msg.sender];
+        nonUserRevenues[msg.sender] = 0;
 
         // give tokens
         tokenBalance = tokenBalance.sub(amount);
@@ -321,8 +321,8 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param wallet Address of the wallet to check the earnings balance of.
      * @return Accumulated liquidity token earnings of the wallet from the protocol.
      */
-    function protocolEarningsOf(address wallet) external view returns (uint256) {
-        return protocolEarnings[wallet];
+    function revenueBalanceOf(address wallet) external view returns (uint256) {
+        return nonUserRevenues[wallet];
     }
 
     /**

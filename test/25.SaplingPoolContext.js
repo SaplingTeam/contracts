@@ -1095,45 +1095,45 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 it('Protocol can withdraw earned protocol fees', async function () {
                     let tokenBalanceBefore = await liquidityToken.balanceOf(protocol.address);
-                    let poolBalanceBefore = await saplingPoolContext.protocolEarningsOf(protocol.address);
+                    let poolBalanceBefore = await saplingPoolContext.revenueBalanceOf(protocol.address);
 
-                    await saplingPoolContext.connect(protocol).withdrawProtocolEarnings();
+                    await saplingPoolContext.connect(protocol).withdrawRevenue();
 
                     expect(await liquidityToken.balanceOf(protocol.address)).to.equal(
                         tokenBalanceBefore.add(poolBalanceBefore),
                     );
-                    expect(await saplingPoolContext.protocolEarningsOf(protocol.address)).to.equal(0);
+                    expect(await saplingPoolContext.revenueBalanceOf(protocol.address)).to.equal(0);
                 });
 
                 it('When a new protocol wallet address is set, earned protocol fees are allocated to the new address', async function () {
-                    let oldProtocolBalanceBefore = await saplingPoolContext.protocolEarningsOf(protocol.address);
-                    let newProtocolBalanceBefore = await saplingPoolContext.protocolEarningsOf(addresses[0].address);
+                    let oldProtocolBalanceBefore = await saplingPoolContext.revenueBalanceOf(protocol.address);
+                    let newProtocolBalanceBefore = await saplingPoolContext.revenueBalanceOf(addresses[0].address);
 
                     await saplingPoolContext.connect(governance).transferProtocolWallet(addresses[0].address);
 
-                    expect(await saplingPoolContext.protocolEarningsOf(protocol.address)).to.equal(0);
-                    expect(await saplingPoolContext.protocolEarningsOf(addresses[0].address)).to.equal(
+                    expect(await saplingPoolContext.revenueBalanceOf(protocol.address)).to.equal(0);
+                    expect(await saplingPoolContext.revenueBalanceOf(addresses[0].address)).to.equal(
                         newProtocolBalanceBefore.add(oldProtocolBalanceBefore),
                     );
                 });
 
                 it('Manager can withdraw earned protocol fees', async function () {
                     let tokenBalanceBefore = await liquidityToken.balanceOf(manager.address);
-                    let poolBalanceBefore = await saplingPoolContext.protocolEarningsOf(manager.address);
+                    let poolBalanceBefore = await saplingPoolContext.revenueBalanceOf(manager.address);
 
-                    await saplingPoolContext.connect(manager).withdrawProtocolEarnings();
+                    await saplingPoolContext.connect(manager).withdrawRevenue();
 
                     expect(await liquidityToken.balanceOf(manager.address)).to.equal(
                         tokenBalanceBefore.add(poolBalanceBefore),
                     );
-                    expect(await saplingPoolContext.protocolEarningsOf(manager.address)).to.equal(0);
+                    expect(await saplingPoolContext.revenueBalanceOf(manager.address)).to.equal(0);
                 });
 
                 it('Protocol fee withdrawal is reflected on the pool contract balance', async function () {
                     let prevBalance = await liquidityToken.balanceOf(saplingPoolContext.address);
 
-                    let withdrawAmount = await saplingPoolContext.protocolEarningsOf(protocol.address);
-                    await saplingPoolContext.connect(protocol).withdrawProtocolEarnings();
+                    let withdrawAmount = await saplingPoolContext.revenueBalanceOf(protocol.address);
+                    await saplingPoolContext.connect(protocol).withdrawRevenue();
 
                     let balance = await liquidityToken.balanceOf(saplingPoolContext.address);
                     expect(balance)
@@ -1144,7 +1144,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 it('Protocol fee withdrawal is not reflected on pool liquidity', async function () {
                     let prevLiquidity = await saplingPoolContext.poolLiquidity();
 
-                    await saplingPoolContext.connect(protocol).withdrawProtocolEarnings();
+                    await saplingPoolContext.connect(protocol).withdrawRevenue();
 
                     let liquidity = await saplingPoolContext.poolLiquidity();
 
@@ -1154,8 +1154,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 it('Protocol fee withdrawal is not reflected on pool funds', async function () {
                     let prevPoolFunds = await saplingPoolContext.poolFunds();
 
-                    let withdrawAmount = await saplingPoolContext.protocolEarningsOf(manager.address);
-                    await saplingPoolContext.connect(protocol).withdrawProtocolEarnings();
+                    let withdrawAmount = await saplingPoolContext.revenueBalanceOf(manager.address);
+                    await saplingPoolContext.connect(protocol).withdrawRevenue();
 
                     let poolFunds = await saplingPoolContext.poolFunds();
 
@@ -1165,14 +1165,14 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 describe('Rejection scenarios', function () {
                     it('Protocol fees cannot be withdrawn while the pool is paused', async function () {
                         await saplingPoolContext.connect(governance).pause();
-                        await expect(saplingPoolContext.connect(protocol).withdrawProtocolEarnings()).to.be.reverted;
+                        await expect(saplingPoolContext.connect(protocol).withdrawRevenue()).to.be.reverted;
                     });
 
                     it('Protocol withdrawal should fail when balance is zero', async function () {
-                        await saplingPoolContext.connect(protocol).withdrawProtocolEarnings();
+                        await saplingPoolContext.connect(protocol).withdrawRevenue();
 
-                        expect(await saplingPoolContext.protocolEarningsOf(protocol.address)).to.equal(0);
-                        await expect(saplingPoolContext.connect(protocol).withdrawProtocolEarnings()).to.be.reverted;
+                        expect(await saplingPoolContext.revenueBalanceOf(protocol.address)).to.equal(0);
+                        await expect(saplingPoolContext.connect(protocol).withdrawRevenue()).to.be.reverted;
                     });
                 });
             });
