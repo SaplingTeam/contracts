@@ -26,7 +26,7 @@ Flag indicating whether or not the pool is closed
 uint256 MANAGER_INACTIVITY_GRACE_PERIOD
 ```
 
-Grace period for the manager to be inactive on a given loan /cancel/default decision. 
+Grace period for the manager to be inactive on a given loan /cancel/default decision.
         After this grace period of managers inaction on a given loan authorized parties
         can also call cancel() and default(). Other requirements for loan cancellation/default still apply.
 
@@ -110,7 +110,7 @@ function close() external
 
 Close the pool and stop borrowing, lender deposits, and staking.
 
-_Caller must be the manager. 
+_Caller must be the manager.
      Pool must be open.
      No loans or approvals must be outstanding (borrowedFunds must equal to 0).
      Emits 'PoolClosed' event._
@@ -123,7 +123,7 @@ function open() external
 
 Open the pool for normal operations.
 
-_Caller must be the manager. 
+_Caller must be the manager.
      Pool must be closed.
      Opening the pool will not unpause any pauses in effect.
      Emits 'PoolOpened' event._
@@ -160,7 +160,7 @@ _A hook for the extending contract to implement._
 function authorizedOnInactiveManager(address caller) internal view virtual returns (bool)
 ```
 
-Indicates whether or not the the caller is authorized to take applicable managing actions when the 
+Indicates whether or not the the caller is authorized to take applicable managing actions when the
         manager is inactive.
 
 _A hook for the extending contract to implement._
