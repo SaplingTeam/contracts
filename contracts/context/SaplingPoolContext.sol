@@ -463,12 +463,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
             "SaplingPoolContext: insufficient balance");
 
         // burn shares
-        //FIXME inline if
-        if (msg.sender != manager) {
-            IPoolToken(poolToken).burn(msg.sender, shares);
-        } else {
-            IPoolToken(poolToken).burn(address(this), shares);
-        }
+        IPoolToken(poolToken).burn(msg.sender != manager ? msg.sender : address(this), shares);
 
         totalPoolShares = totalPoolShares.sub(shares);
 
