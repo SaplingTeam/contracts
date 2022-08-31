@@ -369,7 +369,6 @@ describe('Sapling Lending Pool)', function () {
                     expect(loanDetail.totalAmountRepaid).to.equal(paymentAmount);
                     expect(loanDetail.lastPaymentTime).to.equal(blockTimestamp);
                     expect((await lendingPool.loans(loanId)).status).to.equal(LoanStatus.REPAID);
-                    expect(await lendingPool.loanBalanceDue(loanId)).to.equal(0);
                 });
 
                 it('3rd party can do a partial payment on behalf of the borrower', async function () {
