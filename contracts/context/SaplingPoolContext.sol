@@ -71,14 +71,14 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     /// This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
     uint256 internal managerExcessLeverageComponent;
 
-    /// Percentage of paid interest to be allocated as protocol earnings
-    uint16 public protocolEarningPercent;
+    /// Percentage of paid interest to be allocated as protocol fee
+    uint16 public protocolFeePercent;
 
-    /// An upper bound for percentage of paid interest to be allocated as protocol earnings
-    uint16 public immutable MAX_PROTOCOL_EARNING_PERCENT;
+    /// An upper bound for percentage of paid interest to be allocated as protocol fee
+    uint16 public immutable MAX_PROTOCOL_FEE_PERCENT;
 
-    /// Protocol earnings of wallets
-    mapping(address => uint256) internal protocolEarnings; //FIXME rename
+    /// Protocol revenues of non-user addresses
+    mapping(address => uint256) internal nonUserRevenues;
 
     /// Weighted average loan APR on the borrowed funds
     uint256 internal weightedAvgStrategyAPR;
@@ -98,11 +98,11 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
      * @param _governance Governance address
-     * @param _protocol Protocol wallet address
+     * @param _treasury Treasury wallet address
      * @param _manager Manager address
      */
-    constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager)
-        SaplingManagerContext(_governance, _protocol, _manager) {
+    constructor(address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager)
+        SaplingManagerContext(_governance, _treasury, _manager) {
 
         require(_poolToken != address(0), "SaplingPoolContext: pool token address is not set");
         require(_liquidityToken != address(0), "SaplingPoolContext: liquidity token address is not set");
@@ -121,9 +121,8 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
         exitFeePercent = ONE_HUNDRED_PERCENT / 200; // 0.5%
 
-        //FIXME
-        protocolEarningPercent = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
-        MAX_PROTOCOL_EARNING_PERCENT = protocolEarningPercent;
+        MAX_PROTOCOL_FEE_PERCENT = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
+        protocolFeePercent = MAX_PROTOCOL_FEE_PERCENT;
 
         managerEarnFactorMax = uint16(500 * 10 ** PERCENT_DECIMALS); // 500% or 5x leverage by default
         managerEarnFactor = uint16(150 * 10 ** PERCENT_DECIMALS);
@@ -167,14 +166,14 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
     /**
      * @notice Set the protocol earning percent for the pool.
-     * @dev _protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_EARNING_PERCENT.
+     * @dev _protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_FEE_PERCENT.
      *      Caller must be the governance.
      * @param _protocolEarningPercent new protocol earning percent.
      */
     function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyGovernance {
-        require(0 <= _protocolEarningPercent && _protocolEarningPercent <= MAX_PROTOCOL_EARNING_PERCENT,
+        require(0 <= _protocolEarningPercent && _protocolEarningPercent <= MAX_PROTOCOL_FEE_PERCENT,
             "SaplingPoolContext: protocol earning percent is out of bounds");
-        protocolEarningPercent = _protocolEarningPercent;
+        protocolFeePercent = _protocolEarningPercent;
     }
 
     /**
@@ -230,7 +229,6 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     function withdraw(uint256 amount) external override whenNotPaused {
         require(msg.sender != manager, "SaplingPoolContext: pool manager address cannot use withdraw");
 
-        //FIXME handle differentiating unstaking from withdraw and let pool manager withdraw - DONE
         exitPool(amount);
     }
 
@@ -268,15 +266,15 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Withdraws protocol earnings belonging to the caller.
-     * @dev protocolEarningsOf(msg.sender) must be greater than 0.
+     * @notice Withdraws protocol revenue belonging to the caller.
+     * @dev revenueBalanceOf(msg.sender) must be greater than 0.
      *      Caller's all accumulated earnings will be withdrawn.
      *      Protocol earnings are represented in liquidity tokens.
      */
-    function withdrawProtocolEarnings() external whenNotPaused {
-        require(protocolEarnings[msg.sender] > 0, "SaplingPoolContext: zero protocol earnings");
-        uint256 amount = protocolEarnings[msg.sender];
-        protocolEarnings[msg.sender] = 0;
+    function withdrawRevenue() external whenNotPaused {
+        require(nonUserRevenues[msg.sender] > 0, "SaplingPoolContext: zero protocol earnings");
+        uint256 amount = nonUserRevenues[msg.sender];
+        nonUserRevenues[msg.sender] = 0;
 
         // give tokens
         tokenBalance = tokenBalance.sub(amount);
@@ -316,14 +314,14 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Check the special addresses' earnings from the protocol.
+     * @notice Check the special addresses' revenue from the protocol.
      * @dev This method is useful for manager and protocol addresses.
      *      Calling this method for a non-protocol associated addresses will return 0.
      * @param wallet Address of the wallet to check the earnings balance of.
-     * @return Accumulated liquidity token earnings of the wallet from the protocol.
+     * @return Accumulated liquidity token revenue of the wallet from the protocol.
      */
-    function protocolEarningsOf(address wallet) external view returns (uint256) {
-        return protocolEarnings[wallet];
+    function revenueBalanceOf(address wallet) external view returns (uint256) {
+        return nonUserRevenues[wallet];
     }
 
     /**
@@ -347,7 +345,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
     /**
      * @notice Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired
-     *         yield. This balance does not included staked balance, leveraged earnings or protocol earnings.
+     *         yield. This balance does not included staked balance, leveraged revenue or protocol revenue.
      * @param wallet Address of the wallet to check the balance of.
      * @return Liquidity token balance of the wallet in this pool.
      */
@@ -535,7 +533,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         uint256 poolAPY = Math.mulDiv(_avgStrategyAPR, _strategizedFunds, poolFunds);
 
         // protocol APY
-        uint256 protocolAPY = Math.mulDiv(poolAPY, protocolEarningPercent, ONE_HUNDRED_PERCENT);
+        uint256 protocolAPY = Math.mulDiv(poolAPY, protocolFeePercent, ONE_HUNDRED_PERCENT);
 
         uint256 remainingAPY = poolAPY.sub(protocolAPY);
 
@@ -571,7 +569,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      *      certain actions when the manager is inactive.
      */
     function authorizedOnInactiveManager(address caller) internal view override returns (bool) {
-        return caller == governance || caller == protocol
+        return caller == governance || caller == treasury
             || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= ONE_TOKEN;
     }
 

@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/security/Pausable.sol";
 
 /**
  * @title Sapling Context
- * @notice Provides governance access control, a common reverence to the protocol wallet address, and basic pause
+ * @notice Provides governance access control, a common reverence to the treasury wallet address, and basic pause
  *         functionality by extending OpenZeppelin's Pausable contract.
  */
 abstract contract SaplingContext is Pausable {
@@ -14,14 +14,14 @@ abstract contract SaplingContext is Pausable {
     /// Protocol governance
     address public governance;
 
-    /// Protocol wallet address
-    address public protocol; //FIXME rename
+    /// Protocol treasury wallet address
+    address public treasury;
 
     /// Event for when a new governance is set
     event GovernanceTransferred(address from, address to);
 
-    /// Event for when a new protocol wallet is set
-    event ProtocolWalletTransferred(address from, address to);
+    /// Event for when a new treasury wallet is set
+    event TreasuryWalletTransferred(address from, address to);
 
     /// A modifier to limit access only to the governance
     modifier onlyGovernance {
@@ -33,13 +33,13 @@ abstract contract SaplingContext is Pausable {
      * @notice Creates a new SaplingContext.
      * @dev Addresses must not be 0.
      * @param _governance Governance address
-     * @param _protocol Protocol wallet address
+     * @param _treasury Treasury wallet address
      */
-    constructor(address _governance, address _protocol) {
+    constructor(address _governance, address _treasury) {
         require(_governance != address(0), "SaplingContext: governance address is not set");
-        require(_protocol != address(0), "SaplingContext: protocol wallet address is not set");
+        require(_treasury != address(0), "SaplingContext: treasury wallet address is not set");
         governance = _governance;
-        protocol = _protocol;
+        treasury = _treasury;
     }
 
     /**
@@ -77,27 +77,27 @@ abstract contract SaplingContext is Pausable {
     }
 
     /**
-     * @notice Transfer the protocol wallet.
+     * @notice Transfer the treasury role.
      * @dev Caller must be the governance.
-     *      New governance address must not be 0, and must not be one of current non-user addresses.
-     * @param _protocol New protocol wallet address.
+     *      New treasury address must not be 0, and must not be one of current non-user addresses.
+     * @param _treasury New treasury wallet address
      */
-    function transferProtocolWallet(address _protocol) external onlyGovernance {
+    function transferTreasury(address _treasury) external onlyGovernance {
         require(
-            _protocol != address(0) && isNonUserAddress(_protocol),
-            "SaplingContext: invalid protocol wallet address"
+            _treasury != address(0) && isNonUserAddress(_treasury),
+            "SaplingContext: invalid treasury wallet address"
         );
-        address prevProtocol = protocol;
-        protocol = _protocol;
-        emit ProtocolWalletTransferred(prevProtocol, protocol);
-        afterProtocolWalletTransfer(prevProtocol);
+        address prevTreasury = treasury;
+        treasury = _treasury;
+        emit TreasuryWalletTransferred(prevTreasury, treasury);
+        afterTreasuryWalletTransfer(prevTreasury);
     }
 
     /**
-     * @notice Hook that is called after a new protocol wallet address has been set.
-     * @param from Address of the previous protocol wallet.
+     * @notice Hook that is called after a new treasury wallet address has been set.
+     * @param from Address of the previous treasury wallet.
      */
-    function afterProtocolWalletTransfer(address from) internal virtual {}
+    function afterTreasuryWalletTransfer(address from) internal virtual {}
 
     /**
      * @notice Hook that is called to verify if an address is currently in any non-user/management position.
@@ -105,6 +105,6 @@ abstract contract SaplingContext is Pausable {
      * @param party Address to verify
      */
     function isNonUserAddress(address party) internal view virtual returns (bool) {
-        return party != governance && party != protocol;
+        return party != governance && party != treasury;
     }
 }

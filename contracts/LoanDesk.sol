@@ -146,12 +146,12 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @dev Addresses must not be 0.
      * @param _pool Lending pool address
      * @param _governance Governance address
-     * @param _protocol Protocol wallet address
+     * @param _treasury Treasury wallet address
      * @param _manager Manager address
      * @param _decimals Lending pool liquidity token decimals
      */
-    constructor(address _pool, address _governance, address _protocol, address _manager, uint8 _decimals)
-        SaplingManagerContext(_governance, _protocol, _manager) {
+    constructor(address _pool, address _governance, address _treasury, address _manager, uint8 _decimals)
+        SaplingManagerContext(_governance, _treasury, _manager) {
 
         require(_pool != address(0), "LoanDesk: invalid pool address");
 
@@ -233,7 +233,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @notice Request a new loan.
      * @dev Requested amount must be greater or equal to minLoanAmount().
      *      Loan duration must be between minLoanDuration() and maxLoanDuration().
-     *      Caller must not be a lender, protocol, or the manager.
      *      Multiple pending applications from the same address are not allowed -
      *      most recent loan/application of the caller must not have APPLIED status.
      * @param _amount Liquidity token amount to be borrowed
@@ -512,7 +511,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      * @return True if the caller is authorized at this time, false otherwise.
      */
     function authorizedOnInactiveManager(address caller) override internal view returns (bool) {
-        return caller == governance || caller == protocol;
+        return caller == governance || caller == treasury;
     }
 
     /**

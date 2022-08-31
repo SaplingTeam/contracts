@@ -22,7 +22,7 @@ contract PoolFactory is IPoolFactory, Ownable {
      * @param poolToken LendingPool address
      * @param liquidityToken Liquidity token address
      * @param governance Governance address
-     * @param protocol Protocol wallet address
+     * @param treasury Treasury wallet address
      * @param manager Manager address
      * @return Address of the deployed contract
      */
@@ -30,14 +30,14 @@ contract PoolFactory is IPoolFactory, Ownable {
         address poolToken,
         address liquidityToken,
         address governance,
-        address protocol,
+        address treasury,
         address manager
     )
         external
         onlyOwner
         returns (address)
     {
-        SaplingLendingPool pool = new SaplingLendingPool(poolToken, liquidityToken, governance, protocol, manager);
+        SaplingLendingPool pool = new SaplingLendingPool(poolToken, liquidityToken, governance, treasury, manager);
         emit PoolCreated(address(pool));
         return address(pool);
     }
