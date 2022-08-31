@@ -50,7 +50,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     uint256 public strategizedFunds;
 
     /// Current pool shares present, this also represents current total pool tokens in circulation
-    uint256 public totalPoolShares;
+    uint256 public totalPoolShares; //FIXME replace with poolToken.totalSupply();
 
     /// Manager's staked shares
     uint256 public stakedShares;
@@ -81,7 +81,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     uint16 public immutable MAX_PROTOCOL_EARNING_PERCENT;
 
     /// Protocol earnings of wallets
-    mapping(address => uint256) internal protocolEarnings;
+    mapping(address => uint256) internal protocolEarnings; //FIXME rename
 
     /// Weighted average loan APR on the borrowed funds
     uint256 internal weightedAvgStrategyAPR;
@@ -125,6 +125,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
         exitFeePercent = ONE_HUNDRED_PERCENT / 200; // 0.5%
 
+        //FIXME
         protocolEarningPercent = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
         MAX_PROTOCOL_EARNING_PERCENT = protocolEarningPercent;
 
@@ -233,7 +234,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     function withdraw(uint256 amount) external override whenNotPaused {
         require(msg.sender != manager, "SaplingPoolContext: pool manager address cannot use withdraw");
 
-        //FIXME handle differentiating unstaking from withdraw and let pool manager withdraw
+        //FIXME handle differentiating unstaking from withdraw and let pool manager withdraw - DONE
         exitPool(amount);
     }
 
@@ -462,6 +463,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
             "SaplingPoolContext: insufficient balance");
 
         // burn shares
+        //FIXME inline if
         if (msg.sender != manager) {
             IPoolToken(poolToken).burn(msg.sender, shares);
         } else {

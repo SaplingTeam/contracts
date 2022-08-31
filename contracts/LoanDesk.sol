@@ -11,6 +11,8 @@ import "./interfaces/ILoanDeskOwner.sol";
  * @title Loan Desk
  * @notice Provides loan application and offer management.
  */
+
+ //FIXME upgradable
 contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
 
     using SafeMath for uint256;
@@ -150,6 +152,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
      */
     constructor(address _pool, address _governance, address _protocol, address _manager, uint8 _decimals)
         SaplingManagerContext(_governance, _protocol, _manager) {
+
         require(_pool != address(0), "LoanDesk: invalid pool address");
 
         pool = _pool;
@@ -548,7 +551,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
             _installmentAmount == 0 || _installmentAmount >= SAFE_MIN_AMOUNT,
             "LoanDesk: invalid installment amount"
         );
-        //FIXME set upper bound for installments
+        //FIXME set upper bound for installments: installments <= (duration/86400)
         require(1 <= _installments && _installments <= 4096, "LoanDesk: invalid installments");
         require(SAFE_MIN_APR <= _apr && _apr <= SAFE_MAX_APR, "LoanDesk: invalid APR");
     }

@@ -15,7 +15,7 @@ abstract contract SaplingContext is Pausable {
     address public governance;
 
     /// Protocol wallet address
-    address public protocol;
+    address public protocol; //FIXME rename
 
     /// Event for when a new governance is set
     event GovernanceTransferred(address from, address to);
@@ -66,7 +66,7 @@ abstract contract SaplingContext is Pausable {
      *      New governance address must not be 0, and must not be the same as current governance address.
      * @param _governance New governance address.
      */
-    function transferGovernance(address _governance) external onlyGovernance {
+    function transferGovernance(address _governance) external onlyGovernance { //FIXME check if it's a manager or protocol
         require(
             _governance != address(0) && _governance != governance,
             "SaplingContext: new governance address is invalid"
@@ -82,7 +82,7 @@ abstract contract SaplingContext is Pausable {
      *      New governance address must not be 0, and must not be the same as current governance address.
      * @param _protocol New protocol wallet address.
      */
-    function transferProtocolWallet(address _protocol) external onlyGovernance {
+    function transferProtocolWallet(address _protocol) external onlyGovernance { //FIXME check if it's a manager or protocol
         require(_protocol != address(0) && _protocol != protocol, "SaplingContext: invalid protocol wallet address");
         address prevProtocol = protocol;
         protocol = _protocol;

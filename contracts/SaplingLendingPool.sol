@@ -11,6 +11,8 @@ import "./interfaces/ILoanDeskOwner.sol";
  * @title Sapling Lending Pool
  * @dev Extends SaplingPoolContext with lending strategy.
  */
+
+ //FIXME upgradable
 contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
     using SafeMath for uint256;
@@ -444,7 +446,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param loanId ID of the loan to check the balance of
      * @return Total amount due with interest on this loan
      */
-    function loanBalanceDue(uint256 loanId) public view returns(uint256) {
+    function loanBalanceDue(uint256 loanId) public view returns(uint256) { //FIXME add loan status
         (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
         return principalOutstanding.add(interestOutstanding);
     }
@@ -481,11 +483,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             uint256 transferAmount,
             uint256 interestPayable,
             uint256 payableInterestDays
+            //FIXME return total balance
         ) = payableLoanBalance(loanId, amount);
 
         // enforce a small minimum payment amount, except for the last payment equal to the total amount due
         require(
-            transferAmount >= ONE_TOKEN || transferAmount == loanBalanceDue(loanId),
+            transferAmount >= ONE_TOKEN || transferAmount == loanBalanceDue(loanId), //FIXME check retuirned balance
             "SaplingLendingPool: payment amount is less than the required minimum"
         );
 
@@ -557,7 +560,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      */
     function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256, uint256) {
         Loan storage loan = loans[loanId];
-        if (loan.status != LoanStatus.OUTSTANDING) {
+        if (loan.status != LoanStatus.OUTSTANDING) { //FIXME
             return (0, 0, 0);
         }
 

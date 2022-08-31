@@ -15,10 +15,10 @@ import "./IOwnable.sol";
  * @title Sapling Factory
  * @notice Facilitates on-chain deployment and setup of protocol components.
  */
-contract SaplingFactory is SaplingContext {
+contract SaplingFactory is SaplingContext { //Make Ownable
 
     /// Verification hub contract address
-    address public verificationHub;
+    address public verificationHub; //FIXME remove
 
     /// Token factory contract address
     address public tokenFactory;
@@ -96,4 +96,6 @@ contract SaplingFactory is SaplingContext {
 
         emit LendingPoolReady(pool);
     }
+
+    //FIXME add self destruct
 }

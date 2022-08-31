@@ -15,7 +15,7 @@ abstract contract SaplingMathContext is IMath {
     uint16 public constant PERCENT_DECIMALS = 1;
 
     /// A constant representing 100%
-    uint16 public immutable ONE_HUNDRED_PERCENT;
+    uint16 public immutable ONE_HUNDRED_PERCENT; //FIXME rename camelcase
 
     /**
      * @notice Create a new SaplingMathContext.

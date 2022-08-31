@@ -17,7 +17,7 @@ abstract contract SaplingManagerContext is SaplingContext {
     bool private _closed;
 
     /**
-     * @notice Grace period for the manager to be inactive on a given loan /cancel/default decision. 
+     * @notice Grace period for the manager to be inactive on a given loan /cancel/default decision.
      *         After this grace period of managers inaction on a given loan authorized parties
      *         can also call cancel() and default(). Other requirements for loan cancellation/default still apply.
      */
@@ -28,12 +28,12 @@ abstract contract SaplingManagerContext is SaplingContext {
 
     /// Event for when the contract is reopened
     event Opened(address account);
-    
+
     /// A modifier to limit access only to the manager
     modifier onlyManager {
         require(msg.sender == manager, "SaplingManagerContext: caller is not the manager");
         _;
-    }    
+    }
 
     /// A modifier to limit access to the manager or to other applicable parties when the manager is considered inactive
     modifier managerOrApprovedOnInactive {
@@ -74,9 +74,27 @@ abstract contract SaplingManagerContext is SaplingContext {
         _closed = false;
     }
 
+    //FIXME transfer manager
+    // /**
+    //  * @notice Transfer the governance.
+    //  * @dev Caller must be the governance.
+    //  *      New governance address must not be 0, and must not be the same as current governance address.
+    //  * @param _governance New governance address.
+    //  */
+    // function transferGovernance(address _governance) external onlyGovernance { //FIXME check if it's a governance or protocol
+    //     require(
+    //         _governance != address(0) && _governance != governance,
+    //         "SaplingContext: new governance address is invalid"
+    //     );
+    //     address prevGovernance = governance;
+    //     governance = _governance;
+    //     emit GovernanceTransferred(prevGovernance, governance);
+    // }
+
+
     /**
-     * @notice Close the pool and stop borrowing, lender deposits, and staking. 
-     * @dev Caller must be the manager. 
+     * @notice Close the pool and stop borrowing, lender deposits, and staking.
+     * @dev Caller must be the manager.
      *      Pool must be open.
      *      No loans or approvals must be outstanding (borrowedFunds must equal to 0).
      *      Emits 'PoolClosed' event.
@@ -88,8 +106,8 @@ abstract contract SaplingManagerContext is SaplingContext {
     }
 
     /**
-     * @notice Open the pool for normal operations. 
-     * @dev Caller must be the manager. 
+     * @notice Open the pool for normal operations.
+     * @dev Caller must be the manager.
      *      Pool must be closed.
      *      Opening the pool will not unpause any pauses in effect.
      *      Emits 'PoolOpened' event.
@@ -115,7 +133,7 @@ abstract contract SaplingManagerContext is SaplingContext {
     function canClose() internal view virtual returns (bool);
 
     /**
-     * @notice Indicates whether or not the the caller is authorized to take applicable managing actions when the 
+     * @notice Indicates whether or not the the caller is authorized to take applicable managing actions when the
      *         manager is inactive.
      * @dev A hook for the extending contract to implement.
      * @param caller Caller's address.
