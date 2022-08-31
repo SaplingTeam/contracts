@@ -226,14 +226,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param amount Payment amount in tokens.
      * @return A pair of total amount charged including interest, and the interest charged.
      */
-    function repay(
-        uint256 loanId,
-        uint256 amount
-    )
-        external
-        loanInStatus(loanId, LoanStatus.OUTSTANDING)
-        returns (uint256, uint256)
-    {
+    function repay(uint256 loanId, uint256 amount) external returns (uint256, uint256) {
         // require the payer and the borrower to be the same to avoid mispayment
         require(loans[loanId].borrower == msg.sender, "SaplingLendingPool: payer is not the borrower");
 
@@ -250,15 +243,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param borrower address of the borrower to make a payment on behalf of.
      * @return A pair of total amount charged including interest, and the interest charged.
      */
-    function repayOnBehalf(
-        uint256 loanId,
-        uint256 amount,
-        address borrower
-    )
-        external
-        loanInStatus(loanId, LoanStatus.OUTSTANDING)
-        returns (uint256, uint256)
-    {
+    function repayOnBehalf(uint256 loanId, uint256 amount, address borrower ) external returns (uint256, uint256) {
         // require the borrower being paid on behalf off and the loan borrower to be the same to avoid mispayment
         require(loans[loanId].borrower == borrower, "SaplingLendingPool: invalid borrower");
 
@@ -446,7 +431,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param loanId ID of the loan to check the balance of
      * @return Total amount due with interest on this loan
      */
-    function loanBalanceDue(uint256 loanId) public view returns(uint256) { //FIXME add loan status
+    function loanBalanceDue(uint256 loanId) public view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns(uint256) {
         (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
         return principalOutstanding.add(interestOutstanding);
     }
@@ -483,12 +468,11 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             uint256 transferAmount,
             uint256 interestPayable,
             uint256 payableInterestDays
-            //FIXME return total balance
         ) = payableLoanBalance(loanId, amount);
 
         // enforce a small minimum payment amount, except for the last payment equal to the total amount due
         require(
-            transferAmount >= ONE_TOKEN || transferAmount == loanBalanceDue(loanId), //FIXME check retuirned balance
+            transferAmount >= ONE_TOKEN || transferAmount == loanBalanceDue(loanId),
             "SaplingLendingPool: payment amount is less than the required minimum"
         );
 
@@ -560,10 +544,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      */
     function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256, uint256) {
         Loan storage loan = loans[loanId];
-        if (loan.status != LoanStatus.OUTSTANDING) { //FIXME
-            return (0, 0, 0);
-        }
-
         LoanDetail storage detail = loanDetails[loanId];
 
         uint256 daysPassed = countInterestDays(detail.interestPaidTillTime, block.timestamp);
@@ -616,6 +596,16 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
              */
             payableInterestDays = Math.mulDiv(transferAmount, interestDays, interestOutstanding);
             interestPayable = Math.mulDiv(interestOutstanding, payableInterestDays, interestDays);
+
+            /*
+             Handle "small payment exploit" which unfairly reduces the principal amount by making payments smaller than
+             1 day interest, while the interest on the remaining principal is outstanding.
+
+             Do not accept leftover payments towards the principal while any daily interest is outstandig.
+             */
+            if (payableInterestDays < interestDays) {
+                transferAmount = interestPayable;
+            }
         }
 
         return (transferAmount, interestPayable, payableInterestDays);
