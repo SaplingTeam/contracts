@@ -47,7 +47,7 @@ abstract contract SaplingManagerContext is SaplingContext {
 
     /// A modifier to limit access only to non-management users
     modifier onlyUser() {
-        require(msg.sender != manager && msg.sender != governance && msg.sender != protocol,
+        require(msg.sender != manager && msg.sender != governance && msg.sender != treasury,
              "SaplingManagerContext: caller is not a user");
         _;
     }
@@ -68,10 +68,10 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @notice Create a new SaplingManagedContext.
      * @dev Addresses must not be 0.
      * @param _governance Governance address
-     * @param _protocol Protocol wallet address
+     * @param _treasury Treasury wallet address
      * @param _manager Manager address
      */
-    constructor(address _governance, address _protocol, address _manager) SaplingContext(_governance, _protocol) {
+    constructor(address _governance, address _treasury, address _manager) SaplingContext(_governance, _treasury) {
         require(_manager != address(0), "SaplingManagerContext: manager address is not set");
         manager = _manager;
         _closed = false;

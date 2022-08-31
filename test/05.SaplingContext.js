@@ -114,7 +114,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             });
 
             it('Protocol wallet address is correct', async function () {
-                expect(await saplingContext.protocol()).to.equal(protocol.address);
+                expect(await saplingContext.treasury()).to.equal(protocol.address);
             });
 
             it('Context is not paused', async function () {
@@ -172,7 +172,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             });
         });
 
-        describe('Transfer Protocol Wallet', function () {
+        describe('Transfer Treasury Wallet', function () {
             let protocol2;
 
             after(async function () {
@@ -187,32 +187,32 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             });
 
             it('Can transfer', async function () {
-                await saplingContext.connect(governance).transferProtocolWallet(protocol2.address);
-                expect(await saplingContext.protocol())
+                await saplingContext.connect(governance).transferTreasury(protocol2.address);
+                expect(await saplingContext.treasury())
                     .to.equal(protocol2.address)
                     .and.not.equal(protocol.address);
             });
 
             describe('Rejection scenarios', function () {
                 it('Transfer as non governance should fail', async function () {
-                    await expect(saplingContext.connect(addresses[1]).transferProtocolWallet(protocol2.address)).to.be
+                    await expect(saplingContext.connect(addresses[1]).transferTreasury(protocol2.address)).to.be
                         .reverted;
                 });
 
                 it('Transferring to governance address should fail', async function () {
                     await expect(
-                        saplingContext.connect(governance).transferProtocolWallet(governance.address),
-                    ).to.be.revertedWith('SaplingContext: invalid protocol wallet address');
+                        saplingContext.connect(governance).transferTreasury(governance.address),
+                    ).to.be.revertedWith('SaplingContext: invalid treasury wallet address');
                 });
 
                 it('Transferring to pool manager address should fail', async function () {
                     await expect(
-                        saplingContext.connect(governance).transferProtocolWallet(manager.address),
-                    ).to.be.revertedWith('SaplingContext: invalid protocol wallet address');
+                        saplingContext.connect(governance).transferTreasury(manager.address),
+                    ).to.be.revertedWith('SaplingContext: invalid treasury wallet address');
                 });
 
                 it('Transferring to a NULL address should fail', async function () {
-                    await expect(saplingContext.connect(governance).transferProtocolWallet(NULL_ADDRESS)).to.be
+                    await expect(saplingContext.connect(governance).transferTreasury(NULL_ADDRESS)).to.be
                         .reverted;
                 });
             });

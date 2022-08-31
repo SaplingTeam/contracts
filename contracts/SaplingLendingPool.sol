@@ -127,17 +127,17 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
      * @param _governance Governance address
-     * @param _protocol Protocol wallet address
+     * @param _treasury Treasury wallet address
      * @param _manager Manager address
      */
     constructor(
         address _poolToken,
         address _liquidityToken,
         address _governance,
-        address _protocol,
+        address _treasury,
         address _manager
     )
-        SaplingPoolContext(_poolToken, _liquidityToken, _governance, _protocol, _manager) {
+        SaplingPoolContext(_poolToken, _liquidityToken, _governance, _treasury, _manager) {
     }
 
     /**
@@ -436,13 +436,13 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     }
 
     /**
-     * @notice Transfer the previous protocol wallet's accumulated fees to current protocol wallet.
+     * @notice Transfer the previous treasury wallet's accumulated fees to current treasury wallet.
      * @dev Overrides a hook in SaplingContext.
-     * @param from Address of the previous protocol wallet.
+     * @param from Address of the previous treasury wallet.
      */
-    function afterProtocolWalletTransfer(address from) internal override {
+    function afterTreasuryWalletTransfer(address from) internal override {
         require(from != address(0), "SaplingLendingPool: invalid from address");
-        nonUserRevenues[protocol] = nonUserRevenues[protocol].add(nonUserRevenues[from]);
+        nonUserRevenues[treasury] = nonUserRevenues[treasury].add(nonUserRevenues[from]);
         nonUserRevenues[from] = 0;
     }
 
@@ -482,12 +482,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         uint256 principalPaid = transferAmount.sub(interestPayable);
 
-        //share profits to protocol
+        //share revenue to treasury
         uint256 protocolEarnedInterest = Math.mulDiv(interestPayable, protocolEarningPercent, ONE_HUNDRED_PERCENT);
 
-        nonUserRevenues[protocol] = nonUserRevenues[protocol].add(protocolEarnedInterest);
+        nonUserRevenues[treasury] = nonUserRevenues[treasury].add(protocolEarnedInterest);
 
-        //share profits to manager
+        //share revenue to manager
         uint256 currentStakePercent = Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, IERC20(poolToken).totalSupply());
         uint256 managerEarnedInterest = Math.mulDiv(
                 interestPayable.sub(protocolEarnedInterest),

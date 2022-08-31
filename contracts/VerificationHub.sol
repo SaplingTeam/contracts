@@ -37,9 +37,9 @@ contract VerificationHub is IVerificationHub, SaplingContext {
      * @notice Creates a new VerificationHub.
      * @dev Addresses must not be 0.
      * @param _governance Governance address
-     * @param _protocol Protocol wallet address
+     * @param _treasury Treasury wallet address
      */
-    constructor(address _governance, address _protocol) SaplingContext(_governance, _protocol) {}
+    constructor(address _governance, address _treasury) SaplingContext(_governance, _treasury) {}
 
     /**
      * @notice Set new SaplingFactory.
@@ -54,7 +54,7 @@ contract VerificationHub is IVerificationHub, SaplingContext {
             );
         address prevAddress = saplingFactory;
         saplingFactory = _saplingFactory;
-        emit PoolFactorySet(prevAddress, protocol);
+        emit PoolFactorySet(prevAddress, treasury);
     }
 
     /**

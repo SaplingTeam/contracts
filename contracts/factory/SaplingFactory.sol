@@ -40,7 +40,7 @@ contract SaplingFactory is SaplingContext { //Make Ownable
      * @param _poolFactory Lending Pool factory address address
      * @param _verificationHub Verification hub address
      * @param _governance Governance address
-     * @param _protocol Protocol wallet address
+     * @param _treasury Treasury wallet address
      */
     constructor(
         address _tokenFactory,
@@ -48,8 +48,8 @@ contract SaplingFactory is SaplingContext { //Make Ownable
         address _poolFactory,
         address _verificationHub,
         address _governance,
-        address _protocol)
-    SaplingContext(_governance, _protocol)
+        address _treasury)
+    SaplingContext(_governance, _treasury)
     {
         require(_tokenFactory != address(0), "SaplingFactory: invalid token factory address");
         require(_loanDeskFactory != address(0), "SaplingFactory: invalid LoanDesk factory address");
@@ -83,10 +83,10 @@ contract SaplingFactory is SaplingContext { //Make Ownable
         uint8 decimals = IERC20Metadata(liquidityToken).decimals();
         address poolToken = ITokenFactory(tokenFactory).create(string.concat(name, " Token"), symbol, decimals);
         address pool = IPoolFactory(poolFactory)
-            .create(poolToken, liquidityToken, address(this), protocol, manager);
+            .create(poolToken, liquidityToken, address(this), treasury, manager);
 
         address loanDesk = ILoanDeskFactory(loanDeskFactory)
-            .create(pool, governance, protocol, manager, decimals);
+            .create(pool, governance, treasury, manager, decimals);
 
         IOwnable(poolToken).transferOwnership(pool);
         ILoanDeskOwner(pool).setLoanDesk(loanDesk);

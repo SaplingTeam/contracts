@@ -43,7 +43,7 @@ contract SaplingProtocolPool is SaplingPoolContext {
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
      * @param _governance Governance address
-     * @param _protocol Protocol wallet address
+     * @param _treasury Treasury wallet address
      * @param _manager Manager address
      */
     constructor(
@@ -51,10 +51,10 @@ contract SaplingProtocolPool is SaplingPoolContext {
         address _poolToken,
         address _liquidityToken,
         address _governance,
-        address _protocol,
+        address _treasury,
         address _manager
     )
-        SaplingPoolContext(_poolToken, _liquidityToken, _governance, _protocol, _manager)
+        SaplingPoolContext(_poolToken, _liquidityToken, _governance, _treasury, _manager)
     {
         verificationHub = _verificationHub;
     }

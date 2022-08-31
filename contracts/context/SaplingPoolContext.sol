@@ -98,11 +98,11 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
      * @param _governance Governance address
-     * @param _protocol Protocol wallet address
+     * @param _treasury Treasury wallet address
      * @param _manager Manager address
      */
-    constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager)
-        SaplingManagerContext(_governance, _protocol, _manager) {
+    constructor(address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager)
+        SaplingManagerContext(_governance, _treasury, _manager) {
 
         require(_poolToken != address(0), "SaplingPoolContext: pool token address is not set");
         require(_liquidityToken != address(0), "SaplingPoolContext: liquidity token address is not set");
@@ -314,11 +314,11 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     }
 
     /**
-     * @notice Check the special addresses' earnings from the protocol.
+     * @notice Check the special addresses' revenue from the protocol.
      * @dev This method is useful for manager and protocol addresses.
      *      Calling this method for a non-protocol associated addresses will return 0.
      * @param wallet Address of the wallet to check the earnings balance of.
-     * @return Accumulated liquidity token earnings of the wallet from the protocol.
+     * @return Accumulated liquidity token revenue of the wallet from the protocol.
      */
     function revenueBalanceOf(address wallet) external view returns (uint256) {
         return nonUserRevenues[wallet];
@@ -345,7 +345,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
     /**
      * @notice Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired
-     *         yield. This balance does not included staked balance, leveraged earnings or protocol earnings.
+     *         yield. This balance does not included staked balance, leveraged revenue or protocol revenue.
      * @param wallet Address of the wallet to check the balance of.
      * @return Liquidity token balance of the wallet in this pool.
      */
@@ -569,7 +569,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      *      certain actions when the manager is inactive.
      */
     function authorizedOnInactiveManager(address caller) internal view override returns (bool) {
-        return caller == governance || caller == protocol
+        return caller == governance || caller == treasury
             || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= ONE_TOKEN;
     }
 

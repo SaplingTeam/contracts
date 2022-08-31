@@ -1109,7 +1109,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     let oldProtocolBalanceBefore = await saplingPoolContext.revenueBalanceOf(protocol.address);
                     let newProtocolBalanceBefore = await saplingPoolContext.revenueBalanceOf(addresses[0].address);
 
-                    await saplingPoolContext.connect(governance).transferProtocolWallet(addresses[0].address);
+                    await saplingPoolContext.connect(governance).transferTreasury(addresses[0].address);
 
                     expect(await saplingPoolContext.revenueBalanceOf(protocol.address)).to.equal(0);
                     expect(await saplingPoolContext.revenueBalanceOf(addresses[0].address)).to.equal(
