@@ -121,9 +121,8 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
         exitFeePercent = ONE_HUNDRED_PERCENT / 200; // 0.5%
 
-        //FIXME
-        protocolEarningPercent = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
-        MAX_PROTOCOL_EARNING_PERCENT = protocolEarningPercent;
+        MAX_PROTOCOL_EARNING_PERCENT = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
+        protocolEarningPercent = MAX_PROTOCOL_EARNING_PERCENT;
 
         managerEarnFactorMax = uint16(500 * 10 ** PERCENT_DECIMALS); // 500% or 5x leverage by default
         managerEarnFactor = uint16(150 * 10 ** PERCENT_DECIMALS);
