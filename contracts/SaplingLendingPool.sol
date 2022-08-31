@@ -483,7 +483,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         uint256 principalPaid = transferAmount.sub(interestPayable);
 
         //share revenue to treasury
-        uint256 protocolEarnedInterest = Math.mulDiv(interestPayable, protocolEarningPercent, ONE_HUNDRED_PERCENT);
+        uint256 protocolEarnedInterest = Math.mulDiv(interestPayable, protocolFeePercent, ONE_HUNDRED_PERCENT);
 
         nonUserRevenues[treasury] = nonUserRevenues[treasury].add(protocolEarnedInterest);
 

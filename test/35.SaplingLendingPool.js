@@ -435,7 +435,7 @@ describe('Sapling Lending Pool)', function () {
                     await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
 
                     let loanDetail = await lendingPool.loanDetails(loanId);
-                    let protocolEarningPercent = await lendingPool.protocolEarningPercent();
+                    let protocolEarningPercent = await lendingPool.protocolFeePercent();
                     let ONE_HUNDRED_PERCENT = await lendingPool.ONE_HUNDRED_PERCENT();
 
                     let expectedProtocolFee = loanDetail.interestPaid
@@ -460,7 +460,7 @@ describe('Sapling Lending Pool)', function () {
                     await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
 
                     let loanDetail = await lendingPool.loanDetails(loanId);
-                    let protocolEarningPercent = await lendingPool.protocolEarningPercent();
+                    let protocolEarningPercent = await lendingPool.protocolFeePercent();
                     let ONE_HUNDRED_PERCENT = await lendingPool.ONE_HUNDRED_PERCENT();
 
                     let expectedProtocolFee = loanDetail.interestPaid

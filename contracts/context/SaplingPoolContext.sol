@@ -71,11 +71,11 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     /// This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
     uint256 internal managerExcessLeverageComponent;
 
-    /// Percentage of paid interest to be allocated as protocol earnings
-    uint16 public protocolEarningPercent;
+    /// Percentage of paid interest to be allocated as protocol fee
+    uint16 public protocolFeePercent;
 
-    /// An upper bound for percentage of paid interest to be allocated as protocol earnings
-    uint16 public immutable MAX_PROTOCOL_EARNING_PERCENT;
+    /// An upper bound for percentage of paid interest to be allocated as protocol fee
+    uint16 public immutable MAX_PROTOCOL_FEE_PERCENT;
 
     /// Protocol revenues of non-user addresses
     mapping(address => uint256) internal nonUserRevenues;
@@ -121,8 +121,8 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
         exitFeePercent = ONE_HUNDRED_PERCENT / 200; // 0.5%
 
-        MAX_PROTOCOL_EARNING_PERCENT = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
-        protocolEarningPercent = MAX_PROTOCOL_EARNING_PERCENT;
+        MAX_PROTOCOL_FEE_PERCENT = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
+        protocolFeePercent = MAX_PROTOCOL_FEE_PERCENT;
 
         managerEarnFactorMax = uint16(500 * 10 ** PERCENT_DECIMALS); // 500% or 5x leverage by default
         managerEarnFactor = uint16(150 * 10 ** PERCENT_DECIMALS);
@@ -166,14 +166,14 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
     /**
      * @notice Set the protocol earning percent for the pool.
-     * @dev _protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_EARNING_PERCENT.
+     * @dev _protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_FEE_PERCENT.
      *      Caller must be the governance.
      * @param _protocolEarningPercent new protocol earning percent.
      */
     function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyGovernance {
-        require(0 <= _protocolEarningPercent && _protocolEarningPercent <= MAX_PROTOCOL_EARNING_PERCENT,
+        require(0 <= _protocolEarningPercent && _protocolEarningPercent <= MAX_PROTOCOL_FEE_PERCENT,
             "SaplingPoolContext: protocol earning percent is out of bounds");
-        protocolEarningPercent = _protocolEarningPercent;
+        protocolFeePercent = _protocolEarningPercent;
     }
 
     /**
@@ -533,7 +533,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         uint256 poolAPY = Math.mulDiv(_avgStrategyAPR, _strategizedFunds, poolFunds);
 
         // protocol APY
-        uint256 protocolAPY = Math.mulDiv(poolAPY, protocolEarningPercent, ONE_HUNDRED_PERCENT);
+        uint256 protocolAPY = Math.mulDiv(poolAPY, protocolFeePercent, ONE_HUNDRED_PERCENT);
 
         uint256 remainingAPY = poolAPY.sub(protocolAPY);
 

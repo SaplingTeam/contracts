@@ -212,8 +212,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 let maxValue = 10 * 10 ** PERCENT_DECIMALS;
                 let defaultValue = 10 * 10 ** PERCENT_DECIMALS;
 
-                expect(await saplingPoolContext.MAX_PROTOCOL_EARNING_PERCENT()).to.equal(maxValue);
-                expect(await saplingPoolContext.protocolEarningPercent())
+                expect(await saplingPoolContext.MAX_PROTOCOL_FEE_PERCENT()).to.equal(maxValue);
+                expect(await saplingPoolContext.protocolFeePercent())
                     .to.equal(defaultValue)
                     .and.gte(minValue)
                     .and.lte(maxValue);
@@ -322,28 +322,28 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             describe('Protocol fee percent', function () {
                 it('Governance can set protocol fee percent', async function () {
-                    let currentValue = await saplingPoolContext.protocolEarningPercent();
-                    let maxValue = await saplingPoolContext.MAX_PROTOCOL_EARNING_PERCENT();
+                    let currentValue = await saplingPoolContext.protocolFeePercent();
+                    let maxValue = await saplingPoolContext.MAX_PROTOCOL_FEE_PERCENT();
 
                     let newValue = 2 * 10 ** PERCENT_DECIMALS;
                     assertHardhatInvariant(newValue != currentValue && newValue <= maxValue);
 
                     await saplingPoolContext.connect(governance).setProtocolEarningPercent(newValue);
-                    expect(await saplingPoolContext.protocolEarningPercent()).to.equal(newValue);
+                    expect(await saplingPoolContext.protocolFeePercent()).to.equal(newValue);
                 });
 
                 describe('Rejection scenarios', function () {
                     it('Protocol fee percent cannot be set to a value greater than the allowed maximum', async function () {
-                        let currentValue = await saplingPoolContext.protocolEarningPercent();
-                        let maxValue = await saplingPoolContext.MAX_PROTOCOL_EARNING_PERCENT();
+                        let currentValue = await saplingPoolContext.protocolFeePercent();
+                        let maxValue = await saplingPoolContext.MAX_PROTOCOL_FEE_PERCENT();
 
                         await expect(saplingPoolContext.connect(governance).setProtocolEarningPercent(maxValue + 1)).to
                             .be.reverted;
                     });
 
                     it('A non-governance cannot set protocol fee percent', async function () {
-                        let currentValue = await saplingPoolContext.protocolEarningPercent();
-                        let maxValue = await saplingPoolContext.MAX_PROTOCOL_EARNING_PERCENT();
+                        let currentValue = await saplingPoolContext.protocolFeePercent();
+                        let maxValue = await saplingPoolContext.MAX_PROTOCOL_FEE_PERCENT();
 
                         let newValue = 2 * 10 ** PERCENT_DECIMALS;
                         assertHardhatInvariant(newValue != currentValue && newValue <= maxValue);
@@ -1230,7 +1230,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             it('Can view lender APY given current pool state', async function () {
                 let apr = await loanDesk.templateLoanAPR();
-                let protocolEarningPercent = await saplingPoolContext.protocolEarningPercent();
+                let protocolEarningPercent = await saplingPoolContext.protocolFeePercent();
                 let ONE_HUNDRED_PERCENT = await saplingPoolContext.ONE_HUNDRED_PERCENT();
                 let managersEarnFactor = await saplingPoolContext.managerEarnFactor();
 
@@ -1257,7 +1257,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             it('Can view projected lender APY', async function () {
                 let apr = await loanDesk.templateLoanAPR();
-                let protocolEarningPercent = await saplingPoolContext.protocolEarningPercent();
+                let protocolEarningPercent = await saplingPoolContext.protocolFeePercent();
                 let ONE_HUNDRED_PERCENT = await saplingPoolContext.ONE_HUNDRED_PERCENT();
                 let managersEarnFactor = await saplingPoolContext.managerEarnFactor();
 
@@ -1286,7 +1286,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             it('Increase in borrow rate is linearly reflected on projected lender APY within margin of integer math accuracy', async function () {
                 let apr = await loanDesk.templateLoanAPR();
-                let protocolEarningPercent = await saplingPoolContext.protocolEarningPercent();
+                let protocolEarningPercent = await saplingPoolContext.protocolFeePercent();
                 let ONE_HUNDRED_PERCENT = await saplingPoolContext.ONE_HUNDRED_PERCENT();
                 let managersEarnFactor = await saplingPoolContext.managerEarnFactor();
 
