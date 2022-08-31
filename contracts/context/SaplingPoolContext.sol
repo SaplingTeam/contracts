@@ -229,7 +229,6 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     function withdraw(uint256 amount) external override whenNotPaused {
         require(msg.sender != manager, "SaplingPoolContext: pool manager address cannot use withdraw");
 
-        //FIXME handle differentiating unstaking from withdraw and let pool manager withdraw - DONE
         exitPool(amount);
     }
 
