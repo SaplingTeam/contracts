@@ -298,7 +298,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
                 //burn manager's shares
                 IPoolToken(poolToken).burn(address(this), stakedShareLoss);
-                totalPoolShares = totalPoolShares.sub(stakedShareLoss);
 
                 if (stakedShares == 0) {
                     emit StakedAssetsDepleted();
@@ -489,7 +488,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         protocolEarnings[protocol] = protocolEarnings[protocol].add(protocolEarnedInterest);
 
         //share profits to manager
-        uint256 currentStakePercent = Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
+        uint256 currentStakePercent = Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, IERC20(poolToken).totalSupply());
         uint256 managerEarnedInterest = Math.mulDiv(
                 interestPayable.sub(protocolEarnedInterest),
                 Math.mulDiv(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT),

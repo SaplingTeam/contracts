@@ -241,7 +241,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             it('Initial balances are correct', async function () {
                 expect(await saplingPoolContext.tokenBalance()).to.equal(0);
-                expect(await saplingPoolContext.totalPoolShares()).to.equal(0);
+                expect(await poolToken.totalSupply()).to.equal(0);
                 expect(await saplingPoolContext.stakedShares()).to.equal(0);
                 expect(await saplingPoolContext.poolFundsLimit()).to.equal(0);
                 expect(await saplingPoolContext.poolFunds()).to.equal(0);

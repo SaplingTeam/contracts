@@ -468,7 +468,7 @@ describe('Sapling Lending Pool)', function () {
                         .div(ONE_HUNDRED_PERCENT);
 
                     let stakedShares = await lendingPool.stakedShares();
-                    let totalPoolShares = await lendingPool.totalPoolShares();
+                    let totalPoolShares = await poolToken.totalSupply();
                     let managerExcessLeverageComponent = (await lendingPool.managerEarnFactor()) - ONE_HUNDRED_PERCENT;
 
                     let currentStakePercent = stakedShares.mul(ONE_HUNDRED_PERCENT).div(totalPoolShares);
