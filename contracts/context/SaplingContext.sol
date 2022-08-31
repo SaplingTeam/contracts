@@ -63,14 +63,13 @@ abstract contract SaplingContext is Pausable {
     /**
      * @notice Transfer the governance.
      * @dev Caller must be the governance.
-     *      New governance address must not be 0, and must not be the same as current governance address.
+     *      New governance address must not be 0, and must not be one of current non-user addresses.
      * @param _governance New governance address.
      */
     function transferGovernance(address _governance) external onlyGovernance {
-        //FIXME check if it's a manager or protocol
         require(
-            _governance != address(0) && _governance != governance,
-            "SaplingContext: new governance address is invalid"
+            _governance != address(0) && isNonUserAddress(_governance),
+            "SaplingContext: invalid governance address"
         );
         address prevGovernance = governance;
         governance = _governance;
@@ -80,12 +79,14 @@ abstract contract SaplingContext is Pausable {
     /**
      * @notice Transfer the protocol wallet.
      * @dev Caller must be the governance.
-     *      New governance address must not be 0, and must not be the same as current governance address.
+     *      New governance address must not be 0, and must not be one of current non-user addresses.
      * @param _protocol New protocol wallet address.
      */
     function transferProtocolWallet(address _protocol) external onlyGovernance {
-        //FIXME check if it's a manager or protocol
-        require(_protocol != address(0) && _protocol != protocol, "SaplingContext: invalid protocol wallet address");
+        require(
+            _protocol != address(0) && isNonUserAddress(_protocol),
+            "SaplingContext: invalid protocol wallet address"
+        );
         address prevProtocol = protocol;
         protocol = _protocol;
         emit ProtocolWalletTransferred(prevProtocol, protocol);
@@ -97,4 +98,13 @@ abstract contract SaplingContext is Pausable {
      * @param from Address of the previous protocol wallet.
      */
     function afterProtocolWalletTransfer(address from) internal virtual {}
+
+    /**
+     * @notice Hook that is called to verify if an address is currently in any non-user/management position.
+     * @dev When overriding, return "contract local verification result" AND super.isNonUserAddress(party).
+     * @param party Address to verify
+     */
+    function isNonUserAddress(address party) internal view virtual returns (bool) {
+        return party != governance && party != protocol;
+    }
 }

@@ -29,6 +29,9 @@ abstract contract SaplingManagerContext is SaplingContext {
     /// Event for when the contract is reopened
     event Opened(address account);
 
+    /// Event for when a new manager is set
+    event ManagerTransferred(address from, address to);
+
     /// A modifier to limit access only to the manager
     modifier onlyManager {
         require(msg.sender == manager, "SaplingManagerContext: caller is not the manager");
@@ -74,23 +77,21 @@ abstract contract SaplingManagerContext is SaplingContext {
         _closed = false;
     }
 
-    //FIXME transfer manager
-    // /**
-    //  * @notice Transfer the governance.
-    //  * @dev Caller must be the governance.
-    //  *      New governance address must not be 0, and must not be the same as current governance address.
-    //  * @param _governance New governance address.
-    //  */
-    // function transferGovernance(address _governance) external onlyGovernance {
-    //     require(
-    //         _governance != address(0) && _governance != governance,
-    //         "SaplingContext: new governance address is invalid"
-    //     );
-    //     address prevGovernance = governance;
-    //     governance = _governance;
-    //     emit GovernanceTransferred(prevGovernance, governance);
-    // }
-
+    /**
+     * @notice Transfer the manager.
+     * @dev Caller must be the governance.
+     *      New manager address must not be 0, and must not be one of current non-user addresses.
+     * @param _manager New manager address
+     */
+    function transferManager(address _manager) external onlyGovernance {
+        require(
+            _manager != address(0) && isNonUserAddress(_manager),
+            "SaplingManagerContext: invalid manager address"
+        );
+        address prevManager = manager;
+        manager = _manager;
+        emit ManagerTransferred(prevManager, manager);
+    }
 
     /**
      * @notice Close the pool and stop borrowing, lender deposits, and staking.
@@ -125,6 +126,14 @@ abstract contract SaplingManagerContext is SaplingContext {
         return _closed;
     }
 
+    /**
+     * @notice Verify if an address is currently in any non-user/management position.
+     * @dev a hook in Sampling Context
+     * @param party Address to verify
+     */
+    function isNonUserAddress(address party) internal view override returns (bool) {
+        return party != manager && super.isNonUserAddress(party);
+    }
     /**
      * @notice Indicates whether or not the contract can be closed in it's current state.
      * @dev A hook for the extending contract to implement.
