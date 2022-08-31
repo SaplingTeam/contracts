@@ -46,6 +46,14 @@ event Opened(address account)
 
 Event for when the contract is reopened
 
+### ManagerTransferred
+
+```solidity
+event ManagerTransferred(address from, address to)
+```
+
+Event for when a new manager is set
+
 ### onlyManager
 
 ```solidity
@@ -102,6 +110,21 @@ _Addresses must not be 0._
 | _protocol | address | Protocol wallet address |
 | _manager | address | Manager address |
 
+### transferManager
+
+```solidity
+function transferManager(address _manager) external
+```
+
+Transfer the manager.
+
+_Caller must be the governance.
+     New manager address must not be 0, and must not be one of current non-user addresses._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _manager | address | New manager address |
+
 ### close
 
 ```solidity
@@ -139,6 +162,20 @@ Indicates whether or not the contract is closed.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | bool | True if the contract is closed, false otherwise. |
+
+### isNonUserAddress
+
+```solidity
+function isNonUserAddress(address party) internal view returns (bool)
+```
+
+Verify if an address is currently in any non-user/management position.
+
+_a hook in Sampling Context_
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| party | address | Address to verify |
 
 ### canClose
 

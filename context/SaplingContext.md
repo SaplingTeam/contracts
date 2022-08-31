@@ -91,7 +91,7 @@ function transferGovernance(address _governance) external
 Transfer the governance.
 
 _Caller must be the governance.
-     New governance address must not be 0, and must not be the same as current governance address._
+     New governance address must not be 0, and must not be one of current non-user addresses._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -106,7 +106,7 @@ function transferProtocolWallet(address _protocol) external
 Transfer the protocol wallet.
 
 _Caller must be the governance.
-     New governance address must not be 0, and must not be the same as current governance address._
+     New governance address must not be 0, and must not be one of current non-user addresses._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -123,4 +123,18 @@ Hook that is called after a new protocol wallet address has been set.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | from | address | Address of the previous protocol wallet. |
+
+### isNonUserAddress
+
+```solidity
+function isNonUserAddress(address party) internal view virtual returns (bool)
+```
+
+Hook that is called to verify if an address is currently in any non-user/management position.
+
+_When overriding, return "contract local verification result" AND super.isNonUserAddress(party)._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| party | address | Address to verify |
 
