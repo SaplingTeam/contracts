@@ -110,6 +110,60 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
             });
         });
 
+        describe('Transfer manager', function () {
+            let manager2;
+
+            after(async function () {
+                await rollback();
+            });
+
+            before(async function () {
+                await snapshot();
+
+                manager2 = addresses[0];
+                assertHardhatInvariant(manager.address != manager2.address);
+            });
+
+            it('Can transfer', async function () {
+                await saplingManagerContext.connect(governance).transferManager(manager2.address);
+                expect(await saplingManagerContext.manager())
+                    .to.equal(manager2.address)
+                    .and.not.equal(manager);
+            });
+
+            describe('Rejection scenarios', function () {
+                it('Transferring to NULL address should fail', async function () {
+                    await expect(
+                        saplingManagerContext.connect(governance).transferManager(NULL_ADDRESS),
+                    ).to.be.revertedWith('SaplingManagerContext: invalid manager address');
+                });
+
+                it('Transferring to same address should fail', async function () {
+                    await expect(
+                        saplingManagerContext.connect(governance).transferManager(manager.address),
+                    ).to.be.revertedWith('SaplingManagerContext: invalid manager address');
+                });
+
+                it('Transferring to treasury address should fail', async function () {
+                    await expect(
+                        saplingManagerContext.connect(governance).transferManager(protocol.address),
+                    ).to.be.revertedWith('SaplingManagerContext: invalid manager address');
+                });
+
+                it('Transferring to governance address should fail', async function () {
+                    await expect(
+                        saplingManagerContext.connect(governance).transferManager(governance.address),
+                    ).to.be.revertedWith('SaplingManagerContext: invalid manager address');
+                });
+
+                it('Transfer as non governance should fail', async function () {
+                    await expect(
+                        saplingManagerContext.connect(addresses[1]).transferManager(manager2.address),
+                    ).to.be.revertedWith('SaplingContext: caller is not the governance');
+                });
+            });
+        });
+
         describe('Close', function () {
             it('Manager can close', async function () {
                 await saplingManagerContext.connect(manager).close();

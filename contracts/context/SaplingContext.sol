@@ -63,7 +63,7 @@ abstract contract SaplingContext is Pausable {
     /**
      * @notice Transfer the governance.
      * @dev Caller must be the governance.
-     *      New governance address must not be 0, and must not be the same as current governance address.
+     *      New governance address must not be 0, and must not be one of current non-user addresses.
      * @param _governance New governance address.
      */
     function transferGovernance(address _governance) external onlyGovernance {
@@ -79,7 +79,7 @@ abstract contract SaplingContext is Pausable {
     /**
      * @notice Transfer the protocol wallet.
      * @dev Caller must be the governance.
-     *      New governance address must not be 0, and must not be the same as current governance address.
+     *      New governance address must not be 0, and must not be one of current non-user addresses.
      * @param _protocol New protocol wallet address.
      */
     function transferProtocolWallet(address _protocol) external onlyGovernance {
