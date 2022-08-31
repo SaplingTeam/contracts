@@ -49,9 +49,6 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     /// Current funds committed to strategies such as borrowing or investing
     uint256 public strategizedFunds;
 
-    /// Current pool shares present, this also represents current total pool tokens in circulation
-    uint256 public totalPoolShares; //FIXME replace with poolToken.totalSupply();
-
     /// Manager's staked shares
     uint256 public stakedShares;
 
@@ -114,7 +111,6 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         poolToken = _poolToken;
         liquidityToken = _liquidityToken;
         tokenBalance = 0;
-        totalPoolShares = 0;
         stakedShares = 0;
 
         poolFundsLimit = 0;
@@ -366,6 +362,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @return Max amount of tokens unstakable by the manager.
      */
     function amountUnstakable() public view returns (uint256) {
+        uint256 totalPoolShares = IERC20(poolToken).totalSupply();
         if (paused() || targetStakePercent >= ONE_HUNDRED_PERCENT && totalPoolShares > stakedShares) {
             return 0;
         } else if (closed() || totalPoolShares == stakedShares) {
@@ -435,8 +432,6 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         // mint shares
         IPoolToken(poolToken).mint(msg.sender != manager ? msg.sender : address(this), shares);
 
-        totalPoolShares = totalPoolShares.add(shares);
-
         return shares;
     }
 
@@ -460,8 +455,6 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
         // burn shares
         IPoolToken(poolToken).burn(msg.sender != manager ? msg.sender : address(this), shares);
-
-        totalPoolShares = totalPoolShares.sub(shares);
 
         uint256 transferAmount = amount.sub(Math.mulDiv(amount, exitFeePercent, ONE_HUNDRED_PERCENT));
 
@@ -492,7 +485,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
              return 0;
         }
 
-        return Math.mulDiv(shares, poolFunds, totalPoolShares);
+        return Math.mulDiv(shares, poolFunds, IERC20(poolToken).totalSupply());
     }
 
     /**
@@ -501,6 +494,8 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @param tokens Amount of liquidity tokens.
      */
     function tokensToShares(uint256 tokens) internal view returns (uint256) {
+        uint256 totalPoolShares = IERC20(poolToken).totalSupply();
+
         if (totalPoolShares == 0) {
             // a pool with no positions
             return tokens;
@@ -545,7 +540,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         uint256 remainingAPY = poolAPY.sub(protocolAPY);
 
         // manager withdrawableAPY
-        uint256 currentStakePercent = Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, totalPoolShares);
+        uint256 currentStakePercent = Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, IERC20(poolToken).totalSupply());
         uint256 managerEarningsPercent = Math.mulDiv(
             currentStakePercent,
             managerExcessLeverageComponent,
@@ -566,7 +561,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      */
     function isPoolFunctional() internal view returns (bool) {
         return !(paused() || closed())
-            && stakedShares >= Math.mulDiv(totalPoolShares, targetStakePercent, ONE_HUNDRED_PERCENT);
+            && stakedShares >= Math.mulDiv(IERC20(poolToken).totalSupply(), targetStakePercent, ONE_HUNDRED_PERCENT);
     }
 
 
