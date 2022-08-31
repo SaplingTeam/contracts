@@ -153,6 +153,18 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                         .reverted;
                 });
 
+                it('Transferring governance to treasury address should fail', async function () {
+                    await expect(
+                        saplingContext.connect(governance).transferGovernance(protocol.address),
+                    ).to.be.revertedWith('SaplingContext: invalid governance address');
+                });
+
+                it('Transferring governance to pool manager address should fail', async function () {
+                    await expect(
+                        saplingContext.connect(governance).transferGovernance(manager.address),
+                    ).to.be.revertedWith('SaplingContext: invalid governance address');
+                });
+
                 it('Transfer as non governance should fail', async function () {
                     await expect(saplingContext.connect(addresses[1]).transferGovernance(governance2.address)).to.be
                         .reverted;
@@ -185,6 +197,18 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                 it('Transfer as non governance should fail', async function () {
                     await expect(saplingContext.connect(addresses[1]).transferProtocolWallet(protocol2.address)).to.be
                         .reverted;
+                });
+
+                it('Transferring to governance address should fail', async function () {
+                    await expect(
+                        saplingContext.connect(governance).transferProtocolWallet(governance.address),
+                    ).to.be.revertedWith('SaplingContext: invalid protocol wallet address');
+                });
+
+                it('Transferring to pool manager address should fail', async function () {
+                    await expect(
+                        saplingContext.connect(governance).transferProtocolWallet(manager.address),
+                    ).to.be.revertedWith('SaplingContext: invalid protocol wallet address');
                 });
 
                 it('Transferring to a NULL address should fail', async function () {

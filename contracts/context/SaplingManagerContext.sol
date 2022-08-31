@@ -126,6 +126,14 @@ abstract contract SaplingManagerContext is SaplingContext {
     }
 
     /**
+     * @notice Verify if an address is currently in any non-user/management position.
+     * @dev a hook in Sampling Context
+     * @param party Address to verify
+     */
+    function isNonUserAddress(address party) internal view override returns (bool) {
+        return party != manager && super.isNonUserAddress(party);
+    }
+    /**
      * @notice Indicates whether or not the contract can be closed in it's current state.
      * @dev A hook for the extending contract to implement.
      * @return True if the contract is closed, false otherwise.
