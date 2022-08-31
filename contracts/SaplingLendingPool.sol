@@ -596,6 +596,16 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
              */
             payableInterestDays = Math.mulDiv(transferAmount, interestDays, interestOutstanding);
             interestPayable = Math.mulDiv(interestOutstanding, payableInterestDays, interestDays);
+
+            /*
+             Handle "small payment exploit" which unfairly reduces the principal amount by making payments smaller than
+             1 day interest, while the interest on the remaining principal is outstanding.
+
+             Do not accept leftover payments towards the principal while any daily interest is outstandig.
+             */
+            if (payableInterestDays < interestDays) {
+                transferAmount = interestPayable;
+            }
         }
 
         return (transferAmount, interestPayable, payableInterestDays);
