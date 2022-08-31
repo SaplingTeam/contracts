@@ -551,7 +551,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
             _installmentAmount == 0 || _installmentAmount >= SAFE_MIN_AMOUNT,
             "LoanDesk: invalid installment amount"
         );
-        require(1 <= _installments && _installments <= _duration / (1 days), "LoanDesk: invalid number of installments");
+        require(
+            1 <= _installments && _installments <= _duration / (1 days),
+            "LoanDesk: invalid number of installments"
+        );
         require(SAFE_MIN_APR <= _apr && _apr <= SAFE_MAX_APR, "LoanDesk: invalid APR");
     }
 }

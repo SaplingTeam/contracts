@@ -81,7 +81,7 @@ abstract contract SaplingManagerContext is SaplingContext {
     //  *      New governance address must not be 0, and must not be the same as current governance address.
     //  * @param _governance New governance address.
     //  */
-    // function transferGovernance(address _governance) external onlyGovernance { //FIXME check if it's a governance or protocol
+    // function transferGovernance(address _governance) external onlyGovernance {
     //     require(
     //         _governance != address(0) && _governance != governance,
     //         "SaplingContext: new governance address is invalid"
