@@ -56,7 +56,7 @@ A modifier to limit access to the SaplingFactory
 ### constructor
 
 ```solidity
-constructor(address _governance, address _protocol) public
+constructor(address _governance, address _treasury) public
 ```
 
 Creates a new VerificationHub.
@@ -66,7 +66,7 @@ _Addresses must not be 0._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _governance | address | Governance address |
-| _protocol | address | Protocol wallet address |
+| _treasury | address | Treasury wallet address |
 
 ### setSaplingFactory
 

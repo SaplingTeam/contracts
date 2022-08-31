@@ -2,7 +2,7 @@
 
 ## SaplingContext
 
-Provides governance access control, a common reverence to the protocol wallet address, and basic pause
+Provides governance access control, a common reverence to the treasury wallet address, and basic pause
         functionality by extending OpenZeppelin's Pausable contract.
 
 ### governance
@@ -13,13 +13,13 @@ address governance
 
 Protocol governance
 
-### protocol
+### treasury
 
 ```solidity
-address protocol
+address treasury
 ```
 
-Protocol wallet address
+Protocol treasury wallet address
 
 ### GovernanceTransferred
 
@@ -29,13 +29,13 @@ event GovernanceTransferred(address from, address to)
 
 Event for when a new governance is set
 
-### ProtocolWalletTransferred
+### TreasuryWalletTransferred
 
 ```solidity
-event ProtocolWalletTransferred(address from, address to)
+event TreasuryWalletTransferred(address from, address to)
 ```
 
-Event for when a new protocol wallet is set
+Event for when a new treasury wallet is set
 
 ### onlyGovernance
 
@@ -48,7 +48,7 @@ A modifier to limit access only to the governance
 ### constructor
 
 ```solidity
-constructor(address _governance, address _protocol) internal
+constructor(address _governance, address _treasury) internal
 ```
 
 Creates a new SaplingContext.
@@ -58,7 +58,7 @@ _Addresses must not be 0._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _governance | address | Governance address |
-| _protocol | address | Protocol wallet address |
+| _treasury | address | Treasury wallet address |
 
 ### pause
 
@@ -97,32 +97,32 @@ _Caller must be the governance.
 | ---- | ---- | ----------- |
 | _governance | address | New governance address. |
 
-### transferProtocolWallet
+### transferTreasury
 
 ```solidity
-function transferProtocolWallet(address _protocol) external
+function transferTreasury(address _treasury) external
 ```
 
-Transfer the protocol wallet.
+Transfer the treasury role.
 
 _Caller must be the governance.
-     New governance address must not be 0, and must not be one of current non-user addresses._
+     New treasury address must not be 0, and must not be one of current non-user addresses._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _protocol | address | New protocol wallet address. |
+| _treasury | address | New treasury wallet address |
 
-### afterProtocolWalletTransfer
+### afterTreasuryWalletTransfer
 
 ```solidity
-function afterProtocolWalletTransfer(address from) internal virtual
+function afterTreasuryWalletTransfer(address from) internal virtual
 ```
 
-Hook that is called after a new protocol wallet address has been set.
+Hook that is called after a new treasury wallet address has been set.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| from | address | Address of the previous protocol wallet. |
+| from | address | Address of the previous treasury wallet. |
 
 ### isNonUserAddress
 

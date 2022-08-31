@@ -146,7 +146,7 @@ A modifier to limit access only to the loan desk contract
 ### constructor
 
 ```solidity
-constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) public
+constructor(address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager) public
 ```
 
 Creates a Sapling pool.
@@ -158,7 +158,7 @@ _Addresses must not be 0._
 | _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
 | _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
 | _governance | address | Governance address |
-| _protocol | address | Protocol wallet address |
+| _treasury | address | Treasury wallet address |
 | _manager | address | Manager address |
 
 ### setLoanDesk
@@ -372,19 +372,19 @@ _Loan must be in OUTSTANDING status._
 | ---- | ---- | ----------- |
 | [0] | uint256 | Total amount due with interest on this loan |
 
-### afterProtocolWalletTransfer
+### afterTreasuryWalletTransfer
 
 ```solidity
-function afterProtocolWalletTransfer(address from) internal
+function afterTreasuryWalletTransfer(address from) internal
 ```
 
-Transfer the previous protocol wallet's accumulated fees to current protocol wallet.
+Transfer the previous treasury wallet's accumulated fees to current treasury wallet.
 
 _Overrides a hook in SaplingContext._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| from | address | Address of the previous protocol wallet. |
+| from | address | Address of the previous treasury wallet. |
 
 ### repayBase
 

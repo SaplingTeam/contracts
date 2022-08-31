@@ -52,7 +52,7 @@ Event for when an investment yield is collected from a lending pool
 ### constructor
 
 ```solidity
-constructor(address _verificationHub, address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) public
+constructor(address _verificationHub, address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager) public
 ```
 
 Creates a Sapling pool.
@@ -63,7 +63,7 @@ Creates a Sapling pool.
 | _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
 | _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
 | _governance | address | Governance address |
-| _protocol | address | Protocol wallet address |
+| _treasury | address | Treasury wallet address |
 | _manager | address | Manager address |
 
 ### invest

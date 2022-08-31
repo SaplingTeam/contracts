@@ -237,7 +237,7 @@ A modifier to limit access only to when the application exists and has the speci
 ### constructor
 
 ```solidity
-constructor(address _pool, address _governance, address _protocol, address _manager, uint8 _decimals) public
+constructor(address _pool, address _governance, address _treasury, address _manager, uint8 _decimals) public
 ```
 
 Create a new LoanDesk.
@@ -248,7 +248,7 @@ _Addresses must not be 0._
 | ---- | ---- | ----------- |
 | _pool | address | Lending pool address |
 | _governance | address | Governance address |
-| _protocol | address | Protocol wallet address |
+| _treasury | address | Treasury wallet address |
 | _manager | address | Manager address |
 | _decimals | uint8 | Lending pool liquidity token decimals |
 
@@ -337,7 +337,6 @@ Request a new loan.
 
 _Requested amount must be greater or equal to minLoanAmount().
      Loan duration must be between minLoanDuration() and maxLoanDuration().
-     Caller must not be a lender, protocol, or the manager.
      Multiple pending applications from the same address are not allowed -
      most recent loan/application of the caller must not have APPLIED status._
 

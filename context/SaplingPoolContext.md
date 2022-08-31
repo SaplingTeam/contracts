@@ -142,29 +142,29 @@ uint256 managerExcessLeverageComponent
 Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
 This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
 
-### protocolEarningPercent
+### protocolFeePercent
 
 ```solidity
-uint16 protocolEarningPercent
+uint16 protocolFeePercent
 ```
 
-Percentage of paid interest to be allocated as protocol earnings
+Percentage of paid interest to be allocated as protocol fee
 
-### MAX_PROTOCOL_EARNING_PERCENT
+### MAX_PROTOCOL_FEE_PERCENT
 
 ```solidity
-uint16 MAX_PROTOCOL_EARNING_PERCENT
+uint16 MAX_PROTOCOL_FEE_PERCENT
 ```
 
-An upper bound for percentage of paid interest to be allocated as protocol earnings
+An upper bound for percentage of paid interest to be allocated as protocol fee
 
-### protocolEarnings
+### nonUserRevenues
 
 ```solidity
-mapping(address => uint256) protocolEarnings
+mapping(address => uint256) nonUserRevenues
 ```
 
-Protocol earnings of wallets
+Protocol revenues of non-user addresses
 
 ### weightedAvgStrategyAPR
 
@@ -201,7 +201,7 @@ Event for when the Manager's staked assets are depleted due to defaults
 ### constructor
 
 ```solidity
-constructor(address _poolToken, address _liquidityToken, address _governance, address _protocol, address _manager) internal
+constructor(address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager) internal
 ```
 
 Creates a SaplingPoolContext.
@@ -213,7 +213,7 @@ _Addresses must not be 0._
 | _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
 | _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
 | _governance | address | Governance address |
-| _protocol | address | Protocol wallet address |
+| _treasury | address | Treasury wallet address |
 | _manager | address | Manager address |
 
 ### setTargetStakePercent
@@ -254,7 +254,7 @@ function setProtocolEarningPercent(uint16 _protocolEarningPercent) external
 
 Set the protocol earning percent for the pool.
 
-__protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_EARNING_PERCENT.
+__protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_FEE_PERCENT.
      Caller must be the governance._
 
 | Name | Type | Description |
@@ -358,15 +358,15 @@ _Caller must be the manager.
 | ---- | ---- | ----------- |
 | amount | uint256 | Liquidity token amount to unstake. |
 
-### withdrawProtocolEarnings
+### withdrawRevenue
 
 ```solidity
-function withdrawProtocolEarnings() external
+function withdrawRevenue() external
 ```
 
-Withdraws protocol earnings belonging to the caller.
+Withdraws protocol revenue belonging to the caller.
 
-_protocolEarningsOf(msg.sender) must be greater than 0.
+_revenueBalanceOf(msg.sender) must be greater than 0.
      Caller's all accumulated earnings will be withdrawn.
      Protocol earnings are represented in liquidity tokens._
 
@@ -414,13 +414,13 @@ Check the manager's staked liquidity token balance in the pool.
 | ---- | ---- | ----------- |
 | [0] | uint256 | Liquidity token balance of the manager's stake. |
 
-### protocolEarningsOf
+### revenueBalanceOf
 
 ```solidity
-function protocolEarningsOf(address wallet) external view returns (uint256)
+function revenueBalanceOf(address wallet) external view returns (uint256)
 ```
 
-Check the special addresses' earnings from the protocol.
+Check the special addresses' revenue from the protocol.
 
 _This method is useful for manager and protocol addresses.
      Calling this method for a non-protocol associated addresses will return 0._
@@ -431,7 +431,7 @@ _This method is useful for manager and protocol addresses.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Accumulated liquidity token earnings of the wallet from the protocol. |
+| [0] | uint256 | Accumulated liquidity token revenue of the wallet from the protocol. |
 
 ### currentLenderAPY
 
@@ -471,7 +471,7 @@ function balanceOf(address wallet) public view returns (uint256)
 ```
 
 Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired
-        yield. This balance does not included staked balance, leveraged earnings or protocol earnings.
+        yield. This balance does not included staked balance, leveraged revenue or protocol revenue.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |

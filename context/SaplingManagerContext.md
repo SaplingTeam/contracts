@@ -97,7 +97,7 @@ Modifier to limit function access to when the contract is closed
 ### constructor
 
 ```solidity
-constructor(address _governance, address _protocol, address _manager) internal
+constructor(address _governance, address _treasury, address _manager) internal
 ```
 
 Create a new SaplingManagedContext.
@@ -107,7 +107,7 @@ _Addresses must not be 0._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _governance | address | Governance address |
-| _protocol | address | Protocol wallet address |
+| _treasury | address | Treasury wallet address |
 | _manager | address | Manager address |
 
 ### transferManager

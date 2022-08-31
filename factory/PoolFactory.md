@@ -15,7 +15,7 @@ Event for when a new LoanDesk is deployed
 ### create
 
 ```solidity
-function create(address poolToken, address liquidityToken, address governance, address protocol, address manager) external returns (address)
+function create(address poolToken, address liquidityToken, address governance, address treasury, address manager) external returns (address)
 ```
 
 Deploys a new instance of SaplingLendingPool.
@@ -28,7 +28,7 @@ _Pool token must implement IPoolToken.
 | poolToken | address | LendingPool address |
 | liquidityToken | address | Liquidity token address |
 | governance | address | Governance address |
-| protocol | address | Protocol wallet address |
+| treasury | address | Treasury wallet address |
 | manager | address | Manager address |
 
 | Name | Type | Description |

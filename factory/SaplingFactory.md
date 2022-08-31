@@ -47,7 +47,7 @@ Event for when a Lending pool and it's components are deployed, linked and ready
 ### constructor
 
 ```solidity
-constructor(address _tokenFactory, address _loanDeskFactory, address _poolFactory, address _verificationHub, address _governance, address _protocol) public
+constructor(address _tokenFactory, address _loanDeskFactory, address _poolFactory, address _verificationHub, address _governance, address _treasury) public
 ```
 
 Create a new SaplingFactory.
@@ -61,7 +61,7 @@ _Addresses must not be 0._
 | _poolFactory | address | Lending Pool factory address address |
 | _verificationHub | address | Verification hub address |
 | _governance | address | Governance address |
-| _protocol | address | Protocol wallet address |
+| _treasury | address | Treasury wallet address |
 
 ### createLendingPool
 
