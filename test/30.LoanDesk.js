@@ -643,6 +643,34 @@ describe('Loan Desk', function () {
                 });
 
                 describe('Rejection scenarios', function () {
+                    it('Offering a loan with installment number less than 1 should fail', async function () {
+                        await expect(loanDesk
+                        .connect(manager)
+                        .offerLoan(
+                            applicationId,
+                            application.amount,
+                            application.duration,
+                            gracePeriod,
+                            0,
+                            0,
+                            apr,
+                        )).to.be.revertedWith('LoanDesk: invalid number of installments');
+                    });
+
+                    it('Offering a loan with installment number greater than the number of days in the duration should fail', async function () {
+                        await expect(loanDesk
+                        .connect(manager)
+                        .offerLoan(
+                            applicationId,
+                            application.amount,
+                            application.duration,
+                            gracePeriod,
+                            0,
+                            application.duration.div(86400).add(1),
+                            apr,
+                        )).to.be.revertedWith('LoanDesk: invalid number of installments');
+                    });
+
                     it('Offering a loan that is not in APPLIED status should fail', async function () {
                         await loanDesk
                             .connect(manager)
