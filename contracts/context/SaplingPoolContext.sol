@@ -68,7 +68,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     uint16 public managerEarnFactorMax;
 
     /// Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
-    /// This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
+    /// This value is always equal to (managerEarnFactor - oneHundredPercent)
     uint256 internal managerExcessLeverageComponent;
 
     /// Percentage of paid interest to be allocated as protocol fee
@@ -116,17 +116,17 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         poolFundsLimit = 0;
         poolFunds = 0;
 
-        targetStakePercent = uint16(10 * 10 ** PERCENT_DECIMALS); //10%
+        targetStakePercent = uint16(10 * 10 ** percentDecimals); //10%
         targetLiquidityPercent = 0; //0%
 
-        exitFeePercent = ONE_HUNDRED_PERCENT / 200; // 0.5%
+        exitFeePercent = oneHundredPercent / 200; // 0.5%
 
-        MAX_PROTOCOL_FEE_PERCENT = uint16(10 * 10 ** PERCENT_DECIMALS); // 10% by default; safe min 0%, max 10%
+        MAX_PROTOCOL_FEE_PERCENT = uint16(10 * 10 ** percentDecimals); // 10% by default; safe min 0%, max 10%
         protocolFeePercent = MAX_PROTOCOL_FEE_PERCENT;
 
-        managerEarnFactorMax = uint16(500 * 10 ** PERCENT_DECIMALS); // 500% or 5x leverage by default
-        managerEarnFactor = uint16(150 * 10 ** PERCENT_DECIMALS);
-        managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
+        managerEarnFactorMax = uint16(500 * 10 ** percentDecimals); // 500% or 5x leverage by default
+        managerEarnFactor = uint16(150 * 10 ** percentDecimals);
+        managerExcessLeverageComponent = uint256(managerEarnFactor).sub(oneHundredPercent);
 
         uint8 decimals = IERC20Metadata(liquidityToken).decimals();
         tokenDecimals = decimals;
@@ -142,24 +142,24 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
     /**
      * @notice Set the target stake percent for the pool.
-     * @dev _targetStakePercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+     * @dev _targetStakePercent must be inclusively between 0 and oneHundredPercent.
      *      Caller must be the governance.
      * @param _targetStakePercent New target stake percent.
      */
     function setTargetStakePercent(uint16 _targetStakePercent) external onlyGovernance {
-        require(0 <= _targetStakePercent && _targetStakePercent <= ONE_HUNDRED_PERCENT,
+        require(0 <= _targetStakePercent && _targetStakePercent <= oneHundredPercent,
             "SaplingPoolContext: target stake percent is out of bounds");
         targetStakePercent = _targetStakePercent;
     }
 
     /**
      * @notice Set the target liquidity percent for the pool.
-     * @dev _targetLiquidityPercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+     * @dev _targetLiquidityPercent must be inclusively between 0 and oneHundredPercent.
      *      Caller must be the manager.
      * @param _targetLiquidityPercent new target liquidity percent.
      */
     function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external onlyManager {
-        require(0 <= _targetLiquidityPercent && _targetLiquidityPercent <= ONE_HUNDRED_PERCENT,
+        require(0 <= _targetLiquidityPercent && _targetLiquidityPercent <= oneHundredPercent,
             "SaplingPoolContext: target liquidity percent is out of bounds");
         targetLiquidityPercent = _targetLiquidityPercent;
     }
@@ -178,33 +178,33 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
     /**
      * @notice Set an upper bound for the manager's earn factor percent.
-     * @dev _managerEarnFactorMax must be greater than or equal to ONE_HUNDRED_PERCENT. If the current earn factor is
+     * @dev _managerEarnFactorMax must be greater than or equal to oneHundredPercent. If the current earn factor is
      *      greater than the new maximum, then the current earn factor is set to the new maximum.
      *      Caller must be the governance.
      * @param _managerEarnFactorMax new maximum for manager's earn factor.
      */
     function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external onlyGovernance {
-        require(ONE_HUNDRED_PERCENT <= _managerEarnFactorMax ,
+        require(oneHundredPercent <= _managerEarnFactorMax ,
             "SaplingPoolContext: _managerEarnFactorMax is out of bounds");
         managerEarnFactorMax = _managerEarnFactorMax;
 
         if (managerEarnFactor > managerEarnFactorMax) {
             managerEarnFactor = managerEarnFactorMax;
-            managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
+            managerExcessLeverageComponent = uint256(managerEarnFactor).sub(oneHundredPercent);
         }
     }
 
     /**
      * @notice Set the manager's earn factor percent.
-     * @dev _managerEarnFactorMax must be inclusively between ONE_HUNDRED_PERCENT and managerEarnFactorMax.
+     * @dev _managerEarnFactorMax must be inclusively between oneHundredPercent and managerEarnFactorMax.
      *      Caller must be the manager.
      * @param _managerEarnFactor new manager's earn factor.
      */
     function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager whenNotPaused {
-        require(ONE_HUNDRED_PERCENT <= _managerEarnFactor && _managerEarnFactor <= managerEarnFactorMax,
+        require(oneHundredPercent <= _managerEarnFactor && _managerEarnFactor <= managerEarnFactorMax,
             "SaplingPoolContext: _managerEarnFactor is out of bounds");
         managerEarnFactor = _managerEarnFactor;
-        managerExcessLeverageComponent = uint256(managerEarnFactor).sub(ONE_HUNDRED_PERCENT);
+        managerExcessLeverageComponent = uint256(managerEarnFactor).sub(oneHundredPercent);
     }
 
     /**
@@ -339,8 +339,8 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @return Projected lender APY
      */
     function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view override returns (uint16) {
-        require(strategyRate <= ONE_HUNDRED_PERCENT, "SaplingPoolContext: invalid borrow rate");
-        return lenderAPY(Math.mulDiv(poolFunds, strategyRate, ONE_HUNDRED_PERCENT), _avgStrategyAPR);
+        require(strategyRate <= oneHundredPercent, "SaplingPoolContext: invalid borrow rate");
+        return lenderAPY(Math.mulDiv(poolFunds, strategyRate, oneHundredPercent), _avgStrategyAPR);
     }
 
     /**
@@ -361,7 +361,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      */
     function amountUnstakable() public view returns (uint256) {
         uint256 totalPoolShares = IERC20(poolToken).totalSupply();
-        if (paused() || targetStakePercent >= ONE_HUNDRED_PERCENT && totalPoolShares > stakedShares) {
+        if (paused() || targetStakePercent >= oneHundredPercent && totalPoolShares > stakedShares) {
             return 0;
         } else if (closed() || totalPoolShares == stakedShares) {
             return Math.min(poolLiquidity, sharesToTokens(stakedShares));
@@ -371,7 +371,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         uint256 lockedStakeShares = Math.mulDiv(
             lenderShares,
             targetStakePercent,
-            ONE_HUNDRED_PERCENT - targetStakePercent
+            oneHundredPercent - targetStakePercent
         );
 
         return Math.min(poolLiquidity, sharesToTokens(stakedShares.sub(lockedStakeShares)));
@@ -382,7 +382,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @return Strategy liquidity amount.
      */
     function strategyLiquidity() public view returns (uint256) {
-        uint256 lenderAllocatedLiquidity = Math.mulDiv(poolFunds, targetLiquidityPercent, ONE_HUNDRED_PERCENT);
+        uint256 lenderAllocatedLiquidity = Math.mulDiv(poolFunds, targetLiquidityPercent, oneHundredPercent);
 
         if (poolLiquidity <= lenderAllocatedLiquidity) {
             return 0;
@@ -454,7 +454,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         // burn shares
         IPoolToken(poolToken).burn(msg.sender != manager ? msg.sender : address(this), shares);
 
-        uint256 transferAmount = amount.sub(Math.mulDiv(amount, exitFeePercent, ONE_HUNDRED_PERCENT));
+        uint256 transferAmount = amount.sub(Math.mulDiv(amount, exitFeePercent, oneHundredPercent));
 
         poolFunds = poolFunds.sub(transferAmount);
         poolLiquidity = poolLiquidity.sub(transferAmount);
@@ -470,7 +470,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      * @dev Internal method to update the pool funds limit based on the staked funds.
      */
     function updatePoolLimit() internal nonReentrant {
-        poolFundsLimit = sharesToTokens(Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, targetStakePercent));
+        poolFundsLimit = sharesToTokens(Math.mulDiv(stakedShares, oneHundredPercent, targetStakePercent));
     }
 
     /**
@@ -533,21 +533,21 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         uint256 poolAPY = Math.mulDiv(_avgStrategyAPR, _strategizedFunds, poolFunds);
 
         // protocol APY
-        uint256 protocolAPY = Math.mulDiv(poolAPY, protocolFeePercent, ONE_HUNDRED_PERCENT);
+        uint256 protocolAPY = Math.mulDiv(poolAPY, protocolFeePercent, oneHundredPercent);
 
         uint256 remainingAPY = poolAPY.sub(protocolAPY);
 
         // manager withdrawableAPY
-        uint256 currentStakePercent = Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, IERC20(poolToken).totalSupply());
+        uint256 currentStakePercent = Math.mulDiv(stakedShares, oneHundredPercent, IERC20(poolToken).totalSupply());
         uint256 managerEarningsPercent = Math.mulDiv(
             currentStakePercent,
             managerExcessLeverageComponent,
-            ONE_HUNDRED_PERCENT);
+            oneHundredPercent);
 
         uint256 managerWithdrawableAPY = Math.mulDiv(
             remainingAPY,
             managerEarningsPercent,
-            managerEarningsPercent + ONE_HUNDRED_PERCENT
+            managerEarningsPercent + oneHundredPercent
         );
 
         return uint16(remainingAPY.sub(managerWithdrawableAPY));
@@ -559,7 +559,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      */
     function isPoolFunctional() internal view returns (bool) {
         return !(paused() || closed())
-            && stakedShares >= Math.mulDiv(IERC20(poolToken).totalSupply(), targetStakePercent, ONE_HUNDRED_PERCENT);
+            && stakedShares >= Math.mulDiv(IERC20(poolToken).totalSupply(), targetStakePercent, oneHundredPercent);
     }
 
 

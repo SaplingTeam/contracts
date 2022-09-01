@@ -117,9 +117,9 @@ describe('Sapling Lending Pool)', function () {
         let loanDuration;
 
         before(async function () {
-            PERCENT_DECIMALS = await lendingPool.PERCENT_DECIMALS();
+            PERCENT_DECIMALS = await lendingPool.percentDecimals();
             TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
-            ONE_HUNDRED_PERCENT = await lendingPool.ONE_HUNDRED_PERCENT();
+            ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
             exitFeePercent = await lendingPool.exitFeePercent();
 
             lender1 = addresses[1];
@@ -436,7 +436,7 @@ describe('Sapling Lending Pool)', function () {
 
                     let loanDetail = await lendingPool.loanDetails(loanId);
                     let protocolEarningPercent = await lendingPool.protocolFeePercent();
-                    let ONE_HUNDRED_PERCENT = await lendingPool.ONE_HUNDRED_PERCENT();
+                    let ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
 
                     let expectedProtocolFee = loanDetail.interestPaid
                         .mul(protocolEarningPercent)
@@ -461,7 +461,7 @@ describe('Sapling Lending Pool)', function () {
 
                     let loanDetail = await lendingPool.loanDetails(loanId);
                     let protocolEarningPercent = await lendingPool.protocolFeePercent();
-                    let ONE_HUNDRED_PERCENT = await lendingPool.ONE_HUNDRED_PERCENT();
+                    let ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
 
                     let expectedProtocolFee = loanDetail.interestPaid
                         .mul(protocolEarningPercent)

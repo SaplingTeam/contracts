@@ -10,5 +10,5 @@ interface IMath {
      * @notice Accessor for percentage value decimals used in the current context.
      * @return Number of decimal digits in integer percent values used across the contract.
      */
-    function PERCENT_DECIMALS() external view returns (uint16);
+    function percentDecimals() external view returns (uint16);
 }

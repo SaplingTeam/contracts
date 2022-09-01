@@ -164,8 +164,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         minLoanDuration = SAFE_MIN_DURATION;
         maxLoanDuration = SAFE_MAX_DURATION;
 
-        SAFE_MAX_APR = ONE_HUNDRED_PERCENT;
-        templateLoanAPR = uint16(30 * 10 ** PERCENT_DECIMALS); // 30%
+        SAFE_MAX_APR = oneHundredPercent;
+        templateLoanAPR = uint16(30 * 10 ** percentDecimals); // 30%
 
         offeredFunds = 0;
         nextApplicationId = 1;
