@@ -88,6 +88,14 @@ describe('Sapling Lending Pool)', function () {
         it('Loan count is correct', async function () {
             expect(await lendingPool.loansCount()).to.equal(0);
         });
+
+        it('Empty pool to stake ratio is good', async function () {
+            expect(await lendingPool.poolCanLend()).to.equal(true);
+        });
+
+        it('Empty pool cannot offer any nonzero loan amount', async function () {
+            expect(await lendingPool.canOffer(1)).to.equal(false);
+        });
     });
 
     describe('Use Cases', function () {
@@ -848,6 +856,43 @@ describe('Sapling Lending Pool)', function () {
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
                         expect(await lendingPool.poolFunds()).to.equal(poolFundsBefore.sub(lossAmount));
                         expect(await lendingPool.balanceStaked()).to.equal(0);
+                    });
+
+                    it('Manager can default a loan with a missed installment', async function () {
+                        await loanDesk
+                            .connect(borrower2)
+                            .requestLoan(
+                                loanAmount,
+                                loanDuration,
+                                'a937074e-85a7-42a9-b858-9795d9471759',
+                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                            );
+
+                        let applicationId2 = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                        let gracePeriod = await loanDesk.templateLoanGracePeriod();
+                        let installments = 4;
+                        let installmentAmount = BigNumber.from(250).mul(TOKEN_MULTIPLIER);
+                        let apr = await loanDesk.templateLoanAPR();
+                        await loanDesk
+                            .connect(manager)
+                            .offerLoan(
+                                applicationId2,
+                                loanAmount,
+                                loanDuration,
+                                gracePeriod,
+                                installmentAmount,
+                                installments,
+                                apr,
+                            );
+
+                        await lendingPool.connect(borrower2).borrow(applicationId2);
+                        let loanId2 = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+
+                        await ethers.provider.send('evm_increaseTime', [loanDuration.div(installments).add(gracePeriod).add(1).toNumber()]);
+                        await ethers.provider.send('evm_mine');
+
+                        expect(await lendingPool.canDefault(loanId2, manager.address)).to.equal(true);
+                        await expect(lendingPool.connect(manager).defaultLoan(loanId2)).to.be.not.reverted;
                     });
 
                     describe('Rejection scenarios', function () {

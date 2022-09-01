@@ -410,11 +410,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             uint256 minTotalPayment = loan.installmentAmount.mul(pastInstallments);
 
             LoanDetail storage detail = loanDetails[loanId];
-            if (detail.principalAmountRepaid + detail.interestPaid >= minTotalPayment) {
+            uint256 totalRepaid = detail.principalAmountRepaid + detail.interestPaid;
+            if (totalRepaid >= minTotalPayment) {
                 return false;
             }
 
-            paymentDueTime = loan.borrowedTime + pastInstallments * installmentPeriod;
+            paymentDueTime = loan.borrowedTime + (totalRepaid.div(loan.installmentAmount) + 1) * installmentPeriod;
         } else {
             paymentDueTime = loan.borrowedTime + loan.duration;
         }
