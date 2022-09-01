@@ -501,41 +501,58 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         require(success, "SaplingLendingPool: ERC20 transfer has failed");
         tokenBalance = tokenBalance.add(transferAmount);
 
-        uint256 principalPaid = transferAmount.sub(interestPayable);
+        uint256 principalPaid;
+        if (interestPayable == 0) {
+            principalPaid = transferAmount;
+            poolLiquidity = poolLiquidity.add(transferAmount);
+        } else {
+            principalPaid = transferAmount.sub(interestPayable);
 
-        //share revenue to treasury
-        uint256 protocolEarnedInterest = MathUpgradeable.mulDiv(interestPayable, protocolFeePercent, oneHundredPercent);
+            //share revenue to treasury
+            uint256 protocolEarnedInterest = MathUpgradeable.mulDiv(
+                interestPayable,
+                protocolFeePercent,
+                oneHundredPercent
+            );
 
-        nonUserRevenues[treasury] = nonUserRevenues[treasury].add(protocolEarnedInterest);
+            nonUserRevenues[treasury] = nonUserRevenues[treasury].add(protocolEarnedInterest);
 
-        //share revenue to manager
-        uint256 currentStakePercent = MathUpgradeable.mulDiv(
-            stakedShares,
-            oneHundredPercent,
-            IERC20(poolToken).totalSupply()
-        );
-        uint256 managerEarnedInterest = MathUpgradeable.mulDiv(
+            //share revenue to manager
+            uint256 currentStakePercent = MathUpgradeable.mulDiv(
+                stakedShares,
+                oneHundredPercent,
+                IERC20(poolToken).totalSupply()
+            );
+            uint256 managerEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable.sub(protocolEarnedInterest),
                 MathUpgradeable.mulDiv(currentStakePercent, managerExcessLeverageComponent, oneHundredPercent),
                 oneHundredPercent
             );
 
-        nonUserRevenues[manager] = nonUserRevenues[manager].add(managerEarnedInterest);
+            nonUserRevenues[manager] = nonUserRevenues[manager].add(managerEarnedInterest);
+
+            poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
+
+
+        }
 
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(transferAmount);
         loanDetail.principalAmountRepaid = loanDetail.principalAmountRepaid.add(principalPaid);
-        loanDetail.interestPaid = loanDetail.interestPaid.add(interestPayable);
         loanDetail.lastPaymentTime = block.timestamp;
         loanDetail.interestPaidTillTime = loanDetail.interestPaidTillTime.add(payableInterestDays.mul(86400));
 
         borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid
             .add(principalPaid);
-        borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid
+
+        if (interestPayable != 0) {
+            loanDetail.interestPaid = loanDetail.interestPaid.add(interestPayable);
+
+            borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid
             .add(interestPayable);
+        }
 
         strategizedFunds = strategizedFunds.sub(principalPaid);
-        poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
 
         if (loanDetail.principalAmountRepaid >= loan.amount) {
             loan.status = LoanStatus.REPAID;
