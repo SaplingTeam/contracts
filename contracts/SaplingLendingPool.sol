@@ -542,29 +542,31 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         loanDetail.lastPaymentTime = block.timestamp;
         loanDetail.interestPaidTillTime = loanDetail.interestPaidTillTime.add(payableInterestDays.mul(86400));
 
-        borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid
-            .add(principalPaid);
+        {
+            BorrowerStats storage stats = borrowerStats[loan.borrower];
+            stats.amountBaseRepaid = stats.amountBaseRepaid.add(principalPaid);
 
-        if (interestPayable != 0) {
-            loanDetail.interestPaid = loanDetail.interestPaid.add(interestPayable);
+            if (interestPayable != 0) {
+                loanDetail.interestPaid = loanDetail.interestPaid.add(interestPayable);
 
-            borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid
-            .add(interestPayable);
+                stats.amountInterestPaid = stats.amountInterestPaid
+                .add(interestPayable);
+            }
+
+            strategizedFunds = strategizedFunds.sub(principalPaid);
+
+            if (loanDetail.principalAmountRepaid >= loan.amount) {
+                loan.status = LoanStatus.REPAID;
+                stats.countRepaid++;
+                stats.countOutstanding--;
+                stats.amountBorrowed = stats.amountBorrowed.sub(loan.amount);
+                stats.amountBaseRepaid = stats.amountBaseRepaid
+                    .sub(loanDetail.principalAmountRepaid);
+                stats.amountInterestPaid = stats.amountInterestPaid
+                    .sub(loanDetail.interestPaid);
+            }
         }
-
-        strategizedFunds = strategizedFunds.sub(principalPaid);
-
-        if (loanDetail.principalAmountRepaid >= loan.amount) {
-            loan.status = LoanStatus.REPAID;
-            borrowerStats[loan.borrower].countRepaid++;
-            borrowerStats[loan.borrower].countOutstanding--;
-            borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.sub(loan.amount);
-            borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid
-                .sub(loanDetail.principalAmountRepaid);
-            borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid
-                .sub(loanDetail.interestPaid);
-        }
-
+        
         if (strategizedFunds > 0) {
             weightedAvgStrategyAPR = strategizedFunds
                 .add(principalPaid)
