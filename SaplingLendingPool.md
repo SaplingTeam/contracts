@@ -40,7 +40,7 @@ struct Loan {
 struct LoanDetail {
   uint256 loanId;
   uint256 totalAmountRepaid;
-  uint256 baseAmountRepaid;
+  uint256 principalAmountRepaid;
   uint256 interestPaid;
   uint256 interestPaidTillTime;
   uint256 lastPaymentTime;
