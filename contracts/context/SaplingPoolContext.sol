@@ -110,11 +110,15 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
         poolToken = _poolToken;
         liquidityToken = _liquidityToken;
+
         tokenBalance = 0;
         stakedShares = 0;
 
         poolFundsLimit = 0;
         poolFunds = 0;
+        poolLiquidity = 0;
+        allocatedFunds = 0;
+        strategizedFunds = 0;
 
         targetStakePercent = uint16(10 * 10 ** percentDecimals); //10%
         targetLiquidityPercent = 0; //0%
@@ -131,10 +135,6 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
         uint8 decimals = IERC20Metadata(liquidityToken).decimals();
         tokenDecimals = decimals;
         oneToken = 10 ** decimals;
-
-        poolLiquidity = 0;
-        allocatedFunds = 0;
-        strategizedFunds = 0;
 
         weightedAvgStrategyAPR = 0;
         nextStrategyId = 1;
