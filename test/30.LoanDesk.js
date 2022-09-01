@@ -621,7 +621,8 @@ describe('Loan Desk', function () {
 
             describe('Offer', function () {
                 it('Manager can offer loans', async function () {
-                    expect(await lendingPool.canOffer(applicationId)).to.equal(true);
+                    let offeredFunds = await loanDesk.offeredFunds();
+                    expect(await lendingPool.canOffer(offeredFunds.add(application.amount))).to.equal(true);
 
                     await loanDesk
                         .connect(manager)
@@ -973,6 +974,27 @@ describe('Loan Desk', function () {
                         );
                 });
 
+                describe('Update', function () {
+                    it('Manager can update loan offers', async function () {
+                        let offeredFunds = await loanDesk.offeredFunds();
+                        let offer = await loanDesk.loanOffers(applicationId);
+
+                        let newOfferedAmount = offer.amount.div(2);
+                        expect(await lendingPool.canOffer(offeredFunds.sub(offer.amount).add(newOfferedAmount)))
+                            .to.equal(true);
+
+                        await expect(loanDesk.connect(manager).updateOffer(
+                                offer.applicationId,
+                                newOfferedAmount,
+                                offer.duration,
+                                offer.gracePeriod,
+                                offer.installmentAmount,
+                                offer.installments,
+                                offer.apr,
+                            )).to.be.not.reverted;
+                    });
+                });
+
                 describe('Cancel', function () {
                     it('Manager can cancel', async function () {
                         expect(await loanDesk.canCancel(applicationId, manager.address)).to.equal(true);
@@ -1116,6 +1138,16 @@ describe('Loan Desk', function () {
                     expect((await loanDesk.loanApplications(applicationId)).status).to.equal(
                         LoanApplicationStatus.DENIED,
                     );
+                });
+
+                it('Borrowers can request another loan after the previous request is no longer pending', async function () {
+                    await loanDesk.connect(manager).denyLoan(applicationId);
+                    await expect(loanDesk.connect(borrower1).requestLoan(
+                            loanAmount,
+                            loanDuration,
+                            'a937074e-85a7-42a9-b858-9795d9471759',
+                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                        )).to.be.not.reverted;
                 });
 
                 describe('Rejection scenarios', function () {
