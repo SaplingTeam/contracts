@@ -21,6 +21,7 @@ describe('Sapling Factory', function () {
     let tokenFactory;
     let loanDeskFactory;
     let poolFactory;
+    let proxyFactory;
 
     let deployer;
     let governance;
@@ -40,21 +41,19 @@ describe('Sapling Factory', function () {
         [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
         SaplingFactoryCF = await ethers.getContractFactory('SaplingFactory');
 
+        proxyFactory = await (await ethers.getContractFactory('TransparentProxyFactory')).deploy();
         tokenFactory = await (await ethers.getContractFactory('TokenFactory')).deploy();
         loanDeskFactory = await (await ethers.getContractFactory('LoanDeskFactory')).deploy();
-
-        let PoolLogicFactoryCF = await ethers.getContractFactory('PoolLogicFactory');
-        let poolLogicFactory = await PoolLogicFactoryCF.deploy();
-
-        poolFactory = await (await ethers.getContractFactory('PoolFactory')).deploy(poolLogicFactory.address);
-        await poolLogicFactory.transferOwnership(poolFactory.address);
+        poolFactory = await await (await ethers.getContractFactory('PoolFactory')).deploy();
 
         saplingFactory = await SaplingFactoryCF.deploy(
+            proxyFactory.address,
             tokenFactory.address,
             loanDeskFactory.address,
             poolFactory.address,
         );
 
+        await proxyFactory.transferOwnership(saplingFactory.address);
         await tokenFactory.transferOwnership(saplingFactory.address);
         await loanDeskFactory.transferOwnership(saplingFactory.address);
         await poolFactory.transferOwnership(saplingFactory.address);
@@ -62,8 +61,14 @@ describe('Sapling Factory', function () {
 
     describe('Deployment', function () {
         it('Can deploy', async function () {
-            await expect(SaplingFactoryCF.deploy(tokenFactory.address, loanDeskFactory.address, poolFactory.address)).to
-                .be.not.reverted;
+            await expect(
+                SaplingFactoryCF.deploy(
+                    proxyFactory.address,
+                    tokenFactory.address,
+                    loanDeskFactory.address,
+                    poolFactory.address,
+                ),
+            ).to.be.not.reverted;
         });
     });
 

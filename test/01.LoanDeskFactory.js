@@ -76,13 +76,7 @@ describe('LoanDesk Factory', function () {
 
             it('Can create LoanDesk', async function () {
                 await expect(
-                    loanDeskFactory.create(
-                        lendingPool.address,
-                        governance.address,
-                        protocol.address,
-                        manager.address,
-                        TOKEN_DECIMALS,
-                    ),
+                    loanDeskFactory.create(),
                 ).to.be.not.reverted;
             });
         });
