@@ -4,14 +4,6 @@
 
 Facilitates on-chain deployment and setup of protocol components.
 
-### verificationHub
-
-```solidity
-address verificationHub
-```
-
-Verification hub contract address
-
 ### tokenFactory
 
 ```solidity
@@ -42,12 +34,12 @@ Lending pool factory contract address
 event LendingPoolReady(address pool)
 ```
 
-Event for when a Lending pool and it's components are deployed, linked and ready for use.
+Event for when a Lending pool and it"s components are deployed, linked and ready for use.
 
 ### constructor
 
 ```solidity
-constructor(address _tokenFactory, address _loanDeskFactory, address _poolFactory, address _verificationHub, address _governance, address _treasury) public
+constructor(address _tokenFactory, address _loanDeskFactory, address _poolFactory) public
 ```
 
 Create a new SaplingFactory.
@@ -59,17 +51,14 @@ _Addresses must not be 0._
 | _tokenFactory | address | Toke factory address |
 | _loanDeskFactory | address | LoanDesk factory address |
 | _poolFactory | address | Lending Pool factory address address |
-| _verificationHub | address | Verification hub address |
-| _governance | address | Governance address |
-| _treasury | address | Treasury wallet address |
 
 ### createLendingPool
 
 ```solidity
-function createLendingPool(string name, string symbol, address manager, address liquidityToken) external
+function createLendingPool(string name, string symbol, address liquidityToken, address governance, address treasury, address manager) external
 ```
 
-Deploys a lending pool and it's components
+Deploys a lending pool and it"s components
 
 _Caller must be the governance._
 
@@ -77,6 +66,16 @@ _Caller must be the governance._
 | ---- | ---- | ----------- |
 | name | string | Token name |
 | symbol | string | Token symbol |
-| manager | address | Manager address |
 | liquidityToken | address | Liquidity token address |
+| governance | address | Governance address |
+| treasury | address | Treasury wallet address |
+| manager | address | Manager address |
+
+### preShutdown
+
+```solidity
+function preShutdown() internal
+```
+
+_Overrides a pre-shutdown hoot in Factory Base_
 
