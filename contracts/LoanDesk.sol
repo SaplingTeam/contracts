@@ -62,7 +62,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     address public pool;
 
     /// Math safe minimum loan amount including token decimals
-    uint256 public immutable SAFE_MIN_AMOUNT;
+    uint256 public immutable safeMinAmount;
 
     /// Minimum allowed loan amount
     uint256 public minLoanAmount;
@@ -92,7 +92,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
     uint16 public constant SAFE_MIN_APR = 0; // 0%
 
     /// Safe maximum for APR values
-    uint16 public immutable SAFE_MAX_APR;
+    uint16 public immutable safeMaxApr;
 
     /// Loan APR to be applied for the new loan requests
     uint16 public templateLoanAPR;
@@ -158,13 +158,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         pool = _pool;
 
         uint256 _oneToken = 10 ** uint256(_decimals);
-        SAFE_MIN_AMOUNT = _oneToken;
+        safeMinAmount = _oneToken;
         minLoanAmount = _oneToken.mul(100);
 
         minLoanDuration = SAFE_MIN_DURATION;
         maxLoanDuration = SAFE_MAX_DURATION;
 
-        SAFE_MAX_APR = oneHundredPercent;
+        safeMaxApr = oneHundredPercent;
         templateLoanAPR = uint16(30 * 10 ** percentDecimals); // 30%
 
         offeredFunds = 0;
@@ -173,12 +173,12 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
 
     /**
      * @notice Set a minimum loan amount.
-     * @dev minLoanAmount must be greater than or equal to SAFE_MIN_AMOUNT.
+     * @dev minLoanAmount must be greater than or equal to safeMinAmount.
      *      Caller must be the manager.
      * @param _minLoanAmount Minimum loan amount to be enforced on new loan requests and offers
      */
     function setMinLoanAmount(uint256 _minLoanAmount) external onlyManager whenNotPaused {
-        require(SAFE_MIN_AMOUNT <= _minLoanAmount, "LoanDesk: new min loan amount is less than the safe limit");
+        require(safeMinAmount <= _minLoanAmount, "LoanDesk: new min loan amount is less than the safe limit");
         minLoanAmount = _minLoanAmount;
     }
 
@@ -220,12 +220,12 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
 
     /**
      * @notice Set a template loan APR
-     * @dev APR must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
+     * @dev APR must be inclusively between SAFE_MIN_APR and safeMaxApr.
      *      Caller must be the manager.
      * @param apr Loan APR to be enforced on the new loan offers.
      */
     function setTemplateLoanAPR(uint16 apr) external onlyManager whenNotPaused {
-        require(SAFE_MIN_APR <= apr && apr <= SAFE_MAX_APR, "LoanDesk: APR is out of bounds");
+        require(SAFE_MIN_APR <= apr && apr <= safeMaxApr, "LoanDesk: APR is out of bounds");
         templateLoanAPR = apr;
     }
 
@@ -547,13 +547,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
         require(MIN_LOAN_GRACE_PERIOD <= _gracePeriod && _gracePeriod <= MAX_LOAN_GRACE_PERIOD,
             "LoanDesk: invalid grace period");
         require(
-            _installmentAmount == 0 || _installmentAmount >= SAFE_MIN_AMOUNT,
+            _installmentAmount == 0 || _installmentAmount >= safeMinAmount,
             "LoanDesk: invalid installment amount"
         );
         require(
             1 <= _installments && _installments <= _duration / (1 days),
             "LoanDesk: invalid number of installments"
         );
-        require(SAFE_MIN_APR <= _apr && _apr <= SAFE_MAX_APR, "LoanDesk: invalid APR");
+        require(SAFE_MIN_APR <= _apr && _apr <= safeMaxApr, "LoanDesk: invalid APR");
     }
 }
