@@ -16,9 +16,8 @@ async function rollback() {
 describe('Pool Factory', function () {
     const TOKEN_DECIMALS = 6;
 
-    let PoolProxyFactoryCF;
+    let PoolFactoryCF;
     let poolFactory;
-    let poolLogicFactory;
 
     let deployer;
     let governance;
@@ -37,17 +36,13 @@ describe('Pool Factory', function () {
     before(async function () {
         [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
 
-        let PoolFactoryCF = await ethers.getContractFactory('PoolFactory');
+        PoolFactoryCF = await ethers.getContractFactory('PoolFactory');
         poolFactory = await PoolFactoryCF.deploy();
-
-        PoolProxyFactoryCF = await ethers.getContractFactory('PoolProxyFactory');
-        poolProxyFactory = await PoolProxyFactoryCF.deploy(poolFactory.address);
-        await poolFactory.transferOwnership(poolProxyFactory.address);
     });
 
     describe('Deployment', function () {
         it('Can deploy', async function () {
-            await expect(PoolProxyFactoryCF.deploy(poolFactory.address)).to.be.not.reverted;
+            await expect(PoolFactoryCF.deploy()).to.be.not.reverted;
         });
     });
 
@@ -73,21 +68,13 @@ describe('Pool Factory', function () {
             });
 
             it('Can create Pool', async function () {
-                await expect(
-                    poolProxyFactory.create(
-                        poolToken.address,
-                        liquidityToken.address,
-                        governance.address,
-                        protocol.address,
-                        manager.address,
-                    ),
-                ).to.be.not.reverted;
+                await expect(poolFactory.create()).to.be.not.reverted;
             });
         });
 
         describe('Shutdown', function () {
             it('Can shutdown', async function () {
-                await expect(poolProxyFactory.shutdown()).to.be.not.reverted;
+                await expect(poolFactory.shutdown()).to.be.not.reverted;
             });
         });
     });

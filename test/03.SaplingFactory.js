@@ -20,7 +20,8 @@ describe('Sapling Factory', function () {
     let saplingFactory;
     let tokenFactory;
     let loanDeskFactory;
-    let poolProxyFactory;
+    let poolFactory;
+    let proxyFactory;
 
     let deployer;
     let governance;
@@ -40,30 +41,34 @@ describe('Sapling Factory', function () {
         [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
         SaplingFactoryCF = await ethers.getContractFactory('SaplingFactory');
 
+        proxyFactory = await (await ethers.getContractFactory('TransparentProxyFactory')).deploy();
         tokenFactory = await (await ethers.getContractFactory('TokenFactory')).deploy();
         loanDeskFactory = await (await ethers.getContractFactory('LoanDeskFactory')).deploy();
-
-        let PoolFactoryCF = await ethers.getContractFactory('PoolFactory');
-        let poolFactory = await PoolFactoryCF.deploy();
-
-        poolProxyFactory = await (await ethers.getContractFactory('PoolProxyFactory')).deploy(poolFactory.address);
-        await poolFactory.transferOwnership(poolProxyFactory.address);
+        poolFactory = await await (await ethers.getContractFactory('PoolFactory')).deploy();
 
         saplingFactory = await SaplingFactoryCF.deploy(
+            proxyFactory.address,
             tokenFactory.address,
             loanDeskFactory.address,
-            poolProxyFactory.address,
+            poolFactory.address,
         );
 
+        await proxyFactory.transferOwnership(saplingFactory.address);
         await tokenFactory.transferOwnership(saplingFactory.address);
         await loanDeskFactory.transferOwnership(saplingFactory.address);
-        await poolProxyFactory.transferOwnership(saplingFactory.address);
+        await poolFactory.transferOwnership(saplingFactory.address);
     });
 
     describe('Deployment', function () {
         it('Can deploy', async function () {
-            await expect(SaplingFactoryCF.deploy(tokenFactory.address, loanDeskFactory.address, poolProxyFactory.address)).to
-                .be.not.reverted;
+            await expect(
+                SaplingFactoryCF.deploy(
+                    proxyFactory.address,
+                    tokenFactory.address,
+                    loanDeskFactory.address,
+                    poolFactory.address,
+                ),
+            ).to.be.not.reverted;
         });
     });
 

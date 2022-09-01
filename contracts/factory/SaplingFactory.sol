@@ -7,15 +7,20 @@ import "../interfaces/ILoanDeskOwner.sol";
 import "../interfaces/IVerificationHub.sol";
 import "../interfaces/ISaplingContext.sol";
 import "./FactoryBase.sol";
+import "./IProxyFactory.sol";
 import "./ITokenFactory.sol";
 import "./ILoanDeskFactory.sol";
-import "./IPoolFactory.sol";
+import "./ILogicFactory.sol";
 
 /**
  * @title Sapling Factory
  * @notice Facilitates on-chain deployment and setup of protocol components.
  */
 contract SaplingFactory is FactoryBase {
+
+    /// Proxy factory contract address
+    address public proxyFactory;
+
     /// Token factory contract address
     address public tokenFactory;
 
@@ -31,19 +36,23 @@ contract SaplingFactory is FactoryBase {
     /**
      * @notice Create a new SaplingFactory.
      * @dev Addresses must not be 0.
-     * @param _tokenFactory Toke factory address
+     * @param _proxyFactory Proxy factory address
+     * @param _tokenFactory Token factory address
      * @param _loanDeskFactory LoanDesk factory address
      * @param _poolFactory Lending Pool factory address address
      */
     constructor(
+        address _proxyFactory,
         address _tokenFactory,
         address _loanDeskFactory,
         address _poolFactory
     ) {
+        require(_proxyFactory != address(0), "SaplingFactory: invalid proxy factory address");
         require(_tokenFactory != address(0), "SaplingFactory: invalid token factory address");
         require(_loanDeskFactory != address(0), "SaplingFactory: invalid LoanDesk factory address");
         require(_poolFactory != address(0), "SaplingFactory: invalid pool factory address");
 
+        proxyFactory = _proxyFactory;
         tokenFactory = _tokenFactory;
         loanDeskFactory = _loanDeskFactory;
         poolFactory = _poolFactory;
@@ -68,20 +77,40 @@ contract SaplingFactory is FactoryBase {
         address manager
     ) external onlyOwner {
         uint8 decimals = IERC20Metadata(liquidityToken).decimals();
+
+        //deploy pool token
         address poolToken = ITokenFactory(tokenFactory).create(string.concat(name, " Token"), symbol, decimals);
-        (address poolProxy, address poolAdmin, ) = IPoolFactory(poolFactory).create(
+
+        // deploy lending pool
+        address lendingPoolLogic = ILogicFactory(poolFactory).create();
+        bytes memory poolInitData = abi.encodeWithSelector(
+            bytes4(keccak256("initialize(address,address,address,address,address)")),
             poolToken,
             liquidityToken,
             address(this),
             treasury,
             manager
         );
-        (address loanDeskProxy, address loanDeskAdmin, ) = ILoanDeskFactory(loanDeskFactory)
-            .create(poolProxy, governance, treasury, manager, decimals);
 
+        (address poolProxy, address poolAdmin) = IProxyFactory(proxyFactory).create(lendingPoolLogic, poolInitData);
+
+        //deploy loan desk
+        address loanDeskLogic = ILogicFactory(loanDeskFactory).create();
+        bytes memory loanDeskInitData = abi.encodeWithSelector(
+            bytes4(keccak256("initialize(address,address,address,address,uint8)")),
+            poolProxy,
+            governance,
+            treasury,
+            manager,
+            decimals
+        );
+
+        (address loanDeskProxy, address loanDeskAdmin) = IProxyFactory(proxyFactory)
+            .create(loanDeskLogic, loanDeskInitData);
+
+        // configure access control
         ProxyAdmin(poolAdmin).transferOwnership(owner());
         ProxyAdmin(loanDeskAdmin).transferOwnership(owner());
-
         Ownable(poolToken).transferOwnership(poolProxy);
         ILoanDeskOwner(poolProxy).setLoanDesk(loanDeskProxy);
         ISaplingContext(poolProxy).transferGovernance(governance);
@@ -93,6 +122,7 @@ contract SaplingFactory is FactoryBase {
      * @dev Overrides a pre-shutdown hoot in Factory Base
      */
     function preShutdown() internal override onlyOwner {
+        FactoryBase(proxyFactory).shutdown();
         FactoryBase(tokenFactory).shutdown();
         FactoryBase(loanDeskFactory).shutdown();
         FactoryBase(poolFactory).shutdown();
