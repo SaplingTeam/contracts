@@ -42,7 +42,12 @@ describe('Sapling Factory', function () {
 
         tokenFactory = await (await ethers.getContractFactory('TokenFactory')).deploy();
         loanDeskFactory = await (await ethers.getContractFactory('LoanDeskFactory')).deploy();
-        poolFactory = await (await ethers.getContractFactory('PoolFactory')).deploy();
+
+        let PoolLogicFactoryCF = await ethers.getContractFactory('PoolLogicFactory');
+        let poolLogicFactory = await PoolLogicFactoryCF.deploy();
+
+        poolFactory = await (await ethers.getContractFactory('PoolFactory')).deploy(poolLogicFactory.address);
+        await poolLogicFactory.transferOwnership(poolFactory.address);
 
         saplingFactory = await SaplingFactoryCF.deploy(
             tokenFactory.address,

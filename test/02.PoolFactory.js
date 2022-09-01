@@ -42,7 +42,7 @@ describe('Pool Factory', function () {
 
         PoolFactoryCF = await ethers.getContractFactory('PoolFactory');
         poolFactory = await PoolFactoryCF.deploy(poolLogicFactory.address);
-        poolLogicFactory.transferOwnership(poolFactory.address);
+        await poolLogicFactory.transferOwnership(poolFactory.address);
     });
 
     describe('Deployment', function () {
