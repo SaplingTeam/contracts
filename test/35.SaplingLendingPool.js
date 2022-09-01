@@ -643,7 +643,7 @@ describe('Sapling Lending Pool)', function () {
 
                         it('Fully repaying a loan negates the effect of current loan amount on the statistics', async function () {
                             expect(stat.amountBorrowed).to.equal(
-                                prevStat.amountBorrowed.sub(loanDetail.baseAmountRepaid),
+                                prevStat.amountBorrowed.sub(loanDetail.principalAmountRepaid),
                             );
                         });
 
@@ -699,7 +699,7 @@ describe('Sapling Lending Pool)', function () {
 
                         it('Partial loan payments increase base amount repaid', async function () {
                             expect(stat.amountBaseRepaid).to.equal(
-                                prevStat.amountBaseRepaid.add(loanDetail.baseAmountRepaid),
+                                prevStat.amountBaseRepaid.add(loanDetail.principalAmountRepaid),
                             );
                         });
 
@@ -1042,7 +1042,7 @@ describe('Sapling Lending Pool)', function () {
 
                             it('Partial default removes loan base amount paid from base amount paid', async function () {
                                 expect(stat.amountBaseRepaid).to.equal(
-                                    prevStat.amountBaseRepaid.sub(loanDetail.baseAmountRepaid),
+                                    prevStat.amountBaseRepaid.sub(loanDetail.principalAmountRepaid),
                                 );
                             });
 

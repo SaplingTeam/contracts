@@ -48,7 +48,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     struct LoanDetail {
         uint256 loanId;
         uint256 totalAmountRepaid;
-        uint256 baseAmountRepaid;
+        uint256 principalAmountRepaid;
         uint256 interestPaid;
         uint256 interestPaidTillTime;
         uint256 lastPaymentTime;
@@ -192,7 +192,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         loanDetails[loanId] = LoanDetail({
             loanId: loanId,
             totalAmountRepaid: 0,
-            baseAmountRepaid: 0,
+            principalAmountRepaid: 0,
             interestPaid: 0,
             interestPaidTillTime: block.timestamp,
             lastPaymentTime: 0
@@ -280,7 +280,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.sub(loan.amount);
         borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid
-            .sub(loanDetail.baseAmountRepaid);
+            .sub(loanDetail.principalAmountRepaid);
         borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid
             .sub(loanDetail.interestPaid);
 
@@ -309,9 +309,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             }
         }
 
-        if (loanDetail.baseAmountRepaid < loan.amount) {
+        if (loanDetail.principalAmountRepaid < loan.amount) {
             uint256 prevStrategizedFunds = strategizedFunds;
-            uint256 baseAmountLost = loan.amount.sub(loanDetail.baseAmountRepaid);
+            uint256 baseAmountLost = loan.amount.sub(loanDetail.principalAmountRepaid);
             strategizedFunds = strategizedFunds.sub(baseAmountLost);
 
             if (strategizedFunds > 0) {
@@ -410,7 +410,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             uint256 minTotalPayment = loan.installmentAmount.mul(pastInstallments);
 
             LoanDetail storage detail = loanDetails[loanId];
-            if (detail.baseAmountRepaid + detail.interestPaid >= minTotalPayment) {
+            if (detail.principalAmountRepaid + detail.interestPaid >= minTotalPayment) {
                 return false;
             }
 
@@ -499,7 +499,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(transferAmount);
-        loanDetail.baseAmountRepaid = loanDetail.baseAmountRepaid.add(principalPaid);
+        loanDetail.principalAmountRepaid = loanDetail.principalAmountRepaid.add(principalPaid);
         loanDetail.interestPaid = loanDetail.interestPaid.add(interestPayable);
         loanDetail.lastPaymentTime = block.timestamp;
         loanDetail.interestPaidTillTime = loanDetail.interestPaidTillTime.add(payableInterestDays.mul(86400));
@@ -512,13 +512,13 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         strategizedFunds = strategizedFunds.sub(principalPaid);
         poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
 
-        if (loanDetail.baseAmountRepaid >= loan.amount) {
+        if (loanDetail.principalAmountRepaid >= loan.amount) {
             loan.status = LoanStatus.REPAID;
             borrowerStats[loan.borrower].countRepaid++;
             borrowerStats[loan.borrower].countOutstanding--;
             borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.sub(loan.amount);
             borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid
-                .sub(loanDetail.baseAmountRepaid);
+                .sub(loanDetail.principalAmountRepaid);
             borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid
                 .sub(loanDetail.interestPaid);
         }
@@ -548,7 +548,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         uint256 daysPassed = countInterestDays(detail.interestPaidTillTime, block.timestamp);
         uint256 interestPercent = Math.mulDiv(loan.apr, daysPassed, 365);
 
-        uint256 principalOutstanding = loan.amount.sub(detail.baseAmountRepaid);
+        uint256 principalOutstanding = loan.amount.sub(detail.principalAmountRepaid);
         uint256 interestOutstanding = Math.mulDiv(principalOutstanding, interestPercent, oneHundredPercent);
 
         return (principalOutstanding, interestOutstanding, daysPassed);
