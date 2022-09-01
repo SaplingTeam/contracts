@@ -16,7 +16,7 @@ interface ILoanDeskFactory {
      * @param protocol Protocol wallet address
      * @param manager Manager address
      * @param decimals Decimals of the tokens used in the pool
-     * @return Address of the deployed contract
+     * @return Addresses of the proxy, proxy admin, and the logic contract
      */
     function create(
         address pool,
@@ -26,5 +26,5 @@ interface ILoanDeskFactory {
         uint8 decimals
     )
         external
-        returns (address);
+        returns (address, address, address);
 }

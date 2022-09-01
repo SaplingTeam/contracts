@@ -140,9 +140,9 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
+    // constructor() {
+    //     _disableInitializers();
+    // }
 
     /**
      * @notice Create a new LoanDesk.

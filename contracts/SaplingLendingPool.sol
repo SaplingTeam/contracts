@@ -122,9 +122,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
+    // constructor() {
+    //     _disableInitializers();
+    // }
 
     /**
      * @notice Creates a Sapling pool.
