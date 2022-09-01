@@ -2,10 +2,10 @@
 
 ## IMath
 
-### PERCENT_DECIMALS
+### percentDecimals
 
 ```solidity
-function PERCENT_DECIMALS() external view returns (uint16)
+function percentDecimals() external view returns (uint16)
 ```
 
 Accessor for percentage value decimals used in the current context.

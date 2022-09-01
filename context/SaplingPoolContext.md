@@ -29,10 +29,10 @@ uint8 tokenDecimals
 
 tokenDecimals value retrieved from the liquidity token contract upon contract construction
 
-### ONE_TOKEN
+### oneToken
 
 ```solidity
-uint256 ONE_TOKEN
+uint256 oneToken
 ```
 
 A value representing 1.0 token amount, padded with zeros for decimals
@@ -140,7 +140,7 @@ uint256 managerExcessLeverageComponent
 ```
 
 Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
-This value is always equal to (managerEarnFactor - ONE_HUNDRED_PERCENT)
+This value is always equal to (managerEarnFactor - oneHundredPercent)
 
 ### protocolFeePercent
 
@@ -150,10 +150,10 @@ uint16 protocolFeePercent
 
 Percentage of paid interest to be allocated as protocol fee
 
-### MAX_PROTOCOL_FEE_PERCENT
+### maxProtocolFeePercent
 
 ```solidity
-uint16 MAX_PROTOCOL_FEE_PERCENT
+uint16 maxProtocolFeePercent
 ```
 
 An upper bound for percentage of paid interest to be allocated as protocol fee
@@ -224,7 +224,7 @@ function setTargetStakePercent(uint16 _targetStakePercent) external
 
 Set the target stake percent for the pool.
 
-__targetStakePercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+__targetStakePercent must be inclusively between 0 and oneHundredPercent.
      Caller must be the governance._
 
 | Name | Type | Description |
@@ -239,7 +239,7 @@ function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external
 
 Set the target liquidity percent for the pool.
 
-__targetLiquidityPercent must be inclusively between 0 and ONE_HUNDRED_PERCENT.
+__targetLiquidityPercent must be inclusively between 0 and oneHundredPercent.
      Caller must be the manager._
 
 | Name | Type | Description |
@@ -254,7 +254,7 @@ function setProtocolEarningPercent(uint16 _protocolEarningPercent) external
 
 Set the protocol earning percent for the pool.
 
-__protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_FEE_PERCENT.
+__protocolEarningPercent must be inclusively between 0 and maxProtocolFeePercent.
      Caller must be the governance._
 
 | Name | Type | Description |
@@ -269,7 +269,7 @@ function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external
 
 Set an upper bound for the manager's earn factor percent.
 
-__managerEarnFactorMax must be greater than or equal to ONE_HUNDRED_PERCENT. If the current earn factor is
+__managerEarnFactorMax must be greater than or equal to oneHundredPercent. If the current earn factor is
      greater than the new maximum, then the current earn factor is set to the new maximum.
      Caller must be the governance._
 
@@ -285,7 +285,7 @@ function setManagerEarnFactor(uint16 _managerEarnFactor) external
 
 Set the manager's earn factor percent.
 
-__managerEarnFactorMax must be inclusively between ONE_HUNDRED_PERCENT and managerEarnFactorMax.
+__managerEarnFactorMax must be inclusively between oneHundredPercent and managerEarnFactorMax.
      Caller must be the manager._
 
 | Name | Type | Description |

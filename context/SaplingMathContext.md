@@ -4,18 +4,18 @@
 
 Provides common math constants and library imports.
 
-### PERCENT_DECIMALS
+### percentDecimals
 
 ```solidity
-uint16 PERCENT_DECIMALS
+uint16 percentDecimals
 ```
 
 Number of decimal digits in integer percent values used across the contract
 
-### ONE_HUNDRED_PERCENT
+### oneHundredPercent
 
 ```solidity
-uint16 ONE_HUNDRED_PERCENT
+uint16 oneHundredPercent
 ```
 
 A constant representing 100%

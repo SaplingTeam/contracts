@@ -42,10 +42,10 @@ address pool
 
 Address of the lending pool contract
 
-### SAFE_MIN_AMOUNT
+### safeMinAmount
 
 ```solidity
-uint256 SAFE_MIN_AMOUNT
+uint256 safeMinAmount
 ```
 
 Math safe minimum loan amount including token decimals
@@ -122,10 +122,10 @@ uint16 SAFE_MIN_APR
 
 Safe minimum for APR values
 
-### SAFE_MAX_APR
+### safeMaxApr
 
 ```solidity
-uint16 SAFE_MAX_APR
+uint16 safeMaxApr
 ```
 
 Safe maximum for APR values
@@ -260,7 +260,7 @@ function setMinLoanAmount(uint256 _minLoanAmount) external
 
 Set a minimum loan amount.
 
-_minLoanAmount must be greater than or equal to SAFE_MIN_AMOUNT.
+_minLoanAmount must be greater than or equal to safeMinAmount.
      Caller must be the manager._
 
 | Name | Type | Description |
@@ -320,7 +320,7 @@ function setTemplateLoanAPR(uint16 apr) external
 
 Set a template loan APR
 
-_APR must be inclusively between SAFE_MIN_APR and SAFE_MAX_APR.
+_APR must be inclusively between SAFE_MIN_APR and safeMaxApr.
      Caller must be the manager._
 
 | Name | Type | Description |
