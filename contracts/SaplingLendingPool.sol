@@ -497,7 +497,11 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         nonUserRevenues[treasury] = nonUserRevenues[treasury].add(protocolEarnedInterest);
 
         //share revenue to manager
-        uint256 currentStakePercent = MathUpgradeable.mulDiv(stakedShares, oneHundredPercent, IERC20(poolToken).totalSupply());
+        uint256 currentStakePercent = MathUpgradeable.mulDiv(
+            stakedShares,
+            oneHundredPercent,
+            IERC20(poolToken).totalSupply()
+        );
         uint256 managerEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable.sub(protocolEarnedInterest),
                 MathUpgradeable.mulDiv(currentStakePercent, managerExcessLeverageComponent, oneHundredPercent),
