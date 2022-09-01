@@ -42,7 +42,7 @@ module.exports = {
       gas: 5500000,
     },
     polygonMumbai: {
-      url: "https://rpc-mumbai.maticvigil.com",
+      url: "https://matic-mumbai.chainstacklabs.com/",
       chainId: 80001,
       gas: 5500000,
       accounts: {

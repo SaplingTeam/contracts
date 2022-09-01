@@ -13,8 +13,7 @@ async function main() {
     console.log("Balance before: \t\t", (await deployer.getBalance()).toString());
 
     console.log("\nLoading liquidity token contract ...");
-    TestToken = await ethers.getContractFactory("TestToken");
-    liquidityTokenContract = await TestToken.attach(liquidityTokenAddress);
+    liquidityTokenContract = await ethers.getContractAt("IERC20Metadata", liquidityTokenAddress);
     console.log("LiquidityToken address: \t", liquidityTokenContract.address);
 
     const DECIMALS = await liquidityTokenContract.decimals();
@@ -26,12 +25,26 @@ async function main() {
 
     console.log("\nDeploying lending pool contract ...");
     SaplingPool = await ethers.getContractFactory("SaplingLendingPool");
-    saplingPoolContract = await SaplingPool.deploy(poolTokenContract.address, liquidityTokenAddress, deployer.address, protocolAddress, managerAddress);
+    saplingPoolContract = await upgrades.deployProxy(SaplingPool, [
+        poolTokenContract.address,
+        liquidityTokenAddress,
+        deployer.address,
+        protocolAddress,
+        managerAddress,
+    ]);
+    await saplingPoolContract.deployed();
     console.log("LendingPool address: \t\t", saplingPoolContract.address);
 
     console.log("\nDeploying loan desk contract ... ");
     LoanDesk = await ethers.getContractFactory("LoanDesk");
-    loanDeskContract = await LoanDesk.deploy(saplingPoolContract.address, governanceAddress, protocolAddress, managerAddress, DECIMALS);
+    loanDeskContract = await upgrades.deployProxy(LoanDesk, [
+        saplingPoolContract.address,
+        governanceAddress,
+        protocolAddress,
+        managerAddress,
+        DECIMALS,
+    ]);
+    await loanDeskContract.deployed();
     console.log("LoanDesk address: \t\t", loanDeskContract.address);
 
     console.log("\nAssigning ownership and linking contracts ...");
@@ -39,14 +52,13 @@ async function main() {
     await saplingPoolContract.setLoanDesk(loanDeskContract.address);
     await saplingPoolContract.transferGovernance(governanceAddress);
     console.log("Done.");
-  
+
     console.log("\nBalance after:  \t\t", (await deployer.getBalance()).toString());
   }
-  
+
   main()
     .then(() => process.exit(0))
     .catch((error) => {
       console.error(error);
       process.exit(1);
     });
-  
