@@ -472,70 +472,101 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             "SaplingLendingPool: not found or invalid loan status"
         );
 
-        (
-            uint256 transferAmount,
-            uint256 interestPayable,
-            uint256 payableInterestDays
-        ) = payableLoanBalance(loanId, amount);
 
-        // enforce a small minimum payment amount, except for the last payment equal to the total amount due
-        require(
-            transferAmount >= oneToken || transferAmount == loanBalanceDue(loanId),
-            "SaplingLendingPool: payment amount is less than the required minimum"
-        );
+        uint256 transferAmount;
+        uint256 interestPayable;
+        uint256 payableInterestDays;
 
+        {
+            (
+                uint256 _transferAmount,
+                uint256 _interestPayable,
+                uint256 _payableInterestDays,
+                uint256 _loanBalanceDue
+            ) = payableLoanBalance(loanId, amount);
+
+            transferAmount = _transferAmount;
+            interestPayable = _interestPayable;
+            payableInterestDays = _payableInterestDays;
+
+            // enforce a small minimum payment amount, except for the last payment equal to the total amount due
+            require(
+                transferAmount >= oneToken || transferAmount == _loanBalanceDue,
+                "SaplingLendingPool: payment amount is less than the required minimum"
+            );
+        }
+        
         // charge 'amount' tokens from msg.sender
         bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), transferAmount);
         require(success, "SaplingLendingPool: ERC20 transfer has failed");
         tokenBalance = tokenBalance.add(transferAmount);
 
-        uint256 principalPaid = transferAmount.sub(interestPayable);
+        uint256 principalPaid;
+        if (interestPayable == 0) {
+            principalPaid = transferAmount;
+            poolLiquidity = poolLiquidity.add(transferAmount);
+        } else {
+            principalPaid = transferAmount.sub(interestPayable);
 
-        //share revenue to treasury
-        uint256 protocolEarnedInterest = MathUpgradeable.mulDiv(interestPayable, protocolFeePercent, oneHundredPercent);
+            //share revenue to treasury
+            uint256 protocolEarnedInterest = MathUpgradeable.mulDiv(
+                interestPayable,
+                protocolFeePercent,
+                oneHundredPercent
+            );
 
-        nonUserRevenues[treasury] = nonUserRevenues[treasury].add(protocolEarnedInterest);
+            nonUserRevenues[treasury] = nonUserRevenues[treasury].add(protocolEarnedInterest);
 
-        //share revenue to manager
-        uint256 currentStakePercent = MathUpgradeable.mulDiv(
-            stakedShares,
-            oneHundredPercent,
-            IERC20(poolToken).totalSupply()
-        );
-        uint256 managerEarnedInterest = MathUpgradeable.mulDiv(
+            //share revenue to manager
+            uint256 currentStakePercent = MathUpgradeable.mulDiv(
+                stakedShares,
+                oneHundredPercent,
+                IERC20(poolToken).totalSupply()
+            );
+            uint256 managerEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable.sub(protocolEarnedInterest),
                 MathUpgradeable.mulDiv(currentStakePercent, managerExcessLeverageComponent, oneHundredPercent),
                 oneHundredPercent
             );
 
-        nonUserRevenues[manager] = nonUserRevenues[manager].add(managerEarnedInterest);
+            nonUserRevenues[manager] = nonUserRevenues[manager].add(managerEarnedInterest);
+
+            poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
+
+
+        }
 
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(transferAmount);
         loanDetail.principalAmountRepaid = loanDetail.principalAmountRepaid.add(principalPaid);
-        loanDetail.interestPaid = loanDetail.interestPaid.add(interestPayable);
         loanDetail.lastPaymentTime = block.timestamp;
         loanDetail.interestPaidTillTime = loanDetail.interestPaidTillTime.add(payableInterestDays.mul(86400));
 
-        borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid
-            .add(principalPaid);
-        borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid
-            .add(interestPayable);
+        {
+            BorrowerStats storage stats = borrowerStats[loan.borrower];
+            stats.amountBaseRepaid = stats.amountBaseRepaid.add(principalPaid);
 
-        strategizedFunds = strategizedFunds.sub(principalPaid);
-        poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
+            if (interestPayable != 0) {
+                loanDetail.interestPaid = loanDetail.interestPaid.add(interestPayable);
 
-        if (loanDetail.principalAmountRepaid >= loan.amount) {
-            loan.status = LoanStatus.REPAID;
-            borrowerStats[loan.borrower].countRepaid++;
-            borrowerStats[loan.borrower].countOutstanding--;
-            borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.sub(loan.amount);
-            borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid
-                .sub(loanDetail.principalAmountRepaid);
-            borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid
-                .sub(loanDetail.interestPaid);
+                stats.amountInterestPaid = stats.amountInterestPaid
+                .add(interestPayable);
+            }
+
+            strategizedFunds = strategizedFunds.sub(principalPaid);
+
+            if (loanDetail.principalAmountRepaid >= loan.amount) {
+                loan.status = LoanStatus.REPAID;
+                stats.countRepaid++;
+                stats.countOutstanding--;
+                stats.amountBorrowed = stats.amountBorrowed.sub(loan.amount);
+                stats.amountBaseRepaid = stats.amountBaseRepaid
+                    .sub(loanDetail.principalAmountRepaid);
+                stats.amountInterestPaid = stats.amountInterestPaid
+                    .sub(loanDetail.interestPaid);
+            }
         }
-
+        
         if (strategizedFunds > 0) {
             weightedAvgStrategyAPR = strategizedFunds
                 .add(principalPaid)
@@ -579,7 +610,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     )
         private
         view
-        returns (uint256, uint256, uint256)
+        returns (uint256, uint256, uint256, uint256)
     {
         (
             uint256 principalOutstanding,
@@ -620,7 +651,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             }
         }
 
-        return (transferAmount, interestPayable, payableInterestDays);
+        return (transferAmount, interestPayable, payableInterestDays, principalOutstanding.add(interestOutstanding));
     }
 
     /**
