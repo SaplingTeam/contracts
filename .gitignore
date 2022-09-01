@@ -5,7 +5,7 @@ secrets.json
 # VS code
 .VSCode*
 
-# npm 
+# npm
 node_modules
 
 # hardhat compiler outputs
@@ -21,3 +21,6 @@ coverage.json
 
 #hardhat script outputs
 scripts/data/wallets.json
+
+#openzeppelin
+.openzeppelin
