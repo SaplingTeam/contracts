@@ -12,15 +12,16 @@ import "../interfaces/IMath.sol";
 abstract contract SaplingMathContext is IMath {
 
     /// Number of decimal digits in integer percent values used across the contract
-    uint16 public constant PERCENT_DECIMALS = 1;
+    uint16 public immutable percentDecimals;
 
     /// A constant representing 100%
-    uint16 public immutable ONE_HUNDRED_PERCENT; //FIXME rename camelcase
+    uint16 public immutable oneHundredPercent;
 
     /**
      * @notice Create a new SaplingMathContext.
      */
     constructor() {
-        ONE_HUNDRED_PERCENT = uint16(100 * 10 ** PERCENT_DECIMALS);
+        percentDecimals = 1;
+        oneHundredPercent = uint16(100 * 10 ** percentDecimals);
     }
 }

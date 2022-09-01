@@ -98,12 +98,12 @@ contract SaplingProtocolPool is SaplingPoolContext {
         ILender(lendingPool).deposit(liquidityTokenAmount);
         strategizedFunds = strategizedFunds.add(liquidityTokenAmount);
 
-        uint16 poolPercentDecimals = IMath(lendingPool).PERCENT_DECIMALS();
+        uint16 poolPercentDecimals = IMath(lendingPool).percentDecimals();
         uint16 poolLenderAPY = ILender(lendingPool).projectedLenderAPY(
             uint16(90 * 10**poolPercentDecimals),
             30 * 10**poolPercentDecimals
         );
-        uint256 investmentAPR = Math.mulDiv(poolLenderAPY, 10**PERCENT_DECIMALS, 10**poolPercentDecimals);
+        uint256 investmentAPR = Math.mulDiv(poolLenderAPY, 10**percentDecimals, 10**poolPercentDecimals);
 
         weightedAvgStrategyAPR = prevStrategizedFunds
             .mul(weightedAvgStrategyAPR)

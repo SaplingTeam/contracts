@@ -117,9 +117,9 @@ describe('Sapling Lending Pool)', function () {
         let loanDuration;
 
         before(async function () {
-            PERCENT_DECIMALS = await lendingPool.PERCENT_DECIMALS();
+            PERCENT_DECIMALS = await lendingPool.percentDecimals();
             TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
-            ONE_HUNDRED_PERCENT = await lendingPool.ONE_HUNDRED_PERCENT();
+            ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
             exitFeePercent = await lendingPool.exitFeePercent();
 
             lender1 = addresses[1];
@@ -436,7 +436,7 @@ describe('Sapling Lending Pool)', function () {
 
                     let loanDetail = await lendingPool.loanDetails(loanId);
                     let protocolEarningPercent = await lendingPool.protocolFeePercent();
-                    let ONE_HUNDRED_PERCENT = await lendingPool.ONE_HUNDRED_PERCENT();
+                    let ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
 
                     let expectedProtocolFee = loanDetail.interestPaid
                         .mul(protocolEarningPercent)
@@ -461,7 +461,7 @@ describe('Sapling Lending Pool)', function () {
 
                     let loanDetail = await lendingPool.loanDetails(loanId);
                     let protocolEarningPercent = await lendingPool.protocolFeePercent();
-                    let ONE_HUNDRED_PERCENT = await lendingPool.ONE_HUNDRED_PERCENT();
+                    let ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
 
                     let expectedProtocolFee = loanDetail.interestPaid
                         .mul(protocolEarningPercent)
@@ -504,7 +504,7 @@ describe('Sapling Lending Pool)', function () {
                     await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
                     await ethers.provider.send('evm_mine');
 
-                    let paymentAmount2 = (await lendingPool.ONE_TOKEN()).sub(1);
+                    let paymentAmount2 = (await lendingPool.oneToken()).sub(1);
                     let paymentAmount1 = (await lendingPool.loanBalanceDue(loanId)).sub(paymentAmount2);
 
                     await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount1.add(paymentAmount2));
@@ -523,7 +523,7 @@ describe('Sapling Lending Pool)', function () {
 
                 describe('Rejection scenarios', function () {
                     it('Repaying a less than minimum payment amount on a loan with a greater outstanding balance should fail', async function () {
-                        let paymentAmount = (await lendingPool.ONE_TOKEN()).sub(1);
+                        let paymentAmount = (await lendingPool.oneToken()).sub(1);
                         let balanceDue = await lendingPool.loanBalanceDue(loanId);
 
                         assertHardhatInvariant(balanceDue.gt(paymentAmount));
@@ -539,7 +539,7 @@ describe('Sapling Lending Pool)', function () {
                         await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
                         await ethers.provider.send('evm_mine');
 
-                        let paymentAmount2 = (await lendingPool.ONE_TOKEN()).sub(1);
+                        let paymentAmount2 = (await lendingPool.oneToken()).sub(1);
                         let paymentAmount1 = (await lendingPool.loanBalanceDue(loanId)).sub(paymentAmount2);
 
                         await liquidityToken

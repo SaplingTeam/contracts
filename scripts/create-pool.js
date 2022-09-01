@@ -39,14 +39,14 @@ async function main() {
     let poolContract = await SaplingPool.connect(deployer).deploy(tokenContract.address, wallets[config.governanceAddressIndex].address, wallets[config.protocolAddressIndex].address, manager.address)
     console.log("Lending pool deployed at: %s", poolContract.address);
     console.log("Manager: %s", manager.address);
-    
-    let PERCENT_DECIMALS = await poolContract.PERCENT_DECIMALS();
+
+    let PERCENT_DECIMALS = await poolContract.percentDecimals();
 
     let poolSizeBN = BigNumber.from(config.poolSize).mul(TOKEN_MULTIPLIER);
 
     //set apr
     await poolContract.connect(manager).setTemplateLoanAPR(BigNumber.from(config.loanAPR).mul(BigNumber.from(10).pow(PERCENT_DECIMALS)));
-    
+
     // stake
     let stakeAmount = poolSizeBN.mul(config.stakePercent).div(100);
     await tokenContract.connect(deployer).mint(manager.address, stakeAmount);
@@ -64,7 +64,7 @@ async function main() {
             to: lender.address,
             value: ethers.utils.parseEther(LENDER_ETH),
         });
-        
+
         let depositAmount = i === config.numLenders - 1 ? remainingDepositAmount : singleDepositAmount;
 
         await tokenContract.connect(deployer).mint(lender.address, depositAmount);

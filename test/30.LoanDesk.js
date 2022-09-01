@@ -110,7 +110,7 @@ describe('Loan Desk', function () {
             borrower1 = addresses[3];
             borrower2 = addresses[4];
 
-            PERCENT_DECIMALS = await lendingPool.PERCENT_DECIMALS();
+            PERCENT_DECIMALS = await lendingPool.percentDecimals();
             TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
 
             loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
@@ -124,7 +124,7 @@ describe('Loan Desk', function () {
                 let defaultValue = 30 * 10 ** PERCENT_DECIMALS;
 
                 expect(await loanDesk.SAFE_MIN_APR()).to.equal(minValue);
-                expect(await loanDesk.SAFE_MAX_APR()).to.equal(maxValue);
+                expect(await loanDesk.safeMaxApr()).to.equal(maxValue);
                 expect(await loanDesk.templateLoanAPR())
                     .to.equal(defaultValue)
                     .and.gte(minValue)
@@ -150,7 +150,7 @@ describe('Loan Desk', function () {
                 it('Manager can set a template loan APR', async function () {
                     let currentValue = await loanDesk.templateLoanAPR();
                     let minValue = await loanDesk.SAFE_MIN_APR();
-                    let maxValue = await loanDesk.SAFE_MAX_APR();
+                    let maxValue = await loanDesk.safeMaxApr();
 
                     let newValue = 40 * 10 ** PERCENT_DECIMALS;
                     assertHardhatInvariant(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
@@ -168,14 +168,14 @@ describe('Loan Desk', function () {
                     });
 
                     it('Loan APR cannot be set to a value greater than the allowed maximum', async function () {
-                        let maxValue = await loanDesk.SAFE_MAX_APR();
+                        let maxValue = await loanDesk.safeMaxApr();
                         await expect(loanDesk.connect(manager).setTemplateLoanAPR(maxValue + 1)).to.be.reverted;
                     });
 
                     it('Loan APR cannot be set while the pool is paused', async function () {
                         let currentValue = await loanDesk.templateLoanAPR();
                         let minValue = await loanDesk.SAFE_MIN_APR();
-                        let maxValue = await loanDesk.SAFE_MAX_APR();
+                        let maxValue = await loanDesk.safeMaxApr();
 
                         let newValue = 40 * 10 ** PERCENT_DECIMALS;
                         assertHardhatInvariant(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
@@ -188,7 +188,7 @@ describe('Loan Desk', function () {
                     it('A non-manager cannot set the loan APR', async function () {
                         let currentValue = await loanDesk.templateLoanAPR();
                         let minValue = await loanDesk.SAFE_MIN_APR();
-                        let maxValue = await loanDesk.SAFE_MAX_APR();
+                        let maxValue = await loanDesk.safeMaxApr();
 
                         let newValue = 40 * 10 ** PERCENT_DECIMALS;
                         assertHardhatInvariant(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
@@ -209,7 +209,7 @@ describe('Loan Desk', function () {
 
                 describe('Rejection scenarios', function () {
                     it('Minimum loan amount cannot be set to a value less than the allowed minimum', async function () {
-                        let minValue = await loanDesk.SAFE_MIN_AMOUNT();
+                        let minValue = await loanDesk.safeMinAmount();
                         await expect(loanDesk.connect(manager).setMinLoanAmount(minValue.sub(1))).to.be.reverted;
                     });
 
@@ -702,7 +702,7 @@ describe('Loan Desk', function () {
                         let poolLiquidity = await lendingPool.poolLiquidity();
                         let poolFunds = await lendingPool.poolFunds();
                         let targetLiquidityPercent = await lendingPool.targetLiquidityPercent();
-                        let ONE_HUNDRED_PERCENT = await lendingPool.ONE_HUNDRED_PERCENT();
+                        let ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
 
                         let amountBorrowable = poolLiquidity.sub(
                             poolFunds.mul(targetLiquidityPercent).div(ONE_HUNDRED_PERCENT),

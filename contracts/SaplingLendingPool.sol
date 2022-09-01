@@ -471,7 +471,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         // enforce a small minimum payment amount, except for the last payment equal to the total amount due
         require(
-            transferAmount >= ONE_TOKEN || transferAmount == loanBalanceDue(loanId),
+            transferAmount >= oneToken || transferAmount == loanBalanceDue(loanId),
             "SaplingLendingPool: payment amount is less than the required minimum"
         );
 
@@ -483,16 +483,16 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         uint256 principalPaid = transferAmount.sub(interestPayable);
 
         //share revenue to treasury
-        uint256 protocolEarnedInterest = Math.mulDiv(interestPayable, protocolFeePercent, ONE_HUNDRED_PERCENT);
+        uint256 protocolEarnedInterest = Math.mulDiv(interestPayable, protocolFeePercent, oneHundredPercent);
 
         nonUserRevenues[treasury] = nonUserRevenues[treasury].add(protocolEarnedInterest);
 
         //share revenue to manager
-        uint256 currentStakePercent = Math.mulDiv(stakedShares, ONE_HUNDRED_PERCENT, IERC20(poolToken).totalSupply());
+        uint256 currentStakePercent = Math.mulDiv(stakedShares, oneHundredPercent, IERC20(poolToken).totalSupply());
         uint256 managerEarnedInterest = Math.mulDiv(
                 interestPayable.sub(protocolEarnedInterest),
-                Math.mulDiv(currentStakePercent, managerExcessLeverageComponent, ONE_HUNDRED_PERCENT),
-                ONE_HUNDRED_PERCENT
+                Math.mulDiv(currentStakePercent, managerExcessLeverageComponent, oneHundredPercent),
+                oneHundredPercent
             );
 
         nonUserRevenues[manager] = nonUserRevenues[manager].add(managerEarnedInterest);
@@ -549,7 +549,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         uint256 interestPercent = Math.mulDiv(loan.apr, daysPassed, 365);
 
         uint256 principalOutstanding = loan.amount.sub(detail.baseAmountRepaid);
-        uint256 interestOutstanding = Math.mulDiv(principalOutstanding, interestPercent, ONE_HUNDRED_PERCENT);
+        uint256 interestOutstanding = Math.mulDiv(principalOutstanding, interestPercent, oneHundredPercent);
 
         return (principalOutstanding, interestOutstanding, daysPassed);
     }

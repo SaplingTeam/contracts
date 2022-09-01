@@ -85,7 +85,7 @@ describe('Sapling Math Context (via SaplingLendingPool)', function () {
         let PERCENT_DECIMALS;
 
         before(async function () {
-            PERCENT_DECIMALS = await saplingMathContext.PERCENT_DECIMALS();
+            PERCENT_DECIMALS = await saplingMathContext.percentDecimals();
         });
 
         describe('Initial State', function () {
@@ -94,7 +94,7 @@ describe('Sapling Math Context (via SaplingLendingPool)', function () {
             });
 
             it('"100%" value constant is correct', async function () {
-                expect(await saplingMathContext.ONE_HUNDRED_PERCENT()).to.equal(100 * 10 ** PERCENT_DECIMALS);
+                expect(await saplingMathContext.oneHundredPercent()).to.equal(100 * 10 ** PERCENT_DECIMALS);
             });
         });
     });
