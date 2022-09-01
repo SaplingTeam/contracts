@@ -471,7 +471,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         // enforce a small minimum payment amount, except for the last payment equal to the total amount due
         require(
-            transferAmount >= ONE_TOKEN || transferAmount == loanBalanceDue(loanId),
+            transferAmount >= oneToken || transferAmount == loanBalanceDue(loanId),
             "SaplingLendingPool: payment amount is less than the required minimum"
         );
 

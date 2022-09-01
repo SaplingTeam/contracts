@@ -29,7 +29,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     uint8 public immutable tokenDecimals;
 
     /// A value representing 1.0 token amount, padded with zeros for decimals
-    uint256 public immutable ONE_TOKEN;
+    uint256 public immutable oneToken;
 
     /// Total liquidity tokens currently held by this contract
     uint256 public tokenBalance;
@@ -75,7 +75,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
     uint16 public protocolFeePercent;
 
     /// An upper bound for percentage of paid interest to be allocated as protocol fee
-    uint16 public immutable MAX_PROTOCOL_FEE_PERCENT;
+    uint16 public immutable maxProtocolFeePercent;
 
     /// Protocol revenues of non-user addresses
     mapping(address => uint256) internal nonUserRevenues;
@@ -121,8 +121,8 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
         exitFeePercent = oneHundredPercent / 200; // 0.5%
 
-        MAX_PROTOCOL_FEE_PERCENT = uint16(10 * 10 ** percentDecimals); // 10% by default; safe min 0%, max 10%
-        protocolFeePercent = MAX_PROTOCOL_FEE_PERCENT;
+        maxProtocolFeePercent = uint16(10 * 10 ** percentDecimals); // 10% by default; safe min 0%, max 10%
+        protocolFeePercent = maxProtocolFeePercent;
 
         managerEarnFactorMax = uint16(500 * 10 ** percentDecimals); // 500% or 5x leverage by default
         managerEarnFactor = uint16(150 * 10 ** percentDecimals);
@@ -130,7 +130,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
         uint8 decimals = IERC20Metadata(liquidityToken).decimals();
         tokenDecimals = decimals;
-        ONE_TOKEN = 10 ** decimals;
+        oneToken = 10 ** decimals;
 
         poolLiquidity = 0;
         allocatedFunds = 0;
@@ -166,12 +166,12 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
 
     /**
      * @notice Set the protocol earning percent for the pool.
-     * @dev _protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_FEE_PERCENT.
+     * @dev _protocolEarningPercent must be inclusively between 0 and maxProtocolFeePercent.
      *      Caller must be the governance.
      * @param _protocolEarningPercent new protocol earning percent.
      */
     function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyGovernance {
-        require(0 <= _protocolEarningPercent && _protocolEarningPercent <= MAX_PROTOCOL_FEE_PERCENT,
+        require(0 <= _protocolEarningPercent && _protocolEarningPercent <= maxProtocolFeePercent,
             "SaplingPoolContext: protocol earning percent is out of bounds");
         protocolFeePercent = _protocolEarningPercent;
     }
@@ -569,7 +569,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      *      certain actions when the manager is inactive.
      */
     function authorizedOnInactiveManager(address caller) internal view override returns (bool) {
-        return isNonUserAddress(caller) || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= ONE_TOKEN;
+        return isNonUserAddress(caller) || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= oneToken;
     }
 
     /**

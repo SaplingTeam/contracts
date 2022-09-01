@@ -180,7 +180,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             });
 
             it('"One Token" constant is correct', async function () {
-                expect(await saplingPoolContext.ONE_TOKEN()).to.equal(TOKEN_MULTIPLIER.mul(1));
+                expect(await saplingPoolContext.oneToken()).to.equal(TOKEN_MULTIPLIER.mul(1));
             });
 
             it('Target stake percent is correct', async function () {
