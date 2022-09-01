@@ -14,19 +14,21 @@
 
 [interfaces/IMath](interfaces/IMath)
 
-[factory/ILoanDeskFactory](factory/ILoanDeskFactory)
+[factory/ILogicFactory](factory/ILogicFactory)
 
-[factory/PoolLogicFactory](factory/PoolLogicFactory)
+[factory/ILoanDeskFactory](factory/ILoanDeskFactory)
 
 [factory/LoanDeskFactory](factory/LoanDeskFactory)
 
-[factory/TokenFactory](factory/TokenFactory)
+[factory/TransparentProxyFactory](factory/TransparentProxyFactory)
 
-[factory/IPoolLogicFactory](factory/IPoolLogicFactory)
+[factory/TokenFactory](factory/TokenFactory)
 
 [factory/SaplingFactory](factory/SaplingFactory)
 
 [factory/ITokenFactory](factory/ITokenFactory)
+
+[factory/IProxyFactory](factory/IProxyFactory)
 
 [factory/IPoolFactory](factory/IPoolFactory)
 

@@ -15,25 +15,8 @@ Event for when a new LoanDesk is deployed
 ### create
 
 ```solidity
-function create(address pool, address governance, address treasury, address manager, uint8 decimals) external returns (address, address, address)
+function create() external returns (address)
 ```
 
-Deploys a new instance of LoanDesk.
-
-_Lending pool contract must implement ILoanDeskOwner.
-     Caller must be the owner._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| pool | address | LendingPool address |
-| governance | address | Governance address |
-| treasury | address | Treasury wallet address |
-| manager | address | Manager address |
-| decimals | uint8 | Decimals of the tokens used in the pool |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | address | Addresses of the proxy, proxy admin, and the logic contract |
-| [1] | address |  |
-| [2] | address |  |
+Deploys a new logic instance of SaplingLendingPool.
 
