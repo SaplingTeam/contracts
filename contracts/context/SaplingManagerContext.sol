@@ -85,7 +85,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      */
     function transferManager(address _manager) external onlyGovernance {
         require(
-            _manager != address(0) && isNonUserAddress(_manager),
+            _manager != address(0) && !isNonUserAddress(_manager),
             "SaplingManagerContext: invalid manager address"
         );
         address prevManager = manager;
@@ -132,7 +132,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @param party Address to verify
      */
     function isNonUserAddress(address party) internal view override returns (bool) {
-        return party != manager && super.isNonUserAddress(party);
+        return party == manager || super.isNonUserAddress(party);
     }
     /**
      * @notice Indicates whether or not the contract can be closed in it's current state.
