@@ -16,7 +16,7 @@ async function rollback() {
 describe('Pool Factory', function () {
     const TOKEN_DECIMALS = 6;
 
-    let PoolFactoryCF;
+    let PoolProxyFactoryCF;
     let poolFactory;
     let poolLogicFactory;
 
@@ -37,17 +37,17 @@ describe('Pool Factory', function () {
     before(async function () {
         [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
 
-        let PoolLogicFactoryCF = await ethers.getContractFactory('PoolLogicFactory');
-        poolLogicFactory = await PoolLogicFactoryCF.deploy();
+        let PoolFactoryCF = await ethers.getContractFactory('PoolFactory');
+        poolFactory = await PoolFactoryCF.deploy();
 
-        PoolFactoryCF = await ethers.getContractFactory('PoolFactory');
-        poolFactory = await PoolFactoryCF.deploy(poolLogicFactory.address);
-        await poolLogicFactory.transferOwnership(poolFactory.address);
+        PoolProxyFactoryCF = await ethers.getContractFactory('PoolProxyFactory');
+        poolProxyFactory = await PoolProxyFactoryCF.deploy(poolFactory.address);
+        await poolFactory.transferOwnership(poolProxyFactory.address);
     });
 
     describe('Deployment', function () {
         it('Can deploy', async function () {
-            await expect(PoolFactoryCF.deploy(poolLogicFactory.address)).to.be.not.reverted;
+            await expect(PoolProxyFactoryCF.deploy(poolFactory.address)).to.be.not.reverted;
         });
     });
 
@@ -74,7 +74,7 @@ describe('Pool Factory', function () {
 
             it('Can create Pool', async function () {
                 await expect(
-                    poolFactory.create(
+                    poolProxyFactory.create(
                         poolToken.address,
                         liquidityToken.address,
                         governance.address,
@@ -87,7 +87,7 @@ describe('Pool Factory', function () {
 
         describe('Shutdown', function () {
             it('Can shutdown', async function () {
-                await expect(poolFactory.shutdown()).to.be.not.reverted;
+                await expect(poolProxyFactory.shutdown()).to.be.not.reverted;
             });
         });
     });

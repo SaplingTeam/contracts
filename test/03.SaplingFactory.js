@@ -20,7 +20,7 @@ describe('Sapling Factory', function () {
     let saplingFactory;
     let tokenFactory;
     let loanDeskFactory;
-    let poolFactory;
+    let poolProxyFactory;
 
     let deployer;
     let governance;
@@ -43,26 +43,26 @@ describe('Sapling Factory', function () {
         tokenFactory = await (await ethers.getContractFactory('TokenFactory')).deploy();
         loanDeskFactory = await (await ethers.getContractFactory('LoanDeskFactory')).deploy();
 
-        let PoolLogicFactoryCF = await ethers.getContractFactory('PoolLogicFactory');
-        let poolLogicFactory = await PoolLogicFactoryCF.deploy();
+        let PoolFactoryCF = await ethers.getContractFactory('PoolFactory');
+        let poolFactory = await PoolFactoryCF.deploy();
 
-        poolFactory = await (await ethers.getContractFactory('PoolFactory')).deploy(poolLogicFactory.address);
-        await poolLogicFactory.transferOwnership(poolFactory.address);
+        poolProxyFactory = await (await ethers.getContractFactory('PoolProxyFactory')).deploy(poolFactory.address);
+        await poolFactory.transferOwnership(poolProxyFactory.address);
 
         saplingFactory = await SaplingFactoryCF.deploy(
             tokenFactory.address,
             loanDeskFactory.address,
-            poolFactory.address,
+            poolProxyFactory.address,
         );
 
         await tokenFactory.transferOwnership(saplingFactory.address);
         await loanDeskFactory.transferOwnership(saplingFactory.address);
-        await poolFactory.transferOwnership(saplingFactory.address);
+        await poolProxyFactory.transferOwnership(saplingFactory.address);
     });
 
     describe('Deployment', function () {
         it('Can deploy', async function () {
-            await expect(SaplingFactoryCF.deploy(tokenFactory.address, loanDeskFactory.address, poolFactory.address)).to
+            await expect(SaplingFactoryCF.deploy(tokenFactory.address, loanDeskFactory.address, poolProxyFactory.address)).to
                 .be.not.reverted;
         });
     });
