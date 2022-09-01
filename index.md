@@ -40,8 +40,6 @@
 
 [context/SaplingPoolContext](context/SaplingPoolContext)
 
-[context/SaplingMathContext](context/SaplingMathContext)
-
 [context/SaplingContext](context/SaplingContext)
 
 [SaplingProtocolPool](SaplingProtocolPool)

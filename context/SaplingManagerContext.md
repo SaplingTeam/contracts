@@ -20,6 +20,22 @@ bool _closed
 
 Flag indicating whether or not the pool is closed
 
+### percentDecimals
+
+```solidity
+uint16 percentDecimals
+```
+
+Number of decimal digits in integer percent values used across the contract
+
+### oneHundredPercent
+
+```solidity
+uint16 oneHundredPercent
+```
+
+A constant representing 100%
+
 ### MANAGER_INACTIVITY_GRACE_PERIOD
 
 ```solidity
