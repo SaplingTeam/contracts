@@ -34,7 +34,7 @@ Lending pool factory contract address
 event LendingPoolReady(address pool)
 ```
 
-Event for when a Lending pool and it"s components are deployed, linked and ready for use.
+Event for when a Lending pool and its components are deployed, linked and ready for use.
 
 ### constructor
 
@@ -58,7 +58,7 @@ _Addresses must not be 0._
 function createLendingPool(string name, string symbol, address liquidityToken, address governance, address treasury, address manager) external
 ```
 
-Deploys a lending pool and it"s components
+Deploys a lending pool and its components
 
 _Caller must be the governance._
 
