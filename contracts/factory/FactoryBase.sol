@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @title Factory base
  * @dev Provides Ownable and shutdown/selfdestruct
  */
-contract FactoryBase is Ownable {
+abstract contract FactoryBase is Ownable {
 
     /**
      * @dev permanently shutdown this factory and the sub-factories it manages by self-destructing them.

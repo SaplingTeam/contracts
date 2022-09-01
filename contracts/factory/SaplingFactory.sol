@@ -24,7 +24,7 @@ contract SaplingFactory is FactoryBase {
     /// Lending pool factory contract address
     address public poolFactory;
 
-    /// Event for when a Lending pool and it"s components are deployed, linked and ready for use.
+    /// Event for when a Lending pool and its components are deployed, linked and ready for use.
     event LendingPoolReady(address pool);
 
     /**
@@ -49,7 +49,7 @@ contract SaplingFactory is FactoryBase {
     }
 
     /**
-     * @notice Deploys a lending pool and it"s components
+     * @notice Deploys a lending pool and its components
      * @dev Caller must be the governance.
      * @param name Token name
      * @param symbol Token symbol
