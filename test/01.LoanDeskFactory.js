@@ -64,9 +64,14 @@ describe('LoanDesk Factory', function () {
                     await ethers.getContractFactory('PoolToken')
                 ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
 
-                lendingPool = await (
-                    await ethers.getContractFactory('SaplingLendingPool')
-                ).deploy(poolToken.address, liquidityToken.address, governance.address, protocol.address, manager.address);
+                lendingPool = await upgrades.deployProxy(await ethers.getContractFactory('SaplingLendingPool'), [
+                    poolToken.address,
+                    liquidityToken.address,
+                    deployer.address,
+                    protocol.address,
+                    manager.address,
+                ]);
+                await lendingPool.deployed();
             });
 
             it('Can create LoanDesk', async function () {
