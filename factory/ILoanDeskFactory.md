@@ -7,7 +7,7 @@ _Interface defining the inter-contract methods of a LoanDesk factory._
 ### create
 
 ```solidity
-function create(address pool, address governance, address protocol, address manager, uint8 decimals) external returns (address)
+function create(address pool, address governance, address protocol, address manager, uint8 decimals) external returns (address, address, address)
 ```
 
 Deploys a new instance of LoanDesk.
@@ -25,5 +25,7 @@ _Lending pool contract must implement ILoanDeskOwner.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | address | Address of the deployed contract |
+| [0] | address | Addresses of the proxy, proxy admin, and the logic contract |
+| [1] | address |  |
+| [2] | address |  |
 

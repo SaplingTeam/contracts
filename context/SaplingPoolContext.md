@@ -198,10 +198,10 @@ event StakedAssetsDepleted()
 
 Event for when the Manager's staked assets are depleted due to defaults
 
-### constructor
+### __SaplingPoolContext_init
 
 ```solidity
-constructor(address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager) internal
+function __SaplingPoolContext_init(address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager) internal
 ```
 
 Creates a SaplingPoolContext.

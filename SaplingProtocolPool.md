@@ -52,7 +52,13 @@ Event for when an investment yield is collected from a lending pool
 ### constructor
 
 ```solidity
-constructor(address _verificationHub, address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager) public
+constructor() public
+```
+
+### initialize
+
+```solidity
+function initialize(address _verificationHub, address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager) public
 ```
 
 Creates a Sapling pool.

@@ -110,10 +110,10 @@ modifier whenClosed()
 
 Modifier to limit function access to when the contract is closed
 
-### constructor
+### __SaplingManagerContext_init
 
 ```solidity
-constructor(address _governance, address _treasury, address _manager) internal
+function __SaplingManagerContext_init(address _governance, address _treasury, address _manager) internal
 ```
 
 Create a new SaplingManagedContext.

@@ -143,10 +143,10 @@ modifier onlyLoanDesk()
 
 A modifier to limit access only to the loan desk contract
 
-### constructor
+### initialize
 
 ```solidity
-constructor(address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager) public
+function initialize(address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager) public
 ```
 
 Creates a Sapling pool.

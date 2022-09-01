@@ -45,10 +45,10 @@ modifier onlyGovernance()
 
 A modifier to limit access only to the governance
 
-### constructor
+### __SaplingContext_init
 
 ```solidity
-constructor(address _governance, address _treasury) internal
+function __SaplingContext_init(address _governance, address _treasury) internal
 ```
 
 Creates a new SaplingContext.

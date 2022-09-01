@@ -56,7 +56,13 @@ A modifier to limit access to the SaplingFactory
 ### constructor
 
 ```solidity
-constructor(address _governance, address _treasury) public
+constructor() public
+```
+
+### initialize
+
+```solidity
+function initialize(address _governance, address _treasury) public
 ```
 
 Creates a new VerificationHub.

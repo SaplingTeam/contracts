@@ -16,9 +16,13 @@
 
 [factory/ILoanDeskFactory](factory/ILoanDeskFactory)
 
+[factory/PoolLogicFactory](factory/PoolLogicFactory)
+
 [factory/LoanDeskFactory](factory/LoanDeskFactory)
 
 [factory/TokenFactory](factory/TokenFactory)
+
+[factory/IPoolLogicFactory](factory/IPoolLogicFactory)
 
 [factory/SaplingFactory](factory/SaplingFactory)
 
