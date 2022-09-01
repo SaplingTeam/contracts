@@ -47,8 +47,7 @@ abstract contract SaplingManagerContext is SaplingContext {
 
     /// A modifier to limit access only to non-management users
     modifier onlyUser() {
-        require(msg.sender != manager && msg.sender != governance && msg.sender != treasury,
-             "SaplingManagerContext: caller is not a user");
+        require(!isNonUserAddress(msg.sender), "SaplingManagerContext: caller is not a user");
         _;
     }
 

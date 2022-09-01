@@ -569,8 +569,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingM
      *      certain actions when the manager is inactive.
      */
     function authorizedOnInactiveManager(address caller) internal view override returns (bool) {
-        return caller == governance || caller == treasury
-            || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= ONE_TOKEN;
+        return isNonUserAddress(caller) || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= ONE_TOKEN;
     }
 
     /**
