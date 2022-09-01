@@ -2,19 +2,28 @@
 
 pragma solidity ^0.8.15;
 
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "../interfaces/IMath.sol";
 import "./SaplingContext.sol";
 
 /**
  * @title Sapling Manager Context
  * @notice Provides manager access control, and a basic close functionality.
  */
-abstract contract SaplingManagerContext is SaplingContext {
+abstract contract SaplingManagerContext is SaplingContext, IMath {
 
     /// Manager address
     address public manager;
 
     /// Flag indicating whether or not the pool is closed
     bool private _closed;
+
+    // Common math context used in all protocol components that extend this contract
+    /// Number of decimal digits in integer percent values used across the contract
+    uint16 public immutable percentDecimals;
+
+    /// A constant representing 100%
+    uint16 public immutable oneHundredPercent;
 
     /**
      * @notice Grace period for the manager to be inactive on a given loan /cancel/default decision.
@@ -74,6 +83,10 @@ abstract contract SaplingManagerContext is SaplingContext {
         require(_manager != address(0), "SaplingManagerContext: manager address is not set");
         manager = _manager;
         _closed = false;
+
+        //init math context state
+        percentDecimals = 1;
+        oneHundredPercent = uint16(100 * 10 ** percentDecimals);
     }
 
     /**

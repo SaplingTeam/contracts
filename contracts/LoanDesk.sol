@@ -3,7 +3,6 @@
 pragma solidity ^0.8.15;
 
 import "./context/SaplingManagerContext.sol";
-import "./context/SaplingMathContext.sol";
 import "./interfaces/ILoanDesk.sol";
 import "./interfaces/ILoanDeskOwner.sol";
 
@@ -13,7 +12,7 @@ import "./interfaces/ILoanDeskOwner.sol";
  */
 
  //FIXME upgradable
-contract LoanDesk is ILoanDesk, SaplingManagerContext, SaplingMathContext {
+contract LoanDesk is ILoanDesk, SaplingManagerContext {
 
     using SafeMath for uint256;
 
