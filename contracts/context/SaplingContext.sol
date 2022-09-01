@@ -68,7 +68,7 @@ abstract contract SaplingContext is Pausable {
      */
     function transferGovernance(address _governance) external onlyGovernance {
         require(
-            _governance != address(0) && isNonUserAddress(_governance),
+            _governance != address(0) && !isNonUserAddress(_governance),
             "SaplingContext: invalid governance address"
         );
         address prevGovernance = governance;
@@ -84,7 +84,7 @@ abstract contract SaplingContext is Pausable {
      */
     function transferTreasury(address _treasury) external onlyGovernance {
         require(
-            _treasury != address(0) && isNonUserAddress(_treasury),
+            _treasury != address(0) && !isNonUserAddress(_treasury),
             "SaplingContext: invalid treasury wallet address"
         );
         address prevTreasury = treasury;
@@ -105,6 +105,6 @@ abstract contract SaplingContext is Pausable {
      * @param party Address to verify
      */
     function isNonUserAddress(address party) internal view virtual returns (bool) {
-        return party != governance && party != treasury;
+        return party == governance || party == treasury;
     }
 }
