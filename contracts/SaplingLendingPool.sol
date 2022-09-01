@@ -472,18 +472,30 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             "SaplingLendingPool: not found or invalid loan status"
         );
 
-        (
-            uint256 transferAmount,
-            uint256 interestPayable,
-            uint256 payableInterestDays
-        ) = payableLoanBalance(loanId, amount);
 
-        // enforce a small minimum payment amount, except for the last payment equal to the total amount due
-        require(
-            transferAmount >= oneToken || transferAmount == loanBalanceDue(loanId),
-            "SaplingLendingPool: payment amount is less than the required minimum"
-        );
+        uint256 transferAmount;
+        uint256 interestPayable;
+        uint256 payableInterestDays;
 
+        {
+            (
+                uint256 _transferAmount,
+                uint256 _interestPayable,
+                uint256 _payableInterestDays,
+                uint256 _loanBalanceDue
+            ) = payableLoanBalance(loanId, amount);
+
+            transferAmount = _transferAmount;
+            interestPayable = _interestPayable;
+            payableInterestDays = _payableInterestDays;
+
+            // enforce a small minimum payment amount, except for the last payment equal to the total amount due
+            require(
+                transferAmount >= oneToken || transferAmount == _loanBalanceDue,
+                "SaplingLendingPool: payment amount is less than the required minimum"
+            );
+        }
+        
         // charge 'amount' tokens from msg.sender
         bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), transferAmount);
         require(success, "SaplingLendingPool: ERC20 transfer has failed");
@@ -579,7 +591,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     )
         private
         view
-        returns (uint256, uint256, uint256)
+        returns (uint256, uint256, uint256, uint256)
     {
         (
             uint256 principalOutstanding,
@@ -620,7 +632,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             }
         }
 
-        return (transferAmount, interestPayable, payableInterestDays);
+        return (transferAmount, interestPayable, payableInterestDays, principalOutstanding.add(interestOutstanding));
     }
 
     /**
