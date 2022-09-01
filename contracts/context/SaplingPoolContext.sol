@@ -8,14 +8,13 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/IPoolToken.sol";
 import "../interfaces/ILender.sol";
 import "./SaplingManagerContext.sol";
-import "./SaplingMathContext.sol";
 
 /**
  * @title Sapling Pool Context
  * @notice Provides common pool functionality with lender deposits, manager's first loss capital staking,
  *         and reward distribution.
  */
-abstract contract SaplingPoolContext is ILender, SaplingManagerContext, SaplingMathContext, ReentrancyGuard {
+abstract contract SaplingPoolContext is ILender, SaplingManagerContext, ReentrancyGuard {
 
     using SafeMath for uint256;
 
