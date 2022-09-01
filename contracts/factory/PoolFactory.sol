@@ -37,8 +37,10 @@ contract PoolFactory is IPoolFactory, FactoryBase {
         onlyOwner
         returns (address)
     {
-        SaplingLendingPool pool = new SaplingLendingPool(poolToken, liquidityToken, governance, treasury, manager);
-        emit PoolCreated(address(pool));
-        return address(pool);
+        //FIXME deploy upgradable contract, give upgrader role to governance
+        // SaplingLendingPool pool = new SaplingLendingPool(poolToken, liquidityToken, governance, treasury, manager);
+        // emit PoolCreated(address(pool));
+        // return address(pool);
+        return address(0);
     }
 }

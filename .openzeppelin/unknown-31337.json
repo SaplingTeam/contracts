@@ -1,0 +1,1115 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0x2F039eA85D08D17c55e4F1A61fd2c70342544B3D",
+    "txHash": "0xbdc26138956c8fb233b8ddf404b825061a069a51851b3fa6f4d4cee0e64a0aaa"
+  },
+  "proxies": [
+    {
+      "address": "0x87ac201fd68ABEd1a9943770FC269F01F91950b3",
+      "txHash": "0x87e0b1d65ac63f463f63ec76be146742da167ad2ca67ba1adf3e3f4bec831676",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x869a05206Ec29478f82Bf38010A3eB5F7942d4e5",
+      "txHash": "0xa4c8f047b24b8f53eb9e08c1ec03a9b35b6adb5668535c3c68ed09c6fa985fef",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xB302A4b5eF72215403b1B611A967888Bb8EAA84B",
+      "txHash": "0xb7ae52fb9c43f909415a95d71568f427965fd3162ed8fbf6f318f4680ffd7cff",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xA5b7EB2950fC1097Ca2B6A71F6f74736E04701ae",
+      "txHash": "0xce8cb8782db1f96a6763a99dcdb5b68094fe0e00cf374ea54ab8daf6fa5024e7",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xDc9B7499C88De9b836aF5db26F9b4e405461C1AB",
+      "txHash": "0x4711ebb94fd75c79286d3eadda704e2bf8d51ad2f7355a7f98502b0f42c44af3",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xd049497cCba866698ED9248eB833721444408802",
+      "txHash": "0x4e9679eb3d6fda556dc61c022becad5d1fca2f7eeac6a1d6e5be18a2f75b7d11",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x73e6c86d69435dB6FEa83B631D0A12956887522f",
+      "txHash": "0x5f31b22a545bfb10b78867357f09d77de52dd7fad9af19a6e6a9e300ceb8c45d",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x0a5Fe3db0f4692292d0618656dc21BE85fc388aF",
+      "txHash": "0x31a37e463acfdd7edc412c9e457ba70f8b45397ffd386798b756a38aa9ad4571",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xEf3428B9aF7901fdFf96DD4ee347898D8d1b195c",
+      "txHash": "0xadd26f06da6e308e041ab661fe205db3e7708e92f5d33c7427296fe0d4450ea9",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x05F4b8175F98151c4578D6a46E089e440326bAea",
+      "txHash": "0xbe79a2c6dc6f0413a9ff6e83451b24ed761392e521409772bd4fbbe5954ec729",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x2add55125fC75FFD781c98C57a0fF42c4a017374",
+      "txHash": "0xbfbe4ec8475f566df972f3d539d329f5e535364636cdf4f5b4b1c08fda2076ff",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x0Eba9aBee0874b7CC72D9B9EbCCfD53f31c7CaD1",
+      "txHash": "0x9b388f1d587b2958f5f5a124b2566712ccff0d4760a43ddc84a7b2b901f1cffc",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x801b7A2E38071641ecB3E552B66503639C56B426",
+      "txHash": "0xa9daed985dc04ba9d343568b1b92daf0e126ea6ff6b56d6bdd790cbb14580a81",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x771e0E79893f5514357A505e041a7f2d444Bf898",
+      "txHash": "0xb32dcf05942cc5eb00cad20c9f8d05de4b6b5fdd8afccc01ddc8e6ff689dbe14",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xb3B192a98AF31c05e77a444e2988D8fa92bcf1F9",
+      "txHash": "0x4e08dd721479f85e5e9ec77ed120c421cfe44d0105f2784f2f825f4a1ec8266d",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x68af615ac26340C224De3aC1dBE573b6BbDd7b40",
+      "txHash": "0xa23d0d5450bb1bf43c4d1f0ea9609f2e75fb937e1b945c62834a56f8450c1614",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xd5C5ec64096144F3F9f41F0Fff3bFC808dcD97E6",
+      "txHash": "0xe1b2d487e17b01fb8b74b85a1036c2a0a7a6593d071a8a8fcc58ebc1eca759bd",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x7Af86d4FbA28Cf9Cba87d2163c9Aac61e5ee8d13",
+      "txHash": "0xfe64a21341173ba076287bcfbc87699cacb92b2c6639379008f3e941979e8627",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xf98d1a7cf433870fF3b7f9471fB5320F9CDc2003",
+      "txHash": "0x27bb97a7fab20fd24145eeb8ca29ca47dfc67bdbff006c06cb7002edf7c99ebb",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x0242C54D8dc0c82D7730417A7dBA6a056E94b823",
+      "txHash": "0x9b4311b7ef4a99a49fa1b743b79a57f087730454e5e06463661cb512a99aea33",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xb401769a376183BC1754A8E694C208F760e25616",
+      "txHash": "0x0d021a844fdab7bc017e28ff4573d6d6db11383bfec8ef240258ce68a536fd18",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x591CE1Ec50d02934B8A3254cFCdB58AA861af41f",
+      "txHash": "0x1345b71759363aae2f696b54c00d169a9ebb6d8bd66a46bdc9cc44e64cc330fe",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xd08cDeD2A70da00cB38718dbabB5A0DDe7EFD128",
+      "txHash": "0xed2f3d420d92b7362b73d1258d9beb2ad4bfbd04b64783ecb0e79f52c6b8def5",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x2d75057e8754a1487888db9275447B04e237eE77",
+      "txHash": "0x1ab5c65449b3cfbc456044ecc723068c95030fc80fd6ae6625cb6880eeca6451",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "977d55a8fdefc2218c493255c15118ef5e70e769f642f0195f7101b903e0f7dd": {
+      "address": "0x5D4932162fFFE8EE93cCf3425cE5Ac5b5f638891",
+      "txHash": "0x5b4e041caca30ad3d39b7b61c001bc9da581bea6189890e02451d7f829e62380",
+      "layout": {
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_paused",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_bool",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol:29"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol:116"
+          },
+          {
+            "label": "governance",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_address",
+            "contract": "SaplingContext",
+            "src": "contracts/context/SaplingContext.sol:16"
+          },
+          {
+            "label": "treasury",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_address",
+            "contract": "SaplingContext",
+            "src": "contracts/context/SaplingContext.sol:19"
+          },
+          {
+            "label": "manager",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_address",
+            "contract": "SaplingManagerContext",
+            "src": "contracts/context/SaplingManagerContext.sol:16"
+          },
+          {
+            "label": "_closed",
+            "offset": 20,
+            "slot": "103",
+            "type": "t_bool",
+            "contract": "SaplingManagerContext",
+            "src": "contracts/context/SaplingManagerContext.sol:19"
+          },
+          {
+            "label": "percentDecimals",
+            "offset": 21,
+            "slot": "103",
+            "type": "t_uint16",
+            "contract": "SaplingManagerContext",
+            "src": "contracts/context/SaplingManagerContext.sol:23"
+          },
+          {
+            "label": "oneHundredPercent",
+            "offset": 23,
+            "slot": "103",
+            "type": "t_uint16",
+            "contract": "SaplingManagerContext",
+            "src": "contracts/context/SaplingManagerContext.sol:26"
+          },
+          {
+            "label": "_status",
+            "offset": 0,
+            "slot": "104",
+            "type": "t_uint256",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:38"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "105",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "ReentrancyGuardUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:74"
+          },
+          {
+            "label": "poolToken",
+            "offset": 0,
+            "slot": "154",
+            "type": "t_address",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:22"
+          },
+          {
+            "label": "liquidityToken",
+            "offset": 0,
+            "slot": "155",
+            "type": "t_address",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:25"
+          },
+          {
+            "label": "tokenDecimals",
+            "offset": 20,
+            "slot": "155",
+            "type": "t_uint8",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:28"
+          },
+          {
+            "label": "oneToken",
+            "offset": 0,
+            "slot": "156",
+            "type": "t_uint256",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:31"
+          },
+          {
+            "label": "tokenBalance",
+            "offset": 0,
+            "slot": "157",
+            "type": "t_uint256",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:34"
+          },
+          {
+            "label": "poolFundsLimit",
+            "offset": 0,
+            "slot": "158",
+            "type": "t_uint256",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:37"
+          },
+          {
+            "label": "poolFunds",
+            "offset": 0,
+            "slot": "159",
+            "type": "t_uint256",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:40"
+          },
+          {
+            "label": "poolLiquidity",
+            "offset": 0,
+            "slot": "160",
+            "type": "t_uint256",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:43"
+          },
+          {
+            "label": "allocatedFunds",
+            "offset": 0,
+            "slot": "161",
+            "type": "t_uint256",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:46"
+          },
+          {
+            "label": "strategizedFunds",
+            "offset": 0,
+            "slot": "162",
+            "type": "t_uint256",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:49"
+          },
+          {
+            "label": "stakedShares",
+            "offset": 0,
+            "slot": "163",
+            "type": "t_uint256",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:52"
+          },
+          {
+            "label": "targetStakePercent",
+            "offset": 0,
+            "slot": "164",
+            "type": "t_uint16",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:55"
+          },
+          {
+            "label": "targetLiquidityPercent",
+            "offset": 2,
+            "slot": "164",
+            "type": "t_uint16",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:58"
+          },
+          {
+            "label": "exitFeePercent",
+            "offset": 0,
+            "slot": "165",
+            "type": "t_uint256",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:61"
+          },
+          {
+            "label": "managerEarnFactor",
+            "offset": 0,
+            "slot": "166",
+            "type": "t_uint16",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:64"
+          },
+          {
+            "label": "managerEarnFactorMax",
+            "offset": 2,
+            "slot": "166",
+            "type": "t_uint16",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:67"
+          },
+          {
+            "label": "managerExcessLeverageComponent",
+            "offset": 0,
+            "slot": "167",
+            "type": "t_uint256",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:71"
+          },
+          {
+            "label": "protocolFeePercent",
+            "offset": 0,
+            "slot": "168",
+            "type": "t_uint16",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:74"
+          },
+          {
+            "label": "maxProtocolFeePercent",
+            "offset": 2,
+            "slot": "168",
+            "type": "t_uint16",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:77"
+          },
+          {
+            "label": "nonUserRevenues",
+            "offset": 0,
+            "slot": "169",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:80"
+          },
+          {
+            "label": "weightedAvgStrategyAPR",
+            "offset": 0,
+            "slot": "170",
+            "type": "t_uint256",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:83"
+          },
+          {
+            "label": "nextStrategyId",
+            "offset": 0,
+            "slot": "171",
+            "type": "t_uint256",
+            "contract": "SaplingPoolContext",
+            "src": "contracts/context/SaplingPoolContext.sol:86"
+          },
+          {
+            "label": "loanDesk",
+            "offset": 0,
+            "slot": "172",
+            "type": "t_address",
+            "contract": "SaplingLendingPool",
+            "src": "contracts/SaplingLendingPool.sol:89"
+          },
+          {
+            "label": "loans",
+            "offset": 0,
+            "slot": "173",
+            "type": "t_mapping(t_uint256,t_struct(Loan)3581_storage)",
+            "contract": "SaplingLendingPool",
+            "src": "contracts/SaplingLendingPool.sol:92"
+          },
+          {
+            "label": "loanDetails",
+            "offset": 0,
+            "slot": "174",
+            "type": "t_mapping(t_uint256,t_struct(LoanDetail)3594_storage)",
+            "contract": "SaplingLendingPool",
+            "src": "contracts/SaplingLendingPool.sol:95"
+          },
+          {
+            "label": "borrowerStats",
+            "offset": 0,
+            "slot": "175",
+            "type": "t_mapping(t_address,t_struct(BorrowerStats)3622_storage)",
+            "contract": "SaplingLendingPool",
+            "src": "contracts/SaplingLendingPool.sol:98"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_enum(LoanStatus)3555": {
+            "label": "enum SaplingLendingPool.LoanStatus",
+            "members": [
+              "NULL",
+              "OUTSTANDING",
+              "REPAID",
+              "DEFAULTED"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_struct(BorrowerStats)3622_storage)": {
+            "label": "mapping(address => struct SaplingLendingPool.BorrowerStats)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(Loan)3581_storage)": {
+            "label": "mapping(uint256 => struct SaplingLendingPool.Loan)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(LoanDetail)3594_storage)": {
+            "label": "mapping(uint256 => struct SaplingLendingPool.LoanDetail)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(BorrowerStats)3622_storage": {
+            "label": "struct SaplingLendingPool.BorrowerStats",
+            "members": [
+              {
+                "label": "borrower",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "countBorrowed",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "countRepaid",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "countDefaulted",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "countOutstanding",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "amountBorrowed",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "amountBaseRepaid",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "amountInterestPaid",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "7"
+              },
+              {
+                "label": "recentLoanId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "8"
+              }
+            ],
+            "numberOfBytes": "288"
+          },
+          "t_struct(Loan)3581_storage": {
+            "label": "struct SaplingLendingPool.Loan",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "loanDeskAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "applicationId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "borrower",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "amount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "duration",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "gracePeriod",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "installmentAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "7"
+              },
+              {
+                "label": "installments",
+                "type": "t_uint16",
+                "offset": 0,
+                "slot": "8"
+              },
+              {
+                "label": "apr",
+                "type": "t_uint16",
+                "offset": 2,
+                "slot": "8"
+              },
+              {
+                "label": "borrowedTime",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "9"
+              },
+              {
+                "label": "status",
+                "type": "t_enum(LoanStatus)3555",
+                "offset": 0,
+                "slot": "10"
+              }
+            ],
+            "numberOfBytes": "352"
+          },
+          "t_struct(LoanDetail)3594_storage": {
+            "label": "struct SaplingLendingPool.LoanDetail",
+            "members": [
+              {
+                "label": "loanId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "totalAmountRepaid",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "principalAmountRepaid",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "interestPaid",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "interestPaidTillTime",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "lastPaymentTime",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "5"
+              }
+            ],
+            "numberOfBytes": "192"
+          },
+          "t_uint16": {
+            "label": "uint16",
+            "numberOfBytes": "2"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "fb894e214d6a97d69e2f61c707ef7c128881eaf317f4920b476e0eb1f461a8dd": {
+      "address": "0x4731C76329f316b9FA17c9D27AC2968326B37129",
+      "txHash": "0xf996de10a42fe577b1f0b72d93c36a74405416eec1fc65002bc41dc65d3d9760",
+      "layout": {
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ContextUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol:36"
+          },
+          {
+            "label": "_paused",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_bool",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol:29"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "52",
+            "type": "t_array(t_uint256)49_storage",
+            "contract": "PausableUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol:116"
+          },
+          {
+            "label": "governance",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_address",
+            "contract": "SaplingContext",
+            "src": "contracts/context/SaplingContext.sol:16"
+          },
+          {
+            "label": "treasury",
+            "offset": 0,
+            "slot": "102",
+            "type": "t_address",
+            "contract": "SaplingContext",
+            "src": "contracts/context/SaplingContext.sol:19"
+          },
+          {
+            "label": "manager",
+            "offset": 0,
+            "slot": "103",
+            "type": "t_address",
+            "contract": "SaplingManagerContext",
+            "src": "contracts/context/SaplingManagerContext.sol:16"
+          },
+          {
+            "label": "_closed",
+            "offset": 20,
+            "slot": "103",
+            "type": "t_bool",
+            "contract": "SaplingManagerContext",
+            "src": "contracts/context/SaplingManagerContext.sol:19"
+          },
+          {
+            "label": "percentDecimals",
+            "offset": 21,
+            "slot": "103",
+            "type": "t_uint16",
+            "contract": "SaplingManagerContext",
+            "src": "contracts/context/SaplingManagerContext.sol:23"
+          },
+          {
+            "label": "oneHundredPercent",
+            "offset": 23,
+            "slot": "103",
+            "type": "t_uint16",
+            "contract": "SaplingManagerContext",
+            "src": "contracts/context/SaplingManagerContext.sol:26"
+          },
+          {
+            "label": "pool",
+            "offset": 0,
+            "slot": "104",
+            "type": "t_address",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:60"
+          },
+          {
+            "label": "safeMinAmount",
+            "offset": 0,
+            "slot": "105",
+            "type": "t_uint256",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:63"
+          },
+          {
+            "label": "minLoanAmount",
+            "offset": 0,
+            "slot": "106",
+            "type": "t_uint256",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:66"
+          },
+          {
+            "label": "minLoanDuration",
+            "offset": 0,
+            "slot": "107",
+            "type": "t_uint256",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:75"
+          },
+          {
+            "label": "maxLoanDuration",
+            "offset": 0,
+            "slot": "108",
+            "type": "t_uint256",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:78"
+          },
+          {
+            "label": "templateLoanGracePeriod",
+            "offset": 0,
+            "slot": "109",
+            "type": "t_uint256",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:81"
+          },
+          {
+            "label": "safeMaxApr",
+            "offset": 0,
+            "slot": "110",
+            "type": "t_uint16",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:93"
+          },
+          {
+            "label": "templateLoanAPR",
+            "offset": 2,
+            "slot": "110",
+            "type": "t_uint16",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:96"
+          },
+          {
+            "label": "nextApplicationId",
+            "offset": 0,
+            "slot": "111",
+            "type": "t_uint256",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:99"
+          },
+          {
+            "label": "loanApplications",
+            "offset": 0,
+            "slot": "112",
+            "type": "t_mapping(t_uint256,t_struct(LoanApplication)2292_storage)",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:102"
+          },
+          {
+            "label": "loanOffers",
+            "offset": 0,
+            "slot": "113",
+            "type": "t_mapping(t_uint256,t_struct(LoanOffer)8374_storage)",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:105"
+          },
+          {
+            "label": "borrowerStats",
+            "offset": 0,
+            "slot": "114",
+            "type": "t_mapping(t_address,t_struct(BorrowerStats)2317_storage)",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:108"
+          },
+          {
+            "label": "offeredFunds",
+            "offset": 0,
+            "slot": "115",
+            "type": "t_uint256",
+            "contract": "LoanDesk",
+            "src": "contracts/LoanDesk.sol:111"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)49_storage": {
+            "label": "uint256[49]",
+            "numberOfBytes": "1568"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_enum(LoanApplicationStatus)8355": {
+            "label": "enum ILoanDesk.LoanApplicationStatus",
+            "members": [
+              "NULL",
+              "APPLIED",
+              "DENIED",
+              "OFFER_MADE",
+              "OFFER_ACCEPTED",
+              "OFFER_CANCELLED"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_struct(BorrowerStats)2317_storage)": {
+            "label": "mapping(address => struct LoanDesk.BorrowerStats)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(LoanApplication)2292_storage)": {
+            "label": "mapping(uint256 => struct LoanDesk.LoanApplication)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_struct(LoanOffer)8374_storage)": {
+            "label": "mapping(uint256 => struct ILoanDesk.LoanOffer)",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(BorrowerStats)2317_storage": {
+            "label": "struct LoanDesk.BorrowerStats",
+            "members": [
+              {
+                "label": "borrower",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "countRequested",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "countDenied",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "countOffered",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "countBorrowed",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "countCancelled",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "recentApplicationId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "hasOpenApplication",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "7"
+              }
+            ],
+            "numberOfBytes": "256"
+          },
+          "t_struct(LoanApplication)2292_storage": {
+            "label": "struct LoanDesk.LoanApplication",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "borrower",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "amount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "duration",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "requestedTime",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "status",
+                "type": "t_enum(LoanApplicationStatus)8355",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "profileId",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "profileDigest",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "7"
+              }
+            ],
+            "numberOfBytes": "256"
+          },
+          "t_struct(LoanOffer)8374_storage": {
+            "label": "struct ILoanDesk.LoanOffer",
+            "members": [
+              {
+                "label": "applicationId",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "borrower",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "amount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "duration",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "gracePeriod",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "4"
+              },
+              {
+                "label": "installmentAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "5"
+              },
+              {
+                "label": "installments",
+                "type": "t_uint16",
+                "offset": 0,
+                "slot": "6"
+              },
+              {
+                "label": "apr",
+                "type": "t_uint16",
+                "offset": 2,
+                "slot": "6"
+              },
+              {
+                "label": "offeredTime",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "7"
+              }
+            ],
+            "numberOfBytes": "256"
+          },
+          "t_uint16": {
+            "label": "uint16",
+            "numberOfBytes": "2"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    }
+  }
+}

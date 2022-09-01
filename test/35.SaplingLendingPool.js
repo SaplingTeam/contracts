@@ -1,6 +1,6 @@
 const { expect } = require('chai');
 const { BigNumber } = require('ethers');
-const { ethers } = require('hardhat');
+const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
 
 let evmSnapshotIds = [];
@@ -42,6 +42,7 @@ describe('Sapling Lending Pool)', function () {
         [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
 
         SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
+        let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
 
         liquidityToken = await (
             await ethers.getContractFactory('PoolToken')
@@ -51,17 +52,23 @@ describe('Sapling Lending Pool)', function () {
             await ethers.getContractFactory('PoolToken')
         ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
 
-        lendingPool = await SaplingLendingPoolCF.deploy(
+        lendingPool = await upgrades.deployProxy(SaplingLendingPoolCF, [
             poolToken.address,
             liquidityToken.address,
             deployer.address,
             protocol.address,
             manager.address,
-        );
+        ]);
+        await lendingPool.deployed();
 
-        loanDesk = await (
-            await ethers.getContractFactory('LoanDesk')
-        ).deploy(lendingPool.address, governance.address, protocol.address, manager.address, TOKEN_DECIMALS);
+        loanDesk = await upgrades.deployProxy(LoanDeskCF, [
+            lendingPool.address,
+            governance.address,
+            protocol.address,
+            manager.address,
+            TOKEN_DECIMALS,
+        ]);
+        await loanDesk.deployed();
 
         await poolToken.connect(deployer).transferOwnership(lendingPool.address);
         await lendingPool.connect(deployer).setLoanDesk(loanDesk.address);
@@ -71,13 +78,13 @@ describe('Sapling Lending Pool)', function () {
     describe('Deployment', function () {
         it('Can deploy', async function () {
             await expect(
-                SaplingLendingPoolCF.deploy(
+                upgrades.deployProxy(SaplingLendingPoolCF, [
                     poolToken.address,
                     liquidityToken.address,
-                    governance.address,
+                    deployer.address,
                     protocol.address,
                     manager.address,
-                ),
+                ]),
             ).to.be.not.reverted;
         });
 

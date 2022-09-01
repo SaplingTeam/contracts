@@ -11,7 +11,7 @@ import "./interfaces/IVerificationHub.sol";
  */
 contract SaplingProtocolPool is SaplingPoolContext {
 
-    using SafeMath for uint256;
+    using SafeMathUpgradeable for uint256;
 
     /// Investment profile object template
     struct Investment {
@@ -37,6 +37,11 @@ contract SaplingProtocolPool is SaplingPoolContext {
     /// Event for when an investment yield is collected from a lending pool
     event YieldCollected(address fromPool, uint256 liquidityTokenAmount);
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
      * @notice Creates a Sapling pool.
      * @param _verificationHub verification hub address
@@ -46,7 +51,7 @@ contract SaplingProtocolPool is SaplingPoolContext {
      * @param _treasury Treasury wallet address
      * @param _manager Manager address
      */
-    constructor(
+    function initialize(
         address _verificationHub,
         address _poolToken,
         address _liquidityToken,
@@ -54,8 +59,18 @@ contract SaplingProtocolPool is SaplingPoolContext {
         address _treasury,
         address _manager
     )
-        SaplingPoolContext(_poolToken, _liquidityToken, _governance, _treasury, _manager)
+        public
+        initializer
     {
+        __SaplingPoolContext_init(_poolToken, _liquidityToken, _governance, _treasury, _manager);
+
+        /*
+            Additional check for single init:
+                do not init again if a non-zero value is present in the values yet to be initialized.
+        */
+        assert(verificationHub == address(0));
+
+        require(_verificationHub != address(0), "SaplingProtocolPool: invalid verification hub");
         verificationHub = _verificationHub;
     }
 
@@ -103,7 +118,7 @@ contract SaplingProtocolPool is SaplingPoolContext {
             uint16(90 * 10**poolPercentDecimals),
             30 * 10**poolPercentDecimals
         );
-        uint256 investmentAPR = Math.mulDiv(poolLenderAPY, 10**percentDecimals, 10**poolPercentDecimals);
+        uint256 investmentAPR = MathUpgradeable.mulDiv(poolLenderAPY, 10**percentDecimals, 10**poolPercentDecimals);
 
         weightedAvgStrategyAPR = prevStrategizedFunds
             .mul(weightedAvgStrategyAPR)

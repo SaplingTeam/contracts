@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/IPoolToken.sol";
 import "../interfaces/ILender.sol";
@@ -14,21 +14,21 @@ import "./SaplingManagerContext.sol";
  * @notice Provides common pool functionality with lender deposits, manager's first loss capital staking,
  *         and reward distribution.
  */
-abstract contract SaplingPoolContext is ILender, SaplingManagerContext, ReentrancyGuard {
+abstract contract SaplingPoolContext is ILender, SaplingManagerContext, ReentrancyGuardUpgradeable {
 
-    using SafeMath for uint256;
+    using SafeMathUpgradeable for uint256;
 
     /// Address of an ERC20 token managed and issued by the pool
-    address public immutable poolToken;
+    address public poolToken;
 
     /// Address of an ERC20 liquidity token accepted by the pool
-    address public immutable liquidityToken;
+    address public liquidityToken;
 
     /// tokenDecimals value retrieved from the liquidity token contract upon contract construction
-    uint8 public immutable tokenDecimals;
+    uint8 public tokenDecimals;
 
     /// A value representing 1.0 token amount, padded with zeros for decimals
-    uint256 public immutable oneToken;
+    uint256 public oneToken;
 
     /// Total liquidity tokens currently held by this contract
     uint256 public tokenBalance;
@@ -58,7 +58,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
     uint16 public targetLiquidityPercent;
 
     /// exit fee percentage
-    uint256 public immutable exitFeePercent;
+    uint256 public exitFeePercent;
 
     /// Manager's leveraged earn factor represented as a percentage
     uint16 public managerEarnFactor;
@@ -74,7 +74,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
     uint16 public protocolFeePercent;
 
     /// An upper bound for percentage of paid interest to be allocated as protocol fee
-    uint16 public immutable maxProtocolFeePercent;
+    uint16 public maxProtocolFeePercent;
 
     /// Protocol revenues of non-user addresses
     mapping(address => uint256) internal nonUserRevenues;
@@ -100,8 +100,22 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
      * @param _treasury Treasury wallet address
      * @param _manager Manager address
      */
-    constructor(address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager)
-        SaplingManagerContext(_governance, _treasury, _manager) {
+    function __SaplingPoolContext_init(address _poolToken,
+        address _liquidityToken,
+        address _governance,
+        address _treasury,
+        address _manager
+    )
+        internal
+        onlyInitializing
+    {
+        __SaplingManagerContext_init(_governance, _treasury, _manager);
+
+        /*
+            Additional check for single init:
+                do not init again if a non-zero value is present in the values yet to be initialized.
+        */
+        assert(poolToken == address(0) && liquidityToken == address(0));
 
         require(_poolToken != address(0), "SaplingPoolContext: pool token address is not set");
         require(_liquidityToken != address(0), "SaplingPoolContext: liquidity token address is not set");
@@ -301,7 +315,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
      * @return Max amount of tokens withdrawable by the caller.
      */
     function amountWithdrawable(address wallet) external view override returns (uint256) {
-        return paused() ? 0 : Math.min(poolLiquidity, balanceOf(wallet));
+        return paused() ? 0 : MathUpgradeable.min(poolLiquidity, balanceOf(wallet));
     }
 
     /**
@@ -339,7 +353,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
      */
     function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view override returns (uint16) {
         require(strategyRate <= oneHundredPercent, "SaplingPoolContext: invalid borrow rate");
-        return lenderAPY(Math.mulDiv(poolFunds, strategyRate, oneHundredPercent), _avgStrategyAPR);
+        return lenderAPY(MathUpgradeable.mulDiv(poolFunds, strategyRate, oneHundredPercent), _avgStrategyAPR);
     }
 
     /**
@@ -363,17 +377,17 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
         if (paused() || targetStakePercent >= oneHundredPercent && totalPoolShares > stakedShares) {
             return 0;
         } else if (closed() || totalPoolShares == stakedShares) {
-            return Math.min(poolLiquidity, sharesToTokens(stakedShares));
+            return MathUpgradeable.min(poolLiquidity, sharesToTokens(stakedShares));
         }
 
         uint256 lenderShares = totalPoolShares.sub(stakedShares);
-        uint256 lockedStakeShares = Math.mulDiv(
+        uint256 lockedStakeShares = MathUpgradeable.mulDiv(
             lenderShares,
             targetStakePercent,
             oneHundredPercent - targetStakePercent
         );
 
-        return Math.min(poolLiquidity, sharesToTokens(stakedShares.sub(lockedStakeShares)));
+        return MathUpgradeable.min(poolLiquidity, sharesToTokens(stakedShares.sub(lockedStakeShares)));
     }
 
     /**
@@ -381,7 +395,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
      * @return Strategy liquidity amount.
      */
     function strategyLiquidity() public view returns (uint256) {
-        uint256 lenderAllocatedLiquidity = Math.mulDiv(poolFunds, targetLiquidityPercent, oneHundredPercent);
+        uint256 lenderAllocatedLiquidity = MathUpgradeable.mulDiv(poolFunds, targetLiquidityPercent, oneHundredPercent);
 
         if (poolLiquidity <= lenderAllocatedLiquidity) {
             return 0;
@@ -453,7 +467,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
         // burn shares
         IPoolToken(poolToken).burn(msg.sender != manager ? msg.sender : address(this), shares);
 
-        uint256 transferAmount = amount.sub(Math.mulDiv(amount, exitFeePercent, oneHundredPercent));
+        uint256 transferAmount = amount.sub(MathUpgradeable.mulDiv(amount, exitFeePercent, oneHundredPercent));
 
         poolFunds = poolFunds.sub(transferAmount);
         poolLiquidity = poolLiquidity.sub(transferAmount);
@@ -469,7 +483,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
      * @dev Internal method to update the pool funds limit based on the staked funds.
      */
     function updatePoolLimit() internal nonReentrant {
-        poolFundsLimit = sharesToTokens(Math.mulDiv(stakedShares, oneHundredPercent, targetStakePercent));
+        poolFundsLimit = sharesToTokens(MathUpgradeable.mulDiv(stakedShares, oneHundredPercent, targetStakePercent));
     }
 
     /**
@@ -482,7 +496,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
              return 0;
         }
 
-        return Math.mulDiv(shares, poolFunds, IERC20(poolToken).totalSupply());
+        return MathUpgradeable.mulDiv(shares, poolFunds, IERC20(poolToken).totalSupply());
     }
 
     /**
@@ -507,7 +521,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
             return tokens.mul(totalPoolShares);
         }
 
-        return Math.mulDiv(tokens, totalPoolShares, poolFunds);
+        return MathUpgradeable.mulDiv(tokens, totalPoolShares, poolFunds);
     }
 
     /**
@@ -529,21 +543,25 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
         }
 
         // pool APY
-        uint256 poolAPY = Math.mulDiv(_avgStrategyAPR, _strategizedFunds, poolFunds);
+        uint256 poolAPY = MathUpgradeable.mulDiv(_avgStrategyAPR, _strategizedFunds, poolFunds);
 
         // protocol APY
-        uint256 protocolAPY = Math.mulDiv(poolAPY, protocolFeePercent, oneHundredPercent);
+        uint256 protocolAPY = MathUpgradeable.mulDiv(poolAPY, protocolFeePercent, oneHundredPercent);
 
         uint256 remainingAPY = poolAPY.sub(protocolAPY);
 
         // manager withdrawableAPY
-        uint256 currentStakePercent = Math.mulDiv(stakedShares, oneHundredPercent, IERC20(poolToken).totalSupply());
-        uint256 managerEarningsPercent = Math.mulDiv(
+        uint256 currentStakePercent = MathUpgradeable.mulDiv(
+            stakedShares,
+            oneHundredPercent,
+            IERC20(poolToken).totalSupply()
+        );
+        uint256 managerEarningsPercent = MathUpgradeable.mulDiv(
             currentStakePercent,
             managerExcessLeverageComponent,
             oneHundredPercent);
 
-        uint256 managerWithdrawableAPY = Math.mulDiv(
+        uint256 managerWithdrawableAPY = MathUpgradeable.mulDiv(
             remainingAPY,
             managerEarningsPercent,
             managerEarningsPercent + oneHundredPercent
@@ -558,7 +576,11 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
      */
     function isPoolFunctional() internal view returns (bool) {
         return !(paused() || closed())
-            && stakedShares >= Math.mulDiv(IERC20(poolToken).totalSupply(), targetStakePercent, oneHundredPercent);
+            && stakedShares >= MathUpgradeable.mulDiv(
+                IERC20(poolToken).totalSupply(),
+                targetStakePercent,
+                oneHundredPercent
+            );
     }
 
 

@@ -11,10 +11,9 @@ import "./interfaces/ILoanDeskOwner.sol";
  * @notice Provides loan application and offer management.
  */
 
- //FIXME upgradable
 contract LoanDesk is ILoanDesk, SaplingManagerContext {
 
-    using SafeMath for uint256;
+    using SafeMathUpgradeable for uint256;
 
     /// Loan application object template
     struct LoanApplication {
@@ -61,7 +60,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     address public pool;
 
     /// Math safe minimum loan amount including token decimals
-    uint256 public immutable safeMinAmount;
+    uint256 public safeMinAmount;
 
     /// Minimum allowed loan amount
     uint256 public minLoanAmount;
@@ -79,7 +78,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     uint256 public maxLoanDuration;
 
     /// Loan payment grace period after which a loan can be defaulted
-    uint256 public templateLoanGracePeriod = 60 days;
+    uint256 public templateLoanGracePeriod;
 
     /// Minimum allowed loan payment grace period
     uint256 public constant MIN_LOAN_GRACE_PERIOD = 3 days;
@@ -91,7 +90,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     uint16 public constant SAFE_MIN_APR = 0; // 0%
 
     /// Safe maximum for APR values
-    uint16 public immutable safeMaxApr;
+    uint16 public safeMaxApr;
 
     /// Loan APR to be applied for the new loan requests
     uint16 public templateLoanAPR;
@@ -140,6 +139,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
      * @notice Create a new LoanDesk.
      * @dev Addresses must not be 0.
@@ -149,8 +153,23 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      * @param _manager Manager address
      * @param _decimals Lending pool liquidity token decimals
      */
-    constructor(address _pool, address _governance, address _treasury, address _manager, uint8 _decimals)
-        SaplingManagerContext(_governance, _treasury, _manager) {
+    function initialize(
+        address _pool,
+        address _governance,
+        address _treasury,
+        address _manager,
+        uint8 _decimals
+    )
+        public
+        initializer
+    {
+        __SaplingManagerContext_init(_governance, _treasury, _manager);
+
+        /*
+            Additional check for single init:
+                do not init again if a non-zero value is present in the values yet to be initialized.
+        */
+        assert(pool == address(0) && nextApplicationId == 0);
 
         require(_pool != address(0), "LoanDesk: invalid pool address");
 
@@ -165,6 +184,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
 
         safeMaxApr = oneHundredPercent;
         templateLoanAPR = uint16(30 * 10 ** percentDecimals); // 30%
+        templateLoanGracePeriod = 60 days;
 
         offeredFunds = 0;
         nextApplicationId = 1;

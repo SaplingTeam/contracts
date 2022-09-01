@@ -1,6 +1,6 @@
 const { expect } = require('chai');
 const { BigNumber } = require('ethers');
-const { ethers } = require('hardhat');
+const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
 
 let evmSnapshotIds = [];
@@ -21,6 +21,7 @@ describe('Loan Desk', function () {
     let LoanDeskCF;
     let lendingPool;
     let liquidityToken;
+    let loanDesk;
 
     let deployer;
     let governance;
@@ -38,6 +39,8 @@ describe('Loan Desk', function () {
 
     before(async function () {
         [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
+
+        let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         LoanDeskCF = await ethers.getContractFactory('LoanDesk');
 
         liquidityToken = await (
@@ -48,23 +51,39 @@ describe('Loan Desk', function () {
             await ethers.getContractFactory('PoolToken')
         ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
 
-        lendingPool = await (
-            await ethers.getContractFactory('SaplingLendingPool')
-        ).deploy(poolToken.address, liquidityToken.address, deployer.address, protocol.address, manager.address);
+        lendingPool = await upgrades.deployProxy(SaplingLendingPoolCF, [
+            poolToken.address,
+            liquidityToken.address,
+            deployer.address,
+            protocol.address,
+            manager.address,
+        ]);
+        await lendingPool.deployed();
+
+        loanDesk = await upgrades.deployProxy(LoanDeskCF, [
+            lendingPool.address,
+            governance.address,
+            protocol.address,
+            manager.address,
+            TOKEN_DECIMALS,
+        ]);
+        await loanDesk.deployed();
 
         await poolToken.connect(deployer).transferOwnership(lendingPool.address);
+        await lendingPool.connect(deployer).setLoanDesk(loanDesk.address);
+        await lendingPool.connect(deployer).transferGovernance(governance.address);
     });
 
     describe('Deployment', function () {
         it('Can deploy', async function () {
             await expect(
-                LoanDeskCF.deploy(
+                upgrades.deployProxy(LoanDeskCF, [
                     lendingPool.address,
                     governance.address,
                     protocol.address,
                     manager.address,
                     TOKEN_DECIMALS,
-                ),
+                ]),
             ).to.be.not.reverted;
         });
 
@@ -84,8 +103,6 @@ describe('Loan Desk', function () {
         let PERCENT_DECIMALS;
         let TOKEN_MULTIPLIER;
 
-        let loanDesk;
-
         let lender1;
         let lender2;
         let borrower1;
@@ -95,16 +112,6 @@ describe('Loan Desk', function () {
         let loanDuration;
 
         before(async function () {
-            loanDesk = await LoanDeskCF.deploy(
-                lendingPool.address,
-                governance.address,
-                protocol.address,
-                manager.address,
-                TOKEN_DECIMALS,
-            );
-            await lendingPool.connect(deployer).setLoanDesk(loanDesk.address);
-            await lendingPool.connect(deployer).transferGovernance(governance.address);
-
             lender1 = addresses[1];
             lender2 = addresses[2];
             borrower1 = addresses[3];

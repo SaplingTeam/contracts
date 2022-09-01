@@ -37,8 +37,10 @@ contract LoanDeskFactory is ILoanDeskFactory, FactoryBase {
         onlyOwner
         returns (address)
     {
-        LoanDesk desk = new LoanDesk(pool, governance, treasury, manager, decimals);
-        emit LoanDeskCreated(address(desk));
-        return address(desk);
+        //FIXME deploy upgradable contract, give upgrader role to governance
+        // LoanDesk desk = new LoanDesk(pool, governance, treasury, manager, decimals);
+        // emit LoanDeskCreated(address(desk));
+        // return address(desk);
+        return address(0);
     }
 }

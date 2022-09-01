@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "../interfaces/IMath.sol";
 import "./SaplingContext.sol";
 
@@ -20,10 +20,10 @@ abstract contract SaplingManagerContext is SaplingContext, IMath {
 
     // Common math context used in all protocol components that extend this contract
     /// Number of decimal digits in integer percent values used across the contract
-    uint16 public immutable percentDecimals;
+    uint16 public percentDecimals;
 
     /// A constant representing 100%
-    uint16 public immutable oneHundredPercent;
+    uint16 public oneHundredPercent;
 
     /**
      * @notice Grace period for the manager to be inactive on a given loan /cancel/default decision.
@@ -79,7 +79,22 @@ abstract contract SaplingManagerContext is SaplingContext, IMath {
      * @param _treasury Treasury wallet address
      * @param _manager Manager address
      */
-    constructor(address _governance, address _treasury, address _manager) SaplingContext(_governance, _treasury) {
+    function __SaplingManagerContext_init(
+        address _governance,
+        address _treasury,
+        address _manager
+    )
+        internal
+        onlyInitializing
+    {
+        __SaplingContext_init(_governance, _treasury);
+
+        /*
+            Additional check for single init:
+                do not init again if a non-zero value is present in the values yet to be initialized.
+        */
+        assert(manager == address(0) && _closed == false && percentDecimals == 0 && oneHundredPercent == 0);
+
         require(_manager != address(0), "SaplingManagerContext: manager address is not set");
         manager = _manager;
         _closed = false;
