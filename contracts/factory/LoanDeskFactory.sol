@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./FactoryBase.sol";
 import "./ILoanDeskFactory.sol";
 import "../LoanDesk.sol";
 
@@ -10,7 +10,7 @@ import "../LoanDesk.sol";
  * @title LoanDesk Factory
  * @notice Facilitates on-chain deployment of new LoanDesk contracts.
  */
-contract LoanDeskFactory is ILoanDeskFactory, Ownable {
+contract LoanDeskFactory is ILoanDeskFactory, FactoryBase {
 
     /// Event for when a new LoanDesk is deployed
     event LoanDeskCreated(address pool);

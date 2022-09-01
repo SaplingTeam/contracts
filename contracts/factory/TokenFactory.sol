@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./FactoryBase.sol";
 import "./ITokenFactory.sol";
 import "../PoolToken.sol";
 
@@ -10,7 +10,7 @@ import "../PoolToken.sol";
  * @title Token Factory
  * @notice Facilitates on-chain deployment of new PoolToken contracts.
  */
-contract TokenFactory is ITokenFactory, Ownable {
+contract TokenFactory is ITokenFactory, FactoryBase {
 
     /// Event for when a new PoolToken is deployed
     event TokenCreated(address token);
