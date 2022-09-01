@@ -15,7 +15,7 @@ import "./interfaces/ILoanDeskOwner.sol";
  //FIXME upgradable
 contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
-    using SafeMath for uint256;
+    using SafeMathUpgradeable for uint256;
 
     /**
      * Loan statuses. Initial value is defines as 'NULL' to differentiate the unintitialized state from the logical
@@ -121,6 +121,11 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    // constructor() {
+    //     _disableInitializers();
+    // }
+
     /**
      * @notice Creates a Sapling pool.
      * @dev Addresses must not be 0.
@@ -130,14 +135,17 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param _treasury Treasury wallet address
      * @param _manager Manager address
      */
-    constructor(
+    function initialize(
         address _poolToken,
         address _liquidityToken,
         address _governance,
         address _treasury,
         address _manager
     )
-        SaplingPoolContext(_poolToken, _liquidityToken, _governance, _treasury, _manager) {
+        public
+        initializer
+    {
+        __SaplingPoolContext_init(_poolToken, _liquidityToken, _governance, _treasury, _manager);
     }
 
     /**
@@ -291,7 +299,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             poolFunds = poolFunds.sub(loss);
 
             if (stakedShares > 0) {
-                uint256 stakedShareLoss = Math.min(lostShares, stakedShares);
+                uint256 stakedShareLoss = MathUpgradeable.min(lostShares, stakedShares);
                 remainingLostShares = lostShares.sub(stakedShareLoss);
                 stakedShares = stakedShares.sub(stakedShareLoss);
                 updatePoolLimit();
@@ -484,15 +492,19 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         uint256 principalPaid = transferAmount.sub(interestPayable);
 
         //share revenue to treasury
-        uint256 protocolEarnedInterest = Math.mulDiv(interestPayable, protocolFeePercent, oneHundredPercent);
+        uint256 protocolEarnedInterest = MathUpgradeable.mulDiv(interestPayable, protocolFeePercent, oneHundredPercent);
 
         nonUserRevenues[treasury] = nonUserRevenues[treasury].add(protocolEarnedInterest);
 
         //share revenue to manager
-        uint256 currentStakePercent = Math.mulDiv(stakedShares, oneHundredPercent, IERC20(poolToken).totalSupply());
-        uint256 managerEarnedInterest = Math.mulDiv(
+        uint256 currentStakePercent = MathUpgradeable.mulDiv(
+            stakedShares,
+            oneHundredPercent,
+            IERC20(poolToken).totalSupply()
+        );
+        uint256 managerEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable.sub(protocolEarnedInterest),
-                Math.mulDiv(currentStakePercent, managerExcessLeverageComponent, oneHundredPercent),
+                MathUpgradeable.mulDiv(currentStakePercent, managerExcessLeverageComponent, oneHundredPercent),
                 oneHundredPercent
             );
 
@@ -547,10 +559,10 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         LoanDetail storage detail = loanDetails[loanId];
 
         uint256 daysPassed = countInterestDays(detail.interestPaidTillTime, block.timestamp);
-        uint256 interestPercent = Math.mulDiv(loan.apr, daysPassed, 365);
+        uint256 interestPercent = MathUpgradeable.mulDiv(loan.apr, daysPassed, 365);
 
         uint256 principalOutstanding = loan.amount.sub(detail.principalAmountRepaid);
-        uint256 interestOutstanding = Math.mulDiv(principalOutstanding, interestPercent, oneHundredPercent);
+        uint256 interestOutstanding = MathUpgradeable.mulDiv(principalOutstanding, interestPercent, oneHundredPercent);
 
         return (principalOutstanding, interestOutstanding, daysPassed);
     }
@@ -575,7 +587,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             uint256 interestDays
         ) = loanBalanceDueWithInterest(loanId);
 
-        uint256 transferAmount = Math.min(principalOutstanding.add(interestOutstanding), maxPaymentAmount);
+        uint256 transferAmount = MathUpgradeable.min(principalOutstanding.add(interestOutstanding), maxPaymentAmount);
 
         uint256 interestPayable;
         uint256 payableInterestDays;
@@ -594,8 +606,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
              Equations above are transformed into (a * b) / c format for best mulDiv() compatibility.
              */
-            payableInterestDays = Math.mulDiv(transferAmount, interestDays, interestOutstanding);
-            interestPayable = Math.mulDiv(interestOutstanding, payableInterestDays, interestDays);
+            payableInterestDays = MathUpgradeable.mulDiv(transferAmount, interestDays, interestOutstanding);
+            interestPayable = MathUpgradeable.mulDiv(interestOutstanding, payableInterestDays, interestDays);
 
             /*
              Handle "small payment exploit" which unfairly reduces the principal amount by making payments smaller than

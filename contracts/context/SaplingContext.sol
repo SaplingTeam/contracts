@@ -2,14 +2,15 @@
 
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
 /**
  * @title Sapling Context
  * @notice Provides governance access control, a common reverence to the treasury wallet address, and basic pause
  *         functionality by extending OpenZeppelin's Pausable contract.
  */
-abstract contract SaplingContext is Pausable {
+abstract contract SaplingContext is Initializable, PausableUpgradeable {
 
     /// Protocol governance
     address public governance;
@@ -35,7 +36,15 @@ abstract contract SaplingContext is Pausable {
      * @param _governance Governance address
      * @param _treasury Treasury wallet address
      */
-    constructor(address _governance, address _treasury) {
+    function __SaplingContext_init(address _governance, address _treasury) internal onlyInitializing {
+        __Pausable_init();
+
+        /*
+            Additional check for single init:
+                do not init again if a non-zero value is present in the values yet to be initialized.
+        */
+        assert(governance == address(0) && treasury == address(0));
+
         require(_governance != address(0), "SaplingContext: governance address is not set");
         require(_treasury != address(0), "SaplingContext: treasury wallet address is not set");
         governance = _governance;

@@ -33,13 +33,20 @@ contract VerificationHub is IVerificationHub, SaplingContext {
         _;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /**
      * @notice Creates a new VerificationHub.
      * @dev Addresses must not be 0.
      * @param _governance Governance address
      * @param _treasury Treasury wallet address
      */
-    constructor(address _governance, address _treasury) SaplingContext(_governance, _treasury) {}
+    function initialize(address _governance, address _treasury) public initializer {
+        __SaplingContext_init(_governance, _treasury);
+    }
 
     /**
      * @notice Set new SaplingFactory.

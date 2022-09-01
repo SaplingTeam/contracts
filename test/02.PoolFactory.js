@@ -18,6 +18,7 @@ describe('Pool Factory', function () {
 
     let PoolFactoryCF;
     let poolFactory;
+    let poolLogicFactory;
 
     let deployer;
     let governance;
@@ -35,13 +36,18 @@ describe('Pool Factory', function () {
 
     before(async function () {
         [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
+
+        let PoolLogicFactoryCF = await ethers.getContractFactory('PoolLogicFactory');
+        poolLogicFactory = await PoolLogicFactoryCF.deploy();
+
         PoolFactoryCF = await ethers.getContractFactory('PoolFactory');
-        poolFactory = await PoolFactoryCF.deploy();
+        poolFactory = await PoolFactoryCF.deploy(poolLogicFactory.address);
+        await poolLogicFactory.transferOwnership(poolFactory.address);
     });
 
     describe('Deployment', function () {
         it('Can deploy', async function () {
-            await expect(PoolFactoryCF.deploy()).to.be.not.reverted;
+            await expect(PoolFactoryCF.deploy(poolLogicFactory.address)).to.be.not.reverted;
         });
     });
 

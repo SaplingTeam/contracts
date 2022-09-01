@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "./FactoryBase.sol";
 import "./IPoolFactory.sol";
+import "./IPoolLogicFactory.sol";
 import "../SaplingLendingPool.sol";
 
 
@@ -12,8 +15,15 @@ import "../SaplingLendingPool.sol";
  */
 contract PoolFactory is IPoolFactory, FactoryBase {
 
+    address logicFactory;
+
     /// Event for when a new LoanDesk is deployed
     event PoolCreated(address pool);
+
+    constructor(address _logicFactory) {
+        require(_logicFactory != address(0), "PoolFactory: invalid pool logic factory address");
+        logicFactory = _logicFactory;
+    }
 
     /**
      * @notice Deploys a new instance of SaplingLendingPool.
@@ -24,7 +34,7 @@ contract PoolFactory is IPoolFactory, FactoryBase {
      * @param governance Governance address
      * @param treasury Treasury wallet address
      * @param manager Manager address
-     * @return Address of the deployed contract
+     * @return Addresses of the proxy, proxy admin, and the logic contract
      */
     function create(
         address poolToken,
@@ -35,10 +45,24 @@ contract PoolFactory is IPoolFactory, FactoryBase {
     )
         external
         onlyOwner
-        returns (address)
+        returns (address, address, address)
     {
-        SaplingLendingPool pool = new SaplingLendingPool(poolToken, liquidityToken, governance, treasury, manager);
-        emit PoolCreated(address(pool));
-        return address(pool);
+        address logic = IPoolLogicFactory(logicFactory).create();
+        ProxyAdmin admin = new ProxyAdmin();
+        bytes memory data = abi.encodeWithSelector(
+            bytes4(keccak256("initialize(address,address,address,address,address)")),
+            poolToken,
+            liquidityToken,
+            governance,
+            treasury,
+            manager
+        );
+
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(logic, address(admin), data);
+
+        admin.transferOwnership(msg.sender);
+
+        emit PoolCreated(address(proxy));
+        return (address(proxy), address(admin), logic);
     }
 }

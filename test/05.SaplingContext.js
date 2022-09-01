@@ -1,6 +1,6 @@
 const { expect } = require('chai');
 const { BigNumber } = require('ethers');
-const { ethers } = require('hardhat');
+const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
 
 let evmSnapshotIds = [];
@@ -42,66 +42,76 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
     before(async function () {
         [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
 
-        SaplingContextCF = await ethers.getContractFactory('SaplingLendingPool');
+        let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
+        let PoolTokenCF = await ethers.getContractFactory('PoolToken');
+        let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
 
-        liquidityToken = await (
-            await ethers.getContractFactory('PoolToken')
-        ).deploy('Test USDC', 'TestUSDC', TOKEN_DECIMALS);
+        liquidityToken = await PoolTokenCF.deploy('Test USDC', 'TestUSDC', TOKEN_DECIMALS);
 
-        poolToken = await (
-            await ethers.getContractFactory('PoolToken')
-        ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
+        poolToken = await PoolTokenCF.deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
 
-        lendingPool = await (
-            await ethers.getContractFactory('SaplingLendingPool')
-        ).deploy(poolToken.address, liquidityToken.address, deployer.address, protocol.address, manager.address);
+        lendingPool = await upgrades.deployProxy(SaplingLendingPoolCF, [
+            poolToken.address,
+            liquidityToken.address,
+            deployer.address,
+            protocol.address,
+            manager.address,
+        ]);
+        await lendingPool.deployed();
 
-        loanDesk = await (
-            await ethers.getContractFactory('LoanDesk')
-        ).deploy(lendingPool.address, governance.address, protocol.address, manager.address, TOKEN_DECIMALS);
+        loanDesk = await upgrades.deployProxy(LoanDeskCF, [
+            lendingPool.address,
+            governance.address,
+            protocol.address,
+            manager.address,
+            TOKEN_DECIMALS,
+        ]);
+        await loanDesk.deployed();
 
         await poolToken.connect(deployer).transferOwnership(lendingPool.address);
         await lendingPool.connect(deployer).setLoanDesk(loanDesk.address);
         await lendingPool.connect(deployer).transferGovernance(governance.address);
 
+        SaplingContextCF = SaplingLendingPoolCF;
         saplingContext = lendingPool;
     });
 
     describe('Deployment', function () {
         it('Can deploy', async function () {
+
             await expect(
-                SaplingContextCF.deploy(
+                upgrades.deployProxy(SaplingContextCF, [
                     poolToken.address,
                     liquidityToken.address,
-                    governance.address,
+                    deployer.address,
                     protocol.address,
                     manager.address,
-                ),
+                ]),
             ).to.be.not.reverted;
         });
 
         describe('Rejection Scenarios', function () {
             it('Deploying with null governance address should fail', async function () {
                 await expect(
-                    SaplingContextCF.deploy(
+                    upgrades.deployProxy(SaplingContextCF, [
                         poolToken.address,
                         liquidityToken.address,
                         NULL_ADDRESS,
                         protocol.address,
                         manager.address,
-                    ),
+                    ]),
                 ).to.be.reverted;
             });
 
             it('Deploying with null protocol wallet address should fail', async function () {
                 await expect(
-                    SaplingContextCF.deploy(
+                    upgrades.deployProxy(SaplingContextCF, [
                         poolToken.address,
                         liquidityToken.address,
                         governance.address,
                         NULL_ADDRESS,
                         manager.address,
-                    ),
+                    ]),
                 ).to.be.reverted;
             });
         });
@@ -212,8 +222,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                 });
 
                 it('Transferring to a NULL address should fail', async function () {
-                    await expect(saplingContext.connect(governance).transferTreasury(NULL_ADDRESS)).to.be
-                        .reverted;
+                    await expect(saplingContext.connect(governance).transferTreasury(NULL_ADDRESS)).to.be.reverted;
                 });
             });
         });

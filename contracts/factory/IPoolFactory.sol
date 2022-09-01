@@ -16,7 +16,7 @@ interface IPoolFactory {
      * @param governance Governance address
      * @param protocol Protocol wallet address
      * @param manager Manager address
-     * @return Address of the deployed contract
+     * @return Addresses of the proxy, proxy admin, and the logic contract
      */
     function create(
         address poolToken,
@@ -26,5 +26,5 @@ interface IPoolFactory {
         address manager
     )
         external
-        returns (address);
+        returns (address, address, address);
 }

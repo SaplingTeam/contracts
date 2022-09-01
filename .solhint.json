@@ -7,11 +7,11 @@
     "constructor-syntax": "warn",
     "no-empty-blocks": "off",
     "var-name-mixedcase": "error",
-    "func-name-mixedcase": "error",
-    "ordering": "warn",
+    "func-name-mixedcase": "off",
+    "ordering": "off",
     "not-rely-on-time": "off",
     "compiler-version": ["error", "^0.8.15"],
     "func-visibility": ["warn", {"ignoreConstructors":true}],
-    "max-states-count": ["warn", 20]
+    "max-states-count": ["warn", 32]
   }
 }

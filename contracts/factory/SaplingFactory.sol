@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/ILoanDeskOwner.sol";
 import "../interfaces/IVerificationHub.sol";
@@ -68,15 +69,24 @@ contract SaplingFactory is FactoryBase {
     ) external onlyOwner {
         uint8 decimals = IERC20Metadata(liquidityToken).decimals();
         address poolToken = ITokenFactory(tokenFactory).create(string.concat(name, " Token"), symbol, decimals);
-        address pool = IPoolFactory(poolFactory).create(poolToken, liquidityToken, address(this), treasury, manager);
+        (address poolProxy, address poolAdmin, ) = IPoolFactory(poolFactory).create(
+            poolToken,
+            liquidityToken,
+            address(this),
+            treasury,
+            manager
+        );
+        (address loanDeskProxy, address loanDeskAdmin, ) = ILoanDeskFactory(loanDeskFactory)
+            .create(poolProxy, governance, treasury, manager, decimals);
 
-        address loanDesk = ILoanDeskFactory(loanDeskFactory).create(pool, governance, treasury, manager, decimals);
+        ProxyAdmin(poolAdmin).transferOwnership(owner());
+        ProxyAdmin(loanDeskAdmin).transferOwnership(owner());
 
-        Ownable(poolToken).transferOwnership(pool);
-        ILoanDeskOwner(pool).setLoanDesk(loanDesk);
-        ISaplingContext(pool).transferGovernance(governance);
+        Ownable(poolToken).transferOwnership(poolProxy);
+        ILoanDeskOwner(poolProxy).setLoanDesk(loanDeskProxy);
+        ISaplingContext(poolProxy).transferGovernance(governance);
 
-        emit LendingPoolReady(pool);
+        emit LendingPoolReady(poolProxy);
     }
 
     /**
