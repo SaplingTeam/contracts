@@ -5,14 +5,12 @@ pragma solidity ^0.8.15;
 import "./context/SaplingPoolContext.sol";
 import "./interfaces/ILoanDesk.sol";
 import "./interfaces/ILoanDeskOwner.sol";
-import "./interfaces/ISecurity.sol";
-
 
 /**
  * @title Sapling Lending Pool
  * @dev Extends SaplingPoolContext with lending strategy.
  */
-contract SaplingLendingPool is ISecurity, ILoanDeskOwner, SaplingPoolContext {
+contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
     using SafeMathUpgradeable for uint256;
 
