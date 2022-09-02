@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/IPoolToken.sol";
+import "../interfaces/ILender.sol";
 import "./SaplingManagerContext.sol";
 
 /**
@@ -13,7 +14,7 @@ import "./SaplingManagerContext.sol";
  * @notice Provides common pool functionality with lender deposits, manager's first loss capital staking,
  *         and reward distribution.
  */
-abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUpgradeable {
+abstract contract SaplingPoolContext is ILender, SaplingManagerContext, ReentrancyGuardUpgradeable {
 
     using SafeMathUpgradeable for uint256;
 
@@ -227,7 +228,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      *      Caller must not be any of: manager, protocol, governance.
      * @param amount Liquidity token amount to deposit.
      */
-    function deposit(uint256 amount) external onlyUser whenNotPaused whenNotClosed {
+    function deposit(uint256 amount) external override onlyUser whenNotPaused whenNotClosed {
         enterPool(amount);
     }
 
@@ -238,7 +239,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @dev Withdrawal amount must be non zero and not exceed amountWithdrawable().
      * @param amount Liquidity token amount to withdraw.
      */
-    function withdraw(uint256 amount) external whenNotPaused {
+    function withdraw(uint256 amount) external override whenNotPaused {
         require(msg.sender != manager, "SaplingPoolContext: pool manager address cannot use withdraw");
 
         exitPool(amount);
@@ -299,7 +300,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @dev Return value depends on the pool state rather than caller's balance.
      * @return Max amount of tokens depositable to the pool.
      */
-    function amountDepositable() external view returns (uint256) {
+    function amountDepositable() external view override returns (uint256) {
         if (poolFundsLimit <= poolFunds || closed() || paused()) {
             return 0;
         }
@@ -313,7 +314,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @param wallet Address of the wallet to check the withdrawable balance of.
      * @return Max amount of tokens withdrawable by the caller.
      */
-    function amountWithdrawable(address wallet) external view returns (uint256) {
+    function amountWithdrawable(address wallet) external view override returns (uint256) {
         return paused() ? 0 : MathUpgradeable.min(poolLiquidity, balanceOf(wallet));
     }
 
@@ -350,7 +351,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @param strategyRate Percentage of pool funds projected to be used in strategies.
      * @return Projected lender APY
      */
-    function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view returns (uint16) {
+    function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view override returns (uint16) {
         require(strategyRate <= oneHundredPercent, "SaplingPoolContext: invalid borrow rate");
         return lenderAPY(MathUpgradeable.mulDiv(poolFunds, strategyRate, oneHundredPercent), _avgStrategyAPR);
     }
@@ -361,7 +362,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @param wallet Address of the wallet to check the balance of.
      * @return Liquidity token balance of the wallet in this pool.
      */
-    function balanceOf(address wallet) public view returns (uint256) {
+    function balanceOf(address wallet) public view override returns (uint256) {
         return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet));
     }
 

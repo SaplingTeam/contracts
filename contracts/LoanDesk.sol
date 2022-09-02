@@ -5,12 +5,13 @@ pragma solidity ^0.8.15;
 import "./context/SaplingManagerContext.sol";
 import "./interfaces/ILoanDesk.sol";
 import "./interfaces/ILoanDeskOwner.sol";
+import "./interfaces/ISecurity.sol";
 
 /**
  * @title Loan Desk
  * @notice Provides loan application and offer management.
  */
-contract LoanDesk is ILoanDesk, SaplingManagerContext {
+contract LoanDesk is ISecurity, ILoanDesk, SaplingManagerContext {
 
     using SafeMathUpgradeable for uint256;
 

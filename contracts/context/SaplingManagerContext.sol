@@ -3,13 +3,14 @@
 pragma solidity ^0.8.15;
 
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
+import "../interfaces/IMath.sol";
 import "./SaplingContext.sol";
 
 /**
  * @title Sapling Manager Context
  * @notice Provides manager access control, and a basic close functionality.
  */
-abstract contract SaplingManagerContext is SaplingContext {
+abstract contract SaplingManagerContext is SaplingContext, IMath {
 
     /// Manager address
     address public manager;
