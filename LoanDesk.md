@@ -234,13 +234,21 @@ modifier applicationInStatus(uint256 applicationId, enum ILoanDesk.LoanApplicati
 
 A modifier to limit access only to when the application exists and has the specified status
 
+### disableIntitializers
+
+```solidity
+function disableIntitializers() external
+```
+
+_Disable initializers_
+
 ### initialize
 
 ```solidity
 function initialize(address _pool, address _governance, address _treasury, address _manager, uint8 _decimals) public
 ```
 
-Create a new LoanDesk.
+Initializer a new LoanDesk.
 
 _Addresses must not be 0._
 

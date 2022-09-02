@@ -1,5 +1,7 @@
 [SaplingLendingPool](SaplingLendingPool)
 
+[interfaces/ISecurity](interfaces/ISecurity)
+
 [interfaces/ILender](interfaces/ILender)
 
 [interfaces/ISaplingContext](interfaces/ISaplingContext)
@@ -16,8 +18,6 @@
 
 [factory/ILogicFactory](factory/ILogicFactory)
 
-[factory/ILoanDeskFactory](factory/ILoanDeskFactory)
-
 [factory/LoanDeskFactory](factory/LoanDeskFactory)
 
 [factory/TransparentProxyFactory](factory/TransparentProxyFactory)
@@ -29,8 +29,6 @@
 [factory/ITokenFactory](factory/ITokenFactory)
 
 [factory/IProxyFactory](factory/IProxyFactory)
-
-[factory/IPoolFactory](factory/IPoolFactory)
 
 [factory/PoolFactory](factory/PoolFactory)
 
