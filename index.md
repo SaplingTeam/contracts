@@ -34,8 +34,6 @@
 
 [factory/FactoryBase](factory/FactoryBase)
 
-[VerificationHub](VerificationHub)
-
 [PoolToken](PoolToken)
 
 [LoanDesk](LoanDesk)
@@ -45,5 +43,3 @@
 [context/SaplingPoolContext](context/SaplingPoolContext)
 
 [context/SaplingContext](context/SaplingContext)
-
-[SaplingProtocolPool](SaplingProtocolPool)
