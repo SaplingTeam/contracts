@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 /**
- * @title Math Context Interface
+ * @title Additional security configuration interface
  */
 interface ISecurity {
 
