@@ -5,15 +5,14 @@ pragma solidity ^0.8.15;
 import "./context/SaplingPoolContext.sol";
 import "./interfaces/ILoanDesk.sol";
 import "./interfaces/ILoanDeskOwner.sol";
+import "./interfaces/ISecurity.sol";
 
 
 /**
  * @title Sapling Lending Pool
  * @dev Extends SaplingPoolContext with lending strategy.
  */
-
- //FIXME upgradable
-contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
+contract SaplingLendingPool is ISecurity, ILoanDeskOwner, SaplingPoolContext {
 
     using SafeMathUpgradeable for uint256;
 
@@ -121,10 +120,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         _;
     }
 
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    // constructor() {
-    //     _disableInitializers();
-    // }
+    /**
+     * @dev Disable initializers
+     */
+    function disableIntitializers() external onlyGovernance {
+        _disableInitializers();
+    }
 
     /**
      * @notice Creates a Sapling pool.
@@ -495,7 +496,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
                 "SaplingLendingPool: payment amount is less than the required minimum"
             );
         }
-        
+
         // charge 'amount' tokens from msg.sender
         bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), transferAmount);
         require(success, "SaplingLendingPool: ERC20 transfer has failed");
@@ -566,7 +567,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
                     .sub(loanDetail.interestPaid);
             }
         }
-        
+
         if (strategizedFunds > 0) {
             weightedAvgStrategyAPR = strategizedFunds
                 .add(principalPaid)

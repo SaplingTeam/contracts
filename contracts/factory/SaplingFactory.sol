@@ -6,10 +6,10 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/ILoanDeskOwner.sol";
 import "../interfaces/IVerificationHub.sol";
 import "../interfaces/ISaplingContext.sol";
+import "../interfaces/ISecurity.sol";
 import "./FactoryBase.sol";
 import "./IProxyFactory.sol";
 import "./ITokenFactory.sol";
-import "./ILoanDeskFactory.sol";
 import "./ILogicFactory.sol";
 
 /**
@@ -99,7 +99,7 @@ contract SaplingFactory is FactoryBase {
         bytes memory loanDeskInitData = abi.encodeWithSelector(
             bytes4(keccak256("initialize(address,address,address,address,uint8)")),
             poolProxy,
-            governance,
+            address(this),
             treasury,
             manager,
             decimals
@@ -109,9 +109,15 @@ contract SaplingFactory is FactoryBase {
             .create(loanDeskLogic, loanDeskInitData);
 
         // configure access control
-        ProxyAdmin(poolAdmin).transferOwnership(owner());
-        ProxyAdmin(loanDeskAdmin).transferOwnership(owner());
         Ownable(poolToken).transferOwnership(poolProxy);
+
+        ProxyAdmin(loanDeskAdmin).transferOwnership(owner());
+        ProxyAdmin(poolAdmin).transferOwnership(owner());
+
+        ISecurity(loanDeskProxy).disableIntitializers();
+        ISaplingContext(loanDeskProxy).transferGovernance(governance);
+
+        ISecurity(poolProxy).disableIntitializers();
         ILoanDeskOwner(poolProxy).setLoanDesk(loanDeskProxy);
         ISaplingContext(poolProxy).transferGovernance(governance);
 
