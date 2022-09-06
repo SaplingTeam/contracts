@@ -470,17 +470,8 @@ describe('Sapling Lending Pool)', function () {
 
                     let paymentAmount = await lendingPool.loanBalanceDue(loanId);
 
-                    await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
-                    await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                    await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
-
-                    let loanDetail = await lendingPool.loanDetails(loanId);
                     let protocolEarningPercent = await lendingPool.protocolFeePercent();
                     let ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
-
-                    let expectedProtocolFee = loanDetail.interestPaid
-                        .mul(protocolEarningPercent)
-                        .div(ONE_HUNDRED_PERCENT);
 
                     let stakedShares = await lendingPool.stakedShares();
                     let totalPoolShares = await poolToken.totalSupply();
@@ -490,10 +481,21 @@ describe('Sapling Lending Pool)', function () {
                     let managerEarningsPercent = currentStakePercent
                         .mul(managerExcessLeverageComponent)
                         .div(ONE_HUNDRED_PERCENT);
+
+                    await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
+                    await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
+                    await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
+
+                    let loanDetail = await lendingPool.loanDetails(loanId);
+
+                    let expectedProtocolFee = loanDetail.interestPaid
+                        .mul(protocolEarningPercent)
+                        .div(ONE_HUNDRED_PERCENT);
+
                     let managerEarnedInterest = loanDetail.interestPaid
                         .sub(expectedProtocolFee)
                         .mul(managerEarningsPercent)
-                        .div(ONE_HUNDRED_PERCENT);
+                        .div(managerEarningsPercent.add(ONE_HUNDRED_PERCENT));
 
                     expect(await lendingPool.revenueBalanceOf(manager.address)).to.equal(
                         balanceBefore.add(managerEarnedInterest),

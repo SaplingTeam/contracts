@@ -1311,12 +1311,14 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 let protocolAPY = poolAPY.mul(protocolEarningPercent).div(ONE_HUNDRED_PERCENT);
 
                 // manager withdrawableAPY
-                let currentStakePercent = ONE_HUNDRED_PERCENT / poolFunds.div(stakeAmount).toNumber();
-                let managerEarningsPercent =
-                    (currentStakePercent * (managersEarnFactor - ONE_HUNDRED_PERCENT)) / ONE_HUNDRED_PERCENT;
-                let managerWithdrawableAPY =
-                    managerEarningsPercent -
-                    (managerEarningsPercent * (ONE_HUNDRED_PERCENT - protocolEarningPercent)) / ONE_HUNDRED_PERCENT;
+                let currentStakePercent = stakeAmount.mul(ONE_HUNDRED_PERCENT).div(poolFunds);
+                let managerEarningsPercent = currentStakePercent
+                    .mul(managersEarnFactor - ONE_HUNDRED_PERCENT)
+                    .div(ONE_HUNDRED_PERCENT);
+                let managerWithdrawableAPY = poolAPY
+                    .sub(protocolAPY)
+                    .mul(managerEarningsPercent)
+                    .div(managerEarningsPercent + ONE_HUNDRED_PERCENT);
 
                 let expectedLenderAPY = poolAPY.sub(protocolAPY).sub(managerWithdrawableAPY).toNumber();
 
