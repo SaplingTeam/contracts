@@ -233,7 +233,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             it("Manager's earn factor is correct", async function () {
                 let minValue = 100 * 10 ** PERCENT_DECIMALS;
-                let maxValue = 500 * 10 ** PERCENT_DECIMALS;
+                let maxValue = 1000 * 10 ** PERCENT_DECIMALS;
                 let defaultValue = 150 * 10 ** PERCENT_DECIMALS;
 
                 expect(await saplingPoolContext.managerEarnFactorMax()).to.equal(maxValue);
