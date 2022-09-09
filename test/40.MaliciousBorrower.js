@@ -188,11 +188,25 @@ describe('Attack Sapling Lending Pool', function () {
             });
 
             it('Revert If Borrow Twice Same Block', async function () {
+                //get initial loans count to check only 1 loan object was created
+                let prevLoansCount = await lendingPool.loansCount();
+
                 let balanceBefore = await liquidityToken.balanceOf(borrower1.address);
+                //turn of automining before write tx to keep the block open for the next call
+                await ethers.provider.send("evm_setAutomine", [false]);
                 await lendingPool.connect(borrower1).borrow(applicationId);
+                
+                //tun automining back on to prevent deadlock as expect() will hang until block is finalized
+                await ethers.provider.send("evm_setAutomine", [true]);
+                await expect(lendingPool.connect(borrower1).borrow(applicationId)).to.be.reverted;
+
+                // check that only 1 new loan object was created
+                expect(await lendingPool.loansCount()).to.equal(prevLoansCount.add(1));
+
+                //get the loan after the block is mined, as the committed block 
                 let loanId = (await lendingPool.borrowerStats(borrower1.address)).recentLoanId;
                 let loan = await lendingPool.loans(loanId);
-                await expect(lendingPool.connect(borrower1).borrow(applicationId)).to.be.reverted;
+
                 expect(await liquidityToken.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
             });
 
