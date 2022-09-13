@@ -162,6 +162,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
         require(0 <= _targetStakePercent && _targetStakePercent <= oneHundredPercent,
             "SaplingPoolContext: target stake percent is out of bounds");
         targetStakePercent = _targetStakePercent;
+        updatePoolLimit();
     }
 
     /**
