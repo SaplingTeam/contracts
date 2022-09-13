@@ -159,7 +159,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @param _targetStakePercent New target stake percent.
      */
     function setTargetStakePercent(uint16 _targetStakePercent) external onlyGovernance {
-        require(0 <= _targetStakePercent && _targetStakePercent <= oneHundredPercent,
+        require(0 < _targetStakePercent && _targetStakePercent <= oneHundredPercent,
             "SaplingPoolContext: target stake percent is out of bounds");
         targetStakePercent = _targetStakePercent;
         updatePoolLimit();
