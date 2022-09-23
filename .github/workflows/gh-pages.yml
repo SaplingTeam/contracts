@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TESTNET_MNEMONIC: test test test test test test test test test test test junk
+      POLYGON_MNEMONIC: test test test test test test test test test test test junk
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
