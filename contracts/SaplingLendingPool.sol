@@ -524,10 +524,17 @@ contract SaplingLendingPool is ISecurity, ILoanDeskOwner, SaplingPoolContext {
                 oneHundredPercent,
                 IERC20(poolToken).totalSupply()
             );
+
+            uint256 managerEarningsPercent = MathUpgradeable.mulDiv(
+                currentStakePercent,
+                managerExcessLeverageComponent,
+                oneHundredPercent
+            );
+
             uint256 managerEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable.sub(protocolEarnedInterest),
-                MathUpgradeable.mulDiv(currentStakePercent, managerExcessLeverageComponent, oneHundredPercent),
-                oneHundredPercent
+                managerEarningsPercent,
+                managerEarningsPercent.add(oneHundredPercent)
             );
 
             nonUserRevenues[manager] = nonUserRevenues[manager].add(managerEarnedInterest);

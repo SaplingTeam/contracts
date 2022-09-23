@@ -141,7 +141,7 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
         maxProtocolFeePercent = uint16(10 * 10 ** percentDecimals); // 10% by default; safe min 0%, max 10%
         protocolFeePercent = maxProtocolFeePercent;
 
-        managerEarnFactorMax = uint16(500 * 10 ** percentDecimals); // 500% or 5x leverage by default
+        managerEarnFactorMax = uint16(1000 * 10 ** percentDecimals); // 1000% or 10x leverage by default
         managerEarnFactor = uint16(150 * 10 ** percentDecimals);
         managerExcessLeverageComponent = uint256(managerEarnFactor).sub(oneHundredPercent);
 
@@ -160,9 +160,10 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
      * @param _targetStakePercent New target stake percent.
      */
     function setTargetStakePercent(uint16 _targetStakePercent) external onlyGovernance {
-        require(0 <= _targetStakePercent && _targetStakePercent <= oneHundredPercent,
+        require(0 < _targetStakePercent && _targetStakePercent <= oneHundredPercent,
             "SaplingPoolContext: target stake percent is out of bounds");
         targetStakePercent = _targetStakePercent;
+        updatePoolLimit();
     }
 
     /**

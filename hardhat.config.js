@@ -48,6 +48,13 @@ module.exports = {
       accounts: {
         mnemonic: process.env.TESTNET_MNEMONIC
       }
+    },
+    polygon: {
+      url: "https://polygon-rpc.com/",
+      chainId: 137,
+      accounts: {
+        mnemonic: process.env.POLYGON_MNEMONIC
+      }
     }
   },
   docgen: {
@@ -58,7 +65,8 @@ module.exports = {
       kovan: process.env.ETHERSCAN_API_KEY,
       optimisticKovan: process.env.OPTIMISTIC_ETHERSCAN_API_KEY,
       optimisticEthereum: process.env.OPTIMISTIC_ETHERSCAN_API_KEY,
-      polygonMumbai: process.env.MUMBAI_POLYGONSCAN_API_KEY,
+      polygonMumbai: process.env.POLYGONSCAN_API_KEY,
+      polygon: process.env.POLYGONSCAN_API_KEY
     }
   },
 };

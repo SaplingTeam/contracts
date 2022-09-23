@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TESTNET_MNEMONIC: test test test test test test test test test test test junk
+      POLYGON_MNEMONIC: test test test test test test test test test test test junk
       ETHERSCAN_API_KEY: ""
       OPTIMISTIC_ETHERSCAN_API_KEY: ""
     steps:
