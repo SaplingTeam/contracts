@@ -1,3 +1,7 @@
+[LoanDesk](LoanDesk)
+
+[PoolToken](PoolToken)
+
 [SaplingLendingPool](SaplingLendingPool)
 
 [interfaces/ILoanDeskOwner](interfaces/ILoanDeskOwner)
@@ -6,12 +10,8 @@
 
 [interfaces/IPoolToken](interfaces/IPoolToken)
 
-[PoolToken](PoolToken)
-
-[LoanDesk](LoanDesk)
-
-[context/SaplingManagerContext](context/SaplingManagerContext)
-
 [context/SaplingPoolContext](context/SaplingPoolContext)
 
 [context/SaplingContext](context/SaplingContext)
+
+[context/SaplingManagerContext](context/SaplingManagerContext)
