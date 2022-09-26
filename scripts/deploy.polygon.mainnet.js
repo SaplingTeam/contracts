@@ -24,7 +24,7 @@ async function main() {
 
     console.log("\nDeploying pool token contract ...");
     PoolToken = await ethers.getContractFactory("PoolToken");
-    poolTokenContract = await PoolToken.deploy("Kitale Community Pool", "KITCP", DECIMALS);
+    poolTokenContract = await PoolToken.deploy("Training Pool Test Token", "TESTPT", DECIMALS);
     console.log("PoolToken address: \t\t", poolTokenContract.address);
 
     await sleep(5000);
