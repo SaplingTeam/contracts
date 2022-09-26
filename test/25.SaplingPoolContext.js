@@ -695,6 +695,24 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 });
             });
 
+            it('Manager can unstake full unstakable amount', async function () {
+
+                await saplingPoolContext.connect(lender1).withdraw(depositAmount);
+
+                let amount = await saplingPoolContext.amountUnstakable();
+                console.log('Balance staked: ', await saplingPoolContext.balanceStaked());
+                console.log('pool funds: ', await saplingPoolContext.poolFunds());
+                console.log('Amount unstakable: ', amount);
+                let exitFee = amount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
+                let balanceDelta = amount.sub(exitFee);
+
+                await expect(saplingPoolContext.connect(manager).unstake(amount)).to.changeTokenBalances(
+                    liquidityToken,
+                    [manager.address, saplingPoolContext.address],
+                    [balanceDelta, -balanceDelta],
+                );
+            });
+
             it('Unstaking is reflected on the pool contract balance', async function () {
                 let prevBalance = await liquidityToken.balanceOf(saplingPoolContext.address);
 
