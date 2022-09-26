@@ -1,3 +1,7 @@
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /**
  * Deploy using TestUSDC from optimism-kovan testnet as a pool token.
  */
@@ -23,6 +27,8 @@ async function main() {
     poolTokenContract = await PoolToken.deploy("Kitale Community Pool", "KITCP", DECIMALS);
     console.log("PoolToken address: \t\t", poolTokenContract.address);
 
+    await sleep(5000);
+
     console.log("\nDeploying lending pool contract ...");
     SaplingPool = await ethers.getContractFactory("SaplingLendingPool");
     saplingPoolContract = await upgrades.deployProxy(SaplingPool, [
@@ -34,6 +40,8 @@ async function main() {
     ]);
     await saplingPoolContract.deployed();
     console.log("LendingPool address: \t\t", saplingPoolContract.address);
+
+    await sleep(5000);
 
     console.log("\nDeploying loan desk contract ... ");
     LoanDesk = await ethers.getContractFactory("LoanDesk");
@@ -47,23 +55,35 @@ async function main() {
     await loanDeskContract.deployed();
     console.log("LoanDesk address: \t\t", loanDeskContract.address);
 
-
     console.log("\nAssigning ownership and linking contracts ...");
+    await sleep(15000);
     await poolTokenContract.transferOwnership(saplingPoolContract.address);
+
+    await sleep(15000);
     await saplingPoolContract.setLoanDesk(loanDeskContract.address);
 
-
     console.log("\nConfiguring parameters ...");
+    await sleep(15000);
     await saplingPoolContract.setManagerEarnFactor(2280);
+
+    await sleep(15000);
     await saplingPoolContract.setTargetStakePercent(500);
+
+    await sleep(15000);
     await loanDeskContract.setTemplateLoanAPR(600);
 
     console.log("\nTransferring management ...");
+    await sleep(15000);
     await loanDeskContract.transferManager(managerAddress);
+
+    await sleep(15000);
     await saplingPoolContract.transferManager(managerAddress);
 
     console.log("\nTransferring governance ...");
+    await sleep(15000);
     await loanDeskContract.transferGovernance(governanceAddress);
+
+    await sleep(15000);
     await saplingPoolContract.transferGovernance(governanceAddress);
 
   
