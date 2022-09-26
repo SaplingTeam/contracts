@@ -272,9 +272,6 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
         require(amount > 0, "SaplingPoolContext: unstake amount is 0");
         require(amount <= amountUnstakable(), "SaplingPoolContext: requested amount is not available for unstaking");
 
-        uint256 shares = tokensToShares(amount);
-        stakedShares = stakedShares.sub(shares);
-        updatePoolLimit();
         exitPool(amount);
     }
 
@@ -461,8 +458,13 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
 
         uint256 shares = tokensToShares(amount);
 
-        require(msg.sender != manager && shares <= IERC20(poolToken).balanceOf(msg.sender) || shares <= stakedShares,
+        require(msg.sender != manager ? shares <= IERC20(poolToken).balanceOf(msg.sender) : shares <= stakedShares,
             "SaplingPoolContext: insufficient balance");
+
+        if (msg.sender == manager) {
+            stakedShares = stakedShares.sub(shares);
+            updatePoolLimit();
+        }
 
         // burn shares
         IPoolToken(poolToken).burn(msg.sender != manager ? msg.sender : address(this), shares);
