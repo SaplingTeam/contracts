@@ -490,12 +490,18 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             return false;
         }
 
+        uint256 fxBandPercent = 150;
+
         uint256 paymentDueTime;
 
         if (loan.installments > 1) {
             uint256 installmentPeriod = loan.duration.div(loan.installments);
             uint256 pastInstallments = block.timestamp.sub(loan.borrowedTime).div(installmentPeriod);
-            uint256 minTotalPayment = MathUpgradeable.mulDiv(loan.installmentAmount.mul(pastInstallments), 9, 10);
+            uint256 minTotalPayment = MathUpgradeable.mulDiv(
+                loan.installmentAmount.mul(pastInstallments),
+                fxBandPercent,
+                oneHundredPercent
+            );
 
             LoanDetail storage detail = loanDetails[loanId];
             uint256 totalRepaid = detail.principalAmountRepaid + detail.interestPaid;
