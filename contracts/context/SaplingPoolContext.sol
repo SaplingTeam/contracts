@@ -484,7 +484,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
     /**
      * @dev Internal method to update the pool funds limit based on the staked funds.
      */
-    function updatePoolLimit() internal nonReentrant {
+    function updatePoolLimit() internal {
         poolFundsLimit = sharesToTokens(MathUpgradeable.mulDiv(stakedShares, oneHundredPercent, targetStakePercent));
     }
 
