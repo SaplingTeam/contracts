@@ -588,11 +588,11 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
 
     /**
      * @dev Implementation of the abstract hook in SaplingManagedContext.
-     *      Governance, protocol wallet addresses and lenders with at least 1.00 liquidity tokens are authorised to take
+     *      Governance, protocol wallet addresses are authorised to take
      *      certain actions when the manager is inactive.
      */
     function authorizedOnInactiveManager(address caller) internal view override returns (bool) {
-        return isNonUserAddress(caller) || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= oneToken;
+        return isNonUserAddress(caller);
     }
 
     /**
