@@ -267,7 +267,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     function defaultLoan(
         uint256 loanId
     )
-        external
+        public
         managerOrApprovedOnInactive
         loanInStatus(loanId, LoanStatus.OUTSTANDING)
         whenNotPaused
@@ -329,6 +329,87 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             } else {
                 weightedAvgStrategyAPR = 0;
             }
+        }
+    }
+
+    function closeLoan(
+        uint256 loanId, 
+        uint256 coverUpToAmount
+    )
+        external
+        managerOrApprovedOnInactive
+        loanInStatus(loanId, LoanStatus.OUTSTANDING)
+        whenNotPaused
+    {
+        Loan storage loan = loans[loanId];
+        LoanDetail storage loanDetail = loanDetails[loanId];
+        BorrowerStats storage stats = borrowerStats[loan.borrower];
+
+        uint256 remainingDifference = loanDetail.principalAmountRepaid < loan.amount 
+            ? loan.amount.sub(loanDetail.principalAmountRepaid) 
+            : 0;
+
+        uint256 amountRepaid = 0;
+
+        // charge allowance
+        if (remainingDifference > 0 && coverUpToAmount > 0) {
+            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, coverUpToAmount);
+
+            bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), amountChargeable);
+            require(success, "SaplingLendingPool: ERC20 transfer has failed");
+
+            remainingDifference = remainingDifference.sub(amountChargeable);
+            amountRepaid = amountRepaid.add(amountChargeable);
+        }
+
+        // charge manager's revenue
+        if (remainingDifference > 0 && nonUserRevenues[manager] > 0) {
+            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, nonUserRevenues[manager]);
+
+            nonUserRevenues[manager] = nonUserRevenues[manager].sub(amountChargeable);
+
+            remainingDifference = remainingDifference.sub(amountChargeable);
+            amountRepaid = amountRepaid.add(amountChargeable);
+        }
+
+        // charge manager's stake
+        if (remainingDifference > 0 && stakedShares > 0) {
+            uint256 stakeChargeable = MathUpgradeable.min(tokensToShares(remainingDifference), stakedShares);
+            uint256 amountChargeable = sharesToTokens(stakeChargeable);
+
+            stakedShares = stakedShares.sub(stakeChargeable);
+            updatePoolLimit();
+
+            IPoolToken(poolToken).burn(address(this), stakeChargeable);
+
+            if (stakedShares == 0) {
+                emit StakedAssetsDepleted();
+            }
+
+            remainingDifference = remainingDifference.sub(amountChargeable);
+            amountRepaid = amountRepaid.add(amountChargeable);
+        }
+
+        if (amountRepaid > 0) {
+            strategizedFunds = strategizedFunds.sub(amountRepaid);
+            poolLiquidity = poolLiquidity.add(amountRepaid);
+        }
+
+        // charge pool (close loan and reduce borrowed funds/poolfunds)
+        if (remainingDifference > 0) {
+            strategizedFunds = strategizedFunds.sub(remainingDifference);
+            poolFunds = poolFunds.sub(remainingDifference);
+        }
+
+        if (canDefault(loanId, msg.sender)) {
+            defaultLoan(loanId);
+        } else {
+            loan.status = LoanStatus.REPAID;
+            stats.countRepaid++;
+            stats.countOutstanding--;
+            stats.amountBorrowed = stats.amountBorrowed.sub(loan.amount);
+            stats.amountBaseRepaid = stats.amountBaseRepaid.sub(loanDetail.principalAmountRepaid);
+            stats.amountInterestPaid = stats.amountInterestPaid.sub(loanDetail.interestPaid);
         }
     }
 
@@ -538,7 +619,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             nonUserRevenues[manager] = nonUserRevenues[manager].add(managerEarnedInterest);
 
             poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
-
+            //FIXME update pool funds
 
         }
 
