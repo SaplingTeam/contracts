@@ -538,8 +538,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             nonUserRevenues[manager] = nonUserRevenues[manager].add(managerEarnedInterest);
 
             poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
-
-
+            poolFunds = poolFunds.add(interestPayable.sub(protocolEarnedInterest.add(managerEarnedInterest)));
+            
+            updatePoolLimit();
         }
 
         LoanDetail storage loanDetail = loanDetails[loanId];
