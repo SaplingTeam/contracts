@@ -752,12 +752,12 @@ describe('Sapling Lending Pool)', function () {
                     });
 
                     it('Manager can default a partially repaid loan', async function () {
-                        let poolFundsBefore = await lendingPool.poolFunds();
-                        let stakedBalanceBefore = await lendingPool.balanceStaked();
-
                         let paymentAmount = (await lendingPool.loanBalanceDue(loanId)).div(2);
                         await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
                         await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
+
+                        let poolFundsBefore = await lendingPool.poolFunds();
+                        let stakedBalanceBefore = await lendingPool.balanceStaked();
 
                         expect(await lendingPool.canDefault(loanId, manager.address)).to.equal(true);
                         await lendingPool.connect(manager).defaultLoan(loanId);
