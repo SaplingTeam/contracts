@@ -317,18 +317,10 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         }
 
         if (loanDetail.principalAmountRepaid < loan.amount) {
-            uint256 prevStrategizedFunds = strategizedFunds;
             uint256 baseAmountLost = loan.amount.sub(loanDetail.principalAmountRepaid);
             strategizedFunds = strategizedFunds.sub(baseAmountLost);
 
-            if (strategizedFunds > 0) {
-                weightedAvgStrategyAPR = prevStrategizedFunds
-                    .mul(weightedAvgStrategyAPR)
-                    .sub(baseAmountLost.mul(loan.apr))
-                    .div(strategizedFunds);
-            } else {
-                weightedAvgStrategyAPR = 0;
-            }
+            updateAvgStrategyApr(baseAmountLost, loan.apr);
         }
     }
 
@@ -339,13 +331,13 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         onlyManager
         loanInStatus(loanId, LoanStatus.OUTSTANDING)
         whenNotPaused
+        nonReentrant
     {
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
-        BorrowerStats storage stats = borrowerStats[loan.borrower];
 
-        uint256 remainingDifference = loanDetail.principalAmountRepaid < loan.amount 
-            ? loan.amount.sub(loanDetail.principalAmountRepaid) 
+        uint256 remainingDifference = loanDetail.principalAmountRepaid < loan.amount
+            ? loan.amount.sub(loanDetail.principalAmountRepaid)
             : 0;
 
         uint256 amountRepaid = 0;
@@ -381,6 +373,10 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         if (amountRepaid > 0) {
             strategizedFunds = strategizedFunds.sub(amountRepaid);
             poolLiquidity = poolLiquidity.add(amountRepaid);
+
+            loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(amountRepaid);
+            loanDetail.principalAmountRepaid = loanDetail.principalAmountRepaid.add(amountRepaid);
+            loanDetail.lastPaymentTime = block.timestamp;
         }
 
         // charge pool (close loan and reduce borrowed funds/poolfunds)
@@ -389,16 +385,17 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             poolFunds = poolFunds.sub(remainingDifference);
         }
 
-        if (canDefault(loanId, msg.sender)) {
-            defaultLoan(loanId);
-        } else {
-            loan.status = LoanStatus.REPAID;
-            stats.countRepaid++;
-            stats.countOutstanding--;
-            stats.amountBorrowed = stats.amountBorrowed.sub(loan.amount);
-            stats.amountBaseRepaid = stats.amountBaseRepaid.sub(loanDetail.principalAmountRepaid);
-            stats.amountInterestPaid = stats.amountInterestPaid.sub(loanDetail.interestPaid);
-        }
+        loan.status = LoanStatus.REPAID; // Note: add and switch to CLOSED status in next migration version of the pool
+
+        //update stats
+        BorrowerStats storage stats = borrowerStats[loan.borrower];
+        stats.countRepaid++;
+        stats.countOutstanding--;
+        stats.amountBorrowed = stats.amountBorrowed.sub(loan.amount);
+        stats.amountBaseRepaid = stats.amountBaseRepaid.sub(loanDetail.principalAmountRepaid);
+        stats.amountInterestPaid = stats.amountInterestPaid.sub(loanDetail.interestPaid);
+
+        updateAvgStrategyApr(amountRepaid.add(remainingDifference), loan.apr);
     }
 
     /**
@@ -650,15 +647,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             }
         }
 
-        if (strategizedFunds > 0) {
-            weightedAvgStrategyAPR = strategizedFunds
-                .add(principalPaid)
-                .mul(weightedAvgStrategyAPR)
-                .sub(principalPaid.mul(loan.apr))
-                .div(strategizedFunds);
-        } else {
-            weightedAvgStrategyAPR = 0; //templateLoanAPR;
-        }
+        updateAvgStrategyApr(principalPaid, loan.apr);
 
         return (transferAmount, interestPayable);
     }

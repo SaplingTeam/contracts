@@ -489,6 +489,23 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
     }
 
     /**
+     * @dev Internal method to update the weighted average loan apr based on the amount reduced by and an apr.
+     * @param amountReducedBy amount by which the funds committed into strategy were reduced, due to repayment or loss
+     * @param apr annual percentage rate of the strategy
+     */
+    function updateAvgStrategyApr(uint256 amountReducedBy, uint16 apr) internal {
+        if (strategizedFunds > 0) {
+            weightedAvgStrategyAPR = strategizedFunds
+                .add(amountReducedBy)
+                .mul(weightedAvgStrategyAPR)
+                .sub(amountReducedBy.mul(apr))
+                .div(strategizedFunds);
+        } else {
+            weightedAvgStrategyAPR = 0;
+        }
+    }
+
+    /**
      * @notice Get liquidity token value of shares.
      * @dev Shares are equivalent to pool tokens and are represented by them.
      * @param shares Amount of shares
