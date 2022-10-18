@@ -333,11 +333,10 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     }
 
     function closeLoan(
-        uint256 loanId, 
-        uint256 coverUpToAmount
+        uint256 loanId
     )
         external
-        managerOrApprovedOnInactive
+        onlyManager
         loanInStatus(loanId, LoanStatus.OUTSTANDING)
         whenNotPaused
     {
@@ -350,17 +349,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             : 0;
 
         uint256 amountRepaid = 0;
-
-        // charge allowance
-        if (remainingDifference > 0 && coverUpToAmount > 0) {
-            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, coverUpToAmount);
-
-            bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), amountChargeable);
-            require(success, "SaplingLendingPool: ERC20 transfer has failed");
-
-            remainingDifference = remainingDifference.sub(amountChargeable);
-            amountRepaid = amountRepaid.add(amountChargeable);
-        }
 
         // charge manager's revenue
         if (remainingDifference > 0 && nonUserRevenues[manager] > 0) {
