@@ -324,6 +324,13 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         }
     }
 
+    /**
+     * @notice Closes a loan. Closing a loan will repay the outstanding principal using the pool manager's revenue
+                            and/or staked funds. If these funds are not sufficient, the lenders will take the loss.
+     * @dev Loan must be in OUTSTANDING status.
+     *      Caller must be the manager.
+     * @param loanId ID of the loan to close
+     */
     function closeLoan(
         uint256 loanId
     )
