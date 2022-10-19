@@ -335,6 +335,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     {
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
+        BorrowerStats storage stats = borrowerStats[loan.borrower];
 
         uint256 remainingDifference = loanDetail.principalAmountRepaid < loan.amount
             ? loan.amount.sub(loanDetail.principalAmountRepaid)
@@ -354,8 +355,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         // charge manager's stake
         if (remainingDifference > 0 && stakedShares > 0) {
-            uint256 stakeChargeable = MathUpgradeable.min(tokensToShares(remainingDifference), stakedShares);
-            uint256 amountChargeable = sharesToTokens(stakeChargeable);
+            uint256 stakedBalance = sharesToTokens(stakedShares);
+            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, stakedBalance);
+            uint256 stakeChargeable = tokensToShares(amountChargeable);
 
             stakedShares = stakedShares.sub(stakeChargeable);
             updatePoolLimit();
@@ -377,6 +379,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(amountRepaid);
             loanDetail.principalAmountRepaid = loanDetail.principalAmountRepaid.add(amountRepaid);
             loanDetail.lastPaymentTime = block.timestamp;
+
+            stats.amountBaseRepaid = stats.amountBaseRepaid.add(amountRepaid);
         }
 
         // charge pool (close loan and reduce borrowed funds/poolfunds)
@@ -388,7 +392,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         loan.status = LoanStatus.REPAID; // Note: add and switch to CLOSED status in next migration version of the pool
 
         //update stats
-        BorrowerStats storage stats = borrowerStats[loan.borrower];
         stats.countRepaid++;
         stats.countOutstanding--;
         stats.amountBorrowed = stats.amountBorrowed.sub(loan.amount);
