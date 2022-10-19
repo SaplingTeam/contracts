@@ -485,7 +485,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             return false;
         }
 
-        uint256 fxBandPercent = 150;
+        uint256 fxBandPercent = 200; //20%
 
         uint256 paymentDueTime;
 
