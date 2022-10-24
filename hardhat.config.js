@@ -1,6 +1,7 @@
 require("@nomicfoundation/hardhat-toolbox");
 require('@openzeppelin/hardhat-upgrades');
 require('@openzeppelin/hardhat-defender');
+require('hardhat-storage-layout');
 require('solidity-docgen');
 require('dotenv').config();
 
