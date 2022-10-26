@@ -1,4 +1,4 @@
-name: "Check code style"
+name: "Check storage layout"
 
 on:
   push:
@@ -10,6 +10,11 @@ jobs:
   linter:
     name: Check storage layout
     runs-on: ubuntu-latest
+    env:
+      TESTNET_MNEMONIC: test test test test test test test test test test test junk
+      POLYGON_MNEMONIC: test test test test test test test test test test test junk
+      ETHERSCAN_API_KEY: ""
+      OPTIMISTIC_ETHERSCAN_API_KEY: ""
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
