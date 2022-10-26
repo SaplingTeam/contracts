@@ -700,9 +700,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 await saplingPoolContext.connect(lender1).withdraw(depositAmount);
 
                 let amount = await saplingPoolContext.amountUnstakable();
-                console.log('Balance staked: ', await saplingPoolContext.balanceStaked());
-                console.log('pool funds: ', await saplingPoolContext.poolFunds());
-                console.log('Amount unstakable: ', amount);
                 let exitFee = amount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
                 let balanceDelta = amount.sub(exitFee);
 

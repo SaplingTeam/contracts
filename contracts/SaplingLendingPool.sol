@@ -267,7 +267,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     function defaultLoan(
         uint256 loanId
     )
-        external
+        public
         managerOrApprovedOnInactive
         loanInStatus(loanId, LoanStatus.OUTSTANDING)
         whenNotPaused
@@ -281,7 +281,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         borrowerStats[loan.borrower].countDefaulted++;
         borrowerStats[loan.borrower].countOutstanding--;
 
-        (, uint256 loss) = loan.amount.trySub(loanDetail.totalAmountRepaid);
+        (, uint256 loss) = loan.amount.trySub(loanDetail.principalAmountRepaid);
 
         emit LoanDefaulted(loanId, loan.borrower, loss);
 
@@ -317,19 +317,95 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         }
 
         if (loanDetail.principalAmountRepaid < loan.amount) {
-            uint256 prevStrategizedFunds = strategizedFunds;
             uint256 baseAmountLost = loan.amount.sub(loanDetail.principalAmountRepaid);
             strategizedFunds = strategizedFunds.sub(baseAmountLost);
 
-            if (strategizedFunds > 0) {
-                weightedAvgStrategyAPR = prevStrategizedFunds
-                    .mul(weightedAvgStrategyAPR)
-                    .sub(baseAmountLost.mul(loan.apr))
-                    .div(strategizedFunds);
-            } else {
-                weightedAvgStrategyAPR = 0;
-            }
+            updateAvgStrategyApr(baseAmountLost, loan.apr);
         }
+    }
+
+    /**
+     * @notice Closes a loan. Closing a loan will repay the outstanding principal using the pool manager's revenue
+                            and/or staked funds. If these funds are not sufficient, the lenders will take the loss.
+     * @dev Loan must be in OUTSTANDING status.
+     *      Caller must be the manager.
+     * @param loanId ID of the loan to close
+     */
+    function closeLoan(
+        uint256 loanId
+    )
+        external
+        onlyManager
+        loanInStatus(loanId, LoanStatus.OUTSTANDING)
+        whenNotPaused
+        nonReentrant
+    {
+        Loan storage loan = loans[loanId];
+        LoanDetail storage loanDetail = loanDetails[loanId];
+        BorrowerStats storage stats = borrowerStats[loan.borrower];
+
+        uint256 remainingDifference = loanDetail.principalAmountRepaid < loan.amount
+            ? loan.amount.sub(loanDetail.principalAmountRepaid)
+            : 0;
+
+        uint256 amountRepaid = 0;
+
+        // charge manager's revenue
+        if (remainingDifference > 0 && nonUserRevenues[manager] > 0) {
+            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, nonUserRevenues[manager]);
+
+            nonUserRevenues[manager] = nonUserRevenues[manager].sub(amountChargeable);
+
+            remainingDifference = remainingDifference.sub(amountChargeable);
+            amountRepaid = amountRepaid.add(amountChargeable);
+        }
+
+        // charge manager's stake
+        if (remainingDifference > 0 && stakedShares > 0) {
+            uint256 stakedBalance = sharesToTokens(stakedShares);
+            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, stakedBalance);
+            uint256 stakeChargeable = tokensToShares(amountChargeable);
+
+            stakedShares = stakedShares.sub(stakeChargeable);
+            updatePoolLimit();
+
+            IPoolToken(poolToken).burn(address(this), stakeChargeable);
+
+            if (stakedShares == 0) {
+                emit StakedAssetsDepleted();
+            }
+
+            remainingDifference = remainingDifference.sub(amountChargeable);
+            amountRepaid = amountRepaid.add(amountChargeable);
+        }
+
+        if (amountRepaid > 0) {
+            strategizedFunds = strategizedFunds.sub(amountRepaid);
+            poolLiquidity = poolLiquidity.add(amountRepaid);
+
+            loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(amountRepaid);
+            loanDetail.principalAmountRepaid = loanDetail.principalAmountRepaid.add(amountRepaid);
+            loanDetail.lastPaymentTime = block.timestamp;
+
+            stats.amountBaseRepaid = stats.amountBaseRepaid.add(amountRepaid);
+        }
+
+        // charge pool (close loan and reduce borrowed funds/poolfunds)
+        if (remainingDifference > 0) {
+            strategizedFunds = strategizedFunds.sub(remainingDifference);
+            poolFunds = poolFunds.sub(remainingDifference);
+        }
+
+        loan.status = LoanStatus.REPAID; // Note: add and switch to CLOSED status in next migration version of the pool
+
+        //update stats
+        stats.countRepaid++;
+        stats.countOutstanding--;
+        stats.amountBorrowed = stats.amountBorrowed.sub(loan.amount);
+        stats.amountBaseRepaid = stats.amountBaseRepaid.sub(loanDetail.principalAmountRepaid);
+        stats.amountInterestPaid = stats.amountInterestPaid.sub(loanDetail.interestPaid);
+
+        updateAvgStrategyApr(amountRepaid.add(remainingDifference), loan.apr);
     }
 
     /**
@@ -409,12 +485,18 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             return false;
         }
 
+        uint256 fxBandPercent = 200; //20% //TODO: use confgurable parameter on v1.1
+
         uint256 paymentDueTime;
 
         if (loan.installments > 1) {
             uint256 installmentPeriod = loan.duration.div(loan.installments);
             uint256 pastInstallments = block.timestamp.sub(loan.borrowedTime).div(installmentPeriod);
-            uint256 minTotalPayment = loan.installmentAmount.mul(pastInstallments);
+            uint256 minTotalPayment = MathUpgradeable.mulDiv(
+                loan.installmentAmount.mul(pastInstallments),
+                fxBandPercent,
+                oneHundredPercent
+            );
 
             LoanDetail storage detail = loanDetails[loanId];
             uint256 totalRepaid = detail.principalAmountRepaid + detail.interestPaid;
@@ -539,7 +621,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
             poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
             poolFunds = poolFunds.add(interestPayable.sub(protocolEarnedInterest.add(managerEarnedInterest)));
-            
+
             updatePoolLimit();
         }
 
@@ -574,15 +656,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             }
         }
 
-        if (strategizedFunds > 0) {
-            weightedAvgStrategyAPR = strategizedFunds
-                .add(principalPaid)
-                .mul(weightedAvgStrategyAPR)
-                .sub(principalPaid.mul(loan.apr))
-                .div(strategizedFunds);
-        } else {
-            weightedAvgStrategyAPR = 0; //templateLoanAPR;
-        }
+        updateAvgStrategyApr(principalPaid, loan.apr);
 
         return (transferAmount, interestPayable);
     }
