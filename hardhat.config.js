@@ -1,6 +1,7 @@
 require("@nomicfoundation/hardhat-toolbox");
 require('@openzeppelin/hardhat-upgrades');
 require('@openzeppelin/hardhat-defender');
+require('hardhat-storage-layout');
 require('solidity-docgen');
 require('dotenv').config();
 
@@ -53,6 +54,7 @@ module.exports = {
     polygon: {
       url: "https://polygon-rpc.com/",
       chainId: 137,
+      gas: 5500000,
       accounts: {
         mnemonic: process.env.POLYGON_MNEMONIC
       }

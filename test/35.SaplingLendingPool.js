@@ -752,23 +752,24 @@ describe('Sapling Lending Pool)', function () {
                     });
 
                     it('Manager can default a partially repaid loan', async function () {
-                        let poolFundsBefore = await lendingPool.poolFunds();
-                        let stakedBalanceBefore = await lendingPool.balanceStaked();
-
                         let paymentAmount = (await lendingPool.loanBalanceDue(loanId)).div(2);
                         await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
                         await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
+
+                        let poolFundsBefore = await lendingPool.poolFunds();
+                        let stakedBalanceBefore = await lendingPool.balanceStaked();
 
                         expect(await lendingPool.canDefault(loanId, manager.address)).to.equal(true);
                         await lendingPool.connect(manager).defaultLoan(loanId);
 
                         loan = await lendingPool.loans(loanId);
                         let loanDetail = await lendingPool.loanDetails(loanId);
-                        let lossAmount = loan.amount.sub(loanDetail.totalAmountRepaid);
+                        let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
 
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
                         expect(await lendingPool.poolFunds()).to.equal(poolFundsBefore.sub(lossAmount));
-                        expect(await lendingPool.balanceStaked()).to.equal(stakedBalanceBefore.sub(lossAmount));
+                        expect(await lendingPool.balanceStaked()).to.gte(stakedBalanceBefore.sub(lossAmount).sub(5))
+                            .and.to.lte(stakedBalanceBefore.sub(lossAmount).add(5));
                     });
 
                     it('Manager can default a loan that has no payments made', async function () {
@@ -780,7 +781,7 @@ describe('Sapling Lending Pool)', function () {
 
                         loan = await lendingPool.loans(loanId);
                         let loanDetail = await lendingPool.loanDetails(loanId);
-                        let lossAmount = loan.amount.sub(loanDetail.totalAmountRepaid);
+                        let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
                         expect(await lendingPool.poolFunds()).to.equal(poolFundsBefore.sub(lossAmount));
                         expect(await lendingPool.balanceStaked()).to.equal(stakedBalanceBefore.sub(lossAmount));
@@ -821,7 +822,7 @@ describe('Sapling Lending Pool)', function () {
 
                         let loan = await lendingPool.loans(otherLoanId);
                         let loanDetail = await lendingPool.loanDetails(otherLoanId);
-                        let lossAmount = loan.amount.sub(loanDetail.totalAmountRepaid);
+                        let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
                         expect(await lendingPool.poolFunds()).to.equal(poolFundsBefore.sub(lossAmount));
                         expect(await lendingPool.balanceStaked()).to.equal(0);
@@ -861,7 +862,7 @@ describe('Sapling Lending Pool)', function () {
 
                         let loan = await lendingPool.loans(otherLoanId);
                         let loanDetail = await lendingPool.loanDetails(otherLoanId);
-                        let lossAmount = loan.amount.sub(loanDetail.totalAmountRepaid);
+                        let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
                         expect(await lendingPool.poolFunds()).to.equal(poolFundsBefore.sub(lossAmount));
                         expect(await lendingPool.balanceStaked()).to.equal(0);
@@ -1105,6 +1106,231 @@ describe('Sapling Lending Pool)', function () {
                                     prevStat.amountInterestPaid.sub(loanDetail.interestPaid),
                                 );
                             });
+                        });
+                    });
+                });
+            });
+
+            describe('Close Loan', function () {
+                after(async function () {
+                    await rollback();
+                });
+
+                before(async function () {
+                    await snapshot();
+
+                    let newLoanAmount = BigNumber.from(4000).mul(TOKEN_MULTIPLIER);
+
+                    await loanDesk
+                        .connect(borrower2)
+                        .requestLoan(
+                            newLoanAmount,
+                            loanDuration,
+                            'a937074e-85a7-42a9-b858-9795d9471759',
+                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                        );
+                    let applicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                    let gracePeriod = await loanDesk.templateLoanGracePeriod();
+                    let installments = 1;
+                    let apr = await loanDesk.templateLoanAPR();
+                    await loanDesk
+                        .connect(manager)
+                        .offerLoan(applicationId, newLoanAmount, loanDuration, gracePeriod, 0, installments, apr);
+
+                    await lendingPool.connect(borrower2).borrow(applicationId);
+                    let loanId = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+
+                    let loan = await lendingPool.loans(loanId);
+                    await ethers.provider.send('evm_increaseTime', [
+                        loan.duration.add(loan.gracePeriod).add(1).toNumber(),
+                    ]);
+                    await ethers.provider.send('evm_mine');
+                });
+
+                it('Closing a loan with loss less than the managers revenue', async function () {
+                    let loanId = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+
+                    let paymentAmount = BigNumber.from(5300).mul(TOKEN_MULTIPLIER);
+                    await liquidityToken.connect(deployer).mint(borrower2.address, paymentAmount);
+                    await liquidityToken.connect(borrower2).approve(lendingPool.address, paymentAmount);
+                    await lendingPool.connect(borrower2).repay(loanId, paymentAmount);
+
+                    loan = await lendingPool.loans(loanId);
+                    let loanDetail = await lendingPool.loanDetails(loanId);
+                    let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
+
+                    let poolFundsBefore = await lendingPool.poolFunds();
+                    let poolLiquidityBefore = await lendingPool.poolLiquidity();
+                    let stakedBalanceBefore = await lendingPool.balanceStaked();
+                    let managerRevenueBefore = await lendingPool.revenueBalanceOf(manager.address);
+
+                    await lendingPool.connect(manager).closeLoan(loanId);
+
+                    loan = await lendingPool.loans(loanId);
+                    expect(loan.status).to.equal(LoanStatus.REPAID);
+
+                    expect(await lendingPool.revenueBalanceOf(manager.address)).to.equal(managerRevenueBefore.sub(lossAmount));
+                    expect(await lendingPool.balanceStaked()).to.equal(stakedBalanceBefore);
+                    expect(await lendingPool.poolLiquidity()).to.equal(poolLiquidityBefore.add(lossAmount));
+                    expect(await lendingPool.poolFunds()).to.equal(poolFundsBefore);
+                });
+
+                it('Closing a loan with loss more than the managers revenue but coverable with stake', async function () {
+                    let loanId = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+
+                    let paymentAmount = BigNumber.from(5200).mul(TOKEN_MULTIPLIER);
+                    await liquidityToken.connect(deployer).mint(borrower2.address, paymentAmount);
+                    await liquidityToken.connect(borrower2).approve(lendingPool.address, paymentAmount);
+                    await lendingPool.connect(borrower2).repay(loanId, paymentAmount);
+
+                    loan = await lendingPool.loans(loanId);
+                    let loanDetail = await lendingPool.loanDetails(loanId);
+                    let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
+
+                    let poolFundsBefore = await lendingPool.poolFunds();
+                    let poolLiquidityBefore = await lendingPool.poolLiquidity();
+                    let stakedBalanceBefore = await lendingPool.balanceStaked();
+                    let managerRevenueBefore = await lendingPool.revenueBalanceOf(manager.address);
+
+                    await lendingPool.connect(manager).closeLoan(loanId);
+
+                    loan = await lendingPool.loans(loanId);
+                    expect(loan.status).to.equal(LoanStatus.REPAID);
+
+                    console.log ();
+
+                    expect(await lendingPool.revenueBalanceOf(manager.address)).to.equal(0);
+                    expect(await lendingPool.balanceStaked() - stakedBalanceBefore.sub(lossAmount.sub(managerRevenueBefore)))
+                        .to.lt(BigNumber.from(20).mul(TOKEN_MULTIPLIER)); //allow inconsistency due to double conversion using integer math
+                    expect(await lendingPool.poolLiquidity()).to.equal(poolLiquidityBefore.add(lossAmount));
+                    expect(await lendingPool.poolFunds()).to.equal(poolFundsBefore);
+                });
+
+                it('Closing a loan with loss more than the managers revenue and stake', async function () {
+                    let loanId = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+
+                    let paymentAmount = BigNumber.from(3000).mul(TOKEN_MULTIPLIER);
+                    await liquidityToken.connect(deployer).mint(borrower2.address, paymentAmount);
+                    await liquidityToken.connect(borrower2).approve(lendingPool.address, paymentAmount);
+                    await lendingPool.connect(borrower2).repay(loanId, paymentAmount);
+
+                    loan = await lendingPool.loans(loanId);
+                    let loanDetail = await lendingPool.loanDetails(loanId);
+                    let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
+
+                    let poolFundsBefore = await lendingPool.poolFunds();
+                    let poolLiquidityBefore = await lendingPool.poolLiquidity();
+                    let stakedBalanceBefore = await lendingPool.balanceStaked();
+                    let managerRevenueBefore = await lendingPool.revenueBalanceOf(manager.address);
+
+                    await lendingPool.connect(manager).closeLoan(loanId);
+
+                    loan = await lendingPool.loans(loanId);
+                    expect(loan.status).to.equal(LoanStatus.REPAID);
+
+                    expect(await lendingPool.revenueBalanceOf(manager.address)).to.equal(0);
+                    expect(await lendingPool.balanceStaked()).to.equal(0);
+                    expect(await lendingPool.poolLiquidity()).to.equal(poolLiquidityBefore.add(managerRevenueBefore.add(stakedBalanceBefore)));
+                    expect(await lendingPool.poolFunds()).to.equal(poolFundsBefore.sub(lossAmount.sub(managerRevenueBefore.add(stakedBalanceBefore))));
+                });
+
+                describe('Rejection scenarios', function () {
+                    it('Closing a loan that is not in OUTSTANDING status should fail', async function () {
+                        let paymentAmount = await lendingPool.loanBalanceDue(loanId);
+                        await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
+                        await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
+                        await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
+                        loan = await lendingPool.loans(loanId);
+                        assertHardhatInvariant(loan.status === LoanStatus.REPAID);
+
+                        await expect(lendingPool.connect(manager).closeLoan(loanId)).to.be.reverted;
+                    });
+
+                    it('Closing a nonexistent loan should fail', async function () {
+                        await expect(lendingPool.connect(manager).closeLoan(loanId.add(10))).to.be.reverted;
+                    });
+
+                    it('Closing a loan as the protocol should fail', async function () {
+                        await expect(lendingPool.connect(protocol).closeLoan(loanId)).to.be.reverted;
+                    });
+
+                    it('Closing a loan as the governance should fail', async function () {
+                        await expect(lendingPool.connect(governance).closeLoan(loanId)).to.be.reverted;
+                    });
+
+                    it('Closing a loan as a lender should fail', async function () {
+                        await expect(lendingPool.connect(lender1).closeLoan(loanId)).to.be.reverted;
+                    });
+
+                    it('Closing a loan as the borrower should fail', async function () {
+                        await expect(lendingPool.connect(borrower1).closeLoan(loanId)).to.be.reverted;
+                    });
+
+                    it('Closing a loan from an unrelated address should fail', async function () {
+                        await expect(lendingPool.connect(addresses[0]).closeLoan(loanId)).to.be.reverted;
+                    });
+                });
+
+                describe('Borrower Statistics', function () {
+                    describe('On Loan Close', function () {
+                        let loan;
+                        let prevStat;
+                        let prevLoanDetail;
+                        let stat;
+                        let loanDetail;
+
+                        after(async function () {
+                            await rollback();
+                        });
+
+                        before(async function () {
+                            await snapshot();
+
+                            prevStat = await lendingPool.borrowerStats(borrower1.address);
+
+                            let loanId = prevStat.recentLoanId;
+                            loan = await lendingPool.loans(loanId);
+
+                            await ethers.provider.send('evm_increaseTime', [
+                                loan.duration.add(loan.gracePeriod).toNumber(),
+                            ]);
+                            await ethers.provider.send('evm_mine');
+
+                            let paymentAmount = (await lendingPool.loanBalanceDue(loanId)).div(2);
+                            await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
+                            await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
+                            await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
+
+                            prevStat = await lendingPool.borrowerStats(borrower1.address);
+                            prevLoanDetail = await lendingPool.loanDetails(loanId);
+                            await lendingPool.connect(manager).defaultLoan(loanId);
+
+                            stat = await lendingPool.borrowerStats(borrower1.address);
+                            loanDetail = await lendingPool.loanDetails(loanId);
+                        });
+
+                        it('Closing a loan increments all time repaid count', async function () {
+                            expect(stat.countDefaulted).to.equal(prevStat.countRepaid.add(1));
+                        });
+
+                        it('Closing a loan removes loan amount from borrowed amount', async function () {
+                            expect(stat.countOutstanding).to.equal(prevStat.countOutstanding.sub(1));
+                        });
+
+                        it('Closing a loan removes loan amount from borrowed amount', async function () {
+                            expect(stat.amountBorrowed).to.equal(prevStat.amountBorrowed.sub(loan.amount));
+                        });
+
+                        it('Closing a loan removes loan base amount paid from base amount paid', async function () {
+                            expect(stat.amountBaseRepaid).to.equal(
+                                prevStat.amountBaseRepaid.sub(loanDetail.principalAmountRepaid),
+                            );
+                        });
+
+                        it('Closing a loan removes loan interest amount paid from interest amount paid', async function () {
+                            expect(stat.amountInterestPaid).to.equal(
+                                prevStat.amountInterestPaid.sub(loanDetail.interestPaid),
+                            );
                         });
                     });
                 });

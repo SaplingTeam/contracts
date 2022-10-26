@@ -485,8 +485,25 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
     /**
      * @dev Internal method to update the pool funds limit based on the staked funds.
      */
-    function updatePoolLimit() internal nonReentrant {
+    function updatePoolLimit() internal {
         poolFundsLimit = sharesToTokens(MathUpgradeable.mulDiv(stakedShares, oneHundredPercent, targetStakePercent));
+    }
+
+    /**
+     * @dev Internal method to update the weighted average loan apr based on the amount reduced by and an apr.
+     * @param amountReducedBy amount by which the funds committed into strategy were reduced, due to repayment or loss
+     * @param apr annual percentage rate of the strategy
+     */
+    function updateAvgStrategyApr(uint256 amountReducedBy, uint16 apr) internal {
+        if (strategizedFunds > 0) {
+            weightedAvgStrategyAPR = strategizedFunds
+                .add(amountReducedBy)
+                .mul(weightedAvgStrategyAPR)
+                .sub(amountReducedBy.mul(apr))
+                .div(strategizedFunds);
+        } else {
+            weightedAvgStrategyAPR = 0;
+        }
     }
 
     /**
@@ -589,11 +606,11 @@ abstract contract SaplingPoolContext is ILender, SaplingManagerContext, Reentran
 
     /**
      * @dev Implementation of the abstract hook in SaplingManagedContext.
-     *      Governance, protocol wallet addresses and lenders with at least 1.00 liquidity tokens are authorised to take
+     *      Governance, protocol wallet addresses are authorised to take
      *      certain actions when the manager is inactive.
      */
     function authorizedOnInactiveManager(address caller) internal view override returns (bool) {
-        return isNonUserAddress(caller) || sharesToTokens(IERC20(poolToken).balanceOf(caller)) >= oneToken;
+        return isNonUserAddress(caller);
     }
 
     /**
