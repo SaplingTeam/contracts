@@ -568,6 +568,19 @@ function updatePoolLimit() internal
 
 _Internal method to update the pool funds limit based on the staked funds._
 
+### updateAvgStrategyApr
+
+```solidity
+function updateAvgStrategyApr(uint256 amountReducedBy, uint16 apr) internal
+```
+
+_Internal method to update the weighted average loan apr based on the amount reduced by and an apr._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amountReducedBy | uint256 | amount by which the funds committed into strategy were reduced, due to repayment or loss |
+| apr | uint16 | annual percentage rate of the strategy |
+
 ### sharesToTokens
 
 ```solidity
@@ -642,7 +655,7 @@ function authorizedOnInactiveManager(address caller) internal view returns (bool
 ```
 
 _Implementation of the abstract hook in SaplingManagedContext.
-     Governance, protocol wallet addresses and lenders with at least 1.00 liquidity tokens are authorised to take
+     Governance, protocol wallet addresses are authorised to take
      certain actions when the manager is inactive._
 
 ### canClose

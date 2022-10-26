@@ -247,7 +247,7 @@ _Loan must be in OUTSTANDING status.
 ### defaultLoan
 
 ```solidity
-function defaultLoan(uint256 loanId) external
+function defaultLoan(uint256 loanId) public
 ```
 
 Default a loan.
@@ -259,6 +259,22 @@ _Loan must be in OUTSTANDING status.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | loanId | uint256 | ID of the loan to default |
+
+### closeLoan
+
+```solidity
+function closeLoan(uint256 loanId) external
+```
+
+Closes a loan. Closing a loan will repay the outstanding principal using the pool manager's revenue
+                            and/or staked funds. If these funds are not sufficient, the lenders will take the loss.
+
+_Loan must be in OUTSTANDING status.
+     Caller must be the manager._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan to close |
 
 ### onOffer
 
