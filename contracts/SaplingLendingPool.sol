@@ -281,7 +281,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         borrowerStats[loan.borrower].countDefaulted++;
         borrowerStats[loan.borrower].countOutstanding--;
 
-        (, uint256 loss) = loan.amount.trySub(loanDetail.totalAmountRepaid);
+        (, uint256 loss) = loan.amount.trySub(loanDetail.principalAmountRepaid);
 
         emit LoanDefaulted(loanId, loan.borrower, loss);
 
@@ -485,7 +485,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             return false;
         }
 
-        uint256 fxBandPercent = 200; //20%
+        uint256 fxBandPercent = 200; //20% //TODO: use confgurable parameter on v1.1
 
         uint256 paymentDueTime;
 
