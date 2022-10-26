@@ -26,4 +26,4 @@ jobs:
       - name: Compile contracts
         run: npx hardhat compile
       - name: Check storage layout
-        run: npx hardhat check | sed 's/build-info\/.*\.json/build_info\/\.\.\.\.json/g' | diff ./storageLayout/layout_1.0.2 -
+        run: npx hardhat check | sed 's/build-info\/.*\.json/build_info\/\.\.\.\.json/g' | sed 's/)[0-9]*_storage/)_storage/g' | diff ./storageLayout/layout_1.0.0 -
