@@ -424,6 +424,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      */
     function onOffer(uint256 amount) external override onlyLoanDesk {
         require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
+
         poolLiquidity = poolLiquidity.sub(amount);
         allocatedFunds = allocatedFunds.add(amount);
     }
@@ -540,6 +541,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      */
     function afterTreasuryWalletTransfer(address from) internal override {
         require(from != address(0), "SaplingLendingPool: invalid from address");
+
         nonUserRevenues[treasury] = nonUserRevenues[treasury].add(nonUserRevenues[from]);
         nonUserRevenues[from] = 0;
     }

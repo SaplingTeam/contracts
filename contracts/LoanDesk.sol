@@ -228,8 +228,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      * @param duration Minimum loan duration to be enforced on new loan requests and offers
      */
     function setMinLoanDuration(uint256 duration) external onlyManager whenNotPaused {
-        require(SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration,
-            "LoanDesk: new min duration is out of bounds");
+        require(
+            SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration,
+            "LoanDesk: new min duration is out of bounds"
+            );
 
         uint256 prevValue = minLoanDuration;
         minLoanDuration = duration;
@@ -244,8 +246,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      * @param duration Maximum loan duration to be enforced on new loan requests and offers
      */
     function setMaxLoanDuration(uint256 duration) external onlyManager whenNotPaused {
-        require(minLoanDuration <= duration && duration <= SAFE_MAX_DURATION,
-            "LoanDesk: new max duration is out of bounds");
+        require(
+            minLoanDuration <= duration && duration <= SAFE_MAX_DURATION,
+            "LoanDesk: new max duration is out of bounds"
+            );
 
         uint256 prevValue = maxLoanDuration;
         maxLoanDuration = duration;
@@ -260,8 +264,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      * @param gracePeriod Loan payment grace period for new loan offers
      */
     function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyManager whenNotPaused {
-        require(MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD,
-            "LoanDesk: new grace period is out of bounds.");
+        require(
+            MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD,
+            "LoanDesk: new grace period is out of bounds."
+            );
 
         uint256 prevValue = templateLoanGracePeriod;
         templateLoanGracePeriod = gracePeriod;
