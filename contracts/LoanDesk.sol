@@ -124,6 +124,21 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     /// Event for when a loan offer is cancelled
     event LoanOfferCancelled(uint256 applicationId, address indexed borrower);
 
+    /// Setter event
+    event MinLoanAmountSet(uint256 prevValue, uint256 newValue);
+
+    /// Setter event
+    event MinLoanDurationSet(uint256 prevValue, uint256 newValue);
+
+    /// Setter event
+    event MaxLoanDurationSet(uint256 prevValue, uint256 newValue);
+
+    /// Setter event
+    event TemplateLoanGracePeriodSet(uint256 prevValue, uint256 newValue);
+
+    /// Setter event
+    event TemplateLoanAPRSet(uint256 prevValue, uint256 newValue);
+
     /// A modifier to limit access only to the lending pool contract
     modifier onlyPool() {
         require(msg.sender == pool, "LoanDesk: caller is not the lending pool");
@@ -199,7 +214,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      */
     function setMinLoanAmount(uint256 _minLoanAmount) external onlyManager whenNotPaused {
         require(safeMinAmount <= _minLoanAmount, "LoanDesk: new min loan amount is less than the safe limit");
+
+        uint256 prevValue = minLoanAmount;
         minLoanAmount = _minLoanAmount;
+
+        emit MinLoanAmountSet(prevValue, minLoanAmount);
     }
 
     /**
@@ -211,7 +230,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     function setMinLoanDuration(uint256 duration) external onlyManager whenNotPaused {
         require(SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration,
             "LoanDesk: new min duration is out of bounds");
+
+        uint256 prevValue = minLoanDuration;
         minLoanDuration = duration;
+
+        emit MinLoanDurationSet(prevValue, minLoanDuration);
     }
 
     /**
@@ -223,7 +246,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     function setMaxLoanDuration(uint256 duration) external onlyManager whenNotPaused {
         require(minLoanDuration <= duration && duration <= SAFE_MAX_DURATION,
             "LoanDesk: new max duration is out of bounds");
+
+        uint256 prevValue = maxLoanDuration;
         maxLoanDuration = duration;
+
+        emit MaxLoanDurationSet(prevValue, maxLoanDuration);
     }
 
     /**
@@ -235,7 +262,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyManager whenNotPaused {
         require(MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD,
             "LoanDesk: new grace period is out of bounds.");
+
+        uint256 prevValue = templateLoanGracePeriod;
         templateLoanGracePeriod = gracePeriod;
+
+        emit TemplateLoanGracePeriodSet(prevValue, templateLoanGracePeriod); 
     }
 
     /**
@@ -246,7 +277,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      */
     function setTemplateLoanAPR(uint16 apr) external onlyManager whenNotPaused {
         require(SAFE_MIN_APR <= apr && apr <= safeMaxApr, "LoanDesk: APR is out of bounds");
+
+        uint256 prevValue = templateLoanAPR;
         templateLoanAPR = apr;
+
+        emit TemplateLoanAPRSet(prevValue, templateLoanAPR);
     }
 
     /**
