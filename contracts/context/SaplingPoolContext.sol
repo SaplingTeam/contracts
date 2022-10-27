@@ -90,6 +90,36 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
     /// Event for when the Manager's staked assets are depleted due to defaults
     event StakedAssetsDepleted();
 
+    /// Event for when lender funds are deposited
+    event FundsDeposited(address wallet, uint256 amount, uint256 tokensIssued); 
+
+    /// Event for when lender funds are withdrawn
+    event FundsWithdrawn(address wallet, uint256 amount, uint256 tokensRedeemed);
+
+    /// Event for when pool manager funds are staked
+    event FundsStaked(address wallet, uint256 amount, uint256 tokensIssued);
+
+    /// Event for when pool manager funds are unstaked
+    event FundsUnstaked(address wallet, uint256 amount, uint256 tokensRedeemed);
+
+    /// Event for when a non user revenue is withdrawn
+    event RevenueWithdrawn(address wallet, uint256 amount);
+
+    /// Setter event
+    event TargetStakePercentSet(uint16 prevValue, uint16 newValue);
+
+    /// Setter event
+    event TargetLiqudityPercentSet(uint16 prevValue, uint16 newValue);
+
+    /// Setter event
+    event ProtocolFeePercentSet(uint16 prevValue, uint16 newValue);
+
+    /// Setter event
+    event ManagerEarnFactorMaxSet(uint16 prevValue, uint16 newValue);
+
+    /// Setter event
+    event ManagerEarnFactorSet(uint16 prevValue, uint16 newValue);
+
     /**
      * @notice Creates a SaplingPoolContext.
      * @dev Addresses must not be 0.
@@ -161,8 +191,11 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
     function setTargetStakePercent(uint16 _targetStakePercent) external onlyGovernance {
         require(0 < _targetStakePercent && _targetStakePercent <= oneHundredPercent,
             "SaplingPoolContext: target stake percent is out of bounds");
+        uint16 prevValue = targetStakePercent;
         targetStakePercent = _targetStakePercent;
         updatePoolLimit();
+
+        emit TargetStakePercentSet(prevValue, targetStakePercent);
     }
 
     /**
@@ -174,7 +207,11 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
     function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external onlyManager {
         require(0 <= _targetLiquidityPercent && _targetLiquidityPercent <= oneHundredPercent,
             "SaplingPoolContext: target liquidity percent is out of bounds");
+        
+        uint16 prevValue = targetLiquidityPercent;
         targetLiquidityPercent = _targetLiquidityPercent;
+
+        emit TargetLiqudityPercentSet(prevValue, targetLiquidityPercent);
     }
 
     /**
@@ -186,7 +223,11 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
     function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyGovernance {
         require(0 <= _protocolEarningPercent && _protocolEarningPercent <= maxProtocolFeePercent,
             "SaplingPoolContext: protocol earning percent is out of bounds");
+
+        uint16 prevValue = protocolFeePercent;
         protocolFeePercent = _protocolEarningPercent;
+
+        emit ProtocolFeePercentSet(prevValue, protocolFeePercent);
     }
 
     /**
@@ -199,12 +240,19 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
     function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external onlyGovernance {
         require(oneHundredPercent <= _managerEarnFactorMax ,
             "SaplingPoolContext: _managerEarnFactorMax is out of bounds");
+        
+        uint16 prevValue = managerEarnFactorMax;
         managerEarnFactorMax = _managerEarnFactorMax;
 
         if (managerEarnFactor > managerEarnFactorMax) {
+            uint16 prevEarnFactor = managerEarnFactor;
             managerEarnFactor = managerEarnFactorMax;
             managerExcessLeverageComponent = uint256(managerEarnFactor).sub(oneHundredPercent);
+
+            emit ManagerEarnFactorSet(prevEarnFactor, managerEarnFactor);
         }
+
+        emit ManagerEarnFactorMaxSet(prevValue, managerEarnFactorMax);
     }
 
     /**
@@ -216,8 +264,12 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
     function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager whenNotPaused {
         require(oneHundredPercent <= _managerEarnFactor && _managerEarnFactor <= managerEarnFactorMax,
             "SaplingPoolContext: _managerEarnFactor is out of bounds");
+
+        uint16 prevValue = managerEarnFactor;
         managerEarnFactor = _managerEarnFactor;
         managerExcessLeverageComponent = uint256(managerEarnFactor).sub(oneHundredPercent);
+
+        emit ManagerEarnFactorSet(prevValue, managerEarnFactor);
     }
 
     /**
@@ -229,7 +281,9 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @param amount Liquidity token amount to deposit.
      */
     function deposit(uint256 amount) external onlyUser whenNotPaused whenNotClosed {
-        enterPool(amount);
+        uint256 sharesMinted = enterPool(amount);
+
+        emit FundsDeposited(msg.sender, amount, sharesMinted);
     }
 
     /**
@@ -242,7 +296,9 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
     function withdraw(uint256 amount) external whenNotPaused {
         require(msg.sender != manager, "SaplingPoolContext: pool manager address cannot use withdraw");
 
-        exitPool(amount);
+        uint256 sharesBurned = exitPool(amount);
+
+        emit FundsWithdrawn(msg.sender, amount, sharesBurned);
     }
 
     /**
@@ -256,9 +312,11 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
     function stake(uint256 amount) external onlyManager whenNotPaused whenNotClosed {
         require(amount > 0, "SaplingPoolContext: stake amount is 0");
 
-        uint256 shares = enterPool(amount);
-        stakedShares = stakedShares.add(shares);
+        uint256 sharesMinted = enterPool(amount);
+        stakedShares = stakedShares.add(sharesMinted);
         updatePoolLimit();
+
+        emit FundsStaked(msg.sender, amount, sharesMinted);
     }
 
     /**
@@ -272,7 +330,9 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
         require(amount > 0, "SaplingPoolContext: unstake amount is 0");
         require(amount <= amountUnstakable(), "SaplingPoolContext: requested amount is not available for unstaking");
 
-        exitPool(amount);
+        uint256 sharesBurned = exitPool(amount);
+
+        emit FundsUnstaked(msg.sender, amount, sharesBurned);
     }
 
     /**
@@ -290,6 +350,8 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
         tokenBalance = tokenBalance.sub(amount);
         bool success = IERC20(liquidityToken).transfer(msg.sender, amount);
         require(success, "SaplingPoolContext: ERC20 transfer failed");
+
+        emit RevenueWithdrawn(msg.sender, amount);
     }
 
     /**
