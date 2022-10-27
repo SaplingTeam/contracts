@@ -535,6 +535,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @return Amount of pool tokens burned and taken from the caller.
      */
     function exitPool(uint256 amount) internal returns (uint256) {
+        //// check
         require(amount > 0, "SaplingPoolContext: pool withdrawal amount is 0");
         require(poolLiquidity >= amount, "SaplingPoolContext: insufficient liquidity");
 
@@ -543,20 +544,25 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
         require(msg.sender != manager ? shares <= IERC20(poolToken).balanceOf(msg.sender) : shares <= stakedShares,
             "SaplingPoolContext: insufficient balance");
 
+        //// effect
+
         if (msg.sender == manager) {
             stakedShares = stakedShares.sub(shares);
             updatePoolLimit();
         }
 
-        // burn shares
-        IPoolToken(poolToken).burn(msg.sender != manager ? msg.sender : address(this), shares);
-
         uint256 transferAmount = amount.sub(MathUpgradeable.mulDiv(amount, exitFeePercent, oneHundredPercent));
 
         poolFunds = poolFunds.sub(transferAmount);
         poolLiquidity = poolLiquidity.sub(transferAmount);
-
         tokenBalance = tokenBalance.sub(transferAmount);
+
+        //// interactions
+
+        // burn shares
+        IPoolToken(poolToken).burn(msg.sender != manager ? msg.sender : address(this), shares);
+
+        // transfer liqudity tokens
         bool success = IERC20(liquidityToken).transfer(msg.sender, transferAmount);
         require(success, "SaplingPoolContext: ERC20 transfer failed");
 
