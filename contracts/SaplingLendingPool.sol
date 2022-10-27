@@ -286,7 +286,11 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         loanInStatus(loanId, LoanStatus.OUTSTANDING)
         whenNotPaused
     {
+        //// check
+
         require(canDefault(loanId, msg.sender), "SaplingLendingPool: cannot defaulted this loan at this time");
+
+        //// effect
 
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
@@ -297,13 +301,20 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         (, uint256 loss) = loan.amount.trySub(loanDetail.principalAmountRepaid);
 
-        emit LoanDefaulted(loanId, loan.borrower, loss);
-
         borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.sub(loan.amount);
         borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid
             .sub(loanDetail.principalAmountRepaid);
         borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid
             .sub(loanDetail.interestPaid);
+
+        if (loanDetail.principalAmountRepaid < loan.amount) {
+            uint256 baseAmountLost = loan.amount.sub(loanDetail.principalAmountRepaid);
+            strategizedFunds = strategizedFunds.sub(baseAmountLost);
+
+            updateAvgStrategyApr(baseAmountLost, loan.apr);
+        }
+
+        emit LoanDefaulted(loanId, loan.borrower, loss);
 
         if (loss > 0) {
             uint256 lostShares = tokensToShares(loss);
@@ -317,24 +328,19 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
                 stakedShares = stakedShares.sub(stakedShareLoss);
                 updatePoolLimit();
 
-                //burn manager's shares
-                IPoolToken(poolToken).burn(address(this), stakedShareLoss);
-
                 if (stakedShares == 0) {
                     emit StakedAssetsDepleted();
                 }
+
+                //// interactions
+
+                //burn manager's shares
+                IPoolToken(poolToken).burn(address(this), stakedShareLoss);
             }
 
             if (remainingLostShares > 0) {
                 emit UnstakedLoss(loss.sub(sharesToTokens(remainingLostShares)));
             }
-        }
-
-        if (loanDetail.principalAmountRepaid < loan.amount) {
-            uint256 baseAmountLost = loan.amount.sub(loanDetail.principalAmountRepaid);
-            strategizedFunds = strategizedFunds.sub(baseAmountLost);
-
-            updateAvgStrategyApr(baseAmountLost, loan.apr);
         }
     }
 
