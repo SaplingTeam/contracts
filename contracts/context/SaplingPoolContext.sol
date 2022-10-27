@@ -497,21 +497,27 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @return Amount of pool tokens minted and allocated to the caller.
      */
     function enterPool(uint256 amount) internal nonReentrant returns (uint256) {
+        //// check
+
         require(amount > 0, "SaplingPoolContext: pool deposit amount is 0");
 
         // allow the manager to add funds beyond the current pool limit
         require(msg.sender == manager || (poolFundsLimit > poolFunds && amount <= poolFundsLimit.sub(poolFunds)),
             "SaplingPoolContext: deposit amount is over the remaining pool limit");
 
+        //// effect
+
         uint256 shares = tokensToShares(amount);
+
+        tokenBalance = tokenBalance.add(amount);
+        poolLiquidity = poolLiquidity.add(amount);
+        poolFunds = poolFunds.add(amount);
+
+        //// interactions
 
         // charge 'amount' tokens from msg.sender
         bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), amount);
         require(success, "SaplingPoolContext: ERC20 transfer failed");
-        tokenBalance = tokenBalance.add(amount);
-
-        poolLiquidity = poolLiquidity.add(amount);
-        poolFunds = poolFunds.add(amount);
 
         // mint shares
         IPoolToken(poolToken).mint(msg.sender != manager ? msg.sender : address(this), shares);
