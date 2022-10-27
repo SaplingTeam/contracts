@@ -504,23 +504,31 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         managerOrApprovedOnInactive
         applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE)
     {
+        //// check
+
         LoanOffer storage offer = loanOffers[appId];
 
         // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
         if (msg.sender != manager) {
             // require inactivity grace period
-            require(block.timestamp > offer.offeredTime + MANAGER_INACTIVITY_GRACE_PERIOD,
-                "LoanDesk: too early to cancel this loan as a non-manager");
+            require(
+                block.timestamp > offer.offeredTime + MANAGER_INACTIVITY_GRACE_PERIOD,
+                "LoanDesk: too early to cancel this loan as a non-manager"
+            );
         }
+
+        //// effect
 
         loanApplications[appId].status = LoanApplicationStatus.OFFER_CANCELLED;
         borrowerStats[offer.borrower].countCancelled++;
         borrowerStats[offer.borrower].hasOpenApplication = false;
 
         offeredFunds = offeredFunds.sub(offer.amount);
-        ILoanDeskOwner(pool).onOfferUpdate(offer.amount, 0);
 
         emit LoanOfferCancelled(appId, offer.borrower);
+
+        //// interactions
+        ILoanDeskOwner(pool).onOfferUpdate(offer.amount, 0);
     }
 
     /**
