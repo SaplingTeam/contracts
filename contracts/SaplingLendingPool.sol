@@ -172,6 +172,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      */
     function borrow(uint256 appId) external whenNotClosed whenNotPaused {
 
+        //// check
+
         require(
             ILoanDesk(loanDesk).applicationStatus(appId) == ILoanDesk.LoanApplicationStatus.OFFER_MADE,
             "SaplingLendingPool: invalid offer status"
@@ -180,7 +182,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         ILoanDesk.LoanOffer memory offer = ILoanDesk(loanDesk).loanOfferById(appId);
 
         require(offer.borrower == msg.sender, "SaplingLendingPool: msg.sender is not the borrower on this loan");
-        ILoanDesk(loanDesk).onBorrow(appId);
+        
+        //// effect
 
         borrowerStats[offer.borrower].countOutstanding++;
         borrowerStats[offer.borrower].amountBorrowed = borrowerStats[offer.borrower].amountBorrowed.add(offer.amount);
@@ -223,10 +226,15 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             .div(strategizedFunds);
 
         tokenBalance = tokenBalance.sub(offer.amount);
-        bool success = IERC20(liquidityToken).transfer(msg.sender, offer.amount);
-        require(success, "SaplingLendingPool: ERC20 transfer failed");
 
         emit LoanBorrowed(loanId, offer.borrower, appId);
+
+        //// interactions
+
+        ILoanDesk(loanDesk).onBorrow(appId);
+
+        bool success = IERC20(liquidityToken).transfer(msg.sender, offer.amount);
+        require(success, "SaplingLendingPool: ERC20 transfer failed");
     }
 
     /**
