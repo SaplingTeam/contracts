@@ -457,20 +457,24 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         whenNotClosed
         whenNotPaused
     {
+        //// check
+
         validateLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr);
 
         LoanOffer storage offer = loanOffers[appId];
 
-        if (offer.amount != _amount) {
-            uint256 nextOfferedFunds = offeredFunds.sub(offer.amount).add(_amount);
+        uint256 prevAmount = offer.amount;
 
+        if (prevAmount != _amount) {
+            uint256 nextOfferedFunds = offeredFunds.sub(prevAmount).add(_amount);
             require(ILoanDeskOwner(pool).canOffer(nextOfferedFunds),
                 "LoanDesk: lending pool cannot offer this loan at this time");
-            ILoanDeskOwner(pool).onOfferUpdate(offer.amount, _amount);
 
+            //// effect
             offeredFunds = nextOfferedFunds;
         }
 
+        //// effect
         offer.amount = _amount;
         offer.duration = _duration;
         offer.gracePeriod = _gracePeriod;
@@ -480,6 +484,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         offer.offeredTime = block.timestamp;
 
         emit LoanOfferUpdated(appId, offer.borrower);
+
+        //// interactions
+        if (prevAmount != offer.amount) {
+            ILoanDeskOwner(pool).onOfferUpdate(prevAmount, offer.amount);
+        }
     }
 
 
