@@ -394,13 +394,16 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         whenNotClosed
         whenNotPaused
     {
+        //// check
+
         validateLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr);
 
         LoanApplication storage app = loanApplications[appId];
 
         require(ILoanDeskOwner(pool).canOffer(offeredFunds.add(_amount)),
             "LoanDesk: lending pool cannot offer this loan at this time");
-        ILoanDeskOwner(pool).onOffer(_amount);
+
+        //// effect
 
         loanOffers[appId] = LoanOffer({
             applicationId: appId,
@@ -419,6 +422,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
 
         emit LoanOffered(appId, app.borrower);
+
+        //// interactions
+
+        ILoanDeskOwner(pool).onOffer(_amount);
     }
 
     /**
