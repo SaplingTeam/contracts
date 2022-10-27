@@ -103,8 +103,14 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     /// Event for when a loan is fully repaid
     event LoanRepaid(uint256 loanId, address indexed borrower);
 
+    /// Event for when a loan is closed
+    event LoanClosed(uint256 loanId, address indexed borrower);
+
     /// Event for when a loan is defaulted
     event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 amountLost);
+
+    /// Event for when a loan payment is made
+    event LoanRepaymentMade(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount);
 
     /// A modifier to limit access to when a loan has the specified status
     modifier loanInStatus(uint256 loanId, LoanStatus status) {
@@ -406,6 +412,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         stats.amountInterestPaid = stats.amountInterestPaid.sub(loanDetail.interestPaid);
 
         updateAvgStrategyApr(amountRepaid.add(remainingDifference), loan.apr);
+
+        emit LoanClosed(loanId, loan.borrower);
     }
 
     /**
@@ -657,6 +665,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         }
 
         updateAvgStrategyApr(principalPaid, loan.apr);
+
+        emit LoanRepaymentMade(loanId, loan.borrower, msg.sender, transferAmount, interestPayable);
 
         return (transferAmount, interestPayable);
     }
