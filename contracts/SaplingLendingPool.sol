@@ -577,6 +577,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      */
     function repayBase(uint256 loanId, uint256 amount) internal nonReentrant returns (uint256, uint256) {
 
+        //// check
+
         Loan storage loan = loans[loanId];
         require(
             loan.id == loanId && loan.status == LoanStatus.OUTSTANDING,
@@ -607,9 +609,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             );
         }
 
-        // charge 'amount' tokens from msg.sender
-        bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), transferAmount);
-        require(success, "SaplingLendingPool: ERC20 transfer has failed");
+        //// effect
+
         tokenBalance = tokenBalance.add(transferAmount);
 
         uint256 principalPaid;
@@ -687,6 +688,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         }
 
         updateAvgStrategyApr(principalPaid, loan.apr);
+
+        //// interactions
+
+        // charge 'amount' tokens from msg.sender
+        bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), transferAmount);
+        require(success, "SaplingLendingPool: ERC20 transfer has failed");
 
         emit LoanRepaymentMade(loanId, loan.borrower, msg.sender, transferAmount, interestPayable);
 
