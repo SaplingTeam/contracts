@@ -360,6 +360,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         whenNotPaused
         nonReentrant
     {
+        //// effect
+
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
         BorrowerStats storage stats = borrowerStats[loan.borrower];
@@ -381,15 +383,14 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         }
 
         // charge manager's stake
+        uint256 stakeChargeable = 0;
         if (remainingDifference > 0 && stakedShares > 0) {
             uint256 stakedBalance = sharesToTokens(stakedShares);
             uint256 amountChargeable = MathUpgradeable.min(remainingDifference, stakedBalance);
-            uint256 stakeChargeable = tokensToShares(amountChargeable);
+            stakeChargeable = tokensToShares(amountChargeable);
 
             stakedShares = stakedShares.sub(stakeChargeable);
             updatePoolLimit();
-
-            IPoolToken(poolToken).burn(address(this), stakeChargeable);
 
             if (stakedShares == 0) {
                 emit StakedAssetsDepleted();
@@ -428,6 +429,11 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         updateAvgStrategyApr(amountRepaid.add(remainingDifference), loan.apr);
 
         emit LoanClosed(loanId, loan.borrower);
+
+        //// interactions
+        if (stakeChargeable > 0) {
+            IPoolToken(poolToken).burn(address(this), stakeChargeable);
+        }
     }
 
     /**
