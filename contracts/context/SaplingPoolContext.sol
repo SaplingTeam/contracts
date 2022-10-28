@@ -325,8 +325,10 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
         require(amount > 0, "SaplingPoolContext: stake amount is 0");
 
         uint256 sharesMinted = enterPool(amount);
-        stakedShares = stakedShares.add(sharesMinted);
-        updatePoolLimit();
+
+        //// effect (intentional)
+        // this call depends on the outcome of the external calls in enterPool(amount), enterPool is nonReintrant
+        updatePoolLimit(); 
 
         emit FundsStaked(msg.sender, amount, sharesMinted);
     }
@@ -513,6 +515,12 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
         tokenBalance = tokenBalance.add(amount);
         poolLiquidity = poolLiquidity.add(amount);
         poolFunds = poolFunds.add(amount);
+
+        if (msg.sender == manager) {
+            // this is a staking entry
+
+            stakedShares = stakedShares.add(shares);
+        }
 
         //// interactions
 
