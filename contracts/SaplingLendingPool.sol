@@ -112,6 +112,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     /// Event for when a loan payment is made
     event LoanRepaymentMade(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount);
 
+    /// Event for when a liqudity is allocated for a loan offer
+    event OfferLiquidityAllocated(uint256 amount);
+
+    /// Event for when the liqudity is adjusted for a loan offer
+    event OfferLiquidityUpdated(uint256 prevAmount, uint256 newAmount);
+
     /// A modifier to limit access to when a loan has the specified status
     modifier loanInStatus(uint256 loanId, LoanStatus status) {
         require(loans[loanId].status == status, "SaplingLendingPool: not found or invalid loan status");
@@ -227,13 +233,13 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         tokenBalance = tokenBalance.sub(offer.amount);
 
-        emit LoanBorrowed(loanId, offer.borrower, appId);
-
         //// interactions
 
         ILoanDesk(loanDesk).onBorrow(appId);
 
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(liquidityToken), msg.sender, offer.amount);
+
+        emit LoanBorrowed(loanId, offer.borrower, appId);
     }
 
     /**
@@ -427,12 +433,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         updateAvgStrategyApr(amountRepaid.add(remainingDifference), loan.apr);
 
-        emit LoanClosed(loanId, loan.borrower);
-
         //// interactions
         if (stakeChargeable > 0) {
             IPoolToken(poolToken).burn(address(this), stakeChargeable);
         }
+
+        emit LoanClosed(loanId, loan.borrower);
     }
 
     /**
@@ -446,6 +452,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         poolLiquidity = poolLiquidity.sub(amount);
         allocatedFunds = allocatedFunds.add(amount);
+
+        emit OfferLiquidityAllocated(amount);
     }
 
     /**
@@ -460,6 +468,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         poolLiquidity = poolLiquidity.add(prevAmount).sub(amount);
         allocatedFunds = allocatedFunds.sub(prevAmount).add(amount);
+
+        emit OfferLiquidityUpdated(prevAmount, amount);
     }
 
     /**

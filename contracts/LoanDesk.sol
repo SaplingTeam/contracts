@@ -124,6 +124,9 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     /// Event for when a loan offer is cancelled
     event LoanOfferCancelled(uint256 applicationId, address indexed borrower);
 
+    /// Event for when a loan offer is accepted
+    event LoanOfferAccepted(uint256 applicationId, address indexed borrower);
+
     /// Setter event
     event MinLoanAmountSet(uint256 prevValue, uint256 newValue);
 
@@ -428,11 +431,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         borrowerStats[app.borrower].countOffered++;
         loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
 
-        emit LoanOffered(appId, app.borrower);
-
         //// interactions
 
         ILoanDeskOwner(pool).onOffer(_amount);
+
+        emit LoanOffered(appId, app.borrower);
     }
 
     /**
@@ -558,6 +561,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         app.status = LoanApplicationStatus.OFFER_ACCEPTED;
         borrowerStats[app.borrower].hasOpenApplication = false;
         offeredFunds = offeredFunds.sub(loanOffers[appId].amount);
+
+        emit LoanOfferAccepted(appId, app.borrower);
     }
 
     /**
