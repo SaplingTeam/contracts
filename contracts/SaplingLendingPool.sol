@@ -322,14 +322,13 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         emit LoanDefaulted(loanId, loan.borrower, loss);
 
         if (loss > 0) {
-            uint256 lostShares = tokensToShares(loss);
-            uint256 remainingLostShares = lostShares;
+            uint256 remainingLostShares = tokensToShares(loss);
 
             poolFunds = poolFunds.sub(loss);
 
             if (stakedShares > 0) {
-                uint256 stakedShareLoss = MathUpgradeable.min(lostShares, stakedShares);
-                remainingLostShares = lostShares.sub(stakedShareLoss);
+                uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, stakedShares);
+                remainingLostShares = remainingLostShares.sub(stakedShareLoss);
                 stakedShares = stakedShares.sub(stakedShareLoss);
                 updatePoolLimit();
 
