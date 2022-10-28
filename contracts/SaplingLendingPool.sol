@@ -441,7 +441,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      *      Caller must be the LoanDesk.
      * @param amount Loan offer amount.
      */
-    function onOffer(uint256 amount) external override onlyLoanDesk {
+    function onOffer(uint256 amount) external override onlyLoanDesk whenNotPaused {
         require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
 
         poolLiquidity = poolLiquidity.sub(amount);
@@ -455,7 +455,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param prevAmount The original, now previous, offer amount.
      * @param amount New offer amount. Cancelled offer must register an amount of 0 (zero).
      */
-    function onOfferUpdate(uint256 prevAmount, uint256 amount) external onlyLoanDesk {
+    function onOfferUpdate(uint256 prevAmount, uint256 amount) external onlyLoanDesk whenNotPaused {
         require(strategyLiquidity().add(prevAmount) >= amount, "SaplingLendingPool: insufficient liquidity");
 
         poolLiquidity = poolLiquidity.add(prevAmount).sub(amount);
@@ -574,7 +574,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param amount Payment amount in tokens
      * @return A pair of total amount charged including interest, and the interest charged
      */
-    function repayBase(uint256 loanId, uint256 amount) internal nonReentrant returns (uint256, uint256) {
+    function repayBase(uint256 loanId, uint256 amount) internal nonReentrant whenNotPaused returns (uint256, uint256) {
 
         //// check
 

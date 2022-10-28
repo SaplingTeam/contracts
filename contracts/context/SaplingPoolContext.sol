@@ -271,7 +271,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      *      Caller must be the manager.
      * @param _managerEarnFactor new manager's earn factor.
      */
-    function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager whenNotPaused {
+    function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager {
         require(
             oneHundredPercent <= _managerEarnFactor && _managerEarnFactor <= managerEarnFactorMax,
             "SaplingPoolContext: _managerEarnFactor is out of bounds"
