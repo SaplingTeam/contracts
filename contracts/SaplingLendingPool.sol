@@ -344,7 +344,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             }
 
             if (remainingLostShares > 0) {
-                emit UnstakedLoss(loss.sub(sharesToTokens(remainingLostShares)));
+                emit UnstakedLoss(sharesToTokens(remainingLostShares));
             }
         }
     }
