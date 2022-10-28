@@ -233,8 +233,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         ILoanDesk(loanDesk).onBorrow(appId);
 
-        bool success = IERC20(liquidityToken).transfer(msg.sender, offer.amount);
-        require(success, "SaplingLendingPool: ERC20 transfer failed");
+        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(liquidityToken), msg.sender, offer.amount);
     }
 
     /**
@@ -692,8 +691,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         //// interactions
 
         // charge 'amount' tokens from msg.sender
-        bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), transferAmount);
-        require(success, "SaplingLendingPool: ERC20 transfer has failed");
+        SafeERC20Upgradeable.safeTransferFrom(
+            IERC20Upgradeable(liquidityToken), 
+            msg.sender, 
+            address(this), 
+            transferAmount
+        );
 
         emit LoanRepaymentMade(loanId, loan.borrower, msg.sender, transferAmount, interestPayable);
 

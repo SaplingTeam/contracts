@@ -4,6 +4,7 @@ pragma solidity ^0.8.15;
 
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/IPoolToken.sol";
 import "./SaplingManagerContext.sol";
@@ -360,8 +361,8 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
 
         // give tokens
         tokenBalance = tokenBalance.sub(amount);
-        bool success = IERC20(liquidityToken).transfer(msg.sender, amount);
-        require(success, "SaplingPoolContext: ERC20 transfer failed");
+
+        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(liquidityToken), msg.sender, amount);
 
         emit RevenueWithdrawn(msg.sender, amount);
     }
@@ -516,8 +517,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
         //// interactions
 
         // charge 'amount' tokens from msg.sender
-        bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), amount);
-        require(success, "SaplingPoolContext: ERC20 transfer failed");
+        SafeERC20Upgradeable.safeTransferFrom(IERC20Upgradeable(liquidityToken), msg.sender, address(this), amount);
 
         // mint shares
         IPoolToken(poolToken).mint(msg.sender != manager ? msg.sender : address(this), shares);
@@ -563,8 +563,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
         IPoolToken(poolToken).burn(msg.sender != manager ? msg.sender : address(this), shares);
 
         // transfer liqudity tokens
-        bool success = IERC20(liquidityToken).transfer(msg.sender, transferAmount);
-        require(success, "SaplingPoolContext: ERC20 transfer failed");
+        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(liquidityToken), msg.sender, transferAmount);
 
         return shares;
     }
