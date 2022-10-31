@@ -3,84 +3,16 @@
 pragma solidity ^0.8.15;
 
 import "./context/SaplingPoolContext.sol";
+import "./interfaces/ILendingPool.sol";
 import "./interfaces/ILoanDesk.sol";
-import "./interfaces/ILoanDeskOwner.sol";
 
 /**
  * @title Sapling Lending Pool
  * @dev Extends SaplingPoolContext with lending strategy.
  */
-contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
+contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
     using SafeMathUpgradeable for uint256;
-
-    /**
-     * Loan statuses. Initial value is defines as 'NULL' to differentiate the unintitialized state from the logical
-     * initial state.
-     */
-    enum LoanStatus {
-        NULL,
-        OUTSTANDING,
-        REPAID,
-        DEFAULTED
-    }
-
-    /// Loan object template
-    struct Loan {
-        uint256 id;
-        address loanDeskAddress;
-        uint256 applicationId;
-        address borrower;
-        uint256 amount;
-        uint256 duration;
-        uint256 gracePeriod;
-        uint256 installmentAmount;
-        uint16 installments;
-        uint16 apr;
-        uint256 borrowedTime;
-        LoanStatus status;
-    }
-
-    /// Loan payment details object template
-    struct LoanDetail {
-        uint256 loanId;
-        uint256 totalAmountRepaid;
-        uint256 principalAmountRepaid;
-        uint256 interestPaid;
-        uint256 interestPaidTillTime;
-        uint256 lastPaymentTime;
-    }
-
-    /// Individual borrower statistics
-    struct BorrowerStats {
-
-        /// Wallet address of the borrower
-        address borrower;
-
-        /// All time loan borrow count
-        uint256 countBorrowed;
-
-        /// All time loan closure count
-        uint256 countRepaid;
-
-        /// All time loan default count
-        uint256 countDefaulted;
-
-        /// Current outstanding loan count
-        uint256 countOutstanding;
-
-        /// Outstanding loan borrowed amount
-        uint256 amountBorrowed;
-
-        /// Outstanding loan repaid principal amount
-        uint256 amountBaseRepaid;
-
-        /// Outstanding loan paid interest amount
-        uint256 amountInterestPaid;
-
-        /// Most recent loanId
-        uint256 recentLoanId;
-    }
 
     /// Address of the loan desk contract
     address public loanDesk;
@@ -93,30 +25,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
     /// Borrower statistics by address
     mapping(address => BorrowerStats) public borrowerStats;
-
-    /// Event for when a new loan desk is set
-    event LoanDeskSet(address from, address to);
-
-    /// Event for when loan offer is accepted and the loan is borrowed
-    event LoanBorrowed(uint256 loanId, address indexed borrower, uint256 applicationId);
-
-    /// Event for when a loan is fully repaid
-    event LoanRepaid(uint256 loanId, address indexed borrower);
-
-    /// Event for when a loan is closed
-    event LoanClosed(uint256 loanId, address indexed borrower);
-
-    /// Event for when a loan is defaulted
-    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 amountLost);
-
-    /// Event for when a loan payment is made
-    event LoanRepaymentMade(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount);
-
-    /// Event for when a liqudity is allocated for a loan offer
-    event OfferLiquidityAllocated(uint256 amount);
-
-    /// Event for when the liqudity is adjusted for a loan offer
-    event OfferLiquidityUpdated(uint256 prevAmount, uint256 newAmount);
 
     /// A modifier to limit access to when a loan has the specified status
     modifier loanInStatus(uint256 loanId, LoanStatus status) {
@@ -188,7 +96,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         ILoanDesk.LoanOffer memory offer = ILoanDesk(loanDesk).loanOfferById(appId);
 
         require(offer.borrower == msg.sender, "SaplingLendingPool: msg.sender is not the borrower on this loan");
-        
+
         //// effect
 
         borrowerStats[offer.borrower].countOutstanding++;
@@ -222,22 +130,22 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         borrowerStats[offer.borrower].recentLoanId = loanId;
 
-        uint256 prevStrategizedFunds = strategizedFunds;
-        allocatedFunds = allocatedFunds.sub(offer.amount);
-        strategizedFunds = strategizedFunds.add(offer.amount);
+        uint256 prevStrategizedFunds = poolBalance.strategizedFunds;
+        poolBalance.allocatedFunds = poolBalance.allocatedFunds.sub(offer.amount);
+        poolBalance.strategizedFunds = poolBalance.strategizedFunds.add(offer.amount);
 
         weightedAvgStrategyAPR = prevStrategizedFunds
             .mul(weightedAvgStrategyAPR)
             .add(offer.amount.mul(offer.apr))
-            .div(strategizedFunds);
+            .div(poolBalance.strategizedFunds);
 
-        tokenBalance = tokenBalance.sub(offer.amount);
+        poolBalance.tokenBalance = poolBalance.tokenBalance.sub(offer.amount);
 
         //// interactions
 
         ILoanDesk(loanDesk).onBorrow(appId);
 
-        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(liquidityToken), msg.sender, offer.amount);
+        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, offer.amount);
 
         emit LoanBorrowed(loanId, offer.borrower, appId);
     }
@@ -314,7 +222,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         if (loanDetail.principalAmountRepaid < loan.amount) {
             uint256 baseAmountLost = loan.amount.sub(loanDetail.principalAmountRepaid);
-            strategizedFunds = strategizedFunds.sub(baseAmountLost);
+            poolBalance.strategizedFunds = poolBalance.strategizedFunds.sub(baseAmountLost);
 
             updateAvgStrategyApr(baseAmountLost, loan.apr);
         }
@@ -324,22 +232,22 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         if (loss > 0) {
             uint256 remainingLostShares = tokensToShares(loss);
 
-            poolFunds = poolFunds.sub(loss);
+            poolBalance.poolFunds = poolBalance.poolFunds.sub(loss);
 
-            if (stakedShares > 0) {
-                uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, stakedShares);
+            if (poolBalance.stakedShares > 0) {
+                uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, poolBalance.stakedShares);
                 remainingLostShares = remainingLostShares.sub(stakedShareLoss);
-                stakedShares = stakedShares.sub(stakedShareLoss);
+                poolBalance.stakedShares = poolBalance.stakedShares.sub(stakedShareLoss);
                 updatePoolLimit();
 
-                if (stakedShares == 0) {
+                if (poolBalance.stakedShares == 0) {
                     emit StakedAssetsDepleted();
                 }
 
                 //// interactions
 
                 //burn manager's shares
-                IPoolToken(poolToken).burn(address(this), stakedShareLoss);
+                IPoolToken(tokenConfig.poolToken).burn(address(this), stakedShareLoss);
             }
 
             if (remainingLostShares > 0) {
@@ -388,15 +296,15 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         // charge manager's stake
         uint256 stakeChargeable = 0;
-        if (remainingDifference > 0 && stakedShares > 0) {
-            uint256 stakedBalance = sharesToTokens(stakedShares);
+        if (remainingDifference > 0 && poolBalance.stakedShares > 0) {
+            uint256 stakedBalance = sharesToTokens(poolBalance.stakedShares);
             uint256 amountChargeable = MathUpgradeable.min(remainingDifference, stakedBalance);
             stakeChargeable = tokensToShares(amountChargeable);
 
-            stakedShares = stakedShares.sub(stakeChargeable);
+            poolBalance.stakedShares = poolBalance.stakedShares.sub(stakeChargeable);
             updatePoolLimit();
 
-            if (stakedShares == 0) {
+            if (poolBalance.stakedShares == 0) {
                 emit StakedAssetsDepleted();
             }
 
@@ -405,8 +313,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         }
 
         if (amountRepaid > 0) {
-            strategizedFunds = strategizedFunds.sub(amountRepaid);
-            poolLiquidity = poolLiquidity.add(amountRepaid);
+            poolBalance.strategizedFunds = poolBalance.strategizedFunds.sub(amountRepaid);
+            poolBalance.poolLiquidity = poolBalance.poolLiquidity.add(amountRepaid);
 
             loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(amountRepaid);
             loanDetail.principalAmountRepaid = loanDetail.principalAmountRepaid.add(amountRepaid);
@@ -417,8 +325,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         // charge pool (close loan and reduce borrowed funds/poolfunds)
         if (remainingDifference > 0) {
-            strategizedFunds = strategizedFunds.sub(remainingDifference);
-            poolFunds = poolFunds.sub(remainingDifference);
+            poolBalance.strategizedFunds = poolBalance.strategizedFunds.sub(remainingDifference);
+            poolBalance.poolFunds = poolBalance.poolFunds.sub(remainingDifference);
         }
 
         loan.status = LoanStatus.REPAID; // Note: add and switch to CLOSED status in next migration version of the pool
@@ -434,7 +342,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         //// interactions
         if (stakeChargeable > 0) {
-            IPoolToken(poolToken).burn(address(this), stakeChargeable);
+            IPoolToken(tokenConfig.poolToken).burn(address(this), stakeChargeable);
         }
 
         emit LoanClosed(loanId, loan.borrower);
@@ -449,8 +357,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     function onOffer(uint256 amount) external override onlyLoanDesk whenNotPaused {
         require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
 
-        poolLiquidity = poolLiquidity.sub(amount);
-        allocatedFunds = allocatedFunds.add(amount);
+        poolBalance.poolLiquidity = poolBalance.poolLiquidity.sub(amount);
+        poolBalance.allocatedFunds = poolBalance.allocatedFunds.add(amount);
 
         emit OfferLiquidityAllocated(amount);
     }
@@ -465,8 +373,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     function onOfferUpdate(uint256 prevAmount, uint256 amount) external onlyLoanDesk whenNotPaused {
         require(strategyLiquidity().add(prevAmount) >= amount, "SaplingLendingPool: insufficient liquidity");
 
-        poolLiquidity = poolLiquidity.add(prevAmount).sub(amount);
-        allocatedFunds = allocatedFunds.sub(prevAmount).add(amount);
+        poolBalance.poolLiquidity = poolBalance.poolLiquidity.add(prevAmount).sub(amount);
+        poolBalance.allocatedFunds = poolBalance.allocatedFunds.sub(prevAmount).add(amount);
 
         emit OfferLiquidityUpdated(prevAmount, amount);
     }
@@ -478,7 +386,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @return True if the pool has sufficient lending liquidity, false otherwise
      */
     function canOffer(uint256 totalOfferedAmount) external view override returns (bool) {
-        return isPoolFunctional() && strategyLiquidity().add(allocatedFunds) >= totalOfferedAmount;
+        return isPoolFunctional() && strategyLiquidity().add(poolBalance.allocatedFunds) >= totalOfferedAmount;
     }
 
     /**
@@ -502,7 +410,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @return Amount of funds borrowed in liquidity tokens.
      */
     function borrowedFunds() external view returns(uint256) {
-        return strategizedFunds;
+        return poolBalance.strategizedFunds;
     }
 
     /**
@@ -612,26 +520,26 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
             // enforce a small minimum payment amount, except for the last payment equal to the total amount due
             require(
-                transferAmount >= oneToken || transferAmount == _loanBalanceDue,
+                transferAmount >= 10 ** tokenConfig.tokenDecimals || transferAmount == _loanBalanceDue,
                 "SaplingLendingPool: payment amount is less than the required minimum"
             );
         }
 
         //// effect
 
-        tokenBalance = tokenBalance.add(transferAmount);
+        poolBalance.tokenBalance = poolBalance.tokenBalance.add(transferAmount);
 
         uint256 principalPaid;
         if (interestPayable == 0) {
             principalPaid = transferAmount;
-            poolLiquidity = poolLiquidity.add(transferAmount);
+            poolBalance.poolLiquidity = poolBalance.poolLiquidity.add(transferAmount);
         } else {
             principalPaid = transferAmount.sub(interestPayable);
 
             //share revenue to treasury
             uint256 protocolEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable,
-                protocolFeePercent,
+                poolConfig.protocolFeePercent,
                 oneHundredPercent
             );
 
@@ -639,9 +547,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
             //share revenue to manager
             uint256 currentStakePercent = MathUpgradeable.mulDiv(
-                stakedShares,
+                poolBalance.stakedShares,
                 oneHundredPercent,
-                IERC20(poolToken).totalSupply()
+                IERC20(tokenConfig.poolToken).totalSupply()
             );
 
             uint256 managerEarningsPercent = MathUpgradeable.mulDiv(
@@ -658,8 +566,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
             nonUserRevenues[manager] = nonUserRevenues[manager].add(managerEarnedInterest);
 
-            poolLiquidity = poolLiquidity.add(transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest)));
-            poolFunds = poolFunds.add(interestPayable.sub(protocolEarnedInterest.add(managerEarnedInterest)));
+            poolBalance.poolLiquidity = poolBalance.poolLiquidity.add(
+                transferAmount.sub(protocolEarnedInterest.add(managerEarnedInterest))
+            );
+            poolBalance.poolFunds = poolBalance.poolFunds.add(
+                interestPayable.sub(protocolEarnedInterest.add(managerEarnedInterest))
+            );
 
             updatePoolLimit();
         }
@@ -681,7 +593,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
                 .add(interestPayable);
             }
 
-            strategizedFunds = strategizedFunds.sub(principalPaid);
+            poolBalance.strategizedFunds = poolBalance.strategizedFunds.sub(principalPaid);
 
             if (loanDetail.principalAmountRepaid >= loan.amount) {
                 loan.status = LoanStatus.REPAID;
@@ -701,9 +613,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         // charge 'amount' tokens from msg.sender
         SafeERC20Upgradeable.safeTransferFrom(
-            IERC20Upgradeable(liquidityToken), 
-            msg.sender, 
-            address(this), 
+            IERC20Upgradeable(tokenConfig.liquidityToken),
+            msg.sender,
+            address(this),
             transferAmount
         );
 
