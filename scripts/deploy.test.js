@@ -48,8 +48,11 @@ async function main() {
     console.log("LoanDesk address: \t\t", loanDeskContract.address);
 
     console.log("\nAssigning ownership and linking contracts ...");
+    await sleep(15000);
     await poolTokenContract.transferOwnership(saplingPoolContract.address);
+    await sleep(15000);
     await saplingPoolContract.setLoanDesk(loanDeskContract.address);
+    await sleep(15000);
     await saplingPoolContract.transferGovernance(governanceAddress);
     console.log("Done.");
 
