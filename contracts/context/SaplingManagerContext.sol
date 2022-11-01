@@ -11,6 +11,8 @@ import "./SaplingContext.sol";
  */
 abstract contract SaplingManagerContext is SaplingContext {
 
+    bytes32 public constant POOL_MANAGER_ROLE = keccak256("POOL_MANAGER_ROLE");
+
     /// Manager address
     address public manager;
 
@@ -39,12 +41,6 @@ abstract contract SaplingManagerContext is SaplingContext {
 
     /// Event for when a new manager is set
     event ManagerTransferred(address from, address to);
-
-    /// A modifier to limit access only to the manager
-    modifier onlyManager {
-        require(msg.sender == manager, "SaplingManagerContext: caller is not the manager");
-        _;
-    }
 
     /// A modifier to limit access to the manager or to other applicable parties when the manager is considered inactive
     modifier managerOrApprovedOnInactive {
@@ -96,6 +92,9 @@ abstract contract SaplingManagerContext is SaplingContext {
 
         require(_manager != address(0), "SaplingManagerContext: manager address is not set");
         manager = _manager;
+
+        _grantRole(POOL_MANAGER_ROLE, manager);
+
         _closed = false;
 
         //init math context state
@@ -109,7 +108,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      *      New manager address must not be 0, and must not be one of current non-user addresses.
      * @param _manager New manager address
      */
-    function transferManager(address _manager) external onlyGovernance {
+    function transferManager(address _manager) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(
             _manager != address(0) && !isNonUserAddress(_manager),
             "SaplingManagerContext: invalid manager address"
@@ -117,6 +116,9 @@ abstract contract SaplingManagerContext is SaplingContext {
 
         address prevManager = manager;
         manager = _manager;
+
+        _grantRole(POOL_MANAGER_ROLE, manager);
+        _revokeRole(POOL_MANAGER_ROLE, prevManager);
         
         emit ManagerTransferred(prevManager, manager);
     }
@@ -128,7 +130,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      *      No loans or approvals must be outstanding (borrowedFunds must equal to 0).
      *      Emits 'PoolClosed' event.
      */
-    function close() external onlyManager whenNotClosed {
+    function close() external onlyRole(POOL_MANAGER_ROLE) whenNotClosed {
         require(canClose(), "SaplingManagerContext: cannot close the pool with outstanding loans");
 
         _closed = true;
@@ -143,7 +145,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      *      Opening the pool will not unpause any pauses in effect.
      *      Emits 'PoolOpened' event.
      */
-    function open() external onlyManager whenClosed {
+    function open() external onlyRole(POOL_MANAGER_ROLE) whenClosed {
         _closed = false;
 
         emit Opened(msg.sender);

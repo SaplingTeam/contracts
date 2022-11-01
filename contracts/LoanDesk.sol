@@ -72,7 +72,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     /**
      * @dev Disable initializers
      */
-    function disableIntitializers() external onlyGovernance {
+    function disableIntitializers() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _disableInitializers();
     }
 
@@ -128,7 +128,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      *      Caller must be the manager.
      * @param minAmount Minimum loan amount to be enforced on new loan requests and offers
      */
-    function setMinLoanAmount(uint256 minAmount) external onlyManager {
+    function setMinLoanAmount(uint256 minAmount) external onlyRole(POOL_MANAGER_ROLE) {
         require(safeMinAmount <= minAmount, "LoanDesk: new min loan amount is less than the safe limit");
 
         uint256 prevValue = loanTemplate.minAmount;
@@ -143,7 +143,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      *      Caller must be the manager.
      * @param duration Minimum loan duration to be enforced on new loan requests and offers
      */
-    function setMinLoanDuration(uint256 duration) external onlyManager {
+    function setMinLoanDuration(uint256 duration) external onlyRole(POOL_MANAGER_ROLE) {
         require(
             SAFE_MIN_DURATION <= duration && duration <= loanTemplate.maxDuration,
             "LoanDesk: new min duration is out of bounds"
@@ -161,7 +161,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      *      Caller must be the manager.
      * @param duration Maximum loan duration to be enforced on new loan requests and offers
      */
-    function setMaxLoanDuration(uint256 duration) external onlyManager {
+    function setMaxLoanDuration(uint256 duration) external onlyRole(POOL_MANAGER_ROLE) {
         require(
             loanTemplate.minDuration <= duration && duration <= SAFE_MAX_DURATION,
             "LoanDesk: new max duration is out of bounds"
@@ -179,7 +179,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      *      Caller must be the manager.
      * @param gracePeriod Loan payment grace period for new loan offers
      */
-    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyManager {
+    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyRole(POOL_MANAGER_ROLE) {
         require(
             MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD,
             "LoanDesk: new grace period is out of bounds."
@@ -197,7 +197,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      *      Caller must be the manager.
      * @param apr Loan APR to be enforced on the new loan offers.
      */
-    function setTemplateLoanAPR(uint16 apr) external onlyManager {
+    function setTemplateLoanAPR(uint16 apr) external onlyRole(POOL_MANAGER_ROLE) {
         require(SAFE_MIN_APR <= apr && apr <= safeMaxApr, "LoanDesk: APR is out of bounds");
 
         uint256 prevValue = loanTemplate.apr;
@@ -276,7 +276,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         uint256 appId
     )
         external
-        onlyManager
+        onlyRole(POOL_MANAGER_ROLE)
         applicationInStatus(appId, LoanApplicationStatus.APPLIED)
         whenNotPaused
     {
@@ -312,7 +312,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         uint16 _apr
     )
         external
-        onlyManager
+        onlyRole(POOL_MANAGER_ROLE)
         applicationInStatus(appId, LoanApplicationStatus.APPLIED)
         whenNotClosed
         whenNotPaused
@@ -375,7 +375,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         uint16 _apr
     )
         external
-        onlyManager
+        onlyRole(POOL_MANAGER_ROLE)
         applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE)
         whenNotClosed
         whenNotPaused

@@ -110,7 +110,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Caller must be the governance.
      * @param _targetStakePercent New target stake percent.
      */
-    function setTargetStakePercent(uint16 _targetStakePercent) external onlyGovernance {
+    function setTargetStakePercent(uint16 _targetStakePercent) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(
             0 < _targetStakePercent && _targetStakePercent <= oneHundredPercent,
             "SaplingPoolContext: target stake percent is out of bounds"
@@ -129,7 +129,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Caller must be the manager.
      * @param _targetLiquidityPercent new target liquidity percent.
      */
-    function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external onlyManager {
+    function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external onlyRole(POOL_MANAGER_ROLE) {
         require(
             0 <= _targetLiquidityPercent && _targetLiquidityPercent <= oneHundredPercent,
             "SaplingPoolContext: target liquidity percent is out of bounds"
@@ -147,7 +147,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Caller must be the governance.
      * @param _protocolEarningPercent new protocol earning percent.
      */
-    function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyGovernance {
+    function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(
             0 <= _protocolEarningPercent && _protocolEarningPercent <= poolConfig.maxProtocolFeePercent,
             "SaplingPoolContext: protocol earning percent is out of bounds"
@@ -166,7 +166,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Caller must be the governance.
      * @param _managerEarnFactorMax new maximum for manager's earn factor.
      */
-    function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external onlyGovernance {
+    function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(
             oneHundredPercent <= _managerEarnFactorMax,
             "SaplingPoolContext: _managerEarnFactorMax is out of bounds"
@@ -192,7 +192,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Caller must be the manager.
      * @param _managerEarnFactor new manager's earn factor.
      */
-    function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyManager {
+    function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyRole(POOL_MANAGER_ROLE) {
         require(
             oneHundredPercent <= _managerEarnFactor && _managerEarnFactor <= poolConfig.managerEarnFactorMax,
             "SaplingPoolContext: _managerEarnFactor is out of bounds"
@@ -242,7 +242,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      An appropriate spend limit must be present at the token contract.
      * @param amount Liquidity token amount to stake.
      */
-    function stake(uint256 amount) external onlyManager whenNotPaused whenNotClosed {
+    function stake(uint256 amount) external onlyRole(POOL_MANAGER_ROLE) whenNotPaused whenNotClosed {
         require(amount > 0, "SaplingPoolContext: stake amount is 0");
 
         uint256 sharesMinted = enterPool(amount);
@@ -261,7 +261,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Unstake amount must be non zero and not exceed amountUnstakable().
      * @param amount Liquidity token amount to unstake.
      */
-    function unstake(uint256 amount) external onlyManager whenNotPaused {
+    function unstake(uint256 amount) external onlyRole(POOL_MANAGER_ROLE) whenNotPaused {
         require(amount > 0, "SaplingPoolContext: unstake amount is 0");
         require(amount <= amountUnstakable(), "SaplingPoolContext: requested amount is not available for unstaking");
 

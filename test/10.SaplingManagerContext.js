@@ -171,7 +171,8 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
                 it('Transfer as non governance should fail', async function () {
                     await expect(
                         saplingManagerContext.connect(addresses[1]).transferManager(manager2.address),
-                    ).to.be.revertedWith('SaplingContext: caller is not the governance');
+                    ).to.be.revertedWith('AccessControl: account ' + addresses[1].address.toLowerCase() +
+                        ' is missing role 0x0000000000000000000000000000000000000000000000000000000000000000');
                 });
             });
         });

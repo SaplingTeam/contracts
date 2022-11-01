@@ -4,13 +4,16 @@ pragma solidity ^0.8.15;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 
 /**
  * @title Sapling Context
  * @notice Provides governance access control, a common reverence to the treasury wallet address, and basic pause
  *         functionality by extending OpenZeppelin's Pausable contract.
  */
-abstract contract SaplingContext is Initializable, PausableUpgradeable {
+abstract contract SaplingContext is Initializable, AccessControlEnumerableUpgradeable, PausableUpgradeable {
+
+    bytes32 public constant TREASURY_ROLE = keccak256("TREASURY_ROLE");
 
     /// Protocol governance
     address public governance;
@@ -24,12 +27,6 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
     /// Event for when a new treasury wallet is set
     event TreasuryWalletTransferred(address from, address to);
 
-    /// A modifier to limit access only to the governance
-    modifier onlyGovernance {
-        require(msg.sender == governance, "SaplingContext: caller is not the governance");
-        _;
-    }
-
     /**
      * @notice Creates a new SaplingContext.
      * @dev Addresses must not be 0.
@@ -37,6 +34,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
      * @param _treasury Treasury wallet address
      */
     function __SaplingContext_init(address _governance, address _treasury) internal onlyInitializing {
+        __AccessControlEnumerable_init();
         __Pausable_init();
 
         /*
@@ -50,6 +48,9 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
         
         governance = _governance;
         treasury = _treasury;
+
+        _grantRole(DEFAULT_ADMIN_ROLE, _governance);
+        _grantRole(TREASURY_ROLE, _treasury);
     }
 
     /**
@@ -57,7 +58,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
      * @dev Caller must be the governance.
      *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause.
      */
-    function pause() external onlyGovernance {
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _pause();
     }
 
@@ -66,7 +67,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
      * @dev Caller must be the governance.
      *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause.
      */
-    function unpause() external onlyGovernance {
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
     }
 
@@ -76,7 +77,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
      *      New governance address must not be 0, and must not be one of current non-user addresses.
      * @param _governance New governance address.
      */
-    function transferGovernance(address _governance) external onlyGovernance {
+    function transferGovernance(address _governance) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(
             _governance != address(0) && !isNonUserAddress(_governance),
             "SaplingContext: invalid governance address"
@@ -84,6 +85,9 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
 
         address prevGovernance = governance;
         governance = _governance;
+
+        _grantRole(DEFAULT_ADMIN_ROLE, governance);
+        _revokeRole(DEFAULT_ADMIN_ROLE, prevGovernance);
 
         emit GovernanceTransferred(prevGovernance, governance);
     }
@@ -94,7 +98,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
      *      New treasury address must not be 0, and must not be one of current non-user addresses.
      * @param _treasury New treasury wallet address
      */
-    function transferTreasury(address _treasury) external onlyGovernance {
+    function transferTreasury(address _treasury) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(
             _treasury != address(0) && !isNonUserAddress(_treasury),
             "SaplingContext: invalid treasury wallet address"
@@ -102,6 +106,9 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
 
         address prevTreasury = treasury;
         treasury = _treasury;
+
+        _grantRole(TREASURY_ROLE, treasury);
+        _revokeRole(TREASURY_ROLE, prevTreasury);
 
         emit TreasuryWalletTransferred(prevTreasury, treasury);
 

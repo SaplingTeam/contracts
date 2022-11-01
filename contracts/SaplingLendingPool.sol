@@ -41,7 +41,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /**
      * @dev Disable initializers
      */
-    function disableIntitializers() external onlyGovernance {
+    function disableIntitializers() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _disableInitializers();
     }
 
@@ -72,7 +72,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @dev Caller must be the governance.
      * @param _loanDesk New LoanDesk address
      */
-    function setLoanDesk(address _loanDesk) external onlyGovernance {
+    function setLoanDesk(address _loanDesk) external onlyRole(DEFAULT_ADMIN_ROLE) {
         address prevLoanDesk = loanDesk;
         loanDesk = _loanDesk;
         emit LoanDeskSet(prevLoanDesk, loanDesk);
@@ -267,7 +267,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         uint256 loanId
     )
         external
-        onlyManager
+        onlyRole(POOL_MANAGER_ROLE)
         loanInStatus(loanId, LoanStatus.OUTSTANDING)
         whenNotPaused
         nonReentrant
