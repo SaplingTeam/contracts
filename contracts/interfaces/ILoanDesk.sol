@@ -22,19 +22,19 @@ interface ILoanDesk {
 
     struct LoanTemplate {
         /// Minimum allowed loan amount
-        uint256 minLoanAmount;
+        uint256 minAmount;
 
         /// Minimum loan duration in seconds
-        uint256 minLoanDuration;
+        uint256 minDuration;
 
         /// Maximum loan duration in seconds
-        uint256 maxLoanDuration;
+        uint256 maxDuration;
 
         /// Loan payment grace period after which a loan can be defaulted
-        uint256 templateLoanGracePeriod;
+        uint256 gracePeriod;
 
         /// Loan APR to be applied for the new loan requests
-        uint16 templateLoanAPR;
+        uint16 apr;
     }
 
     /// Loan application object template

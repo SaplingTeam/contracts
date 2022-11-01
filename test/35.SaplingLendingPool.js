@@ -187,9 +187,9 @@ describe('Sapling Lending Pool)', function () {
                             '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                         );
                     let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
-                    let gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                    let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                     let installments = 1;
-                    let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                    let apr = (await loanDesk.loanTemplate()).apr;
                     await loanDesk
                         .connect(manager)
                         .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
@@ -210,9 +210,9 @@ describe('Sapling Lending Pool)', function () {
             before(async function () {
                 await snapshot();
 
-                gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                 installments = 1;
-                apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                apr = (await loanDesk.loanTemplate()).apr;
 
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
@@ -325,9 +325,9 @@ describe('Sapling Lending Pool)', function () {
                         '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                     );
                 let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
-                let gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                 let installments = 1;
-                let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                let apr = (await loanDesk.loanTemplate()).apr;
                 await loanDesk
                     .connect(manager)
                     .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
@@ -800,9 +800,9 @@ describe('Sapling Lending Pool)', function () {
                                 '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                             );
                         let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
-                        let gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                        let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                         let installments = 1;
-                        let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                        let apr = (await loanDesk.loanTemplate()).apr;
                         await loanDesk
                             .connect(manager)
                             .offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
@@ -841,9 +841,9 @@ describe('Sapling Lending Pool)', function () {
                                 '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                             );
                         let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
-                        let gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                        let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                         let installments = 1;
-                        let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                        let apr = (await loanDesk.loanTemplate()).apr;
                         await loanDesk
                             .connect(manager)
                             .offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
@@ -879,10 +879,10 @@ describe('Sapling Lending Pool)', function () {
                             );
 
                         let applicationId2 = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
-                        let gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                        let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                         let installments = 4;
                         let installmentAmount = BigNumber.from(250).mul(TOKEN_MULTIPLIER);
-                        let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                        let apr = (await loanDesk.loanTemplate()).apr;
                         await loanDesk
                             .connect(manager)
                             .offerLoan(
@@ -1130,9 +1130,9 @@ describe('Sapling Lending Pool)', function () {
                             '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                         );
                     let applicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
-                    let gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                    let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                     let installments = 1;
-                    let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                    let apr = (await loanDesk.loanTemplate()).apr;
                     await loanDesk
                         .connect(manager)
                         .offerLoan(applicationId, newLoanAmount, loanDuration, gracePeriod, 0, installments, apr);

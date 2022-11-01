@@ -500,9 +500,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                             '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                         );
                     let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
-                    let gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                    let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                     let installments = 1;
-                    let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                    let apr = (await loanDesk.loanTemplate()).apr;
                     await loanDesk
                         .connect(manager)
                         .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
@@ -571,9 +571,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     );
                 let applicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
 
-                let gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                 let installments = 1;
-                let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                let apr = (await loanDesk.loanTemplate()).apr;
 
                 await loanDesk
                     .connect(manager)
@@ -1019,9 +1019,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 });
 
                 it('Withdrawing an amount greater than available should fail', async function () {
-                    let gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                    let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                     let installments = 1;
-                    let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                    let apr = (await loanDesk.loanTemplate()).apr;
                     let loanAmount = BigNumber.from(5000).mul(TOKEN_MULTIPLIER);
                     let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
 
@@ -1056,9 +1056,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 });
 
                 it('Withdrawing as a borrower should fail', async function () {
-                    let gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                    let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                     let installments = 1;
-                    let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                    let apr = (await loanDesk.loanTemplate()).apr;
 
                     await loanDesk
                         .connect(borrower2)
@@ -1085,9 +1085,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 before(async function () {
                     await snapshot();
 
-                    let gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                    let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                     let installments = 1;
-                    let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                    let apr = (await loanDesk.loanTemplate()).apr;
 
                     let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
 
@@ -1233,9 +1233,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
                 let application = await loanDesk.loanApplications(applicationId);
 
-                let gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                 let installments = 1;
-                let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                let apr = (await loanDesk.loanTemplate()).apr;
 
                 await loanDesk
                     .connect(manager)
@@ -1252,7 +1252,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             });
 
             it('Can view lender APY given current pool state', async function () {
-                let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                let apr = (await loanDesk.loanTemplate()).apr;
                 let protocolEarningPercent = (await saplingPoolContext.poolConfig()).protocolFeePercent;
                 let ONE_HUNDRED_PERCENT = await saplingPoolContext.oneHundredPercent();
                 let managersEarnFactor = (await saplingPoolContext.poolConfig()).managerEarnFactor;
@@ -1279,7 +1279,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             });
 
             it('Can view projected lender APY', async function () {
-                let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                let apr = (await loanDesk.loanTemplate()).apr;
                 let protocolEarningPercent = (await saplingPoolContext.poolConfig()).protocolFeePercent;
                 let ONE_HUNDRED_PERCENT = await saplingPoolContext.oneHundredPercent();
                 let managersEarnFactor = (await saplingPoolContext.poolConfig()).managerEarnFactor;
@@ -1308,7 +1308,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             });
 
             it('Increase in borrow rate is linearly reflected on projected lender APY within margin of integer math accuracy', async function () {
-                let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                let apr = (await loanDesk.loanTemplate()).apr;
                 let protocolEarningPercent = (await saplingPoolContext.poolConfig()).protocolFeePercent;
                 let ONE_HUNDRED_PERCENT = await saplingPoolContext.oneHundredPercent();
                 let managersEarnFactor = (await saplingPoolContext.poolConfig()).managerEarnFactor;
@@ -1345,7 +1345,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             describe('Rejection scenarios', function () {
                 it('APY projection should fail when borrow rate of over 100% is requested', async function () {
-                    let apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                    let apr = (await loanDesk.loanTemplate()).apr;
                     let ONE_HUNDRED_PERCENT = await saplingPoolContext.oneHundredPercent();
                     await expect(saplingPoolContext.projectedLenderAPY(ONE_HUNDRED_PERCENT + 1, apr)).to.be.reverted;
                 });

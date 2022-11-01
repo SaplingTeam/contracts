@@ -132,7 +132,7 @@ describe('Loan Desk', function () {
 
                 expect(await loanDesk.SAFE_MIN_APR()).to.equal(minValue);
                 expect(await loanDesk.safeMaxApr()).to.equal(maxValue);
-                expect((await loanDesk.loanTemplate()).templateLoanAPR)
+                expect((await loanDesk.loanTemplate()).apr)
                     .to.equal(defaultValue)
                     .and.gte(minValue)
                     .and.lte(maxValue);
@@ -145,7 +145,7 @@ describe('Loan Desk', function () {
 
                 expect(await loanDesk.MIN_LOAN_GRACE_PERIOD()).to.equal(minValue);
                 expect(await loanDesk.MAX_LOAN_GRACE_PERIOD()).to.equal(maxValue);
-                expect((await loanDesk.loanTemplate()).templateLoanGracePeriod)
+                expect((await loanDesk.loanTemplate()).gracePeriod)
                     .to.equal(defaultValue)
                     .and.gte(minValue)
                     .and.lte(maxValue);
@@ -155,7 +155,7 @@ describe('Loan Desk', function () {
         describe('Setting pool parameters', function () {
             describe('Loan APR', function () {
                 it('Manager can set a template loan APR', async function () {
-                    let currentValue = (await loanDesk.loanTemplate()).templateLoanAPR;
+                    let currentValue = (await loanDesk.loanTemplate()).apr;
                     let minValue = await loanDesk.SAFE_MIN_APR();
                     let maxValue = await loanDesk.safeMaxApr();
 
@@ -163,11 +163,11 @@ describe('Loan Desk', function () {
                     assertHardhatInvariant(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
 
                     await loanDesk.connect(manager).setTemplateLoanAPR(newValue);
-                    expect((await loanDesk.loanTemplate()).templateLoanAPR).to.equal(newValue);
+                    expect((await loanDesk.loanTemplate()).apr).to.equal(newValue);
                 });
 
                 it('Loan APR can be set while the pool is paused', async function () {
-                    let currentValue = (await loanDesk.loanTemplate()).templateLoanAPR;
+                    let currentValue = (await loanDesk.loanTemplate()).apr;
                     let minValue = await loanDesk.SAFE_MIN_APR();
                     let maxValue = await loanDesk.safeMaxApr();
 
@@ -193,7 +193,7 @@ describe('Loan Desk', function () {
                     });
 
                     it('A non-manager cannot set the loan APR', async function () {
-                        let currentValue = (await loanDesk.loanTemplate()).templateLoanAPR;
+                        let currentValue = (await loanDesk.loanTemplate()).apr;
                         let minValue = await loanDesk.SAFE_MIN_APR();
                         let maxValue = await loanDesk.safeMaxApr();
 
@@ -207,15 +207,15 @@ describe('Loan Desk', function () {
 
             describe('Minimum loan amount', function () {
                 it('Manager can set a minimum loan amount', async function () {
-                    let currentValue = (await loanDesk.loanTemplate()).minLoanAmount;
+                    let currentValue = (await loanDesk.loanTemplate()).minAmount;
                     let newValue = currentValue.add(1);
 
                     await loanDesk.connect(manager).setMinLoanAmount(newValue);
-                    expect((await loanDesk.loanTemplate()).minLoanAmount).to.equal(newValue);
+                    expect((await loanDesk.loanTemplate()).minAmount).to.equal(newValue);
                 });
 
                 it('Minimum loan amount can be set while the pool is paused', async function () {
-                    let currentValue = (await loanDesk.loanTemplate()).minLoanAmount;
+                    let currentValue = (await loanDesk.loanTemplate()).minAmount;
                     let newValue = currentValue.add(1);
 
                     await loanDesk.connect(governance).pause();
@@ -230,7 +230,7 @@ describe('Loan Desk', function () {
                     });
 
                     it('A non-manager cannot set the loan APR', async function () {
-                        let currentValue = (await loanDesk.loanTemplate()).minLoanAmount;
+                        let currentValue = (await loanDesk.loanTemplate()).minAmount;
                         let newValue = currentValue.add(1);
 
                         await expect(loanDesk.connect(governance).setMinLoanAmount(newValue)).to.be.reverted;
@@ -240,19 +240,19 @@ describe('Loan Desk', function () {
 
             describe('Minimum loan duration', function () {
                 it('Manager can set a template minimum loan duration', async function () {
-                    let currentValue = (await loanDesk.loanTemplate()).minLoanDuration;
-                    let maxValue = (await loanDesk.loanTemplate()).maxLoanDuration;
+                    let currentValue = (await loanDesk.loanTemplate()).minDuration;
+                    let maxValue = (await loanDesk.loanTemplate()).maxDuration;
 
                     let newValue = currentValue.add(1);
                     assertHardhatInvariant(newValue.lte(maxValue));
 
                     await loanDesk.connect(manager).setMinLoanDuration(newValue);
-                    expect((await loanDesk.loanTemplate()).minLoanDuration).to.equal(newValue);
+                    expect((await loanDesk.loanTemplate()).minDuration).to.equal(newValue);
                 });
 
                 it('Minimum loan duration can be set while the pool is paused', async function () {
-                    let currentValue = (await loanDesk.loanTemplate()).minLoanDuration;
-                    let maxValue = (await loanDesk.loanTemplate()).maxLoanDuration;
+                    let currentValue = (await loanDesk.loanTemplate()).minDuration;
+                    let maxValue = (await loanDesk.loanTemplate()).maxDuration;
 
                     let newValue = currentValue.add(1);
                     assertHardhatInvariant(newValue.lte(maxValue));
@@ -271,13 +271,13 @@ describe('Loan Desk', function () {
                     });
 
                     it('Minimum loan duration cannot be set to a value greater than the allowed maximum', async function () {
-                        let maxValue = (await loanDesk.loanTemplate()).maxLoanDuration;
+                        let maxValue = (await loanDesk.loanTemplate()).maxDuration;
                         await expect(loanDesk.connect(manager).setMinLoanDuration(maxValue.add(1))).to.be.reverted;
                     });
 
                     it('A non-manager cannot set the minimum loan duration', async function () {
-                        let currentValue = (await loanDesk.loanTemplate()).minLoanDuration;
-                        let maxValue = (await loanDesk.loanTemplate()).maxLoanDuration;
+                        let currentValue = (await loanDesk.loanTemplate()).minDuration;
+                        let maxValue = (await loanDesk.loanTemplate()).maxDuration;
 
                         let newValue = currentValue.add(1);
                         assertHardhatInvariant(newValue.lte(maxValue));
@@ -289,20 +289,20 @@ describe('Loan Desk', function () {
 
             describe('Maximum loan duration', function () {
                 it('Manager can set a template maximum loan duration', async function () {
-                    let currentValue = (await loanDesk.loanTemplate()).maxLoanDuration;
-                    let minValue = (await loanDesk.loanTemplate()).minLoanDuration;
+                    let currentValue = (await loanDesk.loanTemplate()).maxDuration;
+                    let minValue = (await loanDesk.loanTemplate()).minDuration;
                     let maxValue = await loanDesk.SAFE_MAX_DURATION();
 
                     let newValue = currentValue.sub(1);
                     assertHardhatInvariant(minValue.lte(newValue) && newValue.lte(maxValue));
 
                     await loanDesk.connect(manager).setMaxLoanDuration(newValue);
-                    expect((await loanDesk.loanTemplate()).maxLoanDuration).to.equal(newValue);
+                    expect((await loanDesk.loanTemplate()).maxDuration).to.equal(newValue);
                 });
 
                 it('Maximum loan duration can be set while the pool is paused', async function () {
-                    let currentValue = (await loanDesk.loanTemplate()).maxLoanDuration;
-                    let minValue = (await loanDesk.loanTemplate()).minLoanDuration;
+                    let currentValue = (await loanDesk.loanTemplate()).maxDuration;
+                    let minValue = (await loanDesk.loanTemplate()).minDuration;
                     let maxValue = await loanDesk.SAFE_MAX_DURATION();
 
                     let newValue = currentValue.sub(1);
@@ -315,7 +315,7 @@ describe('Loan Desk', function () {
 
                 describe('Rejection scenarios', function () {
                     it('Maximum loan duration cannot be set to a value less than the allowed minimum', async function () {
-                        let minValue = (await loanDesk.loanTemplate()).minLoanDuration;
+                        let minValue = (await loanDesk.loanTemplate()).minDuration;
                         if (minValue > 0) {
                             await expect(loanDesk.connect(manager).setMaxLoanDuration(minValue.sub(1))).to.be.reverted;
                         }
@@ -327,8 +327,8 @@ describe('Loan Desk', function () {
                     });
 
                     it('A non-manager cannot set the maximum loan duration', async function () {
-                        let currentValue = (await loanDesk.loanTemplate()).maxLoanDuration;
-                        let minValue = (await loanDesk.loanTemplate()).minLoanDuration;
+                        let currentValue = (await loanDesk.loanTemplate()).maxDuration;
+                        let minValue = (await loanDesk.loanTemplate()).minDuration;
                         let maxValue = await loanDesk.SAFE_MAX_DURATION();
 
                         let newValue = currentValue.sub(1);
@@ -341,7 +341,7 @@ describe('Loan Desk', function () {
 
             describe('Loan grace period', function () {
                 it('Manager can set a template loan grace period', async function () {
-                    let currentValue = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                    let currentValue = (await loanDesk.loanTemplate()).gracePeriod;
                     let minValue = await loanDesk.MIN_LOAN_GRACE_PERIOD();
                     let maxValue = await loanDesk.MAX_LOAN_GRACE_PERIOD();
 
@@ -349,11 +349,11 @@ describe('Loan Desk', function () {
                     assertHardhatInvariant(minValue.lte(newValue) && newValue.lte(maxValue));
 
                     await loanDesk.connect(manager).setTemplateLoanGracePeriod(newValue);
-                    expect((await loanDesk.loanTemplate()).templateLoanGracePeriod).to.equal(newValue);
+                    expect((await loanDesk.loanTemplate()).gracePeriod).to.equal(newValue);
                 });
 
                 it('Loan grace period can be set while the pool is paused', async function () {
-                    let currentValue = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                    let currentValue = (await loanDesk.loanTemplate()).gracePeriod;
                     let minValue = await loanDesk.MIN_LOAN_GRACE_PERIOD();
                     let maxValue = await loanDesk.MAX_LOAN_GRACE_PERIOD();
 
@@ -381,7 +381,7 @@ describe('Loan Desk', function () {
                     });
 
                     it('A non-manager cannot set the loan grace period', async function () {
-                        let currentValue = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                        let currentValue = (await loanDesk.loanTemplate()).gracePeriod;
                         let minValue = await loanDesk.MIN_LOAN_GRACE_PERIOD();
                         let maxValue = await loanDesk.MAX_LOAN_GRACE_PERIOD();
 
@@ -435,7 +435,7 @@ describe('Loan Desk', function () {
 
             describe('Rejection scenarios', function () {
                 it('Requesting a loan with an amount less than the minimum should fail', async function () {
-                    let minAmount = (await loanDesk.loanTemplate()).minLoanAmount;
+                    let minAmount = (await loanDesk.loanTemplate()).minAmount;
                     await expect(
                         loanDesk
                             .connect(borrower1)
@@ -449,7 +449,7 @@ describe('Loan Desk', function () {
                 });
 
                 it('Requesting a loan with a duration less than the minimum should fail', async function () {
-                    let minDuration = (await loanDesk.loanTemplate()).minLoanDuration;
+                    let minDuration = (await loanDesk.loanTemplate()).minDuration;
                     await expect(
                         loanDesk
                             .connect(borrower1)
@@ -463,7 +463,7 @@ describe('Loan Desk', function () {
                 });
 
                 it('Requesting a loan with a duration greater than the maximum should fail', async function () {
-                    let maxDuration = (await loanDesk.loanTemplate()).maxLoanDuration;
+                    let maxDuration = (await loanDesk.loanTemplate()).maxDuration;
                     await expect(
                         loanDesk
                             .connect(borrower1)
@@ -599,9 +599,9 @@ describe('Loan Desk', function () {
             before(async function () {
                 await snapshot();
 
-                gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
+                gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                 installments = 1;
-                apr = (await loanDesk.loanTemplate()).templateLoanAPR;
+                apr = (await loanDesk.loanTemplate()).apr;
 
                 await loanDesk
                     .connect(borrower1)
