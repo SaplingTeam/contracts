@@ -17,29 +17,37 @@ interface IPoolContext {
 
     struct PoolConfig {
 
+        // auto or psuedoconstant parameters
+
         /// MAX amount of liquidity tokens allowed in the pool based on staked assets
         uint256 poolFundsLimit;
-
-        /// Target percentage ratio of staked shares to total shares
-        uint16 targetStakePercent;
-
-        /// Target percentage of pool funds to keep liquid.
-        uint16 targetLiquidityPercent;
 
         /// exit fee percentage
         uint16 exitFeePercent;
 
+        /// An upper bound for percentage of paid interest to be allocated as protocol fee
+        uint16 maxProtocolFeePercent;
+
+
+        // governance maintained parameters
+        
+        /// Target percentage ratio of staked shares to total shares
+        uint16 targetStakePercent;
+
         /// Percentage of paid interest to be allocated as protocol fee
         uint16 protocolFeePercent;
 
-        /// An upper bound for percentage of paid interest to be allocated as protocol fee
-        uint16 maxProtocolFeePercent;
+        /// Governance set upper bound for the manager's leveraged earn factor
+        uint16 managerEarnFactorMax;
+
+
+        // pool manager maintained parameters
 
         /// Manager's leveraged earn factor represented as a percentage
         uint16 managerEarnFactor;
 
-        /// Governance set upper bound for the manager's leveraged earn factor
-        uint16 managerEarnFactorMax;
+        /// Target percentage of pool funds to keep liquid.
+        uint16 targetLiquidityPercent;
     }
 
     struct PoolBalance {
