@@ -121,7 +121,7 @@ describe('Attack Sapling Lending Pool', function () {
             PERCENT_DECIMALS = await lendingPool.percentDecimals();
             TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
             ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
-            exitFeePercent = await lendingPool.exitFeePercent();
+            exitFeePercent = (await lendingPool.poolConfig()).exitFeePercent;
 
             lender1 = addresses[1];
             lender2 = addresses[2];
@@ -158,9 +158,9 @@ describe('Attack Sapling Lending Pool', function () {
             before(async function () {
                 await snapshot();
 
-                gracePeriod = await loanDesk.templateLoanGracePeriod();
+                gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
                 installments = 1;
-                apr = await loanDesk.templateLoanAPR();
+                apr = (await loanDesk.loanTemplate()).templateLoanAPR;
 
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
@@ -242,9 +242,9 @@ describe('Attack Sapling Lending Pool', function () {
             });
 
             it('Revert If Request Loan Twice', async function () {
-                gracePeriod = await loanDesk.templateLoanGracePeriod();
+                gracePeriod = (await loanDesk.loanTemplate()).templateLoanGracePeriod;
                 installments = 1;
-                apr = await loanDesk.templateLoanAPR();
+                apr = (await loanDesk.loanTemplate()).templateLoanAPR;
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
                 await expect(loanDesk
