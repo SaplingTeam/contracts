@@ -29,13 +29,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     /// Safe minimum for APR values
     uint16 public constant SAFE_MIN_APR = 0; // 0%
 
-    /// Math safe minimum loan amount including token decimals
-    uint256 public safeMinAmount;
-
     /// Safe maximum for APR values
     uint16 public safeMaxApr;
 
-    LoanConfig public loanConfig;
+    /// Math safe minimum loan amount including token decimals
+    uint256 public safeMinAmount;
+
+    LoanTemplate public loanTemplate;
 
     /// Address of the lending pool contract
     address public pool;
@@ -109,7 +109,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         safeMinAmount = _oneToken;
         safeMaxApr = oneHundredPercent;
 
-        loanConfig = LoanConfig({
+        loanTemplate = LoanTemplate({
             minLoanAmount: _oneToken.mul(100),
             minLoanDuration: SAFE_MIN_DURATION,
             maxLoanDuration: SAFE_MAX_DURATION,
@@ -131,10 +131,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     function setMinLoanAmount(uint256 _minLoanAmount) external onlyManager {
         require(safeMinAmount <= _minLoanAmount, "LoanDesk: new min loan amount is less than the safe limit");
 
-        uint256 prevValue = loanConfig.minLoanAmount;
-        loanConfig.minLoanAmount = _minLoanAmount;
+        uint256 prevValue = loanTemplate.minLoanAmount;
+        loanTemplate.minLoanAmount = _minLoanAmount;
 
-        emit MinLoanAmountSet(prevValue, loanConfig.minLoanAmount);
+        emit MinLoanAmountSet(prevValue, loanTemplate.minLoanAmount);
     }
 
     /**
@@ -145,14 +145,14 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      */
     function setMinLoanDuration(uint256 duration) external onlyManager {
         require(
-            SAFE_MIN_DURATION <= duration && duration <= loanConfig.maxLoanDuration,
+            SAFE_MIN_DURATION <= duration && duration <= loanTemplate.maxLoanDuration,
             "LoanDesk: new min duration is out of bounds"
             );
 
-        uint256 prevValue = loanConfig.minLoanDuration;
-        loanConfig.minLoanDuration = duration;
+        uint256 prevValue = loanTemplate.minLoanDuration;
+        loanTemplate.minLoanDuration = duration;
 
-        emit MinLoanDurationSet(prevValue, loanConfig.minLoanDuration);
+        emit MinLoanDurationSet(prevValue, loanTemplate.minLoanDuration);
     }
 
     /**
@@ -163,14 +163,14 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      */
     function setMaxLoanDuration(uint256 duration) external onlyManager {
         require(
-            loanConfig.minLoanDuration <= duration && duration <= SAFE_MAX_DURATION,
+            loanTemplate.minLoanDuration <= duration && duration <= SAFE_MAX_DURATION,
             "LoanDesk: new max duration is out of bounds"
             );
 
-        uint256 prevValue = loanConfig.maxLoanDuration;
-        loanConfig.maxLoanDuration = duration;
+        uint256 prevValue = loanTemplate.maxLoanDuration;
+        loanTemplate.maxLoanDuration = duration;
 
-        emit MaxLoanDurationSet(prevValue, loanConfig.maxLoanDuration);
+        emit MaxLoanDurationSet(prevValue, loanTemplate.maxLoanDuration);
     }
 
     /**
@@ -185,10 +185,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
             "LoanDesk: new grace period is out of bounds."
             );
 
-        uint256 prevValue = loanConfig.templateLoanGracePeriod;
-        loanConfig.templateLoanGracePeriod = gracePeriod;
+        uint256 prevValue = loanTemplate.templateLoanGracePeriod;
+        loanTemplate.templateLoanGracePeriod = gracePeriod;
 
-        emit TemplateLoanGracePeriodSet(prevValue, loanConfig.templateLoanGracePeriod);
+        emit TemplateLoanGracePeriodSet(prevValue, loanTemplate.templateLoanGracePeriod);
     }
 
     /**
@@ -200,10 +200,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     function setTemplateLoanAPR(uint16 apr) external onlyManager {
         require(SAFE_MIN_APR <= apr && apr <= safeMaxApr, "LoanDesk: APR is out of bounds");
 
-        uint256 prevValue = loanConfig.templateLoanAPR;
-        loanConfig.templateLoanAPR = apr;
+        uint256 prevValue = loanTemplate.templateLoanAPR;
+        loanTemplate.templateLoanAPR = apr;
 
-        emit TemplateLoanAPRSet(prevValue, loanConfig.templateLoanAPR);
+        emit TemplateLoanAPRSet(prevValue, loanTemplate.templateLoanAPR);
     }
 
     /**
@@ -229,9 +229,9 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         whenNotPaused
     {
         require(borrowerStats[msg.sender].hasOpenApplication == false, "LoanDesk: another loan application is pending");
-        require(_amount >= loanConfig.minLoanAmount, "LoanDesk: loan amount is less than the minimum allowed");
-        require(loanConfig.minLoanDuration <= _duration, "LoanDesk: loan duration is less than minimum allowed");
-        require(loanConfig.maxLoanDuration >= _duration, "LoanDesk: loan duration is greater than maximum allowed");
+        require(_amount >= loanTemplate.minLoanAmount, "LoanDesk: loan amount is less than the minimum allowed");
+        require(loanTemplate.minLoanDuration <= _duration, "LoanDesk: loan duration is less than minimum allowed");
+        require(loanTemplate.maxLoanDuration >= _duration, "LoanDesk: loan duration is greater than maximum allowed");
 
         uint256 appId = nextApplicationId;
         nextApplicationId++;
@@ -554,9 +554,9 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         uint16 _apr
     ) private view
     {
-        require(_amount >= loanConfig.minLoanAmount, "LoanDesk: invalid amount");
+        require(_amount >= loanTemplate.minLoanAmount, "LoanDesk: invalid amount");
         require(
-            loanConfig.minLoanDuration <= _duration && _duration <= loanConfig.maxLoanDuration,
+            loanTemplate.minLoanDuration <= _duration && _duration <= loanTemplate.maxLoanDuration,
             "LoanDesk: invalid duration"
         );
         require(MIN_LOAN_GRACE_PERIOD <= _gracePeriod && _gracePeriod <= MAX_LOAN_GRACE_PERIOD,

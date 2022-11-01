@@ -20,7 +20,7 @@ interface ILoanDesk {
         OFFER_CANCELLED
     }
 
-    struct LoanConfig {
+    struct LoanTemplate {
         /// Minimum allowed loan amount
         uint256 minLoanAmount;
 
