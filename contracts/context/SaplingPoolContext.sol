@@ -73,12 +73,13 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         tokenConfig = TokenConfig({
             poolToken: _poolToken,
             liquidityToken: _liquidityToken,
-            tokenDecimals: decimals
+            decimals: decimals
         });
 
         uint16 _maxProtocolFeePercent = uint16(10 * 10 ** percentDecimals);
 
         poolConfig = PoolConfig({
+            poolFundsLimit: 0,
             targetStakePercent: uint16(10 * 10 ** percentDecimals),
             targetLiquidityPercent: 0, //0%
             exitFeePercent: oneHundredPercent / 200, // 0.5%
@@ -90,7 +91,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         poolBalance = PoolBalance({
             tokenBalance: 0,
-            poolFundsLimit: 0,
             poolFunds: 0,
             poolLiquidity: 0,
             allocatedFunds: 0,
@@ -296,11 +296,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @return Max amount of tokens depositable to the pool.
      */
     function amountDepositable() external view returns (uint256) {
-        if (poolBalance.poolFundsLimit <= poolBalance.poolFunds || closed() || paused()) {
+        if (poolConfig.poolFundsLimit <= poolBalance.poolFunds || closed() || paused()) {
             return 0;
         }
 
-        return poolBalance.poolFundsLimit.sub(poolBalance.poolFunds);
+        return poolConfig.poolFundsLimit.sub(poolBalance.poolFunds);
     }
 
     /**
@@ -442,8 +442,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         require(
             msg.sender == manager ||
             (
-                poolBalance.poolFundsLimit > poolBalance.poolFunds &&
-                amount <= poolBalance.poolFundsLimit.sub(poolBalance.poolFunds)
+                poolConfig.poolFundsLimit > poolBalance.poolFunds &&
+                amount <= poolConfig.poolFundsLimit.sub(poolBalance.poolFunds)
             ),
             "SaplingPoolContext: deposit amount is over the remaining pool limit"
         );
@@ -531,7 +531,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @dev Internal method to update the pool funds limit based on the staked funds.
      */
     function updatePoolLimit() internal {
-        poolBalance.poolFundsLimit = sharesToTokens(
+        poolConfig.poolFundsLimit = sharesToTokens(
             MathUpgradeable.mulDiv(poolBalance.stakedShares, oneHundredPercent, poolConfig.targetStakePercent)
         );
     }

@@ -520,7 +520,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
             // enforce a small minimum payment amount, except for the last payment equal to the total amount due
             require(
-                transferAmount >= 10 ** tokenConfig.tokenDecimals || transferAmount == _loanBalanceDue,
+                transferAmount >= 10 ** tokenConfig.decimals || transferAmount == _loanBalanceDue,
                 "SaplingLendingPool: payment amount is less than the required minimum"
             );
         }

@@ -11,11 +11,14 @@ interface IPoolContext {
         /// Address of an ERC20 liquidity token accepted by the pool
         address liquidityToken;
 
-        /// tokenDecimals value retrieved from the liquidity token contract upon contract construction
-        uint8 tokenDecimals;
+        /// decimals value retrieved from the liquidity token contract upon contract construction
+        uint8 decimals;
     }
 
     struct PoolConfig {
+
+        /// MAX amount of liquidity tokens allowed in the pool based on staked assets
+        uint256 poolFundsLimit;
 
         /// Target percentage ratio of staked shares to total shares
         uint16 targetStakePercent;
@@ -24,7 +27,7 @@ interface IPoolContext {
         uint16 targetLiquidityPercent;
 
         /// exit fee percentage
-        uint256 exitFeePercent;
+        uint16 exitFeePercent;
 
         /// Percentage of paid interest to be allocated as protocol fee
         uint16 protocolFeePercent;
@@ -43,9 +46,6 @@ interface IPoolContext {
 
         /// Total liquidity tokens currently held by this contract
         uint256 tokenBalance;
-
-        /// MAX amount of liquidity tokens allowed in the pool based on staked assets
-        uint256 poolFundsLimit;
 
         /// Current amount of liquidity tokens in the pool, including both liquid and allocated funds
         uint256 poolFunds;

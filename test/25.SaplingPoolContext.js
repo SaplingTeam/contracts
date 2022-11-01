@@ -188,7 +188,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             });
 
             it('Token decimals is correct', async function () {
-                expect((await saplingPoolContext.tokenConfig()).tokenDecimals).to.equal(TOKEN_DECIMALS);
+                expect((await saplingPoolContext.tokenConfig()).decimals).to.equal(TOKEN_DECIMALS);
             });
 
             it('Target stake percent is correct', async function () {
@@ -251,7 +251,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 expect((await saplingPoolContext.poolBalance()).tokenBalance).to.equal(0);
                 expect(await poolToken.totalSupply()).to.equal(0);
                 expect((await saplingPoolContext.poolBalance()).stakedShares).to.equal(0);
-                expect((await saplingPoolContext.poolBalance()).poolFundsLimit).to.equal(0);
+                expect((await saplingPoolContext.poolConfig()).poolFundsLimit).to.equal(0);
                 expect((await saplingPoolContext.poolBalance()).poolFunds).to.equal(0);
                 expect((await saplingPoolContext.poolBalance()).poolLiquidity).to.equal(0);
                 expect((await saplingPoolContext.poolBalance()).strategizedFunds).to.equal(0);
