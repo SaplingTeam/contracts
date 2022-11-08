@@ -119,13 +119,45 @@ event LoanRepaid(uint256 loanId, address borrower)
 
 Event for when a loan is fully repaid
 
+### LoanClosed
+
+```solidity
+event LoanClosed(uint256 loanId, address borrower, uint256 managerLossAmount, uint256 lenderLossAmount)
+```
+
+Event for when a loan is closed
+
 ### LoanDefaulted
 
 ```solidity
-event LoanDefaulted(uint256 loanId, address borrower, uint256 amountLost)
+event LoanDefaulted(uint256 loanId, address borrower, uint256 managerLoss, uint256 lenderLoss)
 ```
 
 Event for when a loan is defaulted
+
+### LoanRepaymentMade
+
+```solidity
+event LoanRepaymentMade(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount)
+```
+
+Event for when a loan payment is made
+
+### OfferLiquidityAllocated
+
+```solidity
+event OfferLiquidityAllocated(uint256 amount)
+```
+
+Event for when a liqudity is allocated for a loan offer
+
+### OfferLiquidityUpdated
+
+```solidity
+event OfferLiquidityUpdated(uint256 prevAmount, uint256 newAmount)
+```
+
+Event for when the liqudity is adjusted for a loan offer
 
 ### loanInStatus
 

@@ -185,7 +185,7 @@ Strategy id generator counter
 ### UnstakedLoss
 
 ```solidity
-event UnstakedLoss(uint256 amount)
+event UnstakedLoss(uint256 amount, address currentManager)
 ```
 
 Event for when the lender capital is lost due to defaults
@@ -193,10 +193,90 @@ Event for when the lender capital is lost due to defaults
 ### StakedAssetsDepleted
 
 ```solidity
-event StakedAssetsDepleted()
+event StakedAssetsDepleted(address currentManager)
 ```
 
 Event for when the Manager's staked assets are depleted due to defaults
+
+### FundsDeposited
+
+```solidity
+event FundsDeposited(address wallet, uint256 amount, uint256 tokensIssued)
+```
+
+Event for when lender funds are deposited
+
+### FundsWithdrawn
+
+```solidity
+event FundsWithdrawn(address wallet, uint256 amount, uint256 tokensRedeemed)
+```
+
+Event for when lender funds are withdrawn
+
+### FundsStaked
+
+```solidity
+event FundsStaked(address wallet, uint256 amount, uint256 tokensIssued)
+```
+
+Event for when pool manager funds are staked
+
+### FundsUnstaked
+
+```solidity
+event FundsUnstaked(address wallet, uint256 amount, uint256 tokensRedeemed)
+```
+
+Event for when pool manager funds are unstaked
+
+### RevenueWithdrawn
+
+```solidity
+event RevenueWithdrawn(address wallet, uint256 amount)
+```
+
+Event for when a non user revenue is withdrawn
+
+### TargetStakePercentSet
+
+```solidity
+event TargetStakePercentSet(uint16 prevValue, uint16 newValue)
+```
+
+Setter event
+
+### TargetLiqudityPercentSet
+
+```solidity
+event TargetLiqudityPercentSet(uint16 prevValue, uint16 newValue)
+```
+
+Setter event
+
+### ProtocolFeePercentSet
+
+```solidity
+event ProtocolFeePercentSet(uint16 prevValue, uint16 newValue)
+```
+
+Setter event
+
+### ManagerEarnFactorMaxSet
+
+```solidity
+event ManagerEarnFactorMaxSet(uint16 prevValue, uint16 newValue)
+```
+
+Setter event
+
+### ManagerEarnFactorSet
+
+```solidity
+event ManagerEarnFactorSet(uint16 prevValue, uint16 newValue)
+```
+
+Setter event
 
 ### __SaplingPoolContext_init
 
@@ -224,7 +304,7 @@ function setTargetStakePercent(uint16 _targetStakePercent) external
 
 Set the target stake percent for the pool.
 
-__targetStakePercent must be inclusively between 0 and oneHundredPercent.
+__targetStakePercent must be greater than 0 and less than or equal to oneHundredPercent.
      Caller must be the governance._
 
 | Name | Type | Description |

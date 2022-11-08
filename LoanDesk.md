@@ -181,7 +181,7 @@ Total liquidity tokens allocated for loan offers and pending acceptance by the b
 ### LoanRequested
 
 ```solidity
-event LoanRequested(uint256 applicationId, address borrower)
+event LoanRequested(uint256 applicationId, address borrower, uint256 amount)
 ```
 
 Event for when a new loan is requested, and an application is created
@@ -189,7 +189,7 @@ Event for when a new loan is requested, and an application is created
 ### LoanRequestDenied
 
 ```solidity
-event LoanRequestDenied(uint256 applicationId, address borrower)
+event LoanRequestDenied(uint256 applicationId, address borrower, uint256 amount)
 ```
 
 Event for when a loan request is denied
@@ -197,7 +197,7 @@ Event for when a loan request is denied
 ### LoanOffered
 
 ```solidity
-event LoanOffered(uint256 applicationId, address borrower)
+event LoanOffered(uint256 applicationId, address borrower, uint256 amount)
 ```
 
 Event for when a loan offer is made
@@ -205,7 +205,7 @@ Event for when a loan offer is made
 ### LoanOfferUpdated
 
 ```solidity
-event LoanOfferUpdated(uint256 applicationId, address borrower)
+event LoanOfferUpdated(uint256 applicationId, address borrower, uint256 prevAmount, uint256 newAmount)
 ```
 
 Event for when a loan offer is updated
@@ -213,10 +213,58 @@ Event for when a loan offer is updated
 ### LoanOfferCancelled
 
 ```solidity
-event LoanOfferCancelled(uint256 applicationId, address borrower)
+event LoanOfferCancelled(uint256 applicationId, address borrower, uint256 amount)
 ```
 
 Event for when a loan offer is cancelled
+
+### LoanOfferAccepted
+
+```solidity
+event LoanOfferAccepted(uint256 applicationId, address borrower, uint256 amount)
+```
+
+Event for when a loan offer is accepted
+
+### MinLoanAmountSet
+
+```solidity
+event MinLoanAmountSet(uint256 prevValue, uint256 newValue)
+```
+
+Setter event
+
+### MinLoanDurationSet
+
+```solidity
+event MinLoanDurationSet(uint256 prevValue, uint256 newValue)
+```
+
+Setter event
+
+### MaxLoanDurationSet
+
+```solidity
+event MaxLoanDurationSet(uint256 prevValue, uint256 newValue)
+```
+
+Setter event
+
+### TemplateLoanGracePeriodSet
+
+```solidity
+event TemplateLoanGracePeriodSet(uint256 prevValue, uint256 newValue)
+```
+
+Setter event
+
+### TemplateLoanAPRSet
+
+```solidity
+event TemplateLoanAPRSet(uint256 prevValue, uint256 newValue)
+```
+
+Setter event
 
 ### onlyPool
 
