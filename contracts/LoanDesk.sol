@@ -234,7 +234,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         require(
             SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration,
             "LoanDesk: new min duration is out of bounds"
-            );
+        );
 
         uint256 prevValue = minLoanDuration;
         minLoanDuration = duration;
@@ -252,7 +252,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         require(
             minLoanDuration <= duration && duration <= SAFE_MAX_DURATION,
             "LoanDesk: new max duration is out of bounds"
-            );
+        );
 
         uint256 prevValue = maxLoanDuration;
         maxLoanDuration = duration;
@@ -270,7 +270,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         require(
             MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD,
             "LoanDesk: new grace period is out of bounds."
-            );
+        );
 
         uint256 prevValue = templateLoanGracePeriod;
         templateLoanGracePeriod = gracePeriod;
