@@ -115,8 +115,10 @@ abstract contract SaplingManagerContext is SaplingContext, IMath {
             _manager != address(0) && !isNonUserAddress(_manager),
             "SaplingManagerContext: invalid manager address"
         );
+
         address prevManager = manager;
         manager = _manager;
+        
         emit ManagerTransferred(prevManager, manager);
     }
 
@@ -129,7 +131,9 @@ abstract contract SaplingManagerContext is SaplingContext, IMath {
      */
     function close() external onlyManager whenNotClosed {
         require(canClose(), "SaplingManagerContext: cannot close the pool with outstanding loans");
+
         _closed = true;
+
         emit Closed(msg.sender);
     }
 
@@ -142,6 +146,7 @@ abstract contract SaplingManagerContext is SaplingContext, IMath {
      */
     function open() external onlyManager whenClosed {
         _closed = false;
+
         emit Opened(msg.sender);
     }
 
@@ -161,6 +166,7 @@ abstract contract SaplingManagerContext is SaplingContext, IMath {
     function isNonUserAddress(address party) internal view override returns (bool) {
         return party == manager || super.isNonUserAddress(party);
     }
+
     /**
      * @notice Indicates whether or not the contract can be closed in it's current state.
      * @dev A hook for the extending contract to implement.

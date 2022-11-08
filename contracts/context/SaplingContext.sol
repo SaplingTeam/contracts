@@ -47,6 +47,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
 
         require(_governance != address(0), "SaplingContext: governance address is not set");
         require(_treasury != address(0), "SaplingContext: treasury wallet address is not set");
+        
         governance = _governance;
         treasury = _treasury;
     }
@@ -80,8 +81,10 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
             _governance != address(0) && !isNonUserAddress(_governance),
             "SaplingContext: invalid governance address"
         );
+
         address prevGovernance = governance;
         governance = _governance;
+
         emit GovernanceTransferred(prevGovernance, governance);
     }
 
@@ -96,9 +99,12 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
             _treasury != address(0) && !isNonUserAddress(_treasury),
             "SaplingContext: invalid treasury wallet address"
         );
+
         address prevTreasury = treasury;
         treasury = _treasury;
+
         emit TreasuryWalletTransferred(prevTreasury, treasury);
+
         afterTreasuryWalletTransfer(prevTreasury);
     }
 
