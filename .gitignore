@@ -5,6 +5,9 @@ secrets.json
 # VS code
 .VSCode*
 
+# intellij
+.idea
+
 # npm
 node_modules
 
