@@ -103,8 +103,20 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     /// Event for when a loan is fully repaid
     event LoanRepaid(uint256 loanId, address indexed borrower);
 
+    /// Event for when a loan is closed
+    event LoanClosed(uint256 loanId, address indexed borrower, uint256 managerLossAmount, uint256 lenderLossAmount);
+
     /// Event for when a loan is defaulted
-    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 amountLost);
+    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 managerLoss, uint256 lenderLoss);
+
+    /// Event for when a loan payment is made
+    event LoanRepaymentMade(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount);
+
+    /// Event for when a liqudity is allocated for a loan offer
+    event OfferLiquidityAllocated(uint256 amount);
+
+    /// Event for when the liqudity is adjusted for a loan offer
+    event OfferLiquidityUpdated(uint256 prevAmount, uint256 newAmount);
 
     /// A modifier to limit access to when a loan has the specified status
     modifier loanInStatus(uint256 loanId, LoanStatus status) {
@@ -166,6 +178,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      */
     function borrow(uint256 appId) external whenNotClosed whenNotPaused {
 
+        //// check
+
         require(
             ILoanDesk(loanDesk).applicationStatus(appId) == ILoanDesk.LoanApplicationStatus.OFFER_MADE,
             "SaplingLendingPool: invalid offer status"
@@ -174,7 +188,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         ILoanDesk.LoanOffer memory offer = ILoanDesk(loanDesk).loanOfferById(appId);
 
         require(offer.borrower == msg.sender, "SaplingLendingPool: msg.sender is not the borrower on this loan");
-        ILoanDesk(loanDesk).onBorrow(appId);
+        
+        //// effect
 
         borrowerStats[offer.borrower].countOutstanding++;
         borrowerStats[offer.borrower].amountBorrowed = borrowerStats[offer.borrower].amountBorrowed.add(offer.amount);
@@ -217,8 +232,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             .div(strategizedFunds);
 
         tokenBalance = tokenBalance.sub(offer.amount);
-        bool success = IERC20(liquidityToken).transfer(msg.sender, offer.amount);
-        require(success, "SaplingLendingPool: ERC20 transfer failed");
+
+        //// interactions
+
+        ILoanDesk(loanDesk).onBorrow(appId);
+
+        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(liquidityToken), msg.sender, offer.amount);
 
         emit LoanBorrowed(loanId, offer.borrower, appId);
     }
@@ -272,7 +291,11 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         loanInStatus(loanId, LoanStatus.OUTSTANDING)
         whenNotPaused
     {
+        //// check
+
         require(canDefault(loanId, msg.sender), "SaplingLendingPool: cannot defaulted this loan at this time");
+
+        //// effect
 
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
@@ -283,38 +306,11 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
         (, uint256 loss) = loan.amount.trySub(loanDetail.principalAmountRepaid);
 
-        emit LoanDefaulted(loanId, loan.borrower, loss);
-
         borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.sub(loan.amount);
         borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid
             .sub(loanDetail.principalAmountRepaid);
         borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid
             .sub(loanDetail.interestPaid);
-
-        if (loss > 0) {
-            uint256 lostShares = tokensToShares(loss);
-            uint256 remainingLostShares = lostShares;
-
-            poolFunds = poolFunds.sub(loss);
-
-            if (stakedShares > 0) {
-                uint256 stakedShareLoss = MathUpgradeable.min(lostShares, stakedShares);
-                remainingLostShares = lostShares.sub(stakedShareLoss);
-                stakedShares = stakedShares.sub(stakedShareLoss);
-                updatePoolLimit();
-
-                //burn manager's shares
-                IPoolToken(poolToken).burn(address(this), stakedShareLoss);
-
-                if (stakedShares == 0) {
-                    emit StakedAssetsDepleted();
-                }
-            }
-
-            if (remainingLostShares > 0) {
-                emit UnstakedLoss(loss.sub(sharesToTokens(remainingLostShares)));
-            }
-        }
 
         if (loanDetail.principalAmountRepaid < loan.amount) {
             uint256 baseAmountLost = loan.amount.sub(loanDetail.principalAmountRepaid);
@@ -322,6 +318,40 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
             updateAvgStrategyApr(baseAmountLost, loan.apr);
         }
+        
+        uint256 managerLoss = loss;
+        uint256 lenderLoss = 0;
+        
+        if (loss > 0) {
+            uint256 remainingLostShares = tokensToShares(loss);
+
+            poolFunds = poolFunds.sub(loss);
+
+            if (stakedShares > 0) {
+                uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, stakedShares);
+                remainingLostShares = remainingLostShares.sub(stakedShareLoss);
+                stakedShares = stakedShares.sub(stakedShareLoss);
+                updatePoolLimit();
+
+                if (stakedShares == 0) {
+                    emit StakedAssetsDepleted(manager);
+                }
+
+                //// interactions
+
+                //burn manager's shares
+                IPoolToken(poolToken).burn(address(this), stakedShareLoss);
+            }
+
+            if (remainingLostShares > 0) {
+                lenderLoss = sharesToTokens(remainingLostShares);
+                managerLoss = managerLoss.sub(lenderLoss);
+
+                emit UnstakedLoss(lenderLoss, manager);
+            }
+        }
+
+        emit LoanDefaulted(loanId, loan.borrower, managerLoss, lenderLoss);
     }
 
     /**
@@ -340,6 +370,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         whenNotPaused
         nonReentrant
     {
+        //// effect
+
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
         BorrowerStats storage stats = borrowerStats[loan.borrower];
@@ -361,18 +393,17 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         }
 
         // charge manager's stake
+        uint256 stakeChargeable = 0;
         if (remainingDifference > 0 && stakedShares > 0) {
             uint256 stakedBalance = sharesToTokens(stakedShares);
             uint256 amountChargeable = MathUpgradeable.min(remainingDifference, stakedBalance);
-            uint256 stakeChargeable = tokensToShares(amountChargeable);
+            stakeChargeable = tokensToShares(amountChargeable);
 
             stakedShares = stakedShares.sub(stakeChargeable);
             updatePoolLimit();
 
-            IPoolToken(poolToken).burn(address(this), stakeChargeable);
-
             if (stakedShares == 0) {
-                emit StakedAssetsDepleted();
+                emit StakedAssetsDepleted(manager);
             }
 
             remainingDifference = remainingDifference.sub(amountChargeable);
@@ -394,6 +425,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         if (remainingDifference > 0) {
             strategizedFunds = strategizedFunds.sub(remainingDifference);
             poolFunds = poolFunds.sub(remainingDifference);
+
+            emit UnstakedLoss(remainingDifference, manager);
         }
 
         loan.status = LoanStatus.REPAID; // Note: add and switch to CLOSED status in next migration version of the pool
@@ -406,6 +439,13 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         stats.amountInterestPaid = stats.amountInterestPaid.sub(loanDetail.interestPaid);
 
         updateAvgStrategyApr(amountRepaid.add(remainingDifference), loan.apr);
+
+        //// interactions
+        if (stakeChargeable > 0) {
+            IPoolToken(poolToken).burn(address(this), stakeChargeable);
+        }
+
+        emit LoanClosed(loanId, loan.borrower, amountRepaid, remainingDifference);
     }
 
     /**
@@ -414,10 +454,13 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      *      Caller must be the LoanDesk.
      * @param amount Loan offer amount.
      */
-    function onOffer(uint256 amount) external override onlyLoanDesk {
+    function onOffer(uint256 amount) external override onlyLoanDesk whenNotPaused {
         require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
+
         poolLiquidity = poolLiquidity.sub(amount);
         allocatedFunds = allocatedFunds.add(amount);
+
+        emit OfferLiquidityAllocated(amount);
     }
 
     /**
@@ -427,11 +470,13 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param prevAmount The original, now previous, offer amount.
      * @param amount New offer amount. Cancelled offer must register an amount of 0 (zero).
      */
-    function onOfferUpdate(uint256 prevAmount, uint256 amount) external onlyLoanDesk {
+    function onOfferUpdate(uint256 prevAmount, uint256 amount) external onlyLoanDesk whenNotPaused {
         require(strategyLiquidity().add(prevAmount) >= amount, "SaplingLendingPool: insufficient liquidity");
 
         poolLiquidity = poolLiquidity.add(prevAmount).sub(amount);
         allocatedFunds = allocatedFunds.sub(prevAmount).add(amount);
+
+        emit OfferLiquidityUpdated(prevAmount, amount);
     }
 
     /**
@@ -532,6 +577,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      */
     function afterTreasuryWalletTransfer(address from) internal override {
         require(from != address(0), "SaplingLendingPool: invalid from address");
+
         nonUserRevenues[treasury] = nonUserRevenues[treasury].add(nonUserRevenues[from]);
         nonUserRevenues[from] = 0;
     }
@@ -545,7 +591,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
      * @param amount Payment amount in tokens
      * @return A pair of total amount charged including interest, and the interest charged
      */
-    function repayBase(uint256 loanId, uint256 amount) internal nonReentrant returns (uint256, uint256) {
+    function repayBase(uint256 loanId, uint256 amount) internal nonReentrant whenNotPaused returns (uint256, uint256) {
+
+        //// check
 
         Loan storage loan = loans[loanId];
         require(
@@ -577,9 +625,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             );
         }
 
-        // charge 'amount' tokens from msg.sender
-        bool success = IERC20(liquidityToken).transferFrom(msg.sender, address(this), transferAmount);
-        require(success, "SaplingLendingPool: ERC20 transfer has failed");
+        //// effect
+
         tokenBalance = tokenBalance.add(transferAmount);
 
         uint256 principalPaid;
@@ -653,10 +700,24 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
                     .sub(loanDetail.principalAmountRepaid);
                 stats.amountInterestPaid = stats.amountInterestPaid
                     .sub(loanDetail.interestPaid);
+
+                emit LoanRepaid(loanId, loan.borrower);
             }
         }
 
         updateAvgStrategyApr(principalPaid, loan.apr);
+
+        //// interactions
+
+        // charge 'amount' tokens from msg.sender
+        SafeERC20Upgradeable.safeTransferFrom(
+            IERC20Upgradeable(liquidityToken), 
+            msg.sender, 
+            address(this), 
+            transferAmount
+        );
+
+        emit LoanRepaymentMade(loanId, loan.borrower, msg.sender, transferAmount, interestPayable);
 
         return (transferAmount, interestPayable);
     }

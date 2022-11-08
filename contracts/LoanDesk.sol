@@ -110,19 +110,37 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     uint256 public offeredFunds;
 
     /// Event for when a new loan is requested, and an application is created
-    event LoanRequested(uint256 applicationId, address indexed borrower);
+    event LoanRequested(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan request is denied
-    event LoanRequestDenied(uint256 applicationId, address indexed borrower);
+    event LoanRequestDenied(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan offer is made
-    event LoanOffered(uint256 applicationId, address indexed borrower);
+    event LoanOffered(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan offer is updated
-    event LoanOfferUpdated(uint256 applicationId, address indexed borrower);
+    event LoanOfferUpdated(uint256 applicationId, address indexed borrower, uint256 prevAmount, uint256 newAmount);
 
     /// Event for when a loan offer is cancelled
-    event LoanOfferCancelled(uint256 applicationId, address indexed borrower);
+    event LoanOfferCancelled(uint256 applicationId, address indexed borrower, uint256 amount);
+
+    /// Event for when a loan offer is accepted
+    event LoanOfferAccepted(uint256 applicationId, address indexed borrower, uint256 amount);
+
+    /// Setter event
+    event MinLoanAmountSet(uint256 prevValue, uint256 newValue);
+
+    /// Setter event
+    event MinLoanDurationSet(uint256 prevValue, uint256 newValue);
+
+    /// Setter event
+    event MaxLoanDurationSet(uint256 prevValue, uint256 newValue);
+
+    /// Setter event
+    event TemplateLoanGracePeriodSet(uint256 prevValue, uint256 newValue);
+
+    /// Setter event
+    event TemplateLoanAPRSet(uint256 prevValue, uint256 newValue);
 
     /// A modifier to limit access only to the lending pool contract
     modifier onlyPool() {
@@ -197,9 +215,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      *      Caller must be the manager.
      * @param _minLoanAmount Minimum loan amount to be enforced on new loan requests and offers
      */
-    function setMinLoanAmount(uint256 _minLoanAmount) external onlyManager whenNotPaused {
+    function setMinLoanAmount(uint256 _minLoanAmount) external onlyManager {
         require(safeMinAmount <= _minLoanAmount, "LoanDesk: new min loan amount is less than the safe limit");
+
+        uint256 prevValue = minLoanAmount;
         minLoanAmount = _minLoanAmount;
+
+        emit MinLoanAmountSet(prevValue, minLoanAmount);
     }
 
     /**
@@ -208,10 +230,16 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      *      Caller must be the manager.
      * @param duration Minimum loan duration to be enforced on new loan requests and offers
      */
-    function setMinLoanDuration(uint256 duration) external onlyManager whenNotPaused {
-        require(SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration,
-            "LoanDesk: new min duration is out of bounds");
+    function setMinLoanDuration(uint256 duration) external onlyManager {
+        require(
+            SAFE_MIN_DURATION <= duration && duration <= maxLoanDuration,
+            "LoanDesk: new min duration is out of bounds"
+        );
+
+        uint256 prevValue = minLoanDuration;
         minLoanDuration = duration;
+
+        emit MinLoanDurationSet(prevValue, minLoanDuration);
     }
 
     /**
@@ -220,10 +248,16 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      *      Caller must be the manager.
      * @param duration Maximum loan duration to be enforced on new loan requests and offers
      */
-    function setMaxLoanDuration(uint256 duration) external onlyManager whenNotPaused {
-        require(minLoanDuration <= duration && duration <= SAFE_MAX_DURATION,
-            "LoanDesk: new max duration is out of bounds");
+    function setMaxLoanDuration(uint256 duration) external onlyManager {
+        require(
+            minLoanDuration <= duration && duration <= SAFE_MAX_DURATION,
+            "LoanDesk: new max duration is out of bounds"
+        );
+
+        uint256 prevValue = maxLoanDuration;
         maxLoanDuration = duration;
+
+        emit MaxLoanDurationSet(prevValue, maxLoanDuration);
     }
 
     /**
@@ -232,10 +266,16 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      *      Caller must be the manager.
      * @param gracePeriod Loan payment grace period for new loan offers
      */
-    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyManager whenNotPaused {
-        require(MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD,
-            "LoanDesk: new grace period is out of bounds.");
+    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyManager {
+        require(
+            MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD,
+            "LoanDesk: new grace period is out of bounds."
+        );
+
+        uint256 prevValue = templateLoanGracePeriod;
         templateLoanGracePeriod = gracePeriod;
+
+        emit TemplateLoanGracePeriodSet(prevValue, templateLoanGracePeriod); 
     }
 
     /**
@@ -244,9 +284,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      *      Caller must be the manager.
      * @param apr Loan APR to be enforced on the new loan offers.
      */
-    function setTemplateLoanAPR(uint16 apr) external onlyManager whenNotPaused {
+    function setTemplateLoanAPR(uint16 apr) external onlyManager {
         require(SAFE_MIN_APR <= apr && apr <= safeMaxApr, "LoanDesk: APR is out of bounds");
+
+        uint256 prevValue = templateLoanAPR;
         templateLoanAPR = apr;
+
+        emit TemplateLoanAPRSet(prevValue, templateLoanAPR);
     }
 
     /**
@@ -307,7 +351,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
             borrowerStats[msg.sender].hasOpenApplication = true;
         }
 
-        emit LoanRequested(appId, msg.sender);
+        emit LoanRequested(appId, msg.sender, _amount);
     }
 
     /**
@@ -315,13 +359,20 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      * @dev Loan must be in APPLIED status.
      *      Caller must be the manager.
      */
-    function denyLoan(uint256 appId) external onlyManager applicationInStatus(appId, LoanApplicationStatus.APPLIED) {
+    function denyLoan(
+        uint256 appId
+    ) 
+        external 
+        onlyManager 
+        applicationInStatus(appId, LoanApplicationStatus.APPLIED)
+        whenNotPaused
+    {
         LoanApplication storage app = loanApplications[appId];
         app.status = LoanApplicationStatus.DENIED;
         borrowerStats[app.borrower].countDenied++;
         borrowerStats[app.borrower].hasOpenApplication = false;
 
-        emit LoanRequestDenied(appId, app.borrower);
+        emit LoanRequestDenied(appId, app.borrower, app.amount);
     }
 
     /**
@@ -353,13 +404,16 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         whenNotClosed
         whenNotPaused
     {
+        //// check
+
         validateLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr);
 
         LoanApplication storage app = loanApplications[appId];
 
         require(ILoanDeskOwner(pool).canOffer(offeredFunds.add(_amount)),
             "LoanDesk: lending pool cannot offer this loan at this time");
-        ILoanDeskOwner(pool).onOffer(_amount);
+
+        //// effect
 
         loanOffers[appId] = LoanOffer({
             applicationId: appId,
@@ -377,7 +431,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         borrowerStats[app.borrower].countOffered++;
         loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
 
-        emit LoanOffered(appId, app.borrower);
+        //// interactions
+
+        ILoanDeskOwner(pool).onOffer(_amount);
+
+        emit LoanOffered(appId, app.borrower, _amount);
     }
 
     /**
@@ -409,20 +467,24 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         whenNotClosed
         whenNotPaused
     {
+        //// check
+
         validateLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr);
 
         LoanOffer storage offer = loanOffers[appId];
 
-        if (offer.amount != _amount) {
-            uint256 nextOfferedFunds = offeredFunds.sub(offer.amount).add(_amount);
+        uint256 prevAmount = offer.amount;
 
+        if (prevAmount != _amount) {
+            uint256 nextOfferedFunds = offeredFunds.sub(prevAmount).add(_amount);
             require(ILoanDeskOwner(pool).canOffer(nextOfferedFunds),
                 "LoanDesk: lending pool cannot offer this loan at this time");
-            ILoanDeskOwner(pool).onOfferUpdate(offer.amount, _amount);
 
+            //// effect
             offeredFunds = nextOfferedFunds;
         }
 
+        //// effect
         offer.amount = _amount;
         offer.duration = _duration;
         offer.gracePeriod = _gracePeriod;
@@ -431,7 +493,12 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         offer.apr = _apr;
         offer.offeredTime = block.timestamp;
 
-        emit LoanOfferUpdated(appId, offer.borrower);
+        emit LoanOfferUpdated(appId, offer.borrower, prevAmount, offer.amount);
+
+        //// interactions
+        if (prevAmount != offer.amount) {
+            ILoanDeskOwner(pool).onOfferUpdate(prevAmount, offer.amount);
+        }
     }
 
 
@@ -446,24 +513,33 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         external
         managerOrApprovedOnInactive
         applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE)
+        whenNotPaused
     {
+        //// check
+
         LoanOffer storage offer = loanOffers[appId];
 
         // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
         if (msg.sender != manager) {
             // require inactivity grace period
-            require(block.timestamp > offer.offeredTime + MANAGER_INACTIVITY_GRACE_PERIOD,
-                "LoanDesk: too early to cancel this loan as a non-manager");
+            require(
+                block.timestamp > offer.offeredTime + MANAGER_INACTIVITY_GRACE_PERIOD,
+                "LoanDesk: too early to cancel this loan as a non-manager"
+            );
         }
+
+        //// effect
 
         loanApplications[appId].status = LoanApplicationStatus.OFFER_CANCELLED;
         borrowerStats[offer.borrower].countCancelled++;
         borrowerStats[offer.borrower].hasOpenApplication = false;
 
         offeredFunds = offeredFunds.sub(offer.amount);
-        ILoanDeskOwner(pool).onOfferUpdate(offer.amount, 0);
 
-        emit LoanOfferCancelled(appId, offer.borrower);
+        emit LoanOfferCancelled(appId, offer.borrower, offer.amount);
+
+        //// interactions
+        ILoanDeskOwner(pool).onOfferUpdate(offer.amount, 0);
     }
 
     /**
@@ -479,11 +555,16 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         override
         onlyPool
         applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE)
+        whenNotPaused
     {
         LoanApplication storage app = loanApplications[appId];
         app.status = LoanApplicationStatus.OFFER_ACCEPTED;
         borrowerStats[app.borrower].hasOpenApplication = false;
-        offeredFunds = offeredFunds.sub(loanOffers[appId].amount);
+        
+        uint256 offerAmount = loanOffers[appId].amount;
+        offeredFunds = offeredFunds.sub(offerAmount);
+
+        emit LoanOfferAccepted(appId, app.borrower, offerAmount);
     }
 
     /**

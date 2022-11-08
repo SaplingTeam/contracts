@@ -379,6 +379,21 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     expect(await saplingPoolContext.managerEarnFactor()).to.equal(newValue);
                 });
 
+                it("Manager's earn factor can be set while the pool is paused", async function () {
+                    let currentValue = await saplingPoolContext.managerEarnFactor();
+                    let minValue = await saplingPoolContext.oneHundredPercent();
+                    let maxValue = await saplingPoolContext.managerEarnFactorMax();
+
+                    let newValue = 125 * 10 ** PERCENT_DECIMALS;
+                    assertHardhatInvariant(
+                        newValue != currentValue && minValue <= newValue && newValue <= maxValue,
+                    );
+
+                    await saplingPoolContext.connect(governance).pause();
+
+                    await expect(saplingPoolContext.connect(manager).setManagerEarnFactor(newValue)).to.be.not.reverted;
+                });
+
                 describe('Rejection scenarios', function () {
                     it("Manager's earn factor cannot be set to a value less than the allowed minimum", async function () {
                         let minValue = await saplingPoolContext.oneHundredPercent();
@@ -391,21 +406,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         let maxValue = await saplingPoolContext.managerEarnFactorMax();
                         await expect(saplingPoolContext.connect(manager).setManagerEarnFactor(maxValue + 1)).to.be
                             .reverted;
-                    });
-
-                    it("Manager's earn factor cannot be set while the pool is paused", async function () {
-                        let currentValue = await saplingPoolContext.managerEarnFactor();
-                        let minValue = await saplingPoolContext.oneHundredPercent();
-                        let maxValue = await saplingPoolContext.managerEarnFactorMax();
-
-                        let newValue = 125 * 10 ** PERCENT_DECIMALS;
-                        assertHardhatInvariant(
-                            newValue != currentValue && minValue <= newValue && newValue <= maxValue,
-                        );
-
-                        await saplingPoolContext.connect(governance).pause();
-
-                        await expect(saplingPoolContext.connect(manager).setManagerEarnFactor(newValue)).to.be.reverted;
                     });
 
                     it("A non-manager cannot set manager's earn factor", async function () {
@@ -573,7 +573,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         'a937074e-85a7-42a9-b858-9795d9471759',
                         '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                     );
-                let applicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
+                let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
 
                 let gracePeriod = await loanDesk.templateLoanGracePeriod();
                 let installments = 1;
