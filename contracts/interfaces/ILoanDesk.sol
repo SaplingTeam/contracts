@@ -92,22 +92,22 @@ interface ILoanDesk {
     }
 
     /// Event for when a new loan is requested, and an application is created
-    event LoanRequested(uint256 applicationId, address indexed borrower);
+    event LoanRequested(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan request is denied
-    event LoanRequestDenied(uint256 applicationId, address indexed borrower);
+    event LoanRequestDenied(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan offer is made
-    event LoanOffered(uint256 applicationId, address indexed borrower);
+    event LoanOffered(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan offer is updated
-    event LoanOfferUpdated(uint256 applicationId, address indexed borrower);
+    event LoanOfferUpdated(uint256 applicationId, address indexed borrower, uint256 prevAmount, uint256 newAmount);
 
     /// Event for when a loan offer is cancelled
-    event LoanOfferCancelled(uint256 applicationId, address indexed borrower);
+    event LoanOfferCancelled(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan offer is accepted
-    event LoanOfferAccepted(uint256 applicationId, address indexed borrower);
+    event LoanOfferAccepted(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Setter event
     event MinLoanAmountSet(uint256 prevValue, uint256 newValue);

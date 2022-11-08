@@ -1022,7 +1022,7 @@ describe('Loan Desk', function () {
                                 'a937074e-85a7-42a9-b858-9795d9471759',
                                 '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                             );
-                        let otherApplicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
+                        let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId
 
                         let otherApplication = await loanDesk.loanApplications(otherApplicationId);
                         await loanDesk

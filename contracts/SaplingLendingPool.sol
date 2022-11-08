@@ -226,9 +226,10 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
             updateAvgStrategyApr(baseAmountLost, loan.apr);
         }
-
-        emit LoanDefaulted(loanId, loan.borrower, loss);
-
+        
+        uint256 managerLoss = loss;
+        uint256 lenderLoss = 0;
+        
         if (loss > 0) {
             uint256 remainingLostShares = tokensToShares(loss);
 
@@ -241,7 +242,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 updatePoolLimit();
 
                 if (poolBalance.stakedShares == 0) {
-                    emit StakedAssetsDepleted();
+                    emit StakedAssetsDepleted(manager);
                 }
 
                 //// interactions
@@ -251,9 +252,14 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             }
 
             if (remainingLostShares > 0) {
-                emit UnstakedLoss(sharesToTokens(remainingLostShares));
+                lenderLoss = sharesToTokens(remainingLostShares);
+                managerLoss = managerLoss.sub(lenderLoss);
+
+                emit UnstakedLoss(lenderLoss, manager);
             }
         }
+
+        emit LoanDefaulted(loanId, loan.borrower, managerLoss, lenderLoss);
     }
 
     /**
@@ -305,7 +311,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             updatePoolLimit();
 
             if (poolBalance.stakedShares == 0) {
-                emit StakedAssetsDepleted();
+                emit StakedAssetsDepleted(manager);
             }
 
             remainingDifference = remainingDifference.sub(amountChargeable);
@@ -327,6 +333,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         if (remainingDifference > 0) {
             poolBalance.strategizedFunds = poolBalance.strategizedFunds.sub(remainingDifference);
             poolBalance.poolFunds = poolBalance.poolFunds.sub(remainingDifference);
+
+            emit UnstakedLoss(remainingDifference, manager);
         }
 
         loan.status = LoanStatus.REPAID; // Note: add and switch to CLOSED status in next migration version of the pool
@@ -345,7 +353,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             IPoolToken(tokenConfig.poolToken).burn(address(this), stakeChargeable);
         }
 
-        emit LoanClosed(loanId, loan.borrower);
+        emit LoanClosed(loanId, loan.borrower, amountRepaid, remainingDifference);
     }
 
     /**
@@ -604,6 +612,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                     .sub(loanDetail.principalAmountRepaid);
                 stats.amountInterestPaid = stats.amountInterestPaid
                     .sub(loanDetail.interestPaid);
+
+                emit LoanRepaid(loanId, loan.borrower);
             }
         }
 

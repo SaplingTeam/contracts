@@ -85,10 +85,10 @@ interface ILendingPool {
     event LoanRepaid(uint256 loanId, address indexed borrower);
 
     /// Event for when a loan is closed
-    event LoanClosed(uint256 loanId, address indexed borrower);
+    event LoanClosed(uint256 loanId, address indexed borrower, uint256 managerLossAmount, uint256 lenderLossAmount);
 
     /// Event for when a loan is defaulted
-    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 amountLost);
+    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 managerLoss, uint256 lenderLoss);
 
     /// Event for when a loan payment is made
     event LoanRepaymentMade(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount);
