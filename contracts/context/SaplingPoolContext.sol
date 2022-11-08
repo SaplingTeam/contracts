@@ -86,10 +86,10 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
     uint256 private nextStrategyId;
 
     /// Event for when the lender capital is lost due to defaults
-    event UnstakedLoss(uint256 amount);
+    event UnstakedLoss(uint256 amount, address currentManager);
 
     /// Event for when the Manager's staked assets are depleted due to defaults
-    event StakedAssetsDepleted();
+    event StakedAssetsDepleted(address currentManager);
 
     /// Event for when lender funds are deposited
     event FundsDeposited(address wallet, uint256 amount, uint256 tokensIssued); 

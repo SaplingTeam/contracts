@@ -110,22 +110,22 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     uint256 public offeredFunds;
 
     /// Event for when a new loan is requested, and an application is created
-    event LoanRequested(uint256 applicationId, address indexed borrower);
+    event LoanRequested(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan request is denied
-    event LoanRequestDenied(uint256 applicationId, address indexed borrower);
+    event LoanRequestDenied(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan offer is made
-    event LoanOffered(uint256 applicationId, address indexed borrower);
+    event LoanOffered(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan offer is updated
-    event LoanOfferUpdated(uint256 applicationId, address indexed borrower);
+    event LoanOfferUpdated(uint256 applicationId, address indexed borrower, uint256 prevAmount, uint256 newAmount);
 
     /// Event for when a loan offer is cancelled
-    event LoanOfferCancelled(uint256 applicationId, address indexed borrower);
+    event LoanOfferCancelled(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan offer is accepted
-    event LoanOfferAccepted(uint256 applicationId, address indexed borrower);
+    event LoanOfferAccepted(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Setter event
     event MinLoanAmountSet(uint256 prevValue, uint256 newValue);
@@ -351,7 +351,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
             borrowerStats[msg.sender].hasOpenApplication = true;
         }
 
-        emit LoanRequested(appId, msg.sender);
+        emit LoanRequested(appId, msg.sender, _amount);
     }
 
     /**
@@ -372,7 +372,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         borrowerStats[app.borrower].countDenied++;
         borrowerStats[app.borrower].hasOpenApplication = false;
 
-        emit LoanRequestDenied(appId, app.borrower);
+        emit LoanRequestDenied(appId, app.borrower, app.amount);
     }
 
     /**
@@ -435,7 +435,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
 
         ILoanDeskOwner(pool).onOffer(_amount);
 
-        emit LoanOffered(appId, app.borrower);
+        emit LoanOffered(appId, app.borrower, _amount);
     }
 
     /**
@@ -493,7 +493,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         offer.apr = _apr;
         offer.offeredTime = block.timestamp;
 
-        emit LoanOfferUpdated(appId, offer.borrower);
+        emit LoanOfferUpdated(appId, offer.borrower, prevAmount, offer.amount);
 
         //// interactions
         if (prevAmount != offer.amount) {
@@ -536,7 +536,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
 
         offeredFunds = offeredFunds.sub(offer.amount);
 
-        emit LoanOfferCancelled(appId, offer.borrower);
+        emit LoanOfferCancelled(appId, offer.borrower, offer.amount);
 
         //// interactions
         ILoanDeskOwner(pool).onOfferUpdate(offer.amount, 0);
@@ -560,9 +560,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         LoanApplication storage app = loanApplications[appId];
         app.status = LoanApplicationStatus.OFFER_ACCEPTED;
         borrowerStats[app.borrower].hasOpenApplication = false;
-        offeredFunds = offeredFunds.sub(loanOffers[appId].amount);
+        
+        uint256 offerAmount = loanOffers[appId].amount;
+        offeredFunds = offeredFunds.sub(offerAmount);
 
-        emit LoanOfferAccepted(appId, app.borrower);
+        emit LoanOfferAccepted(appId, app.borrower, offerAmount);
     }
 
     /**

@@ -573,7 +573,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         'a937074e-85a7-42a9-b858-9795d9471759',
                         '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                     );
-                let applicationId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
+                let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
 
                 let gracePeriod = await loanDesk.templateLoanGracePeriod();
                 let installments = 1;

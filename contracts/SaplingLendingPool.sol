@@ -104,10 +104,10 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
     event LoanRepaid(uint256 loanId, address indexed borrower);
 
     /// Event for when a loan is closed
-    event LoanClosed(uint256 loanId, address indexed borrower);
+    event LoanClosed(uint256 loanId, address indexed borrower, uint256 managerLossAmount, uint256 lenderLossAmount);
 
     /// Event for when a loan is defaulted
-    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 amountLost);
+    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 managerLoss, uint256 lenderLoss);
 
     /// Event for when a loan payment is made
     event LoanRepaymentMade(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount);
@@ -318,9 +318,10 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
 
             updateAvgStrategyApr(baseAmountLost, loan.apr);
         }
-
-        emit LoanDefaulted(loanId, loan.borrower, loss);
-
+        
+        uint256 managerLoss = loss;
+        uint256 lenderLoss = 0;
+        
         if (loss > 0) {
             uint256 remainingLostShares = tokensToShares(loss);
 
@@ -333,7 +334,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
                 updatePoolLimit();
 
                 if (stakedShares == 0) {
-                    emit StakedAssetsDepleted();
+                    emit StakedAssetsDepleted(manager);
                 }
 
                 //// interactions
@@ -343,9 +344,14 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             }
 
             if (remainingLostShares > 0) {
-                emit UnstakedLoss(sharesToTokens(remainingLostShares));
+                lenderLoss = sharesToTokens(remainingLostShares);
+                managerLoss = managerLoss.sub(lenderLoss);
+
+                emit UnstakedLoss(lenderLoss, manager);
             }
         }
+
+        emit LoanDefaulted(loanId, loan.borrower, managerLoss, lenderLoss);
     }
 
     /**
@@ -397,7 +403,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             updatePoolLimit();
 
             if (stakedShares == 0) {
-                emit StakedAssetsDepleted();
+                emit StakedAssetsDepleted(manager);
             }
 
             remainingDifference = remainingDifference.sub(amountChargeable);
@@ -419,6 +425,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         if (remainingDifference > 0) {
             strategizedFunds = strategizedFunds.sub(remainingDifference);
             poolFunds = poolFunds.sub(remainingDifference);
+
+            emit UnstakedLoss(remainingDifference, manager);
         }
 
         loan.status = LoanStatus.REPAID; // Note: add and switch to CLOSED status in next migration version of the pool
@@ -437,7 +445,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             IPoolToken(poolToken).burn(address(this), stakeChargeable);
         }
 
-        emit LoanClosed(loanId, loan.borrower);
+        emit LoanClosed(loanId, loan.borrower, amountRepaid, remainingDifference);
     }
 
     /**
