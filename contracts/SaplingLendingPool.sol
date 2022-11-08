@@ -692,6 +692,8 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
                     .sub(loanDetail.principalAmountRepaid);
                 stats.amountInterestPaid = stats.amountInterestPaid
                     .sub(loanDetail.interestPaid);
+
+                emit LoanRepaid(loanId, loan.borrower);
             }
         }
 
