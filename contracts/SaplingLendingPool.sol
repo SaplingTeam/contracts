@@ -23,8 +23,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /// LoanDetails by loan ID
     mapping(uint256 => LoanDetail) public loanDetails;
 
-    /// Borrower statistics by address
-    mapping(address => BorrowerStats) public borrowerStats;
+    /// Recent loan id by address
+    mapping(address => uint256) public recentLoanIdOf;
 
     /// A modifier to limit access to when a loan has the specified status
     modifier loanInStatus(uint256 loanId, LoanStatus status) {
@@ -99,9 +99,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         //// effect
 
-        borrowerStats[offer.borrower].countOutstanding++;
-        borrowerStats[offer.borrower].amountBorrowed = borrowerStats[offer.borrower].amountBorrowed.add(offer.amount);
-
         uint256 loanId = getNextStrategyId();
 
         loans[loanId] = Loan({
@@ -128,7 +125,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             lastPaymentTime: 0
         });
 
-        borrowerStats[offer.borrower].recentLoanId = loanId;
+        recentLoanIdOf[offer.borrower] = loanId;
 
         uint256 prevStrategizedFunds = poolBalance.strategizedFunds;
         poolBalance.allocatedFunds = poolBalance.allocatedFunds.sub(offer.amount);
@@ -209,16 +206,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         LoanDetail storage loanDetail = loanDetails[loanId];
 
         loan.status = LoanStatus.DEFAULTED;
-        borrowerStats[loan.borrower].countDefaulted++;
-        borrowerStats[loan.borrower].countOutstanding--;
 
         (, uint256 loss) = loan.amount.trySub(loanDetail.principalAmountRepaid);
-
-        borrowerStats[loan.borrower].amountBorrowed = borrowerStats[loan.borrower].amountBorrowed.sub(loan.amount);
-        borrowerStats[loan.borrower].amountBaseRepaid = borrowerStats[loan.borrower].amountBaseRepaid
-            .sub(loanDetail.principalAmountRepaid);
-        borrowerStats[loan.borrower].amountInterestPaid = borrowerStats[loan.borrower].amountInterestPaid
-            .sub(loanDetail.interestPaid);
 
         if (loanDetail.principalAmountRepaid < loan.amount) {
             uint256 baseAmountLost = loan.amount.sub(loanDetail.principalAmountRepaid);
@@ -282,7 +271,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         Loan storage loan = loans[loanId];
         LoanDetail storage loanDetail = loanDetails[loanId];
-        BorrowerStats storage stats = borrowerStats[loan.borrower];
+        // BorrowerStats storage stats = borrowerStats[loan.borrower];
 
         uint256 remainingDifference = loanDetail.principalAmountRepaid < loan.amount
             ? loan.amount.sub(loanDetail.principalAmountRepaid)
@@ -325,8 +314,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             loanDetail.totalAmountRepaid = loanDetail.totalAmountRepaid.add(amountRepaid);
             loanDetail.principalAmountRepaid = loanDetail.principalAmountRepaid.add(amountRepaid);
             loanDetail.lastPaymentTime = block.timestamp;
-
-            stats.amountBaseRepaid = stats.amountBaseRepaid.add(amountRepaid);
         }
 
         // charge pool (close loan and reduce borrowed funds/poolfunds)
@@ -338,13 +325,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         }
 
         loan.status = LoanStatus.REPAID; // Note: add and switch to CLOSED status in next migration version of the pool
-
-        //update stats
-        stats.countRepaid++;
-        stats.countOutstanding--;
-        stats.amountBorrowed = stats.amountBorrowed.sub(loan.amount);
-        stats.amountBaseRepaid = stats.amountBaseRepaid.sub(loanDetail.principalAmountRepaid);
-        stats.amountInterestPaid = stats.amountInterestPaid.sub(loanDetail.interestPaid);
 
         updateAvgStrategyApr(amountRepaid.add(remainingDifference), loan.apr);
 
@@ -591,27 +571,14 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         loanDetail.interestPaidTillTime = loanDetail.interestPaidTillTime.add(payableInterestDays.mul(86400));
 
         {
-            BorrowerStats storage stats = borrowerStats[loan.borrower];
-            stats.amountBaseRepaid = stats.amountBaseRepaid.add(principalPaid);
-
             if (interestPayable != 0) {
                 loanDetail.interestPaid = loanDetail.interestPaid.add(interestPayable);
-
-                stats.amountInterestPaid = stats.amountInterestPaid
-                .add(interestPayable);
             }
 
             poolBalance.strategizedFunds = poolBalance.strategizedFunds.sub(principalPaid);
 
             if (loanDetail.principalAmountRepaid >= loan.amount) {
                 loan.status = LoanStatus.REPAID;
-                stats.countRepaid++;
-                stats.countOutstanding--;
-                stats.amountBorrowed = stats.amountBorrowed.sub(loan.amount);
-                stats.amountBaseRepaid = stats.amountBaseRepaid
-                    .sub(loanDetail.principalAmountRepaid);
-                stats.amountInterestPaid = stats.amountInterestPaid
-                    .sub(loanDetail.interestPaid);
 
                 emit LoanRepaid(loanId, loan.borrower);
             }

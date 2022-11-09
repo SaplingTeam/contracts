@@ -49,8 +49,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     /// Loan offers by applicationId
     mapping(uint256 => LoanOffer) public loanOffers;
 
-    /// Borrower statistics by address
-    mapping(address => BorrowerStats) public borrowerStats;
+    /// Recent application id by address
+    mapping(address => uint256) public recentApplicationIdOf;
 
     /// Loan application id generator counter
     uint256 private nextApplicationId;
@@ -228,7 +228,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         whenNotClosed
         whenNotPaused
     {
-        require(borrowerStats[msg.sender].hasOpenApplication == false, "LoanDesk: another loan application is pending");
+        LoanApplicationStatus recentAppStatus = loanApplications[recentApplicationIdOf[msg.sender]].status;
+        require(
+            recentAppStatus != LoanApplicationStatus.APPLIED && recentAppStatus != LoanApplicationStatus.OFFER_MADE,
+            "LoanDesk: another loan application is pending"
+        );
         require(_amount >= loanTemplate.minAmount, "LoanDesk: loan amount is less than the minimum allowed");
         require(loanTemplate.minDuration <= _duration, "LoanDesk: loan duration is less than minimum allowed");
         require(loanTemplate.maxDuration >= _duration, "LoanDesk: loan duration is greater than maximum allowed");
@@ -247,22 +251,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
             profileDigest: _profileDigest
         });
 
-        if (borrowerStats[msg.sender].borrower == address(0)) {
-            borrowerStats[msg.sender] = BorrowerStats({
-                borrower: msg.sender,
-                countRequested: 1,
-                countDenied: 0,
-                countOffered: 0,
-                countBorrowed: 0,
-                countCancelled: 0,
-                recentApplicationId: appId,
-                hasOpenApplication: true
-            });
-        } else {
-            borrowerStats[msg.sender].countRequested++;
-            borrowerStats[msg.sender].recentApplicationId = appId;
-            borrowerStats[msg.sender].hasOpenApplication = true;
-        }
+        recentApplicationIdOf[msg.sender] = appId;
 
         emit LoanRequested(appId, msg.sender, _amount);
     }
@@ -282,8 +271,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     {
         LoanApplication storage app = loanApplications[appId];
         app.status = LoanApplicationStatus.DENIED;
-        borrowerStats[app.borrower].countDenied++;
-        borrowerStats[app.borrower].hasOpenApplication = false;
 
         emit LoanRequestDenied(appId, app.borrower, app.amount);
     }
@@ -341,7 +328,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         });
 
         offeredFunds = offeredFunds.add(_amount);
-        borrowerStats[app.borrower].countOffered++;
         loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
 
         //// interactions
@@ -444,8 +430,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         //// effect
 
         loanApplications[appId].status = LoanApplicationStatus.OFFER_CANCELLED;
-        borrowerStats[offer.borrower].countCancelled++;
-        borrowerStats[offer.borrower].hasOpenApplication = false;
 
         offeredFunds = offeredFunds.sub(offer.amount);
 
@@ -472,7 +456,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     {
         LoanApplication storage app = loanApplications[appId];
         app.status = LoanApplicationStatus.OFFER_ACCEPTED;
-        borrowerStats[app.borrower].hasOpenApplication = false;
         
         uint256 offerAmount = loanOffers[appId].amount;
         offeredFunds = offeredFunds.sub(offerAmount);

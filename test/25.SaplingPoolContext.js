@@ -499,7 +499,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                             'a937074e-85a7-42a9-b858-9795d9471759',
                             '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                         );
-                    let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+                    let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                     let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                     let installments = 1;
                     let apr = (await loanDesk.loanTemplate()).apr;
@@ -569,7 +569,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         'a937074e-85a7-42a9-b858-9795d9471759',
                         '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                     );
-                let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+                let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
 
                 let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                 let installments = 1;
@@ -580,7 +580,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                 await saplingPoolContext.connect(borrower1).borrow(applicationId);
 
-                let loanId = (await saplingPoolContext.borrowerStats(borrower1.address)).recentLoanId;
+                let loanId = await saplingPoolContext.recentLoanIdOf(borrower1.address);
 
                 let loan = await saplingPoolContext.loans(loanId);
                 await ethers.provider.send('evm_increaseTime', [loan.duration.add(loan.gracePeriod).toNumber()]);
@@ -1033,7 +1033,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                             'a937074e-85a7-42a9-b858-9795d9471759',
                             '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                         );
-                    let otherApplicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+                    let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                     await loanDesk
                         .connect(manager)
                         .offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
@@ -1068,7 +1068,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                             'a937074e-85a7-42a9-b858-9795d9471759',
                             '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                         );
-                    let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                    let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                     await loanDesk
                         .connect(manager)
                         .offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
@@ -1099,12 +1099,12 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                             'a937074e-85a7-42a9-b858-9795d9471759',
                             '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                         );
-                    let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+                    let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                     await loanDesk
                         .connect(manager)
                         .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                     await saplingPoolContext.connect(borrower1).borrow(applicationId);
-                    let loanId = (await saplingPoolContext.borrowerStats(borrower1.address)).recentLoanId;
+                    let loanId = await saplingPoolContext.recentLoanIdOf(borrower1.address);
 
                     await ethers.provider.send('evm_increaseTime', [loanDuration.toNumber()]);
                     await ethers.provider.send('evm_mine');
@@ -1230,7 +1230,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         'a937074e-85a7-42a9-b858-9795d9471759',
                         '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                     );
-                let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+                let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                 let application = await loanDesk.loanApplications(applicationId);
 
                 let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;

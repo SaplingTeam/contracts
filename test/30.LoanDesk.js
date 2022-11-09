@@ -430,7 +430,7 @@ describe('Loan Desk', function () {
                     );
                 let applicationId = (await requestLoanTx.wait()).events.filter((e) => e.event === 'LoanRequested')[0]
                     .args.applicationId;
-                expect((await loanDesk.borrowerStats(borrower1.address)).recentApplicationId).to.equal(applicationId);
+                expect(await loanDesk.recentApplicationIdOf(borrower1.address)).to.equal(applicationId);
             });
 
             describe('Rejection scenarios', function () {
@@ -564,25 +564,6 @@ describe('Loan Desk', function () {
                     ).to.be.reverted;
                 });
             });
-
-            describe('Borrower Statistics', function () {
-                it('Loan requests increments all time request count', async function () {
-                    let prevCountRequested = (await loanDesk.borrowerStats(borrower1.address)).countRequested;
-
-                    await loanDesk
-                        .connect(borrower1)
-                        .requestLoan(
-                            loanAmount,
-                            loanDuration,
-                            'a937074e-85a7-42a9-b858-9795d9471759',
-                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
-                        );
-
-                    expect((await loanDesk.borrowerStats(borrower1.address)).countRequested).to.equal(
-                        prevCountRequested.add(1),
-                    );
-                });
-            });
         });
 
         describe('Actions on a Loan Request', function () {
@@ -611,7 +592,7 @@ describe('Loan Desk', function () {
                         'a937074e-85a7-42a9-b858-9795d9471759',
                         '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                     );
-                applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+                applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                 application = await loanDesk.loanApplications(applicationId);
 
                 let stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
@@ -725,7 +706,7 @@ describe('Loan Desk', function () {
                                 'a937074e-85a7-42a9-b858-9795d9471759',
                                 '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                             );
-                        let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                        let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                         let otherApplication = await loanDesk.loanApplications(otherApplicationId);
 
                         await expect(
@@ -758,7 +739,7 @@ describe('Loan Desk', function () {
                                 'a937074e-85a7-42a9-b858-9795d9471759',
                                 '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                             );
-                        let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                        let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                         let otherApplication = await loanDesk.loanApplications(otherApplicationId);
 
                         await loanDesk
@@ -775,7 +756,7 @@ describe('Loan Desk', function () {
 
                         await lendingPool.connect(borrower2).borrow(otherApplicationId);
 
-                        let otherLoanId = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+                        let otherLoanId = await lendingPool.recentLoanIdOf(borrower2.address);
                         let loan = await lendingPool.loans(otherLoanId);
                         await ethers.provider.send('evm_increaseTime', [
                             loan.duration.add(loan.gracePeriod).toNumber(),
@@ -936,28 +917,6 @@ describe('Loan Desk', function () {
                         ).to.be.reverted;
                     });
                 });
-
-                describe('Borrower Statistics', function () {
-                    it('Loan approval increments all time approval count', async function () {
-                        let prevStat = await loanDesk.borrowerStats(borrower1.address);
-
-                        await loanDesk
-                            .connect(manager)
-                            .offerLoan(
-                                applicationId,
-                                application.amount,
-                                application.duration,
-                                gracePeriod,
-                                0,
-                                installments,
-                                apr,
-                            );
-
-                        let stat = await loanDesk.borrowerStats(borrower1.address);
-
-                        expect(stat.countOffered).to.equal(prevStat.countOffered.add(1));
-                    });
-                });
             });
 
             describe('Actions on a Loan Offer', function () {
@@ -1022,7 +981,7 @@ describe('Loan Desk', function () {
                                 'a937074e-85a7-42a9-b858-9795d9471759',
                                 '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                             );
-                        let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId
+                        let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address)
 
                         let otherApplication = await loanDesk.loanApplications(otherApplicationId);
                         await loanDesk
@@ -1124,18 +1083,6 @@ describe('Loan Desk', function () {
                             });
                         });
                     });
-
-                    describe('Borrower Statistics', function () {
-                        it('Cancelling a loan increments all time cancel count', async function () {
-                            let prevStat = await loanDesk.borrowerStats(borrower1.address);
-
-                            await loanDesk.connect(manager).cancelLoan(applicationId);
-
-                            let stat = await loanDesk.borrowerStats(borrower1.address);
-
-                            expect(stat.countCancelled).to.equal(prevStat.countCancelled.add(1));
-                        });
-                    });
                 });
             });
 
@@ -1195,18 +1142,6 @@ describe('Loan Desk', function () {
 
                     it('Denying a loan from an unrelated address should fail', async function () {
                         await expect(loanDesk.connect(addresses[0]).denyLoan(applicationId)).to.be.reverted;
-                    });
-                });
-
-                describe('Borrower Statistics', function () {
-                    it('Loan Denial increments all time deny count', async function () {
-                        let prevStat = await loanDesk.borrowerStats(borrower1.address);
-
-                        await loanDesk.connect(manager).denyLoan(applicationId);
-
-                        let stat = await loanDesk.borrowerStats(borrower1.address);
-
-                        expect(stat.countDenied).to.equal(prevStat.countDenied.add(1));
                     });
                 });
             });

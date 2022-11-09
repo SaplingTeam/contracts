@@ -172,7 +172,7 @@ describe('Attack Sapling Lending Pool', function () {
                         'a937074e-85a7-42a9-b858-9795d9471759',
                         '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                     );
-                applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+                applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                 application = await loanDesk.loanApplications(applicationId);
                 await loanDesk
                     .connect(manager)
@@ -204,7 +204,7 @@ describe('Attack Sapling Lending Pool', function () {
                 expect(await lendingPool.loansCount()).to.equal(prevLoansCount.add(1));
 
                 //get the loan after the block is mined, as the committed block 
-                let loanId = (await lendingPool.borrowerStats(borrower1.address)).recentLoanId;
+                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
                 let loan = await lendingPool.loans(loanId);
 
                 expect(await liquidityToken.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
@@ -213,7 +213,7 @@ describe('Attack Sapling Lending Pool', function () {
             it('Revert If Borrow Twice Slow', async function () {
                 let balanceBefore = await liquidityToken.balanceOf(borrower1.address);
                 await lendingPool.connect(borrower1).borrow(applicationId);
-                let loanId = (await lendingPool.borrowerStats(borrower1.address)).recentLoanId;
+                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
                 let loan = await lendingPool.loans(loanId);
                 await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
                 await ethers.provider.send('evm_mine');
@@ -223,7 +223,7 @@ describe('Attack Sapling Lending Pool', function () {
 
             it('Revert If Borrow Repay Borrow', async function () {
                 await lendingPool.connect(borrower1).borrow(applicationId);
-                let loanId = (await lendingPool.borrowerStats(borrower1.address)).recentLoanId;
+                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
                 let loan = await lendingPool.loans(loanId);
                 let paymentAmount = (await lendingPool.loanBalanceDue(loanId));
                 await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
@@ -233,7 +233,7 @@ describe('Attack Sapling Lending Pool', function () {
 
             it('Revert If Borrow Repay Half Borrow', async function () {
                 await lendingPool.connect(borrower1).borrow(applicationId);
-                let loanId = (await lendingPool.borrowerStats(borrower1.address)).recentLoanId;
+                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
                 let loan = await lendingPool.loans(loanId);
                 let paymentAmount = (await lendingPool.loanBalanceDue(loanId)).div(2);
                 await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
@@ -259,7 +259,7 @@ describe('Attack Sapling Lending Pool', function () {
 
             it('Revert On Tiny Repayment', async function () {
                 await lendingPool.connect(borrower1).borrow(applicationId);
-                let loanId = (await lendingPool.borrowerStats(borrower1.address)).recentLoanId;
+                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
                 const tinyAmount = 1;
                 await liquidityToken.connect(borrower1).approve(lendingPool.address, tinyAmount);
                 await expect(lendingPool.connect(borrower1).repay(loanId, tinyAmount)).to.be.reverted;
@@ -269,7 +269,7 @@ describe('Attack Sapling Lending Pool', function () {
                 const quickFuzz = [10,20,30,40,50,60,70,80,90,100,249];
                 await lendingPool.connect(borrower1).borrow(applicationId);
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
-                let loanId = (await lendingPool.borrowerStats(borrower1.address)).recentLoanId;
+                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
                 for (let i = 0; i < quickFuzz.length; i++) {
                     const multiAmount = BigNumber.from(quickFuzz[i]).mul(TOKEN_MULTIPLIER);
                     await liquidityToken.connect(borrower1).approve(lendingPool.address, multiAmount);

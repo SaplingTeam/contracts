@@ -44,37 +44,6 @@ interface ILendingPool {
         uint256 lastPaymentTime;
     }
 
-    /// Individual borrower statistics
-    struct BorrowerStats {
-
-        /// Wallet address of the borrower
-        address borrower;
-
-        /// All time loan borrow count
-        uint256 countBorrowed;
-
-        /// All time loan closure count
-        uint256 countRepaid;
-
-        /// All time loan default count
-        uint256 countDefaulted;
-
-        /// Current outstanding loan count
-        uint256 countOutstanding;
-
-        /// Outstanding loan borrowed amount
-        uint256 amountBorrowed;
-
-        /// Outstanding loan repaid principal amount
-        uint256 amountBaseRepaid;
-
-        /// Outstanding loan paid interest amount
-        uint256 amountInterestPaid;
-
-        /// Most recent loanId
-        uint256 recentLoanId;
-    }
-
     /// Event for when a new loan desk is set
     event LoanDeskSet(address from, address to);
 

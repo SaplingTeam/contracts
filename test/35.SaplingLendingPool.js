@@ -186,7 +186,7 @@ describe('Sapling Lending Pool)', function () {
                             'a937074e-85a7-42a9-b858-9795d9471759',
                             '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                         );
-                    let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+                    let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                     let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                     let installments = 1;
                     let apr = (await loanDesk.loanTemplate()).apr;
@@ -224,7 +224,7 @@ describe('Sapling Lending Pool)', function () {
                         'a937074e-85a7-42a9-b858-9795d9471759',
                         '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                     );
-                applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+                applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                 application = await loanDesk.loanApplications(applicationId);
                 await loanDesk
                     .connect(manager)
@@ -243,7 +243,7 @@ describe('Sapling Lending Pool)', function () {
                 let balanceBefore = await liquidityToken.balanceOf(borrower1.address);
 
                 await lendingPool.connect(borrower1).borrow(applicationId);
-                let loanId = (await lendingPool.borrowerStats(borrower1.address)).recentLoanId;
+                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
 
                 let loan = await lendingPool.loans(loanId);
                 expect(loan.status).to.equal(LoanStatus.OUTSTANDING);
@@ -282,28 +282,6 @@ describe('Sapling Lending Pool)', function () {
                     await expect(lendingPool.connect(addresses[0]).borrow(applicationId)).to.be.reverted;
                 });
             });
-
-            describe('Borrower Statistics', function () {
-                it('Borrowing a loan increases amount borrowed', async function () {
-                    let prevAmountBorrowed = (await lendingPool.borrowerStats(borrower1.address)).amountBorrowed;
-
-                    await lendingPool.connect(borrower1).borrow(applicationId);
-                    let loanId = (await lendingPool.borrowerStats(borrower1.address)).recentLoanId;
-
-                    let loan = await lendingPool.loans(loanId);
-                    let stat = await lendingPool.borrowerStats(borrower1.address);
-                    expect(stat.amountBorrowed).to.equal(prevAmountBorrowed.add(loan.amount));
-                });
-
-                it('Borrowing a loan increments outstanding loan count', async function () {
-                    let prevStat = await lendingPool.borrowerStats(borrower1.address);
-
-                    await lendingPool.connect(borrower1).borrow(applicationId);
-
-                    let stat = await lendingPool.borrowerStats(borrower1.address);
-                    expect(stat.countOutstanding).to.equal(prevStat.countOutstanding.add(1));
-                });
-            });
         });
 
         describe('Repay/Default Loans', function () {
@@ -324,7 +302,7 @@ describe('Sapling Lending Pool)', function () {
                         'a937074e-85a7-42a9-b858-9795d9471759',
                         '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                     );
-                let applicationId = (await loanDesk.borrowerStats(borrower1.address)).recentApplicationId;
+                let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                 let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                 let installments = 1;
                 let apr = (await loanDesk.loanTemplate()).apr;
@@ -333,7 +311,7 @@ describe('Sapling Lending Pool)', function () {
                     .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
 
                 await lendingPool.connect(borrower1).borrow(applicationId);
-                loanId = (await lendingPool.borrowerStats(borrower1.address)).recentLoanId;
+                loanId = await lendingPool.recentLoanIdOf(borrower1.address);
             });
 
             describe('Repay', function () {
@@ -618,113 +596,6 @@ describe('Sapling Lending Pool)', function () {
                             .to.be.reverted;
                     });
                 });
-
-                describe('Borrower Statistics', function () {
-                    describe('On Full Repay', function () {
-                        let prevStat;
-                        let prevLoanDetail;
-                        let stat;
-                        let loanDetail;
-
-                        after(async function () {
-                            await rollback();
-                        });
-
-                        before(async function () {
-                            await snapshot();
-
-                            await ethers.provider.send('evm_increaseTime', [365 * 24 * 60 * 60]);
-                            await ethers.provider.send('evm_mine');
-
-                            prevStat = await lendingPool.borrowerStats(borrower1.address);
-                            let loanId = prevStat.recentLoanId;
-
-                            prevLoanDetail = await lendingPool.loanDetails(loanId);
-                            let paymentAmount = await lendingPool.loanBalanceDue(loanId);
-
-                            await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
-                            await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                            await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
-
-                            stat = await lendingPool.borrowerStats(borrower1.address);
-                            loanDetail = await lendingPool.loanDetails(loanId);
-                        });
-
-                        it('Fully repaying a loan increments all time repay count', async function () {
-                            expect(stat.countRepaid).to.equal(prevStat.countRepaid.add(1));
-                        });
-
-                        it('Fully repaying a loan decrements outstanding loan count', async function () {
-                            expect(stat.countOutstanding).to.equal(prevStat.countOutstanding.sub(1));
-                        });
-
-                        it('Fully repaying a loan negates the effect of current loan amount on the statistics', async function () {
-                            expect(stat.amountBorrowed).to.equal(
-                                prevStat.amountBorrowed.sub(loanDetail.principalAmountRepaid),
-                            );
-                        });
-
-                        it('Fully repaying a loan negates the effect of current paid base amount stat on the statistics', async function () {
-                            expect(stat.amountBaseRepaid).to.equal(prevStat.amountBaseRepaid);
-                        });
-
-                        it('Fully repaying a loan negates the effect of current paid interest amount on the statistics', async function () {
-                            expect(stat.amountInterestPaid).to.equal(prevStat.amountInterestPaid);
-                        });
-                    });
-
-                    describe('On Partial Repay', function () {
-                        let prevStat;
-                        let prevLoanDetail;
-                        let stat;
-                        let loanDetail;
-
-                        after(async function () {
-                            await rollback();
-                        });
-
-                        before(async function () {
-                            await snapshot();
-
-                            await ethers.provider.send('evm_increaseTime', [183 * 24 * 60 * 60]);
-                            await ethers.provider.send('evm_mine');
-
-                            prevStat = await lendingPool.borrowerStats(borrower1.address);
-                            let loanId = prevStat.recentLoanId;
-
-                            prevLoanDetail = await lendingPool.loanDetails(loanId);
-                            let paymentAmount = (await lendingPool.loanBalanceDue(loanId)).div(2);
-
-                            await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                            await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
-
-                            stat = await lendingPool.borrowerStats(borrower1.address);
-                            loanDetail = await lendingPool.loanDetails(loanId);
-                        });
-
-                        it('Partial loan payments do not change all time repaid loan count', async function () {
-                            expect(stat.countRepaid).to.equal(prevStat.countRepaid);
-                        });
-
-                        it('Partial loan payments do not change all outstanding loan count', async function () {
-                            expect(stat.countOutstanding).to.equal(prevStat.countOutstanding);
-                        });
-
-                        it('Partial loan payments do not change amount borrowed', async function () {
-                            expect(stat.amountBorrowed).to.equal(prevStat.amountBorrowed);
-                        });
-
-                        it('Partial loan payments increase base amount repaid', async function () {
-                            expect(stat.amountBaseRepaid).to.equal(
-                                prevStat.amountBaseRepaid.add(loanDetail.principalAmountRepaid),
-                            );
-                        });
-
-                        it('Partial loan payments increase paid interest amount', async function () {
-                            expect(stat.amountInterestPaid).to.equal(loanDetail.interestPaid);
-                        });
-                    });
-                });
             });
 
             describe('Default', function () {
@@ -799,7 +670,7 @@ describe('Sapling Lending Pool)', function () {
                                 'a937074e-85a7-42a9-b858-9795d9471759',
                                 '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                             );
-                        let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                        let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                         let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                         let installments = 1;
                         let apr = (await loanDesk.loanTemplate()).apr;
@@ -815,7 +686,7 @@ describe('Sapling Lending Pool)', function () {
 
                         let poolFundsBefore = (await lendingPool.poolBalance()).poolFunds;
 
-                        let otherLoanId = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+                        let otherLoanId = await lendingPool.recentLoanIdOf(borrower2.address);
 
                         expect(await lendingPool.canDefault(otherLoanId, manager.address)).to.equal(true);
                         await lendingPool.connect(manager).defaultLoan(otherLoanId);
@@ -840,7 +711,7 @@ describe('Sapling Lending Pool)', function () {
                                 'a937074e-85a7-42a9-b858-9795d9471759',
                                 '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                             );
-                        let otherApplicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                        let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                         let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                         let installments = 1;
                         let apr = (await loanDesk.loanTemplate()).apr;
@@ -854,7 +725,7 @@ describe('Sapling Lending Pool)', function () {
                         ]);
                         await ethers.provider.send('evm_mine');
 
-                        let otherLoanId = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+                        let otherLoanId = await lendingPool.recentLoanIdOf(borrower2.address);
                         let poolFundsBefore = (await lendingPool.poolBalance()).poolFunds;
 
                         expect(await lendingPool.canDefault(otherLoanId, manager.address)).to.equal(true);
@@ -878,7 +749,7 @@ describe('Sapling Lending Pool)', function () {
                                 '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                             );
 
-                        let applicationId2 = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                        let applicationId2 = await loanDesk.recentApplicationIdOf(borrower2.address);
                         let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                         let installments = 4;
                         let installmentAmount = BigNumber.from(250).mul(TOKEN_MULTIPLIER);
@@ -896,7 +767,7 @@ describe('Sapling Lending Pool)', function () {
                             );
 
                         await lendingPool.connect(borrower2).borrow(applicationId2);
-                        let loanId2 = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+                        let loanId2 = await lendingPool.recentLoanIdOf(borrower2.address);
 
                         await ethers.provider.send('evm_increaseTime', [loanDuration.div(installments).add(gracePeriod).add(1).toNumber()]);
                         await ethers.provider.send('evm_mine');
@@ -996,118 +867,6 @@ describe('Sapling Lending Pool)', function () {
                             });
                         });
                     });
-
-                    describe('Borrower Statistics', function () {
-                        describe('On Full Default', function () {
-                            let loan;
-                            let prevStat;
-                            let stat;
-
-                            after(async function () {
-                                await rollback();
-                            });
-
-                            before(async function () {
-                                await snapshot();
-
-                                prevStat = await lendingPool.borrowerStats(borrower1.address);
-
-                                let loanId = prevStat.recentLoanId;
-                                loan = await lendingPool.loans(loanId);
-
-                                await ethers.provider.send('evm_increaseTime', [
-                                    loan.duration.add(loan.gracePeriod).toNumber(),
-                                ]);
-                                await ethers.provider.send('evm_mine');
-
-                                await lendingPool.connect(manager).defaultLoan(loanId);
-
-                                stat = await lendingPool.borrowerStats(borrower1.address);
-                            });
-
-                            it('Full default increments all time default count', async function () {
-                                expect(stat.countDefaulted).to.equal(prevStat.countDefaulted.add(1));
-                            });
-
-                            it('Full default decrements outstanding loan count', async function () {
-                                expect(stat.countOutstanding).to.equal(prevStat.countOutstanding.sub(1));
-                            });
-
-                            it('Full default removes loan amount from borrowed amount', async function () {
-                                expect(stat.amountBorrowed).to.equal(prevStat.amountBorrowed.sub(loan.amount));
-                            });
-
-                            it('Full default does not change paid base amount', async function () {
-                                expect(stat.amountBaseRepaid).to.equal(prevStat.amountBaseRepaid);
-                            });
-
-                            it('Full default does not change paid interest amount', async function () {
-                                expect(stat.amountInterestPaid).to.equal(prevStat.amountInterestPaid);
-                            });
-                        });
-
-                        describe('On Partial Default', function () {
-                            let loan;
-                            let prevStat;
-                            let prevLoanDetail;
-                            let stat;
-                            let loanDetail;
-
-                            after(async function () {
-                                await rollback();
-                            });
-
-                            before(async function () {
-                                await snapshot();
-
-                                prevStat = await lendingPool.borrowerStats(borrower1.address);
-
-                                let loanId = prevStat.recentLoanId;
-                                loan = await lendingPool.loans(loanId);
-
-                                await ethers.provider.send('evm_increaseTime', [
-                                    loan.duration.add(loan.gracePeriod).toNumber(),
-                                ]);
-                                await ethers.provider.send('evm_mine');
-
-                                let paymentAmount = (await lendingPool.loanBalanceDue(loanId)).div(2);
-                                await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
-                                await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                                await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
-
-                                prevStat = await lendingPool.borrowerStats(borrower1.address);
-                                prevLoanDetail = await lendingPool.loanDetails(loanId);
-                                await lendingPool.connect(manager).defaultLoan(loanId);
-
-                                stat = await lendingPool.borrowerStats(borrower1.address);
-                                loanDetail = await lendingPool.loanDetails(loanId);
-                            });
-
-                            it('Partial default increments all time default count', async function () {
-                                expect(stat.countDefaulted).to.equal(prevStat.countDefaulted.add(1));
-                            });
-
-                            it('Partial default removes loan amount from borrowed amount', async function () {
-                                expect(stat.countOutstanding).to.equal(prevStat.countOutstanding.sub(1));
-                            });
-
-                            it('Partial default removes loan amount from borrowed amount', async function () {
-                                expect(stat.amountBorrowed).to.equal(prevStat.amountBorrowed.sub(loan.amount));
-                            });
-
-                            it('Partial default removes loan base amount paid from base amount paid', async function () {
-                                expect(stat.amountBaseRepaid).to.equal(
-                                    prevStat.amountBaseRepaid.sub(loanDetail.principalAmountRepaid),
-                                );
-                            });
-
-                            it('Partial default removes loan interest amount paid from interest amount paid', async function () {
-                                expect(stat.amountInterestPaid).to.equal(
-                                    prevStat.amountInterestPaid.sub(loanDetail.interestPaid),
-                                );
-                            });
-                        });
-                    });
                 });
             });
 
@@ -1129,7 +888,7 @@ describe('Sapling Lending Pool)', function () {
                             'a937074e-85a7-42a9-b858-9795d9471759',
                             '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                         );
-                    let applicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                    let applicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                     let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                     let installments = 1;
                     let apr = (await loanDesk.loanTemplate()).apr;
@@ -1138,7 +897,7 @@ describe('Sapling Lending Pool)', function () {
                         .offerLoan(applicationId, newLoanAmount, loanDuration, gracePeriod, 0, installments, apr);
 
                     await lendingPool.connect(borrower2).borrow(applicationId);
-                    let loanId = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+                    let loanId = await lendingPool.recentLoanIdOf(borrower2.address);
 
                     let loan = await lendingPool.loans(loanId);
                     await ethers.provider.send('evm_increaseTime', [
@@ -1148,7 +907,7 @@ describe('Sapling Lending Pool)', function () {
                 });
 
                 it('Closing a loan with loss less than the managers revenue', async function () {
-                    let loanId = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+                    let loanId = await lendingPool.recentLoanIdOf(borrower2.address);
 
                     let paymentAmount = BigNumber.from(5300).mul(TOKEN_MULTIPLIER);
                     await liquidityToken.connect(deployer).mint(borrower2.address, paymentAmount);
@@ -1176,7 +935,7 @@ describe('Sapling Lending Pool)', function () {
                 });
 
                 it('Closing a loan with loss more than the managers revenue but coverable with stake', async function () {
-                    let loanId = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+                    let loanId = await lendingPool.recentLoanIdOf(borrower2.address);
 
                     let paymentAmount = BigNumber.from(5200).mul(TOKEN_MULTIPLIER);
                     await liquidityToken.connect(deployer).mint(borrower2.address, paymentAmount);
@@ -1207,7 +966,7 @@ describe('Sapling Lending Pool)', function () {
                 });
 
                 it('Closing a loan with loss more than the managers revenue and stake', async function () {
-                    let loanId = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+                    let loanId = await lendingPool.recentLoanIdOf(borrower2.address);
 
                     let paymentAmount = BigNumber.from(3000).mul(TOKEN_MULTIPLIER);
                     await liquidityToken.connect(deployer).mint(borrower2.address, paymentAmount);
@@ -1268,70 +1027,6 @@ describe('Sapling Lending Pool)', function () {
 
                     it('Closing a loan from an unrelated address should fail', async function () {
                         await expect(lendingPool.connect(addresses[0]).closeLoan(loanId)).to.be.reverted;
-                    });
-                });
-
-                describe('Borrower Statistics', function () {
-                    describe('On Loan Close', function () {
-                        let loan;
-                        let prevStat;
-                        let prevLoanDetail;
-                        let stat;
-                        let loanDetail;
-
-                        after(async function () {
-                            await rollback();
-                        });
-
-                        before(async function () {
-                            await snapshot();
-
-                            prevStat = await lendingPool.borrowerStats(borrower1.address);
-
-                            let loanId = prevStat.recentLoanId;
-                            loan = await lendingPool.loans(loanId);
-
-                            await ethers.provider.send('evm_increaseTime', [
-                                loan.duration.add(loan.gracePeriod).toNumber(),
-                            ]);
-                            await ethers.provider.send('evm_mine');
-
-                            let paymentAmount = (await lendingPool.loanBalanceDue(loanId)).div(2);
-                            await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
-                            await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                            await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
-
-                            prevStat = await lendingPool.borrowerStats(borrower1.address);
-                            prevLoanDetail = await lendingPool.loanDetails(loanId);
-                            await lendingPool.connect(manager).defaultLoan(loanId);
-
-                            stat = await lendingPool.borrowerStats(borrower1.address);
-                            loanDetail = await lendingPool.loanDetails(loanId);
-                        });
-
-                        it('Closing a loan increments all time repaid count', async function () {
-                            expect(stat.countDefaulted).to.equal(prevStat.countRepaid.add(1));
-                        });
-
-                        it('Closing a loan removes loan amount from borrowed amount', async function () {
-                            expect(stat.countOutstanding).to.equal(prevStat.countOutstanding.sub(1));
-                        });
-
-                        it('Closing a loan removes loan amount from borrowed amount', async function () {
-                            expect(stat.amountBorrowed).to.equal(prevStat.amountBorrowed.sub(loan.amount));
-                        });
-
-                        it('Closing a loan removes loan base amount paid from base amount paid', async function () {
-                            expect(stat.amountBaseRepaid).to.equal(
-                                prevStat.amountBaseRepaid.sub(loanDetail.principalAmountRepaid),
-                            );
-                        });
-
-                        it('Closing a loan removes loan interest amount paid from interest amount paid', async function () {
-                            expect(stat.amountInterestPaid).to.equal(
-                                prevStat.amountInterestPaid.sub(loanDetail.interestPaid),
-                            );
-                        });
                     });
                 });
             });

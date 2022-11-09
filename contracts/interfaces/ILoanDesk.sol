@@ -63,34 +63,6 @@ interface ILoanDesk {
         uint256 offeredTime; //the time this offer was created or last updated
     }
 
-    /// Individual borrower statistics
-    struct BorrowerStats {
-
-        /// Wallet address of the borrower
-        address borrower;
-
-        /// All time loan request count
-        uint256 countRequested;
-
-        /// All time loan denial count
-        uint256 countDenied;
-
-        /// All time loan offer count
-        uint256 countOffered;
-
-        /// All time loan borrow count
-        uint256 countBorrowed;
-
-        /// All time loan offer cancellation count
-        uint256 countCancelled;
-
-        /// Most recent application id
-        uint256 recentApplicationId;
-
-        /// Whether or not this borrower has a pending application
-        bool hasOpenApplication;
-    }
-
     /// Event for when a new loan is requested, and an application is created
     event LoanRequested(uint256 applicationId, address indexed borrower, uint256 amount);
 
