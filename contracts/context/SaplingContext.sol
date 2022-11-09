@@ -8,7 +8,7 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgrad
 
 /**
  * @title Sapling Context
- * @notice Provides governance access control, a common reverence to the treasury wallet address, and basic pause
+ * @notice Provides governance access control, a common reference to the treasury wallet address, and basic pause
  *         functionality by extending OpenZeppelin's Pausable contract.
  */
 abstract contract SaplingContext is Initializable, AccessControlEnumerableUpgradeable, PausableUpgradeable {
