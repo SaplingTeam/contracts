@@ -324,7 +324,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             emit UnstakedLoss(remainingDifference, manager);
         }
 
-        loan.status = LoanStatus.REPAID; // Note: add and switch to CLOSED status in next migration version of the pool
+        loan.status = LoanStatus.REPAID;
 
         updateAvgStrategyApr(amountRepaid.add(remainingDifference), loan.apr);
 
