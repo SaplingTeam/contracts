@@ -4,14 +4,14 @@ pragma solidity ^0.8.15;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 /**
  * @title Sapling Context
  * @notice Provides governance access control, a common reference to the treasury wallet address, and basic pause
  *         functionality by extending OpenZeppelin's Pausable contract.
  */
-abstract contract SaplingContext is Initializable, AccessControlEnumerableUpgradeable, PausableUpgradeable {
+abstract contract SaplingContext is Initializable, AccessControlUpgradeable, PausableUpgradeable {
 
     bytes32 public constant TREASURY_ROLE = keccak256("TREASURY_ROLE");
 
@@ -34,7 +34,7 @@ abstract contract SaplingContext is Initializable, AccessControlEnumerableUpgrad
      * @param _treasury Treasury wallet address
      */
     function __SaplingContext_init(address _governance, address _treasury) internal onlyInitializing {
-        __AccessControlEnumerable_init();
+        __AccessControl_init();
         __Pausable_init();
 
         /*
