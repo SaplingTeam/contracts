@@ -538,6 +538,171 @@ describe('Sapling Lending Pool)', function () {
                     expect(loan.status).to.equal(LoanStatus.REPAID);
                 });
 
+                describe('Carry', function () {
+                    let loanId;
+        
+                    after(async function () {
+                        await rollback();
+                    });
+        
+                    before(async function () {
+                        await snapshot();
+
+                        let loanAmount = BigNumber.from(5000).mul(TOKEN_MULTIPLIER);
+    
+                        await liquidityToken.connect(deployer).mint(borrower2.address, loanAmount.mul(2));
+                        await liquidityToken
+                            .connect(borrower2)
+                            .approve(lendingPool.address, loanAmount.mul(2));
+    
+                        await loanDesk
+                        .connect(borrower2)
+                        .requestLoan(
+                            loanAmount,
+                            loanDuration,
+                            'a937074e-85a7-42a9-b858-9795d9471759',
+                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                        );
+                        let applicationId = (await loanDesk.borrowerStats(borrower2.address)).recentApplicationId;
+                        let gracePeriod = await loanDesk.templateLoanGracePeriod();
+                        let installments = 1;
+                        let apr = 600;
+                        await loanDesk
+                            .connect(manager)
+                            .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
+    
+                        await lendingPool.connect(borrower2).borrow(applicationId);
+                        loanId = (await lendingPool.borrowerStats(borrower2.address)).recentLoanId;
+                        
+                        await ethers.provider.send('evm_increaseTime', [BigNumber.from(30).mul(24 * 60 * 60).toNumber() + 1]);
+                        await ethers.provider.send('evm_mine');
+                    });
+
+                    it('Borrower can make precise payments where sub-day interest amount is carried over to next payments', async function() {
+                        let loan = await lendingPool.loans(loanId);
+                        
+                        let balanceDue = await lendingPool.loanBalanceDue(loanId);
+                        expect(await lendingPool.loanPaymentCarry(loanId)).to.equal(0);
+    
+                        let paymentAmount = balanceDue.sub(loan.amount).sub(await lendingPool.oneToken());
+                        await lendingPool.connect(borrower2).repay(loanId, paymentAmount);
+    
+                        let detail = await lendingPool.loanDetails(loanId);
+    
+                        expect(await lendingPool.loanPaymentCarry(loanId))
+                            .to.equal(detail.totalAmountRepaid.sub(detail.interestPaid));
+                    });
+    
+                    it('Payment carry is used on follow-up payments', async function() {
+    
+                        // setup 
+                        let loan = await lendingPool.loans(loanId);
+                        
+                        let balanceDue = await lendingPool.loanBalanceDue(loanId);
+                        expect(await lendingPool.loanPaymentCarry(loanId)).to.equal(0);
+    
+                        let paymentAmount = balanceDue.sub(loan.amount).sub(await lendingPool.oneToken());
+                        await lendingPool.connect(borrower2).repay(loanId, paymentAmount);
+    
+                        // test
+    
+                        let prevDetail = await lendingPool.loanDetails(loanId);
+                        let prevCarry = await lendingPool.loanPaymentCarry(loanId);
+                        
+                        paymentAmount = BigNumber.from(101).mul(TOKEN_MULTIPLIER).add(prevCarry);
+                        await lendingPool.connect(borrower2).repay(loanId, paymentAmount);
+    
+                        let detail = await lendingPool.loanDetails(loanId);
+                        let carry = await lendingPool.loanPaymentCarry(loanId);
+                        
+                        expect(carry).to.equal(0);
+                        expect(detail.totalAmountRepaid).eq(prevDetail.totalAmountRepaid.add(paymentAmount));
+                        expect(
+                            detail.interestPaid.sub(prevDetail.interestPaid)
+                                .add(detail.principalAmountRepaid.sub(prevDetail.principalAmountRepaid))
+                        ).to.equal(paymentAmount.add(prevCarry));
+                        
+                    });
+    
+                    it('Followup payments update the carry correctly', async function() {
+                        // setup 
+                        let loan = await lendingPool.loans(loanId);
+                        
+                        let balanceDue = await lendingPool.loanBalanceDue(loanId);
+                        expect(await lendingPool.loanPaymentCarry(loanId)).to.equal(0);
+    
+                        let paymentAmount = balanceDue.sub(loan.amount).sub(await lendingPool.oneToken());
+                        await lendingPool.connect(borrower2).repay(loanId, paymentAmount);
+    
+                        // test
+    
+                        let prevDetail = await lendingPool.loanDetails(loanId);
+                        let prevCarry = await lendingPool.loanPaymentCarry(loanId);
+    
+                        await ethers.provider.send('evm_increaseTime', [BigNumber.from(30).mul(24 * 60 * 60).toNumber()]);
+                        await ethers.provider.send('evm_mine');
+                        
+                        paymentAmount = BigNumber.from(2).mul(TOKEN_MULTIPLIER);
+                        await lendingPool.connect(borrower2).repay(loanId, paymentAmount);
+    
+                        let detail = await lendingPool.loanDetails(loanId);
+                        let carry = await lendingPool.loanPaymentCarry(loanId);
+                        
+                        expect(carry).to.equal(
+                            paymentAmount.add(prevCarry).sub(
+                                detail.principalAmountRepaid.add(detail.interestPaid)
+                                    .sub(prevDetail.principalAmountRepaid.add(prevDetail.interestPaid))
+                            )
+                        );
+                        expect(detail.totalAmountRepaid).eq(prevDetail.totalAmountRepaid.add(paymentAmount));
+                    });
+    
+                    it('Loan closure uses all payment carry', async function() {
+                        // setup
+
+                        let loan = await lendingPool.loans(loanId);
+                        
+                        let balanceDue = await lendingPool.loanBalanceDue(loanId);
+                        expect(await lendingPool.loanPaymentCarry(loanId)).to.equal(0);
+    
+                        let paymentAmount = balanceDue.sub(loan.amount).sub(await lendingPool.oneToken());
+                        await lendingPool.connect(borrower2).repay(loanId, paymentAmount);
+    
+                        // test
+    
+                        let prevCarry = await lendingPool.loanPaymentCarry(loanId);
+                        await lendingPool.connect(manager).closeLoan(loanId);
+                        let carry = await lendingPool.loanPaymentCarry(loanId);
+
+                        expect(prevCarry).to.not.equal(0);
+                        expect(carry).to.equal(0);
+                    });
+    
+                    it('Loan default uses all payment carry', async function() {
+                        // setup
+                        
+                        let loan = await lendingPool.loans(loanId);
+                        
+                        let balanceDue = await lendingPool.loanBalanceDue(loanId);
+                        expect(await lendingPool.loanPaymentCarry(loanId)).to.equal(0);
+    
+                        let paymentAmount = balanceDue.sub(loan.amount).sub(await lendingPool.oneToken());
+                        await lendingPool.connect(borrower2).repay(loanId, paymentAmount);
+
+                        await ethers.provider.send('evm_increaseTime', [BigNumber.from(700).mul(24 * 60 * 60).toNumber()]);
+                        await ethers.provider.send('evm_mine');
+    
+                        // test
+    
+                        let prevCarry = await lendingPool.loanPaymentCarry(loanId);
+                        await lendingPool.connect(manager).defaultLoan(loanId);
+                        let carry = await lendingPool.loanPaymentCarry(loanId);
+
+                        expect(prevCarry).to.not.equal(0);
+                        expect(carry).to.equal(0);
+                    });
+                });
+
                 describe('Rejection scenarios', function () {
                     it('Repaying a less than minimum payment amount on a loan with a greater outstanding balance should fail', async function () {
                         let paymentAmount = (await lendingPool.oneToken()).sub(1);
