@@ -470,7 +470,11 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @return Strategy liquidity amount.
      */
     function strategyLiquidity() public view returns (uint256) {
-        uint256 lenderAllocatedLiquidity = MathUpgradeable.mulDiv(poolFunds, targetLiquidityPercent, oneHundredPercent);
+        uint256 lenderAllocatedLiquidity = MathUpgradeable.mulDiv(
+            poolFunds * 1e18, 
+            targetLiquidityPercent, 
+            oneHundredPercent
+        ) / 1e18;
 
         if (poolLiquidity <= lenderAllocatedLiquidity) {
             return 0;
