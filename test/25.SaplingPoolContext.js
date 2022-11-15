@@ -554,6 +554,16 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 expect(poolFunds).to.equal(prevPoolFunds.add(stakeAmount));
             });
 
+            it('Stake adjusts pool funds limit', async function () {
+                let targetStakePercent = await saplingPoolContext.targetStakePercent();
+                let oneHundredPercent = await saplingPoolContext.oneHundredPercent();
+
+                await saplingPoolContext.connect(manager).stake(stakeAmount);
+                let limit = await saplingPoolContext.poolFundsLimit();
+
+                expect(limit).to.equal(stakeAmount.mul(oneHundredPercent / targetStakePercent));
+            });
+
             it('Manager can stake on a failed pool and have a correct pool balance', async function () {
                 await saplingPoolContext.connect(manager).stake(stakeAmount);
 
