@@ -564,7 +564,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             uint256 pastInstallments = block.timestamp.sub(loan.borrowedTime).div(installmentPeriod);
             uint256 minTotalPayment = MathUpgradeable.mulDiv(
                 loan.installmentAmount.mul(pastInstallments),
-                fxBandPercent,
+                oneHundredPercent - fxBandPercent,
                 oneHundredPercent
             );
 
