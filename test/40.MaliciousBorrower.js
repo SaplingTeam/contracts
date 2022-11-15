@@ -267,16 +267,22 @@ describe('Attack Sapling Lending Pool', function () {
 
             it('Check Repayment Math', async function () {
                 const quickFuzz = [10,20,30,40,50,60,70,80,90,100,249];
+
                 await lendingPool.connect(borrower1).borrow(applicationId);
-                let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanId = (await lendingPool.borrowerStats(borrower1.address)).recentLoanId;
+
+                await ethers.provider.send('evm_increaseTime', [60]);
+                await ethers.provider.send('evm_mine');
+
+                let balanceSimulated = await lendingPool.loanBalanceDue(loanId);
+
                 for (let i = 0; i < quickFuzz.length; i++) {
                     const multiAmount = BigNumber.from(quickFuzz[i]).mul(TOKEN_MULTIPLIER);
                     await liquidityToken.connect(borrower1).approve(lendingPool.address, multiAmount);
                     await lendingPool.connect(borrower1).repay(loanId, multiAmount);
-                    let paymentAmount = await lendingPool.loanBalanceDue(loanId);
-                    loanAmount = loanAmount.sub(multiAmount);
-                    expect(paymentAmount).to.equal(loanAmount);
+                    let balanceOutstanding = await lendingPool.loanBalanceDue(loanId);
+                    balanceSimulated = balanceSimulated.sub(multiAmount);
+                    expect(balanceOutstanding).to.equal(balanceSimulated);
                 }
             });
         });

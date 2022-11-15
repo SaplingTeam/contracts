@@ -765,12 +765,12 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         LoanDetail storage detail = loanDetails[loanId];
 
         uint256 daysPassed = countInterestDays(detail.interestPaidTillTime, block.timestamp);
-        uint256 interestPercent = MathUpgradeable.mulDiv(loan.apr, daysPassed, 365);
+        uint256 interestPercent = MathUpgradeable.mulDiv(uint256(loan.apr) * 1e18, daysPassed, 365);
 
         uint256 principalOutstanding = loan.amount.sub(detail.principalAmountRepaid);
         uint256 interestOutstanding = MathUpgradeable.mulDiv(principalOutstanding, interestPercent, oneHundredPercent);
 
-        return (principalOutstanding, interestOutstanding, daysPassed);
+        return (principalOutstanding, interestOutstanding / 1e18, daysPassed);
     }
 
     /**
