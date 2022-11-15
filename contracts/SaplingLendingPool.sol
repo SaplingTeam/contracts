@@ -338,7 +338,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         uint256 lenderLoss = 0;
         
         if (loss > 0) {
-            uint256 remainingLostShares = tokensToShares(loss);
+            uint256 remainingLostShares = tokensToShares(loss, 1);
 
             poolFunds = poolFunds.sub(loss);
 
@@ -359,7 +359,7 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             }
 
             if (remainingLostShares > 0) {
-                lenderLoss = sharesToTokens(remainingLostShares);
+                lenderLoss = sharesToTokens(remainingLostShares, 1);
                 managerLoss = managerLoss.sub(lenderLoss);
 
                 emit UnstakedLoss(lenderLoss, manager);
@@ -420,9 +420,9 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         // charge manager's stake
         uint256 stakeChargeable = 0;
         if (remainingDifference > 0 && stakedShares > 0) {
-            uint256 stakedBalance = sharesToTokens(stakedShares);
+            uint256 stakedBalance = sharesToTokens(stakedShares, 1);
             uint256 amountChargeable = MathUpgradeable.min(remainingDifference, stakedBalance);
-            stakeChargeable = tokensToShares(amountChargeable);
+            stakeChargeable = tokensToShares(amountChargeable, 1);
 
             stakedShares = stakedShares.sub(stakeChargeable);
             updatePoolLimit();
