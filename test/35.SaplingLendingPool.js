@@ -366,7 +366,7 @@ describe('Sapling Lending Pool)', function () {
                     let balanceBefore = await liquidityToken.balanceOf(borrower1.address);
                     let loan = await lendingPool.loans(loanId);
 
-                    await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
+                    await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber() - 60]);
                     await ethers.provider.send('evm_mine');
 
                     let paymentAmount = await lendingPool.loanBalanceDue(loanId);
@@ -415,7 +415,7 @@ describe('Sapling Lending Pool)', function () {
                 it('3rd party can do full payments on behalf of the borrower', async function () {
                     let loan = await lendingPool.loans(loanId);
 
-                    await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
+                    await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber() - 60]);
                     await ethers.provider.send('evm_mine');
 
                     let paymentAmount = await lendingPool.loanBalanceDue(loanId);
@@ -503,6 +503,9 @@ describe('Sapling Lending Pool)', function () {
                 });
 
                 it('Overpaying a loan should only charge up to total amount due', async function () {
+                    await ethers.provider.send('evm_increaseTime', [60]);
+                    await ethers.provider.send('evm_mine');
+
                     let loanBalanceDue = await lendingPool.loanBalanceDue(loanId);
                     let paymentAmount = loanBalanceDue.add(BigNumber.from(500).mul(TOKEN_MULTIPLIER));
 
@@ -737,6 +740,9 @@ describe('Sapling Lending Pool)', function () {
                     });
 
                     it('Repaying a loan that is not in OUTSTANDING status should fail', async function () {
+                        await ethers.provider.send('evm_increaseTime', [60]);
+                        await ethers.provider.send('evm_mine');
+
                         let paymentAmount = await lendingPool.loanBalanceDue(loanId);
 
                         await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
@@ -1381,7 +1387,8 @@ describe('Sapling Lending Pool)', function () {
 
                     loan = await lendingPool.loans(loanId);
                     let loanDetail = await lendingPool.loanDetails(loanId);
-                    let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
+                    let paymentCarry = await lendingPool.loanPaymentCarry(loanId);
+                    let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid).sub(paymentCarry);
 
                     let poolFundsBefore = await lendingPool.poolFunds();
                     let poolLiquidityBefore = await lendingPool.poolLiquidity();
@@ -1394,7 +1401,7 @@ describe('Sapling Lending Pool)', function () {
                     expect(loan.status).to.equal(LoanStatus.REPAID);
 
                     expect(await lendingPool.revenueBalanceOf(manager.address)).to.equal(0);
-                    expect(await lendingPool.balanceStaked()).to.equal(0);
+                    expect(await lendingPool.balanceStaked()).to.lte(10 ** (TOKEN_DECIMALS - 4)); // lte 0.01 cent
                     expect(await lendingPool.poolLiquidity()).to.equal(poolLiquidityBefore.add(managerRevenueBefore.add(stakedBalanceBefore)));
                     expect(await lendingPool.poolFunds()).to.equal(poolFundsBefore.sub(lossAmount.sub(managerRevenueBefore.add(stakedBalanceBefore))));
                 });
