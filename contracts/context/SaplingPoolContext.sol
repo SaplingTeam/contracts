@@ -397,7 +397,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @return Liquidity token balance of the manager's stake.
      */
     function balanceStaked() external view returns (uint256) {
-        return sharesToTokens(stakedShares, 1);
+        return sharesToTokens(stakedShares, 1e18) / 1e18;
     }
 
     /**
@@ -438,7 +438,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @return Liquidity token balance of the wallet in this pool.
      */
     function balanceOf(address wallet) public view returns (uint256) {
-        return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet), 1);
+        return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet), 1e18) / 1e18;
     }
 
     /**
