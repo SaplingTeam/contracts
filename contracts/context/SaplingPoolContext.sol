@@ -397,7 +397,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @return Liquidity token balance of the manager's stake.
      */
     function balanceStaked() external view returns (uint256) {
-        return sharesToTokens(stakedShares, 1e18) / 1e18;
+        return sharesToTokens(stakedShares);
     }
 
     /**
@@ -438,7 +438,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @return Liquidity token balance of the wallet in this pool.
      */
     function balanceOf(address wallet) public view returns (uint256) {
-        return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet), 1e18) / 1e18;
+        return sharesToTokens(IPoolToken(poolToken).balanceOf(wallet));
     }
 
     /**
@@ -452,7 +452,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
         if (paused() || targetStakePercent >= oneHundredPercent && totalPoolShares > stakedShares) {
             return 0;
         } else if (closed() || totalPoolShares == stakedShares) {
-            return MathUpgradeable.min(poolLiquidity, sharesToTokens(stakedShares, 1));
+            return MathUpgradeable.min(poolLiquidity, sharesToTokens(stakedShares));
         }
 
         uint256 lenderShares = totalPoolShares.sub(stakedShares);
@@ -462,7 +462,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
             oneHundredPercent - targetStakePercent
         );
 
-        return MathUpgradeable.min(poolLiquidity, sharesToTokens(stakedShares.sub(lockedStakeShares), 1));
+        return MathUpgradeable.min(poolLiquidity, sharesToTokens(stakedShares.sub(lockedStakeShares)));
     }
 
     /**
@@ -471,10 +471,10 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      */
     function strategyLiquidity() public view returns (uint256) {
         uint256 lenderAllocatedLiquidity = MathUpgradeable.mulDiv(
-            poolFunds * 1e18, 
+            poolFunds, 
             targetLiquidityPercent, 
             oneHundredPercent
-        ) / 1e18;
+        );
 
         if (poolLiquidity <= lenderAllocatedLiquidity) {
             return 0;
@@ -514,7 +514,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
 
         //// effect
 
-        uint256 shares = tokensToShares(amount, 1);
+        uint256 shares = tokensToShares(amount);
 
         tokenBalance = tokenBalance.add(amount);
         poolLiquidity = poolLiquidity.add(amount);
@@ -551,7 +551,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
         require(amount > 0, "SaplingPoolContext: pool withdrawal amount is 0");
         require(poolLiquidity >= amount, "SaplingPoolContext: insufficient liquidity");
 
-        uint256 shares = tokensToShares(amount, 1);
+        uint256 shares = tokensToShares(amount);
 
         require(msg.sender != manager ? shares <= IERC20(poolToken).balanceOf(msg.sender) : shares <= stakedShares,
             "SaplingPoolContext: insufficient balance");
@@ -584,10 +584,7 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @dev Internal method to update the pool funds limit based on the staked funds.
      */
     function updatePoolLimit() internal {
-        poolFundsLimit = sharesToTokens(
-            MathUpgradeable.mulDiv(stakedShares, oneHundredPercent, targetStakePercent), 
-            1e18
-        ) / 1e18;
+        poolFundsLimit = sharesToTokens(MathUpgradeable.mulDiv(stakedShares, oneHundredPercent, targetStakePercent));
     }
 
     /**
@@ -611,25 +608,21 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
      * @notice Get liquidity token value of shares.
      * @dev Shares are equivalent to pool tokens and are represented by them.
      * @param shares Amount of shares
-     * @param multiplier Precision multipler for the numerator. Final result of the mathematical sequence must be 
-     *                   divided by the same multiplier.
      */
-    function sharesToTokens(uint256 shares, uint256 multiplier) internal view returns (uint256) {
+    function sharesToTokens(uint256 shares) internal view returns (uint256) {
         if (shares == 0 || poolFunds == 0) {
              return 0;
         }
 
-        return MathUpgradeable.mulDiv(shares * multiplier, poolFunds, IERC20(poolToken).totalSupply());
+        return MathUpgradeable.mulDiv(shares, poolFunds, IERC20(poolToken).totalSupply());
     }
 
     /**
      * @notice Get a share value of liquidity tokens.
      * @dev Shares are equivalent to pool tokens and are represented by them.
      * @param tokens Amount of liquidity tokens.
-     * @param multiplier Precision multipler for the numerator. Final result of the mathematical sequence must be 
-     *                   divided by the same multiplier.
      */
-    function tokensToShares(uint256 tokens, uint256 multiplier) internal view returns (uint256) {
+    function tokensToShares(uint256 tokens) internal view returns (uint256) {
         uint256 totalPoolShares = IERC20(poolToken).totalSupply();
 
         if (totalPoolShares == 0) {
@@ -643,10 +636,10 @@ abstract contract SaplingPoolContext is SaplingManagerContext, ReentrancyGuardUp
 
                 Simplify (tokens * totalPoolShares) / 1 as tokens * totalPoolShares.
             */
-            return (tokens * multiplier).mul(totalPoolShares);
+            return (tokens).mul(totalPoolShares);
         }
 
-        return MathUpgradeable.mulDiv(tokens * multiplier, totalPoolShares, poolFunds);
+        return MathUpgradeable.mulDiv(tokens, totalPoolShares, poolFunds);
     }
 
     /**
