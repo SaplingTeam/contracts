@@ -206,19 +206,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         loan.status = LoanStatus.DEFAULTED;
 
-        uint256 loss = loan.amount > loanDetail.principalAmountRepaid + loanPaymentCarry[loanId]
-            ? loan.amount - (loanDetail.principalAmountRepaid + loanPaymentCarry[loanId])
-            : 0;
-
-        if (loanDetail.principalAmountRepaid < loan.amount) {
-            uint256 baseAmountLost = loan.amount > loanDetail.principalAmountRepaid + loanPaymentCarry[loanId]
-            ? loan.amount - (loanDetail.principalAmountRepaid + loanPaymentCarry[loanId])
-            : 0;
-            poolBalance.strategizedFunds -= baseAmountLost;
-
-            updateAvgStrategyApr(baseAmountLost, loan.apr);
-        }
-
         if (loanPaymentCarry[loanId] > 0) {
             poolBalance.strategizedFunds -= loanPaymentCarry[loanId];
             poolBalance.poolLiquidity += loanPaymentCarry[loanId];
@@ -229,6 +216,10 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             loanPaymentCarry[loanId] = 0;
         }
 
+        uint256 loss = loan.amount > loanDetail.principalAmountRepaid
+            ? loan.amount - loanDetail.principalAmountRepaid
+            : 0;
+
         uint256 managerLoss = loss;
         uint256 lenderLoss = 0;
 
@@ -236,6 +227,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             uint256 remainingLostShares = tokensToShares(loss);
 
             poolBalance.poolFunds -= loss;
+            poolBalance.strategizedFunds -= loss;
+            updateAvgStrategyApr(loss, loan.apr);
 
             if (poolBalance.stakedShares > 0) {
                 uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, poolBalance.stakedShares);
