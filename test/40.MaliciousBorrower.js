@@ -195,7 +195,7 @@ describe('Attack Sapling Lending Pool', function () {
                 //turn of automining before write tx to keep the block open for the next call
                 await ethers.provider.send("evm_setAutomine", [false]);
                 await lendingPool.connect(borrower1).borrow(applicationId);
-                
+
                 //tun automining back on to prevent deadlock as expect() will hang until block is finalized
                 await ethers.provider.send("evm_setAutomine", [true]);
                 await expect(lendingPool.connect(borrower1).borrow(applicationId)).to.be.reverted;
@@ -203,7 +203,7 @@ describe('Attack Sapling Lending Pool', function () {
                 // check that only 1 new loan object was created
                 expect(await lendingPool.loansCount()).to.equal(prevLoansCount.add(1));
 
-                //get the loan after the block is mined, as the committed block 
+                //get the loan after the block is mined, as the committed block
                 let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
                 let loan = await lendingPool.loans(loanId);
 
@@ -267,16 +267,22 @@ describe('Attack Sapling Lending Pool', function () {
 
             it('Check Repayment Math', async function () {
                 const quickFuzz = [10,20,30,40,50,60,70,80,90,100,249];
+
                 await lendingPool.connect(borrower1).borrow(applicationId);
-                let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
+
+                await ethers.provider.send('evm_increaseTime', [60]);
+                await ethers.provider.send('evm_mine');
+
+                let balanceSimulated = await lendingPool.loanBalanceDue(loanId);
+
                 for (let i = 0; i < quickFuzz.length; i++) {
                     const multiAmount = BigNumber.from(quickFuzz[i]).mul(TOKEN_MULTIPLIER);
                     await liquidityToken.connect(borrower1).approve(lendingPool.address, multiAmount);
                     await lendingPool.connect(borrower1).repay(loanId, multiAmount);
-                    let paymentAmount = await lendingPool.loanBalanceDue(loanId);
-                    loanAmount = loanAmount.sub(multiAmount);
-                    expect(paymentAmount).to.equal(loanAmount);
+                    let balanceOutstanding = await lendingPool.loanBalanceDue(loanId);
+                    balanceSimulated = balanceSimulated.sub(multiAmount);
+                    expect(balanceOutstanding).to.equal(balanceSimulated);
                 }
             });
         });
