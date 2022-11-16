@@ -17,8 +17,6 @@ import "./SaplingManagerContext.sol";
  */
 abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, ReentrancyGuardUpgradeable {
 
-    using SafeMathUpgradeable for uint256;
-
     TokenConfig public tokenConfig;
 
     PoolConfig public poolConfig;
@@ -101,7 +99,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             stakedShares: 0
         });
 
-        managerExcessLeverageComponent = uint256(poolConfig.managerEarnFactor).sub(oneHundredPercent);
+        managerExcessLeverageComponent = uint256(poolConfig.managerEarnFactor) - oneHundredPercent;
 
         weightedAvgStrategyAPR = 0;
         nextStrategyId = 1;
@@ -181,7 +179,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         if (poolConfig.managerEarnFactor > poolConfig.managerEarnFactorMax) {
             uint16 prevEarnFactor = poolConfig.managerEarnFactor;
             poolConfig.managerEarnFactor = poolConfig.managerEarnFactorMax;
-            managerExcessLeverageComponent = uint256(poolConfig.managerEarnFactor).sub(oneHundredPercent);
+            managerExcessLeverageComponent = uint256(poolConfig.managerEarnFactor) - oneHundredPercent;
 
             emit ManagerEarnFactorSet(prevEarnFactor, poolConfig.managerEarnFactor);
         }
@@ -203,7 +201,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         uint16 prevValue = poolConfig.managerEarnFactor;
         poolConfig.managerEarnFactor = _managerEarnFactor;
-        managerExcessLeverageComponent = uint256(poolConfig.managerEarnFactor).sub(oneHundredPercent);
+        managerExcessLeverageComponent = uint256(poolConfig.managerEarnFactor) - oneHundredPercent;
 
         emit ManagerEarnFactorSet(prevValue, poolConfig.managerEarnFactor);
     }
@@ -286,7 +284,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         nonUserRevenues[msg.sender] = 0;
 
         // give tokens
-        poolBalance.tokenBalance = poolBalance.tokenBalance.sub(amount);
+        poolBalance.tokenBalance -= amount;
 
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, amount);
 
@@ -303,7 +301,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             return 0;
         }
 
-        return poolConfig.poolFundsLimit.sub(poolBalance.poolFunds);
+        return poolConfig.poolFundsLimit - poolBalance.poolFunds;
     }
 
     /**
@@ -385,7 +383,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             return MathUpgradeable.min(poolBalance.poolLiquidity, sharesToTokens(poolBalance.stakedShares));
         }
 
-        uint256 lenderShares = totalPoolShares.sub(poolBalance.stakedShares);
+        uint256 lenderShares = totalPoolShares - poolBalance.stakedShares;
         uint256 lockedStakeShares = MathUpgradeable.mulDiv(
             lenderShares,
             poolConfig.targetStakePercent,
@@ -394,7 +392,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         return MathUpgradeable.min(
             poolBalance.poolLiquidity,
-            sharesToTokens(poolBalance.stakedShares.sub(lockedStakeShares))
+            sharesToTokens(poolBalance.stakedShares - lockedStakeShares)
         );
     }
 
@@ -413,7 +411,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             return 0;
         }
 
-        return poolBalance.poolLiquidity.sub(lenderAllocatedLiquidity);
+        return poolBalance.poolLiquidity - lenderAllocatedLiquidity;
     }
 
     /**
@@ -446,7 +444,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             msg.sender == manager ||
             (
                 poolConfig.poolFundsLimit > poolBalance.poolFunds &&
-                amount <= poolConfig.poolFundsLimit.sub(poolBalance.poolFunds)
+                amount <= poolConfig.poolFundsLimit - poolBalance.poolFunds
             ),
             "SaplingPoolContext: deposit amount is over the remaining pool limit"
         );
@@ -455,14 +453,14 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         uint256 shares = tokensToShares(amount);
 
-        poolBalance.tokenBalance = poolBalance.tokenBalance.add(amount);
-        poolBalance.poolLiquidity = poolBalance.poolLiquidity.add(amount);
-        poolBalance.poolFunds = poolBalance.poolFunds.add(amount);
+        poolBalance.tokenBalance += amount;
+        poolBalance.poolLiquidity += amount;
+        poolBalance.poolFunds += amount;
 
         if (msg.sender == manager) {
             // this is a staking entry
 
-            poolBalance.stakedShares = poolBalance.stakedShares.add(shares);
+            poolBalance.stakedShares += shares;
         }
 
         //// interactions
@@ -507,17 +505,15 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         //// effect
 
         if (msg.sender == manager) {
-            poolBalance.stakedShares = poolBalance.stakedShares.sub(shares);
+            poolBalance.stakedShares -= shares;
             updatePoolLimit();
         }
 
-        uint256 transferAmount = amount.sub(
-            MathUpgradeable.mulDiv(amount, poolConfig.exitFeePercent, oneHundredPercent)
-        );
+        uint256 transferAmount = amount - MathUpgradeable.mulDiv(amount, poolConfig.exitFeePercent, oneHundredPercent);
 
-        poolBalance.poolFunds = poolBalance.poolFunds.sub(transferAmount);
-        poolBalance.poolLiquidity = poolBalance.poolLiquidity.sub(transferAmount);
-        poolBalance.tokenBalance = poolBalance.tokenBalance.sub(transferAmount);
+        poolBalance.poolFunds -= transferAmount;
+        poolBalance.poolLiquidity -= transferAmount;
+        poolBalance.tokenBalance -= transferAmount;
 
         //// interactions
 
@@ -546,11 +542,10 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      */
     function updateAvgStrategyApr(uint256 amountReducedBy, uint16 apr) internal {
         if (poolBalance.strategizedFunds > 0) {
-            weightedAvgStrategyAPR = poolBalance.strategizedFunds
-                .add(amountReducedBy)
-                .mul(weightedAvgStrategyAPR)
-                .sub(amountReducedBy.mul(apr))
-                .div(poolBalance.strategizedFunds);
+            weightedAvgStrategyAPR = (
+                (poolBalance.strategizedFunds + amountReducedBy) * weightedAvgStrategyAPR - amountReducedBy * apr
+            )
+                / poolBalance.strategizedFunds;
         } else {
             weightedAvgStrategyAPR = 0;
         }
@@ -588,7 +583,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
                 Simplify (tokens * totalPoolShares) / 1 as tokens * totalPoolShares.
             */
-            return tokens.mul(totalPoolShares);
+            return tokens * totalPoolShares;
         }
 
         return MathUpgradeable.mulDiv(tokens, totalPoolShares, poolBalance.poolFunds);
@@ -618,7 +613,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         // protocol APY
         uint256 protocolAPY = MathUpgradeable.mulDiv(poolAPY, poolConfig.protocolFeePercent, oneHundredPercent);
 
-        uint256 remainingAPY = poolAPY.sub(protocolAPY);
+        uint256 remainingAPY = poolAPY - protocolAPY;
 
         // manager withdrawableAPY
         uint256 currentStakePercent = MathUpgradeable.mulDiv(
@@ -637,7 +632,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             managerEarningsPercent + oneHundredPercent
         );
 
-        return uint16(remainingAPY.sub(managerWithdrawableAPY));
+        return uint16(remainingAPY - managerWithdrawableAPY);
     }
 
     /**

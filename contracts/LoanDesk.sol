@@ -12,8 +12,6 @@ import "./interfaces/ILendingPool.sol";
  */
 contract LoanDesk is ILoanDesk, SaplingManagerContext {
 
-    using SafeMathUpgradeable for uint256;
-
     /// Math safe minimum loan duration in seconds
     uint256 public constant SAFE_MIN_DURATION = 1 days;
 
@@ -110,7 +108,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         safeMaxApr = oneHundredPercent;
 
         loanTemplate = LoanTemplate({
-            minAmount: _oneToken.mul(100),
+            minAmount: _oneToken * 100,
             minDuration: SAFE_MIN_DURATION,
             maxDuration: SAFE_MAX_DURATION,
             gracePeriod: 60 days,
@@ -310,7 +308,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
 
         LoanApplication storage app = loanApplications[appId];
 
-        require(ILendingPool(pool).canOffer(offeredFunds.add(_amount)),
+        require(ILendingPool(pool).canOffer(offeredFunds + _amount),
             "LoanDesk: lending pool cannot offer this loan at this time");
 
         //// effect
@@ -327,7 +325,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
             offeredTime: block.timestamp
         });
 
-        offeredFunds = offeredFunds.add(_amount);
+        offeredFunds = offeredFunds + _amount;
         loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
 
         //// interactions
@@ -375,7 +373,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         uint256 prevAmount = offer.amount;
 
         if (prevAmount != _amount) {
-            uint256 nextOfferedFunds = offeredFunds.sub(prevAmount).add(_amount);
+            uint256 nextOfferedFunds = offeredFunds - prevAmount + _amount;
             require(ILendingPool(pool).canOffer(nextOfferedFunds),
                 "LoanDesk: lending pool cannot offer this loan at this time");
 
@@ -431,7 +429,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
 
         loanApplications[appId].status = LoanApplicationStatus.OFFER_CANCELLED;
 
-        offeredFunds = offeredFunds.sub(offer.amount);
+        offeredFunds -= offer.amount;
 
         emit LoanOfferCancelled(appId, offer.borrower, offer.amount);
 
@@ -456,9 +454,9 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     {
         LoanApplication storage app = loanApplications[appId];
         app.status = LoanApplicationStatus.OFFER_ACCEPTED;
-        
+
         uint256 offerAmount = loanOffers[appId].amount;
-        offeredFunds = offeredFunds.sub(offerAmount);
+        offeredFunds -= offerAmount;
 
         emit LoanOfferAccepted(appId, app.borrower, offerAmount);
     }

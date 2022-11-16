@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.15;
 
-import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "./SaplingContext.sol";
 
 /**
@@ -119,7 +118,7 @@ abstract contract SaplingManagerContext is SaplingContext {
 
         _grantRole(POOL_MANAGER_ROLE, manager);
         _revokeRole(POOL_MANAGER_ROLE, prevManager);
-        
+
         emit ManagerTransferred(prevManager, manager);
     }
 
