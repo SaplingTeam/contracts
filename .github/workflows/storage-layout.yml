@@ -2,9 +2,9 @@ name: "Check storage layout"
 
 on:
   push:
-    branches: [v1, rc]
+    branches: [v1]
   pull_request:
-    branches: [v1, rc]
+    branches: [v1]
 
 jobs:
   linter:
