@@ -308,21 +308,6 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
         stats.countDefaulted++;
         stats.countOutstanding--;
 
-        (, uint256 loss) = loan.amount.trySub(loanDetail.principalAmountRepaid.add(loanPaymentCarry[loanId]));
-
-        stats.amountBorrowed = stats.amountBorrowed.sub(loan.amount);
-        stats.amountBaseRepaid = stats.amountBaseRepaid.sub(loanDetail.principalAmountRepaid);
-        stats.amountInterestPaid = stats.amountInterestPaid.sub(loanDetail.interestPaid);
-
-        if (loanDetail.principalAmountRepaid < loan.amount) {
-            (, uint256 baseAmountLost) = loan.amount.trySub(
-                loanDetail.principalAmountRepaid.add(loanPaymentCarry[loanId])
-            );
-            strategizedFunds = strategizedFunds.sub(baseAmountLost);
-
-            updateAvgStrategyApr(baseAmountLost, loan.apr);
-        }
-
         if (loanPaymentCarry[loanId] > 0) {
             strategizedFunds = strategizedFunds.sub(loanPaymentCarry[loanId]);
             poolLiquidity = poolLiquidity.add(loanPaymentCarry[loanId]);
@@ -333,14 +318,22 @@ contract SaplingLendingPool is ILoanDeskOwner, SaplingPoolContext {
             stats.amountBaseRepaid = stats.amountBaseRepaid.add(loanPaymentCarry[loanId]);
             loanPaymentCarry[loanId] = 0;
         }
-        
+
+        stats.amountBorrowed = stats.amountBorrowed.sub(loan.amount);
+        stats.amountBaseRepaid = stats.amountBaseRepaid.sub(loanDetail.principalAmountRepaid);
+        stats.amountInterestPaid = stats.amountInterestPaid.sub(loanDetail.interestPaid);
+
+        (, uint256 loss) = loan.amount.trySub(loanDetail.principalAmountRepaid);
+
         uint256 managerLoss = loss;
         uint256 lenderLoss = 0;
-        
+
         if (loss > 0) {
             uint256 remainingLostShares = tokensToShares(loss);
 
             poolFunds = poolFunds.sub(loss);
+            strategizedFunds = strategizedFunds.sub(loss);
+            updateAvgStrategyApr(loss, loan.apr);
 
             if (stakedShares > 0) {
                 uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, stakedShares);
