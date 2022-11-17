@@ -24,9 +24,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /// Recent loan id by address
     mapping(address => uint256) public recentLoanIdOf;
 
-    /// Leftover amount from loan repayments that were insufficient to cover a day of interest at the time of payment
-    mapping(uint256 => uint256) public loanPaymentCarry;
-
     /// A modifier to limit access to when a loan has the specified status
     modifier loanInStatus(uint256 loanId, LoanStatus status) {
         require(loans[loanId].status == status, "SaplingLendingPool: not found or invalid loan status");
@@ -122,6 +119,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             totalAmountRepaid: 0,
             principalAmountRepaid: 0,
             interestPaid: 0,
+            paymentCarry: 0,
             interestPaidTillTime: block.timestamp,
             lastPaymentTime: 0
         });
@@ -206,14 +204,14 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         loan.status = LoanStatus.DEFAULTED;
 
-        if (loanPaymentCarry[loanId] > 0) {
-            poolBalance.strategizedFunds -= loanPaymentCarry[loanId];
-            poolBalance.poolLiquidity += loanPaymentCarry[loanId];
+        if (loanDetail.paymentCarry > 0) {
+            poolBalance.strategizedFunds -= loanDetail.paymentCarry;
+            poolBalance.poolLiquidity += loanDetail.paymentCarry;
 
-            loanDetail.principalAmountRepaid += loanPaymentCarry[loanId];
+            loanDetail.principalAmountRepaid += loanDetail.paymentCarry;
             loanDetail.lastPaymentTime = block.timestamp;
 
-            loanPaymentCarry[loanId] = 0;
+            loanDetail.paymentCarry = 0;
         }
 
         uint256 loss = loan.amount > loanDetail.principalAmountRepaid
@@ -287,9 +285,9 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         uint256 amountCarryUsed = 0;
 
         // use loan payment carry
-        if (remainingDifference > 0 && loanPaymentCarry[loanId] > 0) {
-            amountCarryUsed = loanPaymentCarry[loanId];
-            loanPaymentCarry[loanId] = 0;
+        if (remainingDifference > 0 && loanDetail.paymentCarry > 0) {
+            amountCarryUsed = loanDetail.paymentCarry;
+            loanDetail.paymentCarry = 0;
 
             remainingDifference = remainingDifference > amountCarryUsed
                 ? remainingDifference - amountCarryUsed
@@ -473,7 +471,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      */
     function loanBalanceDue(uint256 loanId) public view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns(uint256) {
         (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
-        return principalOutstanding + interestOutstanding - loanPaymentCarry[loanId];
+        return principalOutstanding + interestOutstanding - loanDetails[loanId].paymentCarry;
     }
 
     /**
@@ -587,9 +585,9 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         loanDetail.interestPaidTillTime += payableInterestDays * 86400;
 
         if (paymentAmount > transferAmount) {
-            loanPaymentCarry[loanId] -= paymentAmount - transferAmount;
+            loanDetail.paymentCarry -= paymentAmount - transferAmount;
         } else if (paymentAmount < transferAmount) {
-            loanPaymentCarry[loanId] += transferAmount - paymentAmount;
+            loanDetail.paymentCarry += transferAmount - paymentAmount;
         }
 
         {
@@ -662,7 +660,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             uint256 interestDays
         ) = loanBalanceDueWithInterest(loanId);
 
-        uint256 useCarryAmount = loanPaymentCarry[loanId];
+        uint256 useCarryAmount = loanDetails[loanId].paymentCarry;
         uint256 balanceDue = principalOutstanding + interestOutstanding - useCarryAmount;
 
         uint256 transferAmount = MathUpgradeable.min(balanceDue, maxPaymentAmount);

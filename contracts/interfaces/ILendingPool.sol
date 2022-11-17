@@ -40,6 +40,7 @@ interface ILendingPool {
         uint256 totalAmountRepaid;
         uint256 principalAmountRepaid;
         uint256 interestPaid;
+        uint256 paymentCarry;
         uint256 interestPaidTillTime;
         uint256 lastPaymentTime;
     }
