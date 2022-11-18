@@ -24,7 +24,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     PoolBalance public poolBalance;
 
     /// Protocol revenues of non-user addresses
-    mapping(address => uint256) internal nonUserRevenues;
+    uint256 internal protocolRevenue;
+    uint256 internal managerRevenue;
 
     /// Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
     /// This value is always equal to (managerEarnFactor - oneHundredPercent)
@@ -41,20 +42,18 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @dev Addresses must not be 0.
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
-     * @param _governance Governance address
-     * @param _treasury Treasury wallet address
-     * @param _manager Manager address
+     * @param _accessControl Access control contract
+     * @param _managerRole Manager role
      */
     function __SaplingPoolContext_init(address _poolToken,
         address _liquidityToken,
-        address _governance,
-        address _treasury,
-        address _manager
+        address _accessControl,
+        bytes32 _managerRole
     )
         internal
         onlyInitializing
     {
-        __SaplingManagerContext_init(_governance, _treasury, _manager);
+        __SaplingManagerContext_init(_accessControl, _managerRole);
 
         /*
             Additional check for single init:
@@ -111,7 +110,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Caller must be the governance.
      * @param _targetStakePercent New target stake percent.
      */
-    function setTargetStakePercent(uint16 _targetStakePercent) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTargetStakePercent(uint16 _targetStakePercent) external onlyRole(GOVERNANCE_ROLE) {
         require(
             0 < _targetStakePercent && _targetStakePercent <= oneHundredPercent,
             "SaplingPoolContext: target stake percent is out of bounds"
@@ -148,7 +147,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Caller must be the governance.
      * @param _protocolEarningPercent new protocol earning percent.
      */
-    function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyRole(GOVERNANCE_ROLE) {
         require(
             0 <= _protocolEarningPercent && _protocolEarningPercent <= poolConfig.maxProtocolFeePercent,
             "SaplingPoolContext: protocol earning percent is out of bounds"
@@ -167,7 +166,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Caller must be the governance.
      * @param _managerEarnFactorMax new maximum for manager's earn factor.
      */
-    function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external onlyRole(GOVERNANCE_ROLE) {
         require(
             oneHundredPercent <= _managerEarnFactorMax,
             "SaplingPoolContext: _managerEarnFactorMax is out of bounds"
@@ -227,8 +226,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @dev Withdrawal amount must be non zero and not exceed amountWithdrawable().
      * @param amount Liquidity token amount to withdraw.
      */
-    function withdraw(uint256 amount) external whenNotPaused {
-        require(msg.sender != manager, "SaplingPoolContext: pool manager address cannot use withdraw");
+    function withdraw(uint256 amount) external whenNotPaused onlyUser {
+        require(
+            !IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender), 
+            "SaplingPoolContext: pool manager address cannot use withdraw"
+        );
 
         uint256 sharesBurned = exitPool(amount);
 
@@ -278,13 +280,27 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Protocol earnings are represented in liquidity tokens.
      */
     function withdrawRevenue() external whenNotPaused {
-        require(nonUserRevenues[msg.sender] > 0, "SaplingPoolContext: zero protocol earnings");
+        // check
+        require(revenueBalanceOf(msg.sender) > 0, "SaplingPoolContext: zero protocol earnings");
 
-        uint256 amount = nonUserRevenues[msg.sender];
-        nonUserRevenues[msg.sender] = 0;
 
-        // give tokens
+        // effect
+
+        uint256 amount = 0;
+
+        if (IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender)) {
+            amount += managerRevenue;
+            managerRevenue = 0;
+        }
+
+        if (IAccessControl(accessControl).hasRole(TREASURY_ROLE, msg.sender)) {
+            amount += protocolRevenue;
+            protocolRevenue = 0;
+        }
+
         poolBalance.tokenBalance -= amount;
+
+        // interactions
 
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, amount);
 
@@ -329,8 +345,18 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @param wallet Address of the wallet to check the earnings balance of.
      * @return Accumulated liquidity token revenue of the wallet from the protocol.
      */
-    function revenueBalanceOf(address wallet) external view returns (uint256) {
-        return nonUserRevenues[wallet];
+    function revenueBalanceOf(address wallet) public view returns (uint256) {
+        uint256 balance = 0;
+
+        if (IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, wallet)) {
+            balance += managerRevenue;
+        }
+
+        if (IAccessControl(accessControl).hasRole(TREASURY_ROLE, wallet)) {
+            balance += protocolRevenue;
+        }
+
+        return balance;
     }
 
     /**
@@ -439,9 +465,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         require(amount > 0, "SaplingPoolContext: pool deposit amount is 0");
 
+        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender);
+
         // allow the manager to add funds beyond the current pool limit
         require(
-            msg.sender == manager ||
+            isManager ||
             (
                 poolConfig.poolFundsLimit > poolBalance.poolFunds &&
                 amount <= poolConfig.poolFundsLimit - poolBalance.poolFunds
@@ -457,7 +485,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         poolBalance.poolLiquidity += amount;
         poolBalance.poolFunds += amount;
 
-        if (msg.sender == manager) {
+        if (isManager) {
             // this is a staking entry
 
             poolBalance.stakedShares += shares;
@@ -474,7 +502,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         );
 
         // mint shares
-        IPoolToken(tokenConfig.poolToken).mint(msg.sender != manager ? msg.sender : address(this), shares);
+        IPoolToken(tokenConfig.poolToken).mint(!isManager ? msg.sender : address(this), shares);
 
         return shares;
     }
@@ -495,8 +523,10 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         uint256 shares = tokensToShares(amount);
 
+        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender);
+
         require(
-            msg.sender != manager
+            !isManager
                 ? shares <= IERC20(tokenConfig.poolToken).balanceOf(msg.sender)
                 : shares <= poolBalance.stakedShares,
             "SaplingPoolContext: insufficient balance"
@@ -504,7 +534,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         //// effect
 
-        if (msg.sender == manager) {
+        if (isManager) {
             poolBalance.stakedShares -= shares;
             updatePoolLimit();
         }
@@ -518,7 +548,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         //// interactions
 
         // burn shares
-        IPoolToken(tokenConfig.poolToken).burn(msg.sender != manager ? msg.sender : address(this), shares);
+        IPoolToken(tokenConfig.poolToken).burn(!isManager ? msg.sender : address(this), shares);
 
         // transfer liqudity tokens
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, transferAmount);
@@ -646,15 +676,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
                 poolConfig.targetStakePercent,
                 oneHundredPercent
             );
-    }
-
-    /**
-     * @dev Implementation of the abstract hook in SaplingManagedContext.
-     *      Governance, protocol wallet addresses are authorised to take
-     *      certain actions when the manager is inactive.
-     */
-    function authorizedOnInactiveManager(address caller) internal view override returns (bool) {
-        return isNonUserAddress(caller);
     }
 
     /**

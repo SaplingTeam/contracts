@@ -98,4 +98,6 @@ interface ILendingPool {
      * @return True if the pool has sufficient lending liquidity, false otherwise.
      */
     function canOffer(uint256 totalOfferedAmount) external view returns (bool);
+
+    function getPoolManagerRole() external view returns (bytes32);
 }

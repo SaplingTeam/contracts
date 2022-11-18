@@ -39,7 +39,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /**
      * @dev Disable initializers
      */
-    function disableIntitializers() external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function disableIntitializers() external onlyRole(GOVERNANCE_ROLE) {
         _disableInitializers();
     }
 
@@ -48,21 +48,19 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @dev Addresses must not be 0.
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
-     * @param _governance Governance address
-     * @param _treasury Treasury wallet address
-     * @param _manager Manager address
+     * @param _accessControl Access control contract
+     * @param _managerRole Manager role
      */
     function initialize(
         address _poolToken,
         address _liquidityToken,
-        address _governance,
-        address _treasury,
-        address _manager
+        address _accessControl,
+        bytes32 _managerRole
     )
         public
         initializer
     {
-        __SaplingPoolContext_init(_poolToken, _liquidityToken, _governance, _treasury, _manager);
+        __SaplingPoolContext_init(_poolToken, _liquidityToken, _accessControl, _managerRole);
     }
 
     /**
@@ -70,7 +68,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @dev Caller must be the governance.
      * @param _loanDesk New LoanDesk address
      */
-    function setLoanDesk(address _loanDesk) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setLoanDesk(address _loanDesk) external onlyRole(GOVERNANCE_ROLE) {
         address prevLoanDesk = loanDesk;
         loanDesk = _loanDesk;
         emit LoanDeskSet(prevLoanDesk, loanDesk);
@@ -235,7 +233,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 updatePoolLimit();
 
                 if (poolBalance.stakedShares == 0) {
-                    emit StakedAssetsDepleted(manager);
+                    emit StakedAssetsDepleted();
                 }
 
                 //// interactions
@@ -248,7 +246,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 lenderLoss = sharesToTokens(remainingLostShares);
                 managerLoss -= lenderLoss;
 
-                emit UnstakedLoss(lenderLoss, manager);
+                emit UnstakedLoss(lenderLoss);
             }
         }
 
@@ -296,10 +294,10 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         }
 
         // charge manager's revenue
-        if (remainingDifference > 0 && nonUserRevenues[manager] > 0) {
-            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, nonUserRevenues[manager]);
+        if (remainingDifference > 0 && managerRevenue > 0) {
+            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, managerRevenue);
 
-            nonUserRevenues[manager] -= amountChargeable;
+            managerRevenue -= amountChargeable;
 
             remainingDifference -= amountChargeable;
             amountRepaid += amountChargeable;
@@ -316,7 +314,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             updatePoolLimit();
 
             if (poolBalance.stakedShares == 0) {
-                emit StakedAssetsDepleted(manager);
+                emit StakedAssetsDepleted();
             }
 
             remainingDifference -= amountChargeable;
@@ -337,7 +335,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             poolBalance.strategizedFunds -= remainingDifference;
             poolBalance.poolFunds -= remainingDifference;
 
-            emit UnstakedLoss(remainingDifference, manager);
+            emit UnstakedLoss(remainingDifference);
         }
 
         loan.status = LoanStatus.REPAID;
@@ -424,7 +422,10 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @return True if the given loan can be defaulted, false otherwise
      */
     function canDefault(uint256 loanId, address caller) public view returns (bool) {
-        if (caller != manager && !authorizedOnInactiveManager(caller)) {
+
+        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender);
+
+        if (!isManager && !authorizedOnInactiveManager(caller)) {
             return false;
         }
 
@@ -459,7 +460,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         }
 
         return block.timestamp > (
-            paymentDueTime + loan.gracePeriod + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD)
+            paymentDueTime + loan.gracePeriod + (isManager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD)
         );
     }
 
@@ -472,18 +473,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     function loanBalanceDue(uint256 loanId) public view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns(uint256) {
         (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
         return principalOutstanding + interestOutstanding - loanDetails[loanId].paymentCarry;
-    }
-
-    /**
-     * @notice Transfer the previous treasury wallet's accumulated fees to current treasury wallet.
-     * @dev Overrides a hook in SaplingContext.
-     * @param from Address of the previous treasury wallet.
-     */
-    function afterTreasuryWalletTransfer(address from) internal override {
-        require(from != address(0), "SaplingLendingPool: invalid from address");
-
-        nonUserRevenues[treasury] += nonUserRevenues[from];
-        nonUserRevenues[from] = 0;
     }
 
     /**
@@ -549,7 +538,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 oneHundredPercent
             );
 
-            nonUserRevenues[treasury] += protocolEarnedInterest;
+            protocolRevenue += protocolEarnedInterest;
 
             //share revenue to manager
             uint256 currentStakePercent = MathUpgradeable.mulDiv(
@@ -570,7 +559,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 managerEarningsPercent + oneHundredPercent
             );
 
-            nonUserRevenues[manager] += managerEarnedInterest;
+            managerRevenue += managerEarnedInterest;
 
             poolBalance.poolLiquidity += paymentAmount - (protocolEarnedInterest + managerEarnedInterest);
             poolBalance.poolFunds += interestPayable - (protocolEarnedInterest + managerEarnedInterest);
@@ -619,6 +608,10 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         emit LoanRepaymentMade(loanId, loan.borrower, msg.sender, transferAmount, interestPayable);
 
         return (transferAmount, interestPayable);
+    }
+
+    function getPoolManagerRole() external view returns (bytes32) {
+        return POOL_MANAGER_ROLE;
     }
 
     /**
