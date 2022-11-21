@@ -294,10 +294,10 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         }
 
         // charge manager's revenue
-        if (remainingDifference > 0 && managerRevenue > 0) {
-            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, managerRevenue);
+        if (remainingDifference > 0 && poolBalance.managerRevenue > 0) {
+            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, poolBalance.managerRevenue);
 
-            managerRevenue -= amountChargeable;
+            poolBalance.managerRevenue -= amountChargeable;
 
             remainingDifference -= amountChargeable;
             amountRepaid += amountChargeable;
@@ -423,7 +423,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      */
     function canDefault(uint256 loanId, address caller) public view returns (bool) {
 
-        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender);
+        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, caller);
 
         if (!isManager && !authorizedOnInactiveManager(caller)) {
             return false;
@@ -538,7 +538,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 oneHundredPercent
             );
 
-            protocolRevenue += protocolEarnedInterest;
+            poolBalance.protocolRevenue += protocolEarnedInterest;
 
             //share revenue to manager
             uint256 currentStakePercent = MathUpgradeable.mulDiv(
@@ -559,7 +559,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 managerEarningsPercent + oneHundredPercent
             );
 
-            managerRevenue += managerEarnedInterest;
+            poolBalance.managerRevenue += managerEarnedInterest;
 
             poolBalance.poolLiquidity += paymentAmount - (protocolEarnedInterest + managerEarnedInterest);
             poolBalance.poolFunds += interestPayable - (protocolEarnedInterest + managerEarnedInterest);

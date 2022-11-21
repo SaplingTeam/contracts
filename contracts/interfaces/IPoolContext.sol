@@ -69,6 +69,10 @@ interface IPoolContext {
 
         /// Manager's staked shares
         uint256 stakedShares;
+
+        uint256 protocolRevenue;
+        
+        uint256 managerRevenue;
     }
 
     /// Event for when the lender capital is lost due to defaults

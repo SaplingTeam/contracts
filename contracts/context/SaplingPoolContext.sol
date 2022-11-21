@@ -23,10 +23,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
     PoolBalance public poolBalance;
 
-    /// Protocol revenues of non-user addresses
-    uint256 internal protocolRevenue;
-    uint256 internal managerRevenue;
-
     /// Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
     /// This value is always equal to (managerEarnFactor - oneHundredPercent)
     uint256 internal managerExcessLeverageComponent;
@@ -95,7 +91,9 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             poolLiquidity: 0,
             allocatedFunds: 0,
             strategizedFunds: 0,
-            stakedShares: 0
+            stakedShares: 0,
+            protocolRevenue: 0,
+            managerRevenue: 0
         });
 
         managerExcessLeverageComponent = uint256(poolConfig.managerEarnFactor) - oneHundredPercent;
@@ -289,13 +287,13 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         uint256 amount = 0;
 
         if (IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender)) {
-            amount += managerRevenue;
-            managerRevenue = 0;
+            amount += poolBalance.managerRevenue;
+            poolBalance.managerRevenue = 0;
         }
 
         if (IAccessControl(accessControl).hasRole(TREASURY_ROLE, msg.sender)) {
-            amount += protocolRevenue;
-            protocolRevenue = 0;
+            amount += poolBalance.protocolRevenue;
+            poolBalance.protocolRevenue = 0;
         }
 
         poolBalance.tokenBalance -= amount;
@@ -349,11 +347,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         uint256 balance = 0;
 
         if (IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, wallet)) {
-            balance += managerRevenue;
+            balance += poolBalance.managerRevenue;
         }
 
         if (IAccessControl(accessControl).hasRole(TREASURY_ROLE, wallet)) {
-            balance += protocolRevenue;
+            balance += poolBalance.protocolRevenue;
         }
 
         return balance;

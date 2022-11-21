@@ -28,6 +28,10 @@ contract CoreAccessControl is AccessControlEnumerable {
 
     mapping (bytes32 => RoleMetadata) internal roleMetadata;
 
+    event RoleListed(bytes32 role, string name, RoleType roleType);
+    event RoleTypeUpdated(bytes32 role, string name, RoleType prevRoleType, RoleType roleType);
+    event RoleDelisted(bytes32 role, string name);
+
     constructor() {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
@@ -52,16 +56,20 @@ contract CoreAccessControl is AccessControlEnumerable {
         });
         roles.add(_role);
 
-        //TODO event
+        emit RoleListed(_role, _name, _type);
     }
 
     function updateRoleType(string memory _name, RoleType _type) external onlyRole(DEFAULT_ADMIN_ROLE) {
         bytes32 _role = keccak256(bytes(_name));
         require(roles.contains(_role), "CoreAccessControl: role is not listed");
 
-        roleMetadata[_role].roleType = _type;
+        RoleMetadata storage metadata = roleMetadata[_role];
+        require(metadata.roleType != _type, "CoreAccessControl: role has the same type");
 
-        //TODO event
+        RoleType prevRoleType = metadata.roleType;
+        metadata.roleType = _type;
+
+        emit RoleTypeUpdated(_role, _name, prevRoleType, metadata.roleType);
     }
 
     function delistRole(string memory _name) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -72,7 +80,7 @@ contract CoreAccessControl is AccessControlEnumerable {
         roles.remove(_role);
         delete roleMetadata[_role];
 
-        //TODO event
+        emit RoleDelisted(_role, _name);
     }
 
     function getRolesLength() external view returns (uint256) {

@@ -465,7 +465,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      *         false otherwise.
      */
     function canCancel(uint256 appId, address caller) external view returns (bool) {
-        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender);
+        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, caller);
         if (!isManager && !authorizedOnInactiveManager(caller)) {
             return false;
         }
