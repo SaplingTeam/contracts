@@ -5,6 +5,7 @@ pragma solidity ^0.8.15;
 import "@openzeppelin/contracts/access/IAccessControl.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "./SaplingRoles.sol";
 
 /**
  * @title Sapling Context
@@ -12,10 +13,6 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
  *         functionality by extending OpenZeppelin's Pausable contract.
  */
 abstract contract SaplingContext is Initializable, PausableUpgradeable {
-
-    bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
-    bytes32 public constant TREASURY_ROLE = keccak256("TREASURY_ROLE");
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     /// Protocol access control
     address public accessControl;
@@ -49,7 +46,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
      * @dev Caller must be the governance.
      *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause.
      */
-    function pause() external onlyRole(PAUSER_ROLE) {
+    function pause() external onlyRole(SaplingRoles.PAUSER_ROLE) {
         _pause();
     }
 
@@ -58,7 +55,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
      * @dev Caller must be the governance.
      *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause.
      */
-    function unpause() external onlyRole(PAUSER_ROLE) {
+    function unpause() external onlyRole(SaplingRoles.PAUSER_ROLE) {
         _unpause();
     }
 
@@ -69,8 +66,8 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
      * @param party Address to verify
      */
     function isNonUserAddress(address party) internal view virtual returns (bool) {
-        return IAccessControl(accessControl).hasRole(GOVERNANCE_ROLE, party) 
-            || IAccessControl(accessControl).hasRole(TREASURY_ROLE, party)
-            || IAccessControl(accessControl).hasRole(PAUSER_ROLE, party);
+        return IAccessControl(accessControl).hasRole(SaplingRoles.GOVERNANCE_ROLE, party) 
+            || IAccessControl(accessControl).hasRole(SaplingRoles.TREASURY_ROLE, party)
+            || IAccessControl(accessControl).hasRole(SaplingRoles.PAUSER_ROLE, party);
     }
 }

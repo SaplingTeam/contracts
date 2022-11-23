@@ -70,7 +70,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     /**
      * @dev Disable initializers
      */
-    function disableIntitializers() external onlyRole(GOVERNANCE_ROLE) {
+    function disableIntitializers() external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
         _disableInitializers();
     }
 

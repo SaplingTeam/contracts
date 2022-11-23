@@ -108,7 +108,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Caller must be the governance.
      * @param _targetStakePercent New target stake percent.
      */
-    function setTargetStakePercent(uint16 _targetStakePercent) external onlyRole(GOVERNANCE_ROLE) {
+    function setTargetStakePercent(uint16 _targetStakePercent) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
         require(
             0 < _targetStakePercent && _targetStakePercent <= oneHundredPercent,
             "SaplingPoolContext: target stake percent is out of bounds"
@@ -145,7 +145,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Caller must be the governance.
      * @param _protocolEarningPercent new protocol earning percent.
      */
-    function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyRole(GOVERNANCE_ROLE) {
+    function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
         require(
             0 <= _protocolEarningPercent && _protocolEarningPercent <= poolConfig.maxProtocolFeePercent,
             "SaplingPoolContext: protocol earning percent is out of bounds"
@@ -164,7 +164,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Caller must be the governance.
      * @param _managerEarnFactorMax new maximum for manager's earn factor.
      */
-    function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external onlyRole(GOVERNANCE_ROLE) {
+    function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
         require(
             oneHundredPercent <= _managerEarnFactorMax,
             "SaplingPoolContext: _managerEarnFactorMax is out of bounds"
@@ -291,7 +291,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             poolBalance.managerRevenue = 0;
         }
 
-        if (IAccessControl(accessControl).hasRole(TREASURY_ROLE, msg.sender)) {
+        if (IAccessControl(accessControl).hasRole(SaplingRoles.TREASURY_ROLE, msg.sender)) {
             amount += poolBalance.protocolRevenue;
             poolBalance.protocolRevenue = 0;
         }
@@ -350,7 +350,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             balance += poolBalance.managerRevenue;
         }
 
-        if (IAccessControl(accessControl).hasRole(TREASURY_ROLE, wallet)) {
+        if (IAccessControl(accessControl).hasRole(SaplingRoles.TREASURY_ROLE, wallet)) {
             balance += poolBalance.protocolRevenue;
         }
 
