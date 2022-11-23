@@ -683,4 +683,9 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     function canClose() internal view override returns (bool) {
         return poolBalance.strategizedFunds == 0;
     }
+
+    /**
+     * @dev Slots reserved for future state variables
+     */
+    uint256[35] private __gap;
 }

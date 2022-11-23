@@ -159,4 +159,9 @@ abstract contract SaplingManagerContext is SaplingContext {
     function authorizedOnInactiveManager(address caller) internal view virtual returns (bool) {
         return isNonUserAddress(caller);
     }
+
+    /**
+     * @dev Slots reserved for future state variables
+     */
+    uint256[48] private __gap;
 }

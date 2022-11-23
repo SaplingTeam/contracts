@@ -70,4 +70,9 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
             || IAccessControl(accessControl).hasRole(SaplingRoles.TREASURY_ROLE, party)
             || IAccessControl(accessControl).hasRole(SaplingRoles.PAUSER_ROLE, party);
     }
+
+    /**
+     * @dev Slots reserved for future state variables
+     */
+    uint256[49] private __gap;
 }
