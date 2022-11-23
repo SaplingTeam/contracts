@@ -69,13 +69,17 @@ interface IPoolContext {
 
         /// Manager's staked shares
         uint256 stakedShares;
+
+        uint256 protocolRevenue;
+        
+        uint256 managerRevenue;
     }
 
     /// Event for when the lender capital is lost due to defaults
-    event UnstakedLoss(uint256 amount, address currentManager);
+    event UnstakedLoss(uint256 amount);
 
     /// Event for when the Manager's staked assets are depleted due to defaults
-    event StakedAssetsDepleted(address currentManager);
+    event StakedAssetsDepleted();
 
     /// Event for when lender funds are deposited
     event FundsDeposited(address wallet, uint256 amount, uint256 tokensIssued);

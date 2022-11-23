@@ -19,6 +19,14 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
     const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
     const TOKEN_DECIMALS = 6;
 
+    const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
+    const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
+    const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
+    const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
+    const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+
+    let coreAccessControl;
+
     let SaplingPoolContextCF;
     let saplingPoolContext;
     let liquidityToken;
@@ -42,6 +50,19 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
     before(async function () {
         [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
 
+        let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
+        coreAccessControl = await CoreAccessControlCF.deploy();
+
+        await coreAccessControl.connect(deployer).grantRole(DEFAULT_ADMIN_ROLE, governance.address);
+        await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
+
+        await coreAccessControl.connect(governance).grantRole(GOVERNANCE_ROLE, governance.address);
+        await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
+        await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
+
+        await coreAccessControl.connect(governance).listRole("POOL_1_MANAGER_ROLE", 3);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
 
@@ -56,24 +77,20 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
         lendingPool = await upgrades.deployProxy(SaplingLendingPoolCF, [
             poolToken.address,
             liquidityToken.address,
-            deployer.address,
-            protocol.address,
-            manager.address,
+            coreAccessControl.address,
+            POOL_1_MANAGER_ROLE,
         ]);
         await lendingPool.deployed();
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
-            governance.address,
-            protocol.address,
-            manager.address,
+            coreAccessControl.address,
             TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
 
         await poolToken.connect(deployer).transferOwnership(lendingPool.address);
-        await lendingPool.connect(deployer).setLoanDesk(loanDesk.address);
-        await lendingPool.connect(deployer).transferGovernance(governance.address);
+        await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
 
         SaplingPoolContextCF = SaplingLendingPoolCF;
         saplingPoolContext = lendingPool;
@@ -85,9 +102,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 upgrades.deployProxy(SaplingPoolContextCF, [
                     poolToken.address,
                     liquidityToken.address,
-                    governance.address,
-                    protocol.address,
-                    manager.address,
+                    coreAccessControl.address,
+            POOL_1_MANAGER_ROLE,
                 ]),
             ).to.be.not.reverted;
         });
@@ -98,9 +114,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     upgrades.deployProxy(SaplingPoolContextCF, [
                         poolToken.address,
                         NULL_ADDRESS,
-                        governance.address,
-                        protocol.address,
-                        manager.address,
+                        coreAccessControl.address,
+                        POOL_1_MANAGER_ROLE,
                     ]),
                 ).to.be.reverted;
             });
@@ -110,9 +125,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     upgrades.deployProxy(SaplingPoolContextCF, [
                         NULL_ADDRESS,
                         liquidityToken.address,
-                        governance.address,
-                        protocol.address,
-                        manager.address,
+                        coreAccessControl.address,
+                        POOL_1_MANAGER_ROLE,
                     ]),
                 ).to.be.reverted;
             });
@@ -128,9 +142,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     upgrades.deployProxy(SaplingPoolContextCF, [
                         badPoolToken.address,
                         liquidityToken.address,
-                        governance.address,
-                        protocol.address,
-                        manager.address,
+                        coreAccessControl.address,
+                        POOL_1_MANAGER_ROLE,
                     ]),
                 ).to.be.reverted;
             });
@@ -256,6 +269,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 expect((await saplingPoolContext.poolBalance()).poolLiquidity).to.equal(0);
                 expect((await saplingPoolContext.poolBalance()).strategizedFunds).to.equal(0);
                 expect((await saplingPoolContext.poolBalance()).allocatedFunds).to.equal(0);
+                expect((await saplingPoolContext.poolBalance()).managerRevenue).to.equal(0);
+                expect((await saplingPoolContext.poolBalance()).protocolRevenue).to.equal(0);
             });
         });
 
@@ -1136,18 +1151,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         tokenBalanceBefore.add(poolBalanceBefore),
                     );
                     expect(await saplingPoolContext.revenueBalanceOf(protocol.address)).to.equal(0);
-                });
-
-                it('When a new protocol wallet address is set, earned protocol fees are allocated to the new address', async function () {
-                    let oldProtocolBalanceBefore = await saplingPoolContext.revenueBalanceOf(protocol.address);
-                    let newProtocolBalanceBefore = await saplingPoolContext.revenueBalanceOf(addresses[0].address);
-
-                    await saplingPoolContext.connect(governance).transferTreasury(addresses[0].address);
-
-                    expect(await saplingPoolContext.revenueBalanceOf(protocol.address)).to.equal(0);
-                    expect(await saplingPoolContext.revenueBalanceOf(addresses[0].address)).to.equal(
-                        newProtocolBalanceBefore.add(oldProtocolBalanceBefore),
-                    );
                 });
 
                 it('Manager can withdraw earned protocol fees', async function () {

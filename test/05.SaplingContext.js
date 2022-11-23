@@ -19,6 +19,14 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
     const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
     const TOKEN_DECIMALS = 6;
 
+    const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
+    const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
+    const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
+    const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
+    const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+
+    let coreAccessControl;
+
     let SaplingContextCF;
     let saplingContext;
     let liquidityToken;
@@ -42,6 +50,19 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
     before(async function () {
         [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
 
+        let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
+        coreAccessControl = await CoreAccessControlCF.deploy();
+
+        await coreAccessControl.connect(deployer).grantRole(DEFAULT_ADMIN_ROLE, governance.address);
+        await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
+
+        await coreAccessControl.connect(governance).grantRole(GOVERNANCE_ROLE, governance.address);
+        await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
+        await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
+
+        await coreAccessControl.connect(governance).listRole("POOL_1_MANAGER_ROLE", 3);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         let PoolTokenCF = await ethers.getContractFactory('PoolToken');
         let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
@@ -53,24 +74,20 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
         lendingPool = await upgrades.deployProxy(SaplingLendingPoolCF, [
             poolToken.address,
             liquidityToken.address,
-            deployer.address,
-            protocol.address,
-            manager.address,
+            coreAccessControl.address,
+            POOL_1_MANAGER_ROLE,
         ]);
         await lendingPool.deployed();
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
-            governance.address,
-            protocol.address,
-            manager.address,
+            coreAccessControl.address,
             TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
 
         await poolToken.connect(deployer).transferOwnership(lendingPool.address);
-        await lendingPool.connect(deployer).setLoanDesk(loanDesk.address);
-        await lendingPool.connect(deployer).transferGovernance(governance.address);
+        await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
 
         SaplingContextCF = SaplingLendingPoolCF;
         saplingContext = lendingPool;
@@ -83,34 +100,20 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                 upgrades.deployProxy(SaplingContextCF, [
                     poolToken.address,
                     liquidityToken.address,
-                    deployer.address,
-                    protocol.address,
-                    manager.address,
+                    coreAccessControl.address,
+                    POOL_1_MANAGER_ROLE,
                 ]),
             ).to.be.not.reverted;
         });
 
         describe('Rejection Scenarios', function () {
-            it('Deploying with null governance address should fail', async function () {
+            it('Deploying with null access control address should fail', async function () {
                 await expect(
                     upgrades.deployProxy(SaplingContextCF, [
                         poolToken.address,
                         liquidityToken.address,
                         NULL_ADDRESS,
-                        protocol.address,
-                        manager.address,
-                    ]),
-                ).to.be.reverted;
-            });
-
-            it('Deploying with null protocol wallet address should fail', async function () {
-                await expect(
-                    upgrades.deployProxy(SaplingContextCF, [
-                        poolToken.address,
-                        liquidityToken.address,
-                        governance.address,
-                        NULL_ADDRESS,
-                        manager.address,
+                        POOL_1_MANAGER_ROLE,
                     ]),
                 ).to.be.reverted;
             });
@@ -120,110 +123,15 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
     describe('Use Cases', function () {
         describe('Initial State', function () {
             it('Governance address is correct', async function () {
-                expect(await saplingContext.governance()).to.equal(governance.address);
+                expect(await coreAccessControl.getRoleMember(GOVERNANCE_ROLE, 0)).to.equal(governance.address);
             });
 
             it('Protocol wallet address is correct', async function () {
-                expect(await saplingContext.treasury()).to.equal(protocol.address);
+                expect(await coreAccessControl.getRoleMember(TREASURY_ROLE, 0)).to.equal(protocol.address);
             });
 
             it('Context is not paused', async function () {
                 expect(await saplingContext.paused()).to.equal(false);
-            });
-        });
-
-        describe('Transfer Governance', function () {
-            let governance2;
-
-            after(async function () {
-                await rollback();
-            });
-
-            before(async function () {
-                await snapshot();
-
-                governance2 = addresses[0];
-                assertHardhatInvariant(governance.address != governance2.address);
-            });
-
-            it('Can transfer', async function () {
-                await saplingContext.connect(governance).transferGovernance(governance2.address);
-                expect(await saplingContext.governance())
-                    .to.equal(governance2.address)
-                    .and.not.equal(governance);
-            });
-
-            describe('Rejection scenarios', function () {
-                it('Transferring to NULL address should fail', async function () {
-                    await expect(saplingContext.connect(governance).transferGovernance(NULL_ADDRESS)).to.be.reverted;
-                });
-
-                it('Transferring governance to same address should fail', async function () {
-                    await expect(saplingContext.connect(governance).transferGovernance(governance.address)).to.be
-                        .reverted;
-                });
-
-                it('Transferring governance to treasury address should fail', async function () {
-                    await expect(
-                        saplingContext.connect(governance).transferGovernance(protocol.address),
-                    ).to.be.revertedWith('SaplingContext: invalid governance address');
-                });
-
-                it('Transferring governance to pool manager address should fail', async function () {
-                    await expect(
-                        saplingContext.connect(governance).transferGovernance(manager.address),
-                    ).to.be.revertedWith('SaplingContext: invalid governance address');
-                });
-
-                it('Transfer as non governance should fail', async function () {
-                    await expect(saplingContext.connect(addresses[1]).transferGovernance(governance2.address)).to.be
-                        .reverted;
-                });
-            });
-        });
-
-        describe('Transfer Treasury Wallet', function () {
-            let protocol2;
-
-            after(async function () {
-                await rollback();
-            });
-
-            before(async function () {
-                await snapshot();
-
-                protocol2 = addresses[0];
-                assertHardhatInvariant(protocol.address != protocol2.address);
-            });
-
-            it('Can transfer', async function () {
-                await saplingContext.connect(governance).transferTreasury(protocol2.address);
-                expect(await saplingContext.treasury())
-                    .to.equal(protocol2.address)
-                    .and.not.equal(protocol.address);
-            });
-
-            describe('Rejection scenarios', function () {
-                it('Transfer as non governance should fail', async function () {
-                    await expect(saplingContext.connect(addresses[1]).transferTreasury(protocol2.address)).to.be
-                        .reverted;
-                });
-
-                it('Transferring to governance address should fail', async function () {
-                    await expect(
-                        saplingContext.connect(governance).transferTreasury(governance.address),
-                    ).to.be.revertedWith('SaplingContext: invalid treasury wallet address');
-                });
-
-                it('Transferring to pool manager address should fail', async function () {
-                    await expect(
-                        saplingContext.connect(governance).transferTreasury(manager.address),
-                    ).to.be.revertedWith('SaplingContext: invalid treasury wallet address');
-                });
-
-                it('Transferring to a NULL address should fail', async function () {
-                    await expect(saplingContext.connect(governance).transferTreasury(NULL_ADDRESS)).to.be.reverted;
-                });
             });
         });
 

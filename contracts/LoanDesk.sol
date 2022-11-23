@@ -70,7 +70,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
     /**
      * @dev Disable initializers
      */
-    function disableIntitializers() external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function disableIntitializers() external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
         _disableInitializers();
     }
 
@@ -78,22 +78,18 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      * @notice Initializer a new LoanDesk.
      * @dev Addresses must not be 0.
      * @param _pool Lending pool address
-     * @param _governance Governance address
-     * @param _treasury Treasury wallet address
-     * @param _manager Manager address
+     * @param _accessControl Access control contract
      * @param _decimals Lending pool liquidity token decimals
      */
     function initialize(
         address _pool,
-        address _governance,
-        address _treasury,
-        address _manager,
+        address _accessControl,
         uint8 _decimals
     )
         public
         initializer
     {
-        __SaplingManagerContext_init(_governance, _treasury, _manager);
+        __SaplingManagerContext_init(_accessControl, ILendingPool(_pool).getPoolManagerRole());
 
         /*
             Additional check for single init:
@@ -417,7 +413,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
         LoanOffer storage offer = loanOffers[appId];
 
         // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
-        if (msg.sender != manager) {
+        if (!IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender)) {
             // require inactivity grace period
             require(
                 block.timestamp > offer.offeredTime + MANAGER_INACTIVITY_GRACE_PERIOD,
@@ -469,12 +465,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      *         false otherwise.
      */
     function canCancel(uint256 appId, address caller) external view returns (bool) {
-        if (caller != manager && !authorizedOnInactiveManager(caller)) {
+        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, caller);
+        if (!isManager && !authorizedOnInactiveManager(caller)) {
             return false;
         }
 
         return loanApplications[appId].status == LoanApplicationStatus.OFFER_MADE && block.timestamp >= (
-                loanOffers[appId].offeredTime + (caller == manager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD)
+                loanOffers[appId].offeredTime + (isManager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD)
             );
     }
 
@@ -496,17 +493,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext {
      */
     function loanOfferById(uint256 appId) external view override returns (LoanOffer memory) {
         return loanOffers[appId];
-    }
-
-    /**
-     * @notice Indicates whether or not the the caller is authorized to take applicable managing actions when the
-     *         manager is inactive.
-     * @dev Overrides a hook in SaplingManagerContext.
-     * @param caller Caller's address.
-     * @return True if the caller is authorized at this time, false otherwise.
-     */
-    function authorizedOnInactiveManager(address caller) override internal view returns (bool) {
-        return caller == governance || caller == treasury;
     }
 
     /**

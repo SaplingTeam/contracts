@@ -19,6 +19,14 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
     const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
     const TOKEN_DECIMALS = 6;
 
+    const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
+    const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
+    const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
+    const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
+    const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+
+    let coreAccessControl;
+
     let SaplingManagerContextCF;
     let saplingManagerContext;
     let liquidityToken;
@@ -42,6 +50,19 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
     before(async function () {
         [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
 
+        let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
+        coreAccessControl = await CoreAccessControlCF.deploy();
+
+        await coreAccessControl.connect(deployer).grantRole(DEFAULT_ADMIN_ROLE, governance.address);
+        await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
+
+        await coreAccessControl.connect(governance).grantRole(GOVERNANCE_ROLE, governance.address);
+        await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
+        await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
+
+        await coreAccessControl.connect(governance).listRole("POOL_1_MANAGER_ROLE", 3);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
 
@@ -56,24 +77,20 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
         lendingPool = await upgrades.deployProxy(SaplingLendingPoolCF, [
             poolToken.address,
             liquidityToken.address,
-            deployer.address,
-            protocol.address,
-            manager.address,
+            coreAccessControl.address,
+            POOL_1_MANAGER_ROLE,
         ]);
         await lendingPool.deployed();
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
-            governance.address,
-            protocol.address,
-            manager.address,
+            coreAccessControl.address,
             TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
 
         await poolToken.connect(deployer).transferOwnership(lendingPool.address);
-        await lendingPool.connect(deployer).setLoanDesk(loanDesk.address);
-        await lendingPool.connect(deployer).transferGovernance(governance.address);
+        await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
 
         SaplingManagerContextCF = SaplingLendingPoolCF;
         saplingManagerContext = lendingPool;
@@ -85,32 +102,17 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
                 upgrades.deployProxy(SaplingManagerContextCF, [
                     poolToken.address,
                     liquidityToken.address,
-                    deployer.address,
-                    protocol.address,
-                    manager.address,
+                    coreAccessControl.address,
+                    POOL_1_MANAGER_ROLE,
                 ]),
             ).to.be.not.reverted;
-        });
-
-        describe('Rejection Scenarios', function () {
-            it('Deploying with null manager address should fail', async function () {
-                await expect(
-                    upgrades.deployProxy(SaplingManagerContextCF, [
-                        poolToken.address,
-                        liquidityToken.address,
-                        deployer.address,
-                        protocol.address,
-                        NULL_ADDRESS,
-                    ]),
-                ).to.be.reverted;
-            });
         });
     });
 
     describe('Use Cases', function () {
         describe('Initial State', function () {
             it('Pool manager address is correct', async function () {
-                expect(await saplingManagerContext.manager()).to.equal(manager.address);
+                expect(await coreAccessControl.getRoleMember(POOL_1_MANAGER_ROLE, 0)).to.equal(manager.address);
             });
 
             it('Pool is not closed', async function () {
@@ -119,61 +121,6 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
 
             it('Manager inactivity grace period is correct', async function () {
                 expect(await saplingManagerContext.MANAGER_INACTIVITY_GRACE_PERIOD()).to.equal(90 * 24 * 60 * 60);
-            });
-        });
-
-        describe('Transfer manager', function () {
-            let manager2;
-
-            after(async function () {
-                await rollback();
-            });
-
-            before(async function () {
-                await snapshot();
-
-                manager2 = addresses[0];
-                assertHardhatInvariant(manager.address != manager2.address);
-            });
-
-            it('Can transfer', async function () {
-                await saplingManagerContext.connect(governance).transferManager(manager2.address);
-                expect(await saplingManagerContext.manager())
-                    .to.equal(manager2.address)
-                    .and.not.equal(manager);
-            });
-
-            describe('Rejection scenarios', function () {
-                it('Transferring to NULL address should fail', async function () {
-                    await expect(
-                        saplingManagerContext.connect(governance).transferManager(NULL_ADDRESS),
-                    ).to.be.revertedWith('SaplingManagerContext: invalid manager address');
-                });
-
-                it('Transferring to same address should fail', async function () {
-                    await expect(
-                        saplingManagerContext.connect(governance).transferManager(manager.address),
-                    ).to.be.revertedWith('SaplingManagerContext: invalid manager address');
-                });
-
-                it('Transferring to treasury address should fail', async function () {
-                    await expect(
-                        saplingManagerContext.connect(governance).transferManager(protocol.address),
-                    ).to.be.revertedWith('SaplingManagerContext: invalid manager address');
-                });
-
-                it('Transferring to governance address should fail', async function () {
-                    await expect(
-                        saplingManagerContext.connect(governance).transferManager(governance.address),
-                    ).to.be.revertedWith('SaplingManagerContext: invalid manager address');
-                });
-
-                it('Transfer as non governance should fail', async function () {
-                    await expect(
-                        saplingManagerContext.connect(addresses[1]).transferManager(manager2.address),
-                    ).to.be.revertedWith('AccessControl: account ' + addresses[1].address.toLowerCase() +
-                        ' is missing role 0x0000000000000000000000000000000000000000000000000000000000000000');
-                });
             });
         });
 

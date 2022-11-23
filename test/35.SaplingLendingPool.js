@@ -19,6 +19,14 @@ describe('Sapling Lending Pool)', function () {
     const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
     const TOKEN_DECIMALS = 6;
 
+    const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
+    const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
+    const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
+    const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
+    const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+
+    let coreAccessControl;
+
     let SaplingLendingPoolCF;
     let liquidityToken;
     let poolToken;
@@ -41,6 +49,19 @@ describe('Sapling Lending Pool)', function () {
     before(async function () {
         [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
 
+        let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
+        coreAccessControl = await CoreAccessControlCF.deploy();
+
+        await coreAccessControl.connect(deployer).grantRole(DEFAULT_ADMIN_ROLE, governance.address);
+        await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
+
+        await coreAccessControl.connect(governance).grantRole(GOVERNANCE_ROLE, governance.address);
+        await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
+        await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
+
+        await coreAccessControl.connect(governance).listRole("POOL_1_MANAGER_ROLE", 3);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+
         SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
 
@@ -55,24 +76,20 @@ describe('Sapling Lending Pool)', function () {
         lendingPool = await upgrades.deployProxy(SaplingLendingPoolCF, [
             poolToken.address,
             liquidityToken.address,
-            deployer.address,
-            protocol.address,
-            manager.address,
+            coreAccessControl.address,
+            POOL_1_MANAGER_ROLE,
         ]);
         await lendingPool.deployed();
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
-            governance.address,
-            protocol.address,
-            manager.address,
+            coreAccessControl.address,
             TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
 
         await poolToken.connect(deployer).transferOwnership(lendingPool.address);
-        await lendingPool.connect(deployer).setLoanDesk(loanDesk.address);
-        await lendingPool.connect(deployer).transferGovernance(governance.address);
+        await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
     });
 
     describe('Deployment', function () {
@@ -81,9 +98,8 @@ describe('Sapling Lending Pool)', function () {
                 upgrades.deployProxy(SaplingLendingPoolCF, [
                     poolToken.address,
                     liquidityToken.address,
-                    deployer.address,
-                    protocol.address,
-                    manager.address,
+                    coreAccessControl.address,
+                    POOL_1_MANAGER_ROLE,
                 ]),
             ).to.be.not.reverted;
         });

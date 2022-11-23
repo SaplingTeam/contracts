@@ -10,10 +10,8 @@ import "./SaplingContext.sol";
  */
 abstract contract SaplingManagerContext is SaplingContext {
 
-    bytes32 public constant POOL_MANAGER_ROLE = keccak256("POOL_MANAGER_ROLE");
-
-    /// Manager address
-    address public manager;
+    /// Manager role
+    bytes32 public POOL_MANAGER_ROLE;
 
     /// Flag indicating whether or not the pool is closed
     bool private _closed;
@@ -43,8 +41,11 @@ abstract contract SaplingManagerContext is SaplingContext {
 
     /// A modifier to limit access to the manager or to other applicable parties when the manager is considered inactive
     modifier managerOrApprovedOnInactive {
-        require(msg.sender == manager || authorizedOnInactiveManager(msg.sender),
-            "SaplingManagerContext: caller is neither the manager nor an approved party");
+        require(
+            IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender) 
+                || authorizedOnInactiveManager(msg.sender),
+            "SaplingManagerContext: caller is neither the manager nor an approved party"
+        );
         _;
     }
 
@@ -69,57 +70,31 @@ abstract contract SaplingManagerContext is SaplingContext {
     /**
      * @notice Create a new SaplingManagedContext.
      * @dev Addresses must not be 0.
-     * @param _governance Governance address
-     * @param _treasury Treasury wallet address
-     * @param _manager Manager address
+     * @param _accessControl Access control contract
+     * @param _managerRole Manager role
      */
     function __SaplingManagerContext_init(
-        address _governance,
-        address _treasury,
-        address _manager
+        address _accessControl,
+        bytes32 _managerRole
     )
         internal
         onlyInitializing
     {
-        __SaplingContext_init(_governance, _treasury);
+        __SaplingContext_init(_accessControl);
 
         /*
             Additional check for single init:
                 do not init again if a non-zero value is present in the values yet to be initialized.
         */
-        assert(manager == address(0) && _closed == false && percentDecimals == 0 && oneHundredPercent == 0);
+        assert(_closed == false && percentDecimals == 0 && oneHundredPercent == 0);
 
-        require(_manager != address(0), "SaplingManagerContext: manager address is not set");
-        manager = _manager;
-
-        _grantRole(POOL_MANAGER_ROLE, manager);
+        POOL_MANAGER_ROLE = _managerRole;
 
         _closed = false;
 
         //init math context state
         percentDecimals = 1;
         oneHundredPercent = uint16(100 * 10 ** percentDecimals);
-    }
-
-    /**
-     * @notice Transfer the manager.
-     * @dev Caller must be the governance.
-     *      New manager address must not be 0, and must not be one of current non-user addresses.
-     * @param _manager New manager address
-     */
-    function transferManager(address _manager) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(
-            _manager != address(0) && !isNonUserAddress(_manager),
-            "SaplingManagerContext: invalid manager address"
-        );
-
-        address prevManager = manager;
-        manager = _manager;
-
-        _grantRole(POOL_MANAGER_ROLE, manager);
-        _revokeRole(POOL_MANAGER_ROLE, prevManager);
-
-        emit ManagerTransferred(prevManager, manager);
     }
 
     /**
@@ -164,7 +139,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @param party Address to verify
      */
     function isNonUserAddress(address party) internal view override returns (bool) {
-        return party == manager || super.isNonUserAddress(party);
+        return IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, party) || super.isNonUserAddress(party);
     }
 
     /**
@@ -181,5 +156,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @param caller Caller's address.
      * @return True if the caller is authorized at this time, false otherwise.
      */
-    function authorizedOnInactiveManager(address caller) internal view virtual returns (bool);
+    function authorizedOnInactiveManager(address caller) internal view virtual returns (bool) {
+        return isNonUserAddress(caller);
+    }
 }
