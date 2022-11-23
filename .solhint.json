@@ -6,7 +6,7 @@
     "reason-string": ["warn", {"maxLength":76}],
     "constructor-syntax": "warn",
     "no-empty-blocks": "off",
-    "var-name-mixedcase": "error",
+    "var-name-mixedcase": "warn",
     "func-name-mixedcase": "off",
     "ordering": "off",
     "not-rely-on-time": "off",
