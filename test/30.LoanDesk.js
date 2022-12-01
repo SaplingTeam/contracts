@@ -703,9 +703,9 @@ describe('Loan Desk', function () {
                     });
 
                     it('Offering a loan with an amount greater than available liquidity should fail', async function () {
-                        let rawLiquidity = (await lendingPool.poolBalance()).rawLiquidity;
-                        let poolFunds = (await lendingPool.poolBalance()).poolFunds;
-                        let targetLiquidityPercent = (await lendingPool.poolConfig()).targetLiquidityPercent;
+                        let rawLiquidity = (await lendingPool.balance()).rawLiquidity;
+                        let poolFunds = (await lendingPool.balance()).poolFunds;
+                        let targetLiquidityPercent = (await lendingPool.config()).targetLiquidityPercent;
                         let ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
 
                         let amountBorrowable = rawLiquidity.sub(

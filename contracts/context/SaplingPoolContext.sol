@@ -22,9 +22,9 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
     TokenConfig public tokenConfig;
 
-    PoolConfig public poolConfig;
+    PoolConfig public config;
 
-    PoolBalance public poolBalance;
+    PoolBalance public balance;
 
     /// Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
     /// This value is always equal to (managerEarnFactor - oneHundredPercent)
@@ -81,7 +81,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         uint16 _maxProtocolFeePercent = uint16(10 * 10 ** percentDecimals);
         uint16 _maxEarnFactor = uint16(1000 * 10 ** percentDecimals);
 
-        poolConfig = PoolConfig({
+        config = PoolConfig({
             poolFundsLimit: 0,
             exitFeePercent: oneHundredPercent / 200, // 0.5%
             maxProtocolFeePercent: _maxProtocolFeePercent,
@@ -94,7 +94,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             managerEarnFactor: uint16(MathUpgradeable.min(uint16(150 * 10 ** percentDecimals), _maxEarnFactor))
         });
 
-        poolBalance = PoolBalance({
+        balance = PoolBalance({
             tokenBalance: 0,
             poolFunds: 0,
             rawLiquidity: 0,
@@ -106,7 +106,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             managerRevenue: 0
         });
 
-        managerExcessLeverageComponent = uint256(poolConfig.managerEarnFactor) - oneHundredPercent;
+        managerExcessLeverageComponent = uint256(config.managerEarnFactor) - oneHundredPercent;
 
         weightedAvgStrategyAPR = 0;
         nextStrategyId = 1;
@@ -126,11 +126,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             "SaplingPoolContext: target stake percent is out of bounds"
         );
 
-        uint16 prevValue = poolConfig.targetStakePercent;
-        poolConfig.targetStakePercent = _targetStakePercent;
+        uint16 prevValue = config.targetStakePercent;
+        config.targetStakePercent = _targetStakePercent;
         updatePoolLimit();
 
-        emit TargetStakePercentSet(prevValue, poolConfig.targetStakePercent);
+        emit TargetStakePercentSet(prevValue, config.targetStakePercent);
     }
 
     /**
@@ -145,10 +145,10 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             "SaplingPoolContext: target liquidity percent is out of bounds"
         );
 
-        uint16 prevValue = poolConfig.targetLiquidityPercent;
-        poolConfig.targetLiquidityPercent = _targetLiquidityPercent;
+        uint16 prevValue = config.targetLiquidityPercent;
+        config.targetLiquidityPercent = _targetLiquidityPercent;
 
-        emit TargetLiqudityPercentSet(prevValue, poolConfig.targetLiquidityPercent);
+        emit TargetLiqudityPercentSet(prevValue, config.targetLiquidityPercent);
     }
 
     /**
@@ -159,14 +159,14 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      */
     function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
         require(
-            0 <= _protocolEarningPercent && _protocolEarningPercent <= poolConfig.maxProtocolFeePercent,
+            0 <= _protocolEarningPercent && _protocolEarningPercent <= config.maxProtocolFeePercent,
             "SaplingPoolContext: protocol earning percent is out of bounds"
         );
 
-        uint16 prevValue = poolConfig.protocolFeePercent;
-        poolConfig.protocolFeePercent = _protocolEarningPercent;
+        uint16 prevValue = config.protocolFeePercent;
+        config.protocolFeePercent = _protocolEarningPercent;
 
-        emit ProtocolFeePercentSet(prevValue, poolConfig.protocolFeePercent);
+        emit ProtocolFeePercentSet(prevValue, config.protocolFeePercent);
     }
 
     /**
@@ -182,18 +182,18 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             "SaplingPoolContext: _managerEarnFactorMax is out of bounds"
         );
 
-        uint16 prevValue = poolConfig.managerEarnFactorMax;
-        poolConfig.managerEarnFactorMax = _managerEarnFactorMax;
+        uint16 prevValue = config.managerEarnFactorMax;
+        config.managerEarnFactorMax = _managerEarnFactorMax;
 
-        if (poolConfig.managerEarnFactor > poolConfig.managerEarnFactorMax) {
-            uint16 prevEarnFactor = poolConfig.managerEarnFactor;
-            poolConfig.managerEarnFactor = poolConfig.managerEarnFactorMax;
-            managerExcessLeverageComponent = uint256(poolConfig.managerEarnFactor) - oneHundredPercent;
+        if (config.managerEarnFactor > config.managerEarnFactorMax) {
+            uint16 prevEarnFactor = config.managerEarnFactor;
+            config.managerEarnFactor = config.managerEarnFactorMax;
+            managerExcessLeverageComponent = uint256(config.managerEarnFactor) - oneHundredPercent;
 
-            emit ManagerEarnFactorSet(prevEarnFactor, poolConfig.managerEarnFactor);
+            emit ManagerEarnFactorSet(prevEarnFactor, config.managerEarnFactor);
         }
 
-        emit ManagerEarnFactorMaxSet(prevValue, poolConfig.managerEarnFactorMax);
+        emit ManagerEarnFactorMaxSet(prevValue, config.managerEarnFactorMax);
     }
 
     /**
@@ -204,15 +204,15 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      */
     function setManagerEarnFactor(uint16 _managerEarnFactor) external onlyRole(POOL_MANAGER_ROLE) {
         require(
-            oneHundredPercent <= _managerEarnFactor && _managerEarnFactor <= poolConfig.managerEarnFactorMax,
+            oneHundredPercent <= _managerEarnFactor && _managerEarnFactor <= config.managerEarnFactorMax,
             "SaplingPoolContext: _managerEarnFactor is out of bounds"
         );
 
-        uint16 prevValue = poolConfig.managerEarnFactor;
-        poolConfig.managerEarnFactor = _managerEarnFactor;
-        managerExcessLeverageComponent = uint256(poolConfig.managerEarnFactor) - oneHundredPercent;
+        uint16 prevValue = config.managerEarnFactor;
+        config.managerEarnFactor = _managerEarnFactor;
+        managerExcessLeverageComponent = uint256(config.managerEarnFactor) - oneHundredPercent;
 
-        emit ManagerEarnFactorSet(prevValue, poolConfig.managerEarnFactor);
+        emit ManagerEarnFactorSet(prevValue, config.managerEarnFactor);
     }
 
     /**
@@ -252,12 +252,12 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     function requestWithdrawal(uint256 shares) external whenNotPaused onlyUser {
 
         uint256 amount = sharesToTokens(shares);
-        uint256 outstandingRequestsAmount = sharesToTokens(poolBalance.withdrawalRequestedShares);
+        uint256 outstandingRequestsAmount = sharesToTokens(balance.withdrawalRequestedShares);
 
         //// base case
         if (
-            poolBalance.rawLiquidity >= outstandingRequestsAmount 
-            && amount <= poolBalance.rawLiquidity - outstandingRequestsAmount
+            balance.rawLiquidity >= outstandingRequestsAmount 
+            && amount <= balance.rawLiquidity - outstandingRequestsAmount
         )
         {
             withdraw(amount);
@@ -281,7 +281,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         state.countOutstanding++;
         state.sharesLocked += shares;
-        poolBalance.withdrawalRequestedShares += shares;
+        balance.withdrawalRequestedShares += shares;
 
         //// interactions
 
@@ -306,7 +306,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         
         uint256 shareDifference = withdrawalQueue.update(id, newShareAmount);
 
-        poolBalance.withdrawalRequestedShares -= shareDifference;
+        balance.withdrawalRequestedShares -= shareDifference;
 
         WithdrawalRequestState storage state = withrawalRequestStates[request.wallet];
         state.countOutstanding--;
@@ -332,7 +332,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         //// effect
         withdrawalQueue.remove(id);
 
-        poolBalance.withdrawalRequestedShares -= request.sharesLocked;
+        balance.withdrawalRequestedShares -= request.sharesLocked;
         
         WithdrawalRequestState storage state = withrawalRequestStates[request.wallet];
         state.countOutstanding--;
@@ -355,7 +355,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         WithdrawalRequestQueue.Request memory request = withdrawalQueue.get(id);
         uint256 requestedAmount = sharesToTokens(request.sharesLocked);
         require(
-            poolBalance.rawLiquidity >= requestedAmount + sharesToTokens(request.sumOfSharesLockedAhead),
+            balance.rawLiquidity >= requestedAmount + sharesToTokens(request.sumOfSharesLockedAhead),
             "SaplingPolContext: insufficient liqudity"
         );
 
@@ -367,7 +367,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         state.countOutstanding++;
         state.sharesLocked -= request.sharesLocked;
 
-        poolBalance.rawLiquidity -= requestedAmount;
+        balance.rawLiquidity -= requestedAmount;
 
         //// interactions
 
@@ -434,16 +434,16 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         uint256 amount = 0;
 
         if (IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender)) {
-            amount += poolBalance.managerRevenue;
-            poolBalance.managerRevenue = 0;
+            amount += balance.managerRevenue;
+            balance.managerRevenue = 0;
         }
 
         if (IAccessControl(accessControl).hasRole(SaplingRoles.TREASURY_ROLE, msg.sender)) {
-            amount += poolBalance.protocolRevenue;
-            poolBalance.protocolRevenue = 0;
+            amount += balance.protocolRevenue;
+            balance.protocolRevenue = 0;
         }
 
-        poolBalance.tokenBalance -= amount;
+        balance.tokenBalance -= amount;
 
         // interactions
 
@@ -458,11 +458,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @return Max amount of tokens depositable to the pool.
      */
     function amountDepositable() external view returns (uint256) {
-        if (poolConfig.poolFundsLimit <= poolBalance.poolFunds || closed() || paused()) {
+        if (config.poolFundsLimit <= balance.poolFunds || closed() || paused()) {
             return 0;
         }
 
-        return poolConfig.poolFundsLimit - poolBalance.poolFunds;
+        return config.poolFundsLimit - balance.poolFunds;
     }
 
     /**
@@ -492,7 +492,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @return Liquidity token balance of the manager's stake.
      */
     function balanceStaked() external view returns (uint256) {
-        return sharesToTokens(poolBalance.stakedShares);
+        return sharesToTokens(balance.stakedShares);
     }
 
     /**
@@ -503,17 +503,17 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @return Accumulated liquidity token revenue of the wallet from the protocol.
      */
     function revenueBalanceOf(address wallet) public view returns (uint256) {
-        uint256 balance = 0;
+        uint256 revenueBalance = 0;
 
         if (IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, wallet)) {
-            balance += poolBalance.managerRevenue;
+            revenueBalance += balance.managerRevenue;
         }
 
         if (IAccessControl(accessControl).hasRole(SaplingRoles.TREASURY_ROLE, wallet)) {
-            balance += poolBalance.protocolRevenue;
+            revenueBalance += balance.protocolRevenue;
         }
 
-        return balance;
+        return revenueBalance;
     }
 
     /**
@@ -521,7 +521,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @return Estimated current lender APY
      */
     function currentLenderAPY() external view returns (uint16) {
-        return lenderAPY(poolBalance.strategizedFunds, weightedAvgStrategyAPR);
+        return lenderAPY(balance.strategizedFunds, weightedAvgStrategyAPR);
     }
 
     /**
@@ -534,7 +534,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         require(strategyRate <= oneHundredPercent, "SaplingPoolContext: invalid borrow rate");
 
         return lenderAPY(
-            MathUpgradeable.mulDiv(poolBalance.poolFunds, strategyRate, oneHundredPercent),
+            MathUpgradeable.mulDiv(balance.poolFunds, strategyRate, oneHundredPercent),
             _avgStrategyAPR
         );
     }
@@ -561,23 +561,23 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         if (
             paused() ||
-            poolConfig.targetStakePercent >= oneHundredPercent && totalPoolShares > poolBalance.stakedShares
+            config.targetStakePercent >= oneHundredPercent && totalPoolShares > balance.stakedShares
         ) {
             return 0;
-        } else if (closed() || totalPoolShares == poolBalance.stakedShares) {
-            return MathUpgradeable.min(withdrawableLiquidity, sharesToTokens(poolBalance.stakedShares)); 
+        } else if (closed() || totalPoolShares == balance.stakedShares) {
+            return MathUpgradeable.min(withdrawableLiquidity, sharesToTokens(balance.stakedShares)); 
         }
 
-        uint256 lenderShares = totalPoolShares - poolBalance.stakedShares;
+        uint256 lenderShares = totalPoolShares - balance.stakedShares;
         uint256 lockedStakeShares = MathUpgradeable.mulDiv(
             lenderShares,
-            poolConfig.targetStakePercent,
-            oneHundredPercent - poolConfig.targetStakePercent
+            config.targetStakePercent,
+            oneHundredPercent - config.targetStakePercent
         );
 
         return MathUpgradeable.min(
             withdrawableLiquidity,
-            sharesToTokens(poolBalance.stakedShares - lockedStakeShares)
+            sharesToTokens(balance.stakedShares - lockedStakeShares)
         );
     }
 
@@ -588,25 +588,25 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     function strategyLiquidity() public view returns (uint256) {
 
         uint256 lenderAllocatedLiquidity = MathUpgradeable.max(
-            sharesToTokens(poolBalance.withdrawalRequestedShares),
+            sharesToTokens(balance.withdrawalRequestedShares),
             MathUpgradeable.mulDiv(
-                poolBalance.poolFunds,
-                poolConfig.targetLiquidityPercent,
+                balance.poolFunds,
+                config.targetLiquidityPercent,
                 oneHundredPercent
             )
         );
 
-        return poolBalance.rawLiquidity > lenderAllocatedLiquidity 
-            ? poolBalance.rawLiquidity - lenderAllocatedLiquidity 
+        return balance.rawLiquidity > lenderAllocatedLiquidity 
+            ? balance.rawLiquidity - lenderAllocatedLiquidity 
             : 0;
     }
 
     function freeLenderLiquidity() public view returns (uint256) {
 
-        uint256 withdrawalRequestedLiqudity = sharesToTokens(poolBalance.withdrawalRequestedShares);
+        uint256 withdrawalRequestedLiqudity = sharesToTokens(balance.withdrawalRequestedShares);
 
-        return poolBalance.rawLiquidity > withdrawalRequestedLiqudity 
-            ? poolBalance.rawLiquidity - withdrawalRequestedLiqudity
+        return balance.rawLiquidity > withdrawalRequestedLiqudity 
+            ? balance.rawLiquidity - withdrawalRequestedLiqudity
             : 0;
     }
 
@@ -641,8 +641,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         require(
             isManager ||
             (
-                poolConfig.poolFundsLimit > poolBalance.poolFunds &&
-                amount <= poolConfig.poolFundsLimit - poolBalance.poolFunds
+                config.poolFundsLimit > balance.poolFunds &&
+                amount <= config.poolFundsLimit - balance.poolFunds
             ),
             "SaplingPoolContext: deposit amount is over the remaining pool limit"
         );
@@ -651,14 +651,14 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         uint256 shares = tokensToShares(amount);
 
-        poolBalance.tokenBalance += amount;
-        poolBalance.rawLiquidity += amount;
-        poolBalance.poolFunds += amount;
+        balance.tokenBalance += amount;
+        balance.rawLiquidity += amount;
+        balance.poolFunds += amount;
 
         if (isManager) {
             // this is a staking entry
 
-            poolBalance.stakedShares += shares;
+            balance.stakedShares += shares;
         }
 
         //// interactions
@@ -689,7 +689,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     function exitPool(uint256 amount) internal nonReentrant returns (uint256) { //FIXME rename
         //// check
         require(amount > 0, "SaplingPoolContext: pool withdrawal amount is 0");
-        require(poolBalance.rawLiquidity >= amount, "SaplingPoolContext: insufficient liquidity");
+        require(balance.rawLiquidity >= amount, "SaplingPoolContext: insufficient liquidity");
 
         uint256 shares = tokensToShares(amount);
 
@@ -698,22 +698,22 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         require(
             !isManager
                 ? shares <= IERC20(tokenConfig.poolToken).balanceOf(msg.sender)
-                : shares <= poolBalance.stakedShares,
+                : shares <= balance.stakedShares,
             "SaplingPoolContext: insufficient balance"
         );
 
         //// effect
 
         if (isManager) {
-            poolBalance.stakedShares -= shares;
+            balance.stakedShares -= shares;
             updatePoolLimit();
         }
 
-        uint256 transferAmount = amount - MathUpgradeable.mulDiv(amount, poolConfig.exitFeePercent, oneHundredPercent);
+        uint256 transferAmount = amount - MathUpgradeable.mulDiv(amount, config.exitFeePercent, oneHundredPercent);
 
-        poolBalance.poolFunds -= transferAmount;
-        poolBalance.rawLiquidity -= transferAmount;
-        poolBalance.tokenBalance -= transferAmount;
+        balance.poolFunds -= transferAmount;
+        balance.rawLiquidity -= transferAmount;
+        balance.tokenBalance -= transferAmount;
 
         //// interactions
 
@@ -730,8 +730,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @dev Internal method to update the pool funds limit based on the staked funds.
      */
     function updatePoolLimit() internal {
-        poolConfig.poolFundsLimit = sharesToTokens(
-            MathUpgradeable.mulDiv(poolBalance.stakedShares, oneHundredPercent, poolConfig.targetStakePercent)
+        config.poolFundsLimit = sharesToTokens(
+            MathUpgradeable.mulDiv(balance.stakedShares, oneHundredPercent, config.targetStakePercent)
         );
     }
 
@@ -741,11 +741,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @param apr annual percentage rate of the strategy
      */
     function updateAvgStrategyApr(uint256 amountReducedBy, uint16 apr) internal {
-        if (poolBalance.strategizedFunds > 0) {
+        if (balance.strategizedFunds > 0) {
             weightedAvgStrategyAPR = (
-                (poolBalance.strategizedFunds + amountReducedBy) * weightedAvgStrategyAPR - amountReducedBy * apr
+                (balance.strategizedFunds + amountReducedBy) * weightedAvgStrategyAPR - amountReducedBy * apr
             )
-                / poolBalance.strategizedFunds;
+                / balance.strategizedFunds;
         } else {
             weightedAvgStrategyAPR = 0;
         }
@@ -757,11 +757,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @param shares Amount of shares
      */
     function sharesToTokens(uint256 shares) internal view returns (uint256) {
-        if (shares == 0 || poolBalance.poolFunds == 0) {
+        if (shares == 0 || balance.poolFunds == 0) {
              return 0;
         }
 
-        return MathUpgradeable.mulDiv(shares, poolBalance.poolFunds, IERC20(tokenConfig.poolToken).totalSupply());
+        return MathUpgradeable.mulDiv(shares, balance.poolFunds, IERC20(tokenConfig.poolToken).totalSupply());
     }
 
     /**
@@ -775,7 +775,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         if (totalPoolShares == 0) {
             // a pool with no positions
             return tokens;
-        } else if (poolBalance.poolFunds == 0) {
+        } else if (balance.poolFunds == 0) {
             /*
                 Handle failed pool case, where: poolFunds == 0, but totalPoolShares > 0
                 To minimize loss for the new depositor, assume the total value of existing shares is the minimum
@@ -786,7 +786,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             return tokens * totalPoolShares;
         }
 
-        return MathUpgradeable.mulDiv(tokens, totalPoolShares, poolBalance.poolFunds);
+        return MathUpgradeable.mulDiv(tokens, totalPoolShares, balance.poolFunds);
     }
 
     /**
@@ -803,21 +803,21 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @return Lender APY
      */
     function lenderAPY(uint256 _strategizedFunds, uint256 _avgStrategyAPR) internal view returns (uint16) {
-        if (poolBalance.poolFunds == 0 || _strategizedFunds == 0 || _avgStrategyAPR == 0) {
+        if (balance.poolFunds == 0 || _strategizedFunds == 0 || _avgStrategyAPR == 0) {
             return 0;
         }
 
         // pool APY
-        uint256 poolAPY = MathUpgradeable.mulDiv(_avgStrategyAPR, _strategizedFunds, poolBalance.poolFunds);
+        uint256 poolAPY = MathUpgradeable.mulDiv(_avgStrategyAPR, _strategizedFunds, balance.poolFunds);
 
         // protocol APY
-        uint256 protocolAPY = MathUpgradeable.mulDiv(poolAPY, poolConfig.protocolFeePercent, oneHundredPercent);
+        uint256 protocolAPY = MathUpgradeable.mulDiv(poolAPY, config.protocolFeePercent, oneHundredPercent);
 
         uint256 remainingAPY = poolAPY - protocolAPY;
 
         // manager withdrawableAPY
         uint256 currentStakePercent = MathUpgradeable.mulDiv(
-            poolBalance.stakedShares,
+            balance.stakedShares,
             oneHundredPercent,
             IERC20(tokenConfig.poolToken).totalSupply()
         );
@@ -841,9 +841,9 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      */
     function isPoolFunctional() internal view returns (bool) {
         return !(paused() || closed())
-            && poolBalance.stakedShares >= MathUpgradeable.mulDiv(
+            && balance.stakedShares >= MathUpgradeable.mulDiv(
                 IERC20(tokenConfig.poolToken).totalSupply(),
-                poolConfig.targetStakePercent,
+                config.targetStakePercent,
                 oneHundredPercent
             );
     }
@@ -853,7 +853,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      *      Pool can be close when no funds remain committed to strategies.
      */
     function canClose() internal view override returns (bool) {
-        return poolBalance.strategizedFunds == 0;
+        return balance.strategizedFunds == 0;
     }
 
     /**

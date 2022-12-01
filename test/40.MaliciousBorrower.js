@@ -137,7 +137,7 @@ describe('Attack Sapling Lending Pool', function () {
             PERCENT_DECIMALS = await lendingPool.percentDecimals();
             TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
             ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
-            exitFeePercent = (await lendingPool.poolConfig()).exitFeePercent;
+            exitFeePercent = (await lendingPool.config()).exitFeePercent;
 
             lender1 = addresses[1];
             lender2 = addresses[2];
