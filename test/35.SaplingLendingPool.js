@@ -1102,7 +1102,7 @@ describe('Sapling Lending Pool)', function () {
                     let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
 
                     let poolFundsBefore = (await lendingPool.poolBalance()).poolFunds;
-                    let poolLiquidityBefore = (await lendingPool.poolBalance()).poolLiquidity;
+                    let rawLiquidityBefore = (await lendingPool.poolBalance()).rawLiquidity;
                     let stakedBalanceBefore = await lendingPool.balanceStaked();
                     let managerRevenueBefore = await lendingPool.revenueBalanceOf(manager.address);
 
@@ -1113,7 +1113,7 @@ describe('Sapling Lending Pool)', function () {
 
                     expect(await lendingPool.revenueBalanceOf(manager.address)).to.equal(managerRevenueBefore.sub(lossAmount));
                     expect(await lendingPool.balanceStaked()).to.equal(stakedBalanceBefore);
-                    expect((await lendingPool.poolBalance()).poolLiquidity).to.equal(poolLiquidityBefore.add(lossAmount));
+                    expect((await lendingPool.poolBalance()).rawLiquidity).to.equal(rawLiquidityBefore.add(lossAmount));
                     expect((await lendingPool.poolBalance()).poolFunds).to.equal(poolFundsBefore);
                 });
 
@@ -1130,7 +1130,7 @@ describe('Sapling Lending Pool)', function () {
                     let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
 
                     let poolFundsBefore = (await lendingPool.poolBalance()).poolFunds;
-                    let poolLiquidityBefore = (await lendingPool.poolBalance()).poolLiquidity;
+                    let rawLiquidityBefore = (await lendingPool.poolBalance()).rawLiquidity;
                     let stakedBalanceBefore = await lendingPool.balanceStaked();
                     let managerRevenueBefore = await lendingPool.revenueBalanceOf(manager.address);
 
@@ -1144,7 +1144,7 @@ describe('Sapling Lending Pool)', function () {
                     expect(await lendingPool.revenueBalanceOf(manager.address)).to.equal(0);
                     expect(await lendingPool.balanceStaked() - stakedBalanceBefore.sub(lossAmount.sub(managerRevenueBefore)))
                         .to.lt(BigNumber.from(20).mul(TOKEN_MULTIPLIER)); //allow inconsistency due to double conversion using integer math
-                    expect((await lendingPool.poolBalance()).poolLiquidity).to.equal(poolLiquidityBefore.add(lossAmount));
+                    expect((await lendingPool.poolBalance()).rawLiquidity).to.equal(rawLiquidityBefore.add(lossAmount));
                     expect((await lendingPool.poolBalance()).poolFunds).to.equal(poolFundsBefore);
                 });
 
@@ -1161,7 +1161,7 @@ describe('Sapling Lending Pool)', function () {
                     let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid).sub(loanDetail.paymentCarry);
 
                     let poolFundsBefore = (await lendingPool.poolBalance()).poolFunds;
-                    let poolLiquidityBefore = (await lendingPool.poolBalance()).poolLiquidity;
+                    let rawLiquidityBefore = (await lendingPool.poolBalance()).rawLiquidity;
                     let stakedBalanceBefore = await lendingPool.balanceStaked();
                     let managerRevenueBefore = await lendingPool.revenueBalanceOf(manager.address);
 
@@ -1172,7 +1172,7 @@ describe('Sapling Lending Pool)', function () {
 
                     expect(await lendingPool.revenueBalanceOf(manager.address)).to.equal(0);
                     expect(await lendingPool.balanceStaked()).to.lte(10 ** (TOKEN_DECIMALS - 4)); // lte 0.01 cent
-                    expect((await lendingPool.poolBalance()).poolLiquidity).to.equal(poolLiquidityBefore.add(managerRevenueBefore.add(stakedBalanceBefore)));
+                    expect((await lendingPool.poolBalance()).rawLiquidity).to.equal(rawLiquidityBefore.add(managerRevenueBefore.add(stakedBalanceBefore)));
                     expect((await lendingPool.poolBalance()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount.sub(managerRevenueBefore.add(stakedBalanceBefore))));
                 });
 

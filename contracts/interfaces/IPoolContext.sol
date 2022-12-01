@@ -58,8 +58,8 @@ interface IPoolContext {
         /// Current amount of liquidity tokens in the pool, including both liquid and allocated funds
         uint256 poolFunds;
 
-        /// Current amount of liquid tokens, available to for pool strategies or withdrawals
-        uint256 poolLiquidity;
+        /// Current amount of liquid tokens, available to for pool strategies, withdrawals, withdrawal requests
+        uint256 rawLiquidity;
 
         /// Current funds allocated for pool strategies
         uint256 allocatedFunds;
@@ -67,12 +67,20 @@ interface IPoolContext {
         /// Current funds committed to strategies such as borrowing or investing
         uint256 strategizedFunds;
 
+        /// Withdrawal request
+        uint256 withdrawalRequestedShares; 
+
         /// Manager's staked shares
         uint256 stakedShares;
 
         uint256 protocolRevenue;
         
         uint256 managerRevenue;
+    }
+
+    struct WithdrawalRequestState {
+        uint256 sharesLocked;
+        uint8 countOutstanding;
     }
 
     /// Event for when the lender capital is lost due to defaults

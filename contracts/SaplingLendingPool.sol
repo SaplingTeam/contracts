@@ -204,7 +204,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         if (loanDetail.paymentCarry > 0) {
             poolBalance.strategizedFunds -= loanDetail.paymentCarry;
-            poolBalance.poolLiquidity += loanDetail.paymentCarry;
+            poolBalance.rawLiquidity += loanDetail.paymentCarry;
 
             loanDetail.principalAmountRepaid += loanDetail.paymentCarry;
             loanDetail.lastPaymentTime = block.timestamp;
@@ -323,7 +323,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         if (amountRepaid > 0) {
             poolBalance.strategizedFunds -= amountRepaid;
-            poolBalance.poolLiquidity += amountRepaid;
+            poolBalance.rawLiquidity += amountRepaid;
 
             loanDetail.totalAmountRepaid += amountRepaid - amountCarryUsed;
             loanDetail.principalAmountRepaid += amountRepaid;
@@ -359,7 +359,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     function onOffer(uint256 amount) external override onlyLoanDesk whenNotPaused {
         require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
 
-        poolBalance.poolLiquidity -= amount;
+        poolBalance.rawLiquidity -= amount;
         poolBalance.allocatedFunds += amount;
 
         emit OfferLiquidityAllocated(amount);
@@ -375,7 +375,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     function onOfferUpdate(uint256 prevAmount, uint256 amount) external onlyLoanDesk whenNotPaused {
         require(strategyLiquidity() + prevAmount >= amount, "SaplingLendingPool: insufficient liquidity");
 
-        poolBalance.poolLiquidity = poolBalance.poolLiquidity + prevAmount - amount;
+        poolBalance.rawLiquidity = poolBalance.rawLiquidity + prevAmount - amount;
         poolBalance.allocatedFunds = poolBalance.allocatedFunds - prevAmount + amount;
 
         emit OfferLiquidityUpdated(prevAmount, amount);
@@ -527,7 +527,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         uint256 principalPaid;
         if (interestPayable == 0) {
             principalPaid = paymentAmount;
-            poolBalance.poolLiquidity += paymentAmount;
+            poolBalance.rawLiquidity += paymentAmount;
         } else {
             principalPaid = paymentAmount - interestPayable;
 
@@ -561,7 +561,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
             poolBalance.managerRevenue += managerEarnedInterest;
 
-            poolBalance.poolLiquidity += paymentAmount - (protocolEarnedInterest + managerEarnedInterest);
+            poolBalance.rawLiquidity += paymentAmount - (protocolEarnedInterest + managerEarnedInterest);
             poolBalance.poolFunds += interestPayable - (protocolEarnedInterest + managerEarnedInterest);
 
             updatePoolLimit();

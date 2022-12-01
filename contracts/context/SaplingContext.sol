@@ -5,7 +5,7 @@ pragma solidity ^0.8.15;
 import "@openzeppelin/contracts/access/IAccessControl.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "./SaplingRoles.sol";
+import "../lib/SaplingRoles.sol";
 
 /**
  * @title Sapling Context
