@@ -15,18 +15,15 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /// Address of the loan desk contract
     address public loanDesk;
 
-    /// Loans by loan ID
-    mapping(uint256 => Loan) public loans;
+    /// Mark loan funds released flags to guards against double withdrawals due to future bugs or compromised LoanDesk
+    mapping(uint256 => bool) private loanFundsReleased;
 
-    /// LoanDetails by loan ID
-    mapping(uint256 => LoanDetail) public loanDetails;
-
-    /// Recent loan id by address
-    mapping(address => uint256) public recentLoanIdOf;
+    /// Mark the loans closed to guards against double actions due to future bugs or compromised LoanDesk
+    mapping(uint256 => bool) private loanClosed;
 
     /// A modifier to limit access to when a loan has the specified status
-    modifier loanInStatus(uint256 loanId, LoanStatus status) {
-        require(loans[loanId].status == status, "SaplingLendingPool: not found or invalid loan status");
+    modifier loanFundsNotReleased(uint256 loanId) {
+        require(loanFundsReleased[loanId] == false, "SaplingLendingPool: loan funds already released");
         _;
     }
 
@@ -76,145 +73,64 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
     /**
      * @notice Accept a loan offer and withdraw funds
-     * @dev Caller must be the borrower of the loan in question.
-     *      The loan must be in OFFER_MADE status.
-     * @param appId ID of the loan application to accept the offer of
+     * @dev Caller must be the loan desk.
+     *      Loan funds must not have been released before.
+     * @param loanId ID of the loan application to accept the offer of
      */
-    function borrow(uint256 appId) external whenNotClosed whenNotPaused {
+    function onBorrow(uint256 loanId) external onlyLoanDesk whenNotClosed whenNotPaused {
 
-        //// check
-
-        require(
-            ILoanDesk(loanDesk).applicationStatus(appId) == ILoanDesk.LoanApplicationStatus.OFFER_MADE,
-            "SaplingLendingPool: invalid offer status"
-        );
-
-        ILoanDesk.LoanOffer memory offer = ILoanDesk(loanDesk).loanOfferById(appId);
-
-        require(offer.borrower == msg.sender, "SaplingLendingPool: msg.sender is not the borrower on this loan");
+        // check
+        ILoanDesk.Loan memory loan = ILoanDesk(loanDesk).loanById(loanId);
+        require(loan.id == loanId && loan.status == ILoanDesk.LoanStatus.OUTSTANDING, "SaplingLendingPool: invalid loan status");
+        require(loanFundsReleased[loanId] == false, "SaplingLendingPool: loan funds already released");
+        require(balance.allocatedFunds >= loan.amount, "SaplingLendingPool: insufficient allocated balance");
 
         //// effect
-
-        uint256 loanId = getNextStrategyId();
-
-        loans[loanId] = Loan({
-            id: loanId,
-            loanDeskAddress: loanDesk,
-            applicationId: appId,
-            borrower: offer.borrower,
-            amount: offer.amount,
-            duration: offer.duration,
-            gracePeriod: offer.gracePeriod,
-            installmentAmount: offer.installmentAmount,
-            installments: offer.installments,
-            apr: offer.apr,
-            borrowedTime: block.timestamp,
-            status: LoanStatus.OUTSTANDING
-        });
-
-        loanDetails[loanId] = LoanDetail({
-            loanId: loanId,
-            totalAmountRepaid: 0,
-            principalAmountRepaid: 0,
-            interestPaid: 0,
-            paymentCarry: 0,
-            interestPaidTillTime: block.timestamp,
-            lastPaymentTime: 0
-        });
-
-        recentLoanIdOf[offer.borrower] = loanId;
-
+        
         uint256 prevStrategizedFunds = balance.strategizedFunds;
-        balance.allocatedFunds -= offer.amount;
-        balance.strategizedFunds += offer.amount;
+        
+        balance.tokenBalance -= loan.amount;
+        balance.allocatedFunds -= loan.amount;
+        balance.strategizedFunds += loan.amount;
 
-        weightedAvgStrategyAPR = (prevStrategizedFunds * weightedAvgStrategyAPR + offer.amount * offer.apr)
+        weightedAvgStrategyAPR = (prevStrategizedFunds * weightedAvgStrategyAPR + loan.amount * loan.apr)
             / balance.strategizedFunds;
-
-        balance.tokenBalance -= offer.amount;
 
         //// interactions
 
-        ILoanDesk(loanDesk).onBorrow(appId);
+        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), loan.borrower, loan.amount);
 
-        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, offer.amount);
-
-        emit LoanBorrowed(loanId, offer.borrower, appId);
+        emit LoanFundsReleased(loanId, loan.borrower, loan.amount);
     }
 
-    /**
-     * @notice Make a payment towards a loan.
-     * @dev Caller must be the borrower.
-     *      Loan must be in OUTSTANDING status.
-     *      Only the necessary sum is charged if amount exceeds amount due.
-     *      Amount charged will not exceed the amount parameter.
-     * @param loanId ID of the loan to make a payment towards.
-     * @param amount Payment amount in tokens.
-     * @return A pair of total amount charged including interest, and the interest charged.
-     */
-    function repay(uint256 loanId, uint256 amount) external returns (uint256, uint256) {
-        // require the payer and the borrower to be the same to avoid mispayment
-        require(loans[loanId].borrower == msg.sender, "SaplingLendingPool: payer is not the borrower");
-
-        return repayBase(loanId, amount);
-    }
-
-    /**
-     * @notice Make a payment towards a loan on behalf of a borrower.
-     * @dev Loan must be in OUTSTANDING status.
-     *      Only the necessary sum is charged if amount exceeds amount due.
-     *      Amount charged will not exceed the amount parameter.
-     * @param loanId ID of the loan to make a payment towards.
-     * @param amount Payment amount in tokens.
-     * @param borrower address of the borrower to make a payment on behalf of.
-     * @return A pair of total amount charged including interest, and the interest charged.
-     */
-    function repayOnBehalf(uint256 loanId, uint256 amount, address borrower ) external returns (uint256, uint256) {
-        // require the borrower being paid on behalf off and the loan borrower to be the same to avoid mispayment
-        require(loans[loanId].borrower == borrower, "SaplingLendingPool: invalid borrower");
-
-        return repayBase(loanId, amount);
-    }
-
-    /**
-     * @notice Default a loan.
-     * @dev Loan must be in OUTSTANDING status.
-     *      Caller must be the manager.
-     *      canDefault(loanId, msg.sender) must return 'true'.
-     * @param loanId ID of the loan to default
-     */
-    function defaultLoan(
-        uint256 loanId
+    // /**
+    //  * @notice Default a loan.
+    //  * @dev Loan must be in OUTSTANDING status.
+    //  *      Caller must be the manager.
+    //  *      canDefault(loanId, msg.sender) must return 'true'.
+    //  * @param loanId ID of the loan to default
+    //  */
+    function onDefault(
+        uint256 loanId,
+        uint16 apr,
+        uint256 carryAmountUsed,
+        uint256 loss
     )
         public
-        managerOrApprovedOnInactive
-        loanInStatus(loanId, LoanStatus.OUTSTANDING)
         whenNotPaused
+        onlyLoanDesk
+        returns (uint256, uint256)
     {
         //// check
+        require(loanClosed[loanId] == false, "SaplingLendingPool: loan is closed");
 
-        require(canDefault(loanId, msg.sender), "SaplingLendingPool: cannot defaulted this loan at this time");
+        // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
 
         //// effect
-
-        Loan storage loan = loans[loanId];
-        LoanDetail storage loanDetail = loanDetails[loanId];
-
-        loan.status = LoanStatus.DEFAULTED;
-
-        if (loanDetail.paymentCarry > 0) {
-            balance.strategizedFunds -= loanDetail.paymentCarry;
-            balance.rawLiquidity += loanDetail.paymentCarry;
-
-            loanDetail.principalAmountRepaid += loanDetail.paymentCarry;
-            loanDetail.lastPaymentTime = block.timestamp;
-
-            loanDetail.paymentCarry = 0;
+        if (carryAmountUsed > 0) {
+            balance.strategizedFunds -= carryAmountUsed;
+            balance.rawLiquidity += carryAmountUsed;
         }
-
-        uint256 loss = loan.amount > loanDetail.principalAmountRepaid
-            ? loan.amount - loanDetail.principalAmountRepaid
-            : 0;
 
         uint256 managerLoss = loss;
         uint256 lenderLoss = 0;
@@ -224,7 +140,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
             balance.poolFunds -= loss;
             balance.strategizedFunds -= loss;
-            updateAvgStrategyApr(loss, loan.apr);
+            updateAvgStrategyApr(loss, apr);
 
             if (balance.stakedShares > 0) {
                 uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, balance.stakedShares);
@@ -238,7 +154,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
                 //// interactions
 
-                //burn manager's shares
+                //burn manager's shares; this external interaction must happen before calculating lender loss
                 IPoolToken(tokenConfig.poolToken).burn(address(this), stakedShareLoss);
             }
 
@@ -250,48 +166,32 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             }
         }
 
-        emit LoanDefaulted(loanId, loan.borrower, managerLoss, lenderLoss);
+        return (managerLoss, lenderLoss);
     }
 
-    /**
-     * @notice Closes a loan. Closing a loan will repay the outstanding principal using the pool manager's revenue
-                            and/or staked funds. If these funds are not sufficient, the lenders will take the loss.
-     * @dev Loan must be in OUTSTANDING status.
-     *      Caller must be the manager.
-     * @param loanId ID of the loan to close
-     */
-    function closeLoan(
-        uint256 loanId
+    // /**
+    //  * @notice Closes a loan. Closing a loan will repay the outstanding principal using the pool manager's revenue
+    //                         and/or staked funds. If these funds are not sufficient, the lenders will take the loss.
+    //  * @dev Loan must be in OUTSTANDING status.
+    //  *      Caller must be the manager.
+    //  * @param loanId ID of the loan to close
+    //  */
+    function onCloseLoan(
+        uint256 loanId,
+        uint16 apr,
+        uint256 amountRepaid,
+        uint256 remainingDifference
     )
         external
-        onlyRole(POOL_MANAGER_ROLE)
-        loanInStatus(loanId, LoanStatus.OUTSTANDING)
+        onlyLoanDesk
         whenNotPaused
         nonReentrant
+        returns (uint256)
     {
+        //// check
+        require(loanClosed[loanId] == false, "SaplingLendingPool: loan is closed");
+
         //// effect
-
-        Loan storage loan = loans[loanId];
-        LoanDetail storage loanDetail = loanDetails[loanId];
-        // BorrowerStats storage stats = borrowerStats[loan.borrower];
-
-        uint256 remainingDifference = loanDetail.principalAmountRepaid < loan.amount
-            ? loan.amount - loanDetail.principalAmountRepaid
-            : 0;
-
-        uint256 amountRepaid = 0;
-        uint256 amountCarryUsed = 0;
-
-        // use loan payment carry
-        if (remainingDifference > 0 && loanDetail.paymentCarry > 0) {
-            amountCarryUsed = loanDetail.paymentCarry;
-            loanDetail.paymentCarry = 0;
-
-            remainingDifference = remainingDifference > amountCarryUsed
-                ? remainingDifference - amountCarryUsed
-                : 0;
-            amountRepaid += amountCarryUsed;
-        }
 
         // charge manager's revenue
         if (remainingDifference > 0 && balance.managerRevenue > 0) {
@@ -324,10 +224,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         if (amountRepaid > 0) {
             balance.strategizedFunds -= amountRepaid;
             balance.rawLiquidity += amountRepaid;
-
-            loanDetail.totalAmountRepaid += amountRepaid - amountCarryUsed;
-            loanDetail.principalAmountRepaid += amountRepaid;
-            loanDetail.lastPaymentTime = block.timestamp;
         }
 
         // charge pool (close loan and reduce borrowed funds/poolfunds)
@@ -338,16 +234,14 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             emit UnstakedLoss(remainingDifference);
         }
 
-        loan.status = LoanStatus.REPAID;
-
-        updateAvgStrategyApr(amountRepaid + remainingDifference, loan.apr);
+        updateAvgStrategyApr(amountRepaid + remainingDifference, apr);
 
         //// interactions
         if (stakeChargeable > 0) {
             IPoolToken(tokenConfig.poolToken).burn(address(this), stakeChargeable);
         }
 
-        emit LoanClosed(loanId, loan.borrower, amountRepaid, remainingDifference);
+        return amountRepaid;
     }
 
     /**
@@ -400,14 +294,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     }
 
     /**
-     * @notice Count of all loan requests in this pool.
-     * @return Loans count.
-     */
-    function loansCount() external view returns(uint256) {
-        return strategyCount();
-    }
-
-    /**
      * @notice Current pool funds borrowed.
      * @return Amount of funds borrowed in liquidity tokens.
      */
@@ -415,110 +301,40 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         return balance.strategizedFunds;
     }
 
-    /**
-     * @notice View indicating whether or not a given loan qualifies to be defaulted by a given caller.
-     * @param loanId ID of the loan to check
-     * @param caller An address that intends to call default() on the loan
-     * @return True if the given loan can be defaulted, false otherwise
-     */
-    function canDefault(uint256 loanId, address caller) public view returns (bool) {
-
-        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, caller);
-
-        if (!isManager && !authorizedOnInactiveManager(caller)) {
-            return false;
-        }
-
-        Loan storage loan = loans[loanId];
-
-        if (loan.status != LoanStatus.OUTSTANDING) {
-            return false;
-        }
-
-        uint256 fxBandPercent = 200; //20% //TODO: use confgurable parameter on v1.1
-
-        uint256 paymentDueTime;
-
-        if (loan.installments > 1) {
-            uint256 installmentPeriod = loan.duration / loan.installments;
-            uint256 pastInstallments = (block.timestamp - loan.borrowedTime) / installmentPeriod;
-            uint256 minTotalPayment = MathUpgradeable.mulDiv(
-                loan.installmentAmount * pastInstallments,
-                oneHundredPercent - fxBandPercent,
-                oneHundredPercent
-            );
-
-            LoanDetail storage detail = loanDetails[loanId];
-            uint256 totalRepaid = detail.principalAmountRepaid + detail.interestPaid;
-            if (totalRepaid >= minTotalPayment) {
-                return false;
-            }
-
-            paymentDueTime = loan.borrowedTime + ((totalRepaid / loan.installmentAmount) + 1) * installmentPeriod;
-        } else {
-            paymentDueTime = loan.borrowedTime + loan.duration;
-        }
-
-        return block.timestamp > (
-            paymentDueTime + loan.gracePeriod + (isManager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD)
-        );
-    }
-
-    /**
-     * @notice Loan balance due including interest if paid in full at this time.
-     * @dev Loan must be in OUTSTANDING status.
-     * @param loanId ID of the loan to check the balance of
-     * @return Total amount due with interest on this loan
-     */
-    function loanBalanceDue(uint256 loanId) public view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns(uint256) {
-        (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
-        return principalOutstanding + interestOutstanding - loanDetails[loanId].paymentCarry;
-    }
-
-    /**
-     * @notice Make a payment towards a loan.
-     * @dev Loan must be in OUTSTANDING status.
-     *      Only the necessary sum is charged if amount exceeds amount due.
-     *      Amount charged will not exceed the amount parameter.
-     * @param loanId ID of the loan to make a payment towards
-     * @param amount Payment amount in tokens
-     * @return A pair of total amount charged including interest, and the interest charged
-     */
-    function repayBase(uint256 loanId, uint256 amount) internal nonReentrant whenNotPaused returns (uint256, uint256) {
+    // /**
+    //  * @notice Make a payment towards a loan.
+    //  * @dev Loan must be in OUTSTANDING status.
+    //  *      Only the necessary sum is charged if amount exceeds amount due.
+    //  *      Amount charged will not exceed the amount parameter.
+    //  * @param loanId ID of the loan to make a payment towards
+    //  * @param borrower Borrower address
+    //  * @param payer Actual payer address
+    //  * @param amount Payment amount in tokens
+    //  * @return A pair of total amount charged including interest, and the interest charged
+    //  */
+    function onRepay(
+        uint256 loanId, 
+        address borrower, 
+        address payer, 
+        uint256 transferAmount, 
+        uint256 paymentAmount, 
+        uint256 interestPayable
+    ) 
+        external 
+        override
+        nonReentrant 
+        whenNotPaused 
+        onlyLoanDesk   
+    {
 
         //// check
-
-        Loan storage loan = loans[loanId];
-        require(
-            loan.id == loanId && loan.status == LoanStatus.OUTSTANDING,
-            "SaplingLendingPool: not found or invalid loan status"
-        );
-
-        uint256 transferAmount;
-        uint256 paymentAmount;
-        uint256 interestPayable;
-        uint256 payableInterestDays;
-
-        {
-            (
-                uint256 _transferAmount,
-                uint256 _paymentAmount,
-                uint256 _interestPayable,
-                uint256 _payableInterestDays,
-                uint256 _loanBalanceDue
-            ) = payableLoanBalance(loanId, amount);
-
-            transferAmount = _transferAmount;
-            paymentAmount = _paymentAmount;
-            interestPayable = _interestPayable;
-            payableInterestDays = _payableInterestDays;
-
-            // enforce a small minimum payment amount, except for the last payment equal to the total amount due
-            require(
-                _paymentAmount >= 10 ** tokenConfig.decimals || _paymentAmount == _loanBalanceDue,
-                "SaplingLendingPool: payment amount is less than the required minimum"
-            );
-        }
+        ILoanDesk.Loan memory loan = ILoanDesk(loanDesk).loanById(loanId);
+        require(loan.id == loanId && loan.borrower == borrower, "SaplingLendingPool: not found");
+        /*
+         * Intentional check against tx origin.
+         * This hook is authorized only for LoanDesk, and msg.sender of LoanDesk is the payer.
+         */
+        require(payer == tx.origin, "SaplingLendingPool: payer consent not authorized"); // FIXME what if repay on behalf is called from a multisig wallet
 
         //// effect
 
@@ -567,31 +383,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             updatePoolLimit();
         }
 
-        LoanDetail storage loanDetail = loanDetails[loanId];
-        loanDetail.totalAmountRepaid += transferAmount;
-        loanDetail.principalAmountRepaid += principalPaid;
-        loanDetail.lastPaymentTime = block.timestamp;
-        loanDetail.interestPaidTillTime += payableInterestDays * 86400;
-
-        if (paymentAmount > transferAmount) {
-            loanDetail.paymentCarry -= paymentAmount - transferAmount;
-        } else if (paymentAmount < transferAmount) {
-            loanDetail.paymentCarry += transferAmount - paymentAmount;
-        }
-
-        {
-            if (interestPayable != 0) {
-                loanDetail.interestPaid += interestPayable;
-            }
-
-            balance.strategizedFunds -= principalPaid;
-
-            if (loanDetail.principalAmountRepaid >= loan.amount) {
-                loan.status = LoanStatus.REPAID;
-
-                emit LoanRepaid(loanId, loan.borrower);
-            }
-        }
+        balance.strategizedFunds -= principalPaid;
 
         updateAvgStrategyApr(principalPaid, loan.apr);
 
@@ -600,118 +392,11 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         // charge 'amount' tokens from msg.sender
         SafeERC20Upgradeable.safeTransferFrom(
             IERC20Upgradeable(tokenConfig.liquidityToken),
-            msg.sender,
+            payer,
             address(this),
             transferAmount
         );
 
-        emit LoanRepaymentMade(loanId, loan.borrower, msg.sender, transferAmount, interestPayable);
-
-        return (transferAmount, interestPayable);
-    }
-
-    function getPoolManagerRole() external view returns (bytes32) {
-        return POOL_MANAGER_ROLE;
-    }
-
-    /**
-     * @notice Loan balances due if paid in full at this time.
-     * @param loanId ID of the loan to check the balance of
-     * @return Principal outstanding, interest outstanding, and the number of interest acquired days
-     */
-    function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256, uint256) {
-        Loan storage loan = loans[loanId];
-        LoanDetail storage detail = loanDetails[loanId];
-
-        uint256 daysPassed = countInterestDays(detail.interestPaidTillTime, block.timestamp);
-        uint256 interestPercent = MathUpgradeable.mulDiv(uint256(loan.apr) * 1e18, daysPassed, 365);
-
-        uint256 principalOutstanding = loan.amount - detail.principalAmountRepaid;
-        uint256 interestOutstanding = MathUpgradeable.mulDiv(principalOutstanding, interestPercent, oneHundredPercent);
-
-        return (principalOutstanding, interestOutstanding / 1e18, daysPassed);
-    }
-
-    /**
-     * @notice Loan balances payable given a max payment amount.
-     * @param loanId ID of the loan to check the balance of
-     * @param maxPaymentAmount Maximum liquidity token amount user has agreed to pay towards the loan
-     * @return Total transfer camount, paymentAmount, interest payable, and the number of payable interest days,
-     *         and the current loan balance
-     */
-    function payableLoanBalance(
-        uint256 loanId,
-        uint256 maxPaymentAmount
-    )
-        private
-        view
-        returns (uint256, uint256, uint256, uint256, uint256)
-    {
-        (
-            uint256 principalOutstanding,
-            uint256 interestOutstanding,
-            uint256 interestDays
-        ) = loanBalanceDueWithInterest(loanId);
-
-        uint256 useCarryAmount = loanDetails[loanId].paymentCarry;
-        uint256 balanceDue = principalOutstanding + interestOutstanding - useCarryAmount;
-
-        uint256 transferAmount = MathUpgradeable.min(balanceDue, maxPaymentAmount);
-        uint256 paymentAmount = transferAmount + useCarryAmount;
-
-        uint256 interestPayable;
-        uint256 payableInterestDays;
-
-        if (paymentAmount >= interestOutstanding) {
-            payableInterestDays = interestDays;
-            interestPayable = interestOutstanding;
-        } else {
-            /*
-             Round down payable interest amount to cover a whole number of days.
-
-             Whole number of days the transfer amount can cover:
-             payableInterestDays = transferAmount / (interestOutstanding / interestDays)
-
-             interestPayable = (interestOutstanding / interestDays) * payableInterestDays
-
-             Equations above are transformed into (a * b) / c format for best mulDiv() compatibility.
-             */
-            payableInterestDays = MathUpgradeable.mulDiv(paymentAmount, interestDays, interestOutstanding);
-            interestPayable = MathUpgradeable.mulDiv(interestOutstanding, payableInterestDays, interestDays);
-
-            /*
-             Handle "small payment exploit" which unfairly reduces the principal amount by making payments smaller than
-             1 day interest, while the interest on the remaining principal is outstanding.
-
-             Do not accept leftover payments towards the principal while any daily interest is outstandig.
-             */
-            if (payableInterestDays < interestDays) {
-                paymentAmount = interestPayable;
-            }
-        }
-
-        return (transferAmount, paymentAmount, interestPayable, payableInterestDays, balanceDue);
-    }
-
-    /**
-     * @notice Get the number of days in a time period to witch an interest can be applied.
-     * @dev Returns the ceiling of the count.
-     * @param timeFrom Epoch timestamp of the start of the time period.
-     * @param timeTo Epoch timestamp of the end of the time period.
-     * @return Ceil count of days in a time period to witch an interest can be applied.
-     */
-    function countInterestDays(uint256 timeFrom, uint256 timeTo) private pure returns(uint256) {
-        if (timeTo <= timeFrom) {
-            return 0;
-        }
-
-        uint256 countSeconds = timeTo - timeFrom;
-        uint256 dayCount = countSeconds / 86400;
-
-        if (countSeconds % 86400 > 0) {
-            dayCount++;
-        }
-
-        return dayCount;
+        emit LoanRepaymentFinalized(loanId, loan.borrower, payer, transferAmount, interestPayable);
     }
 }

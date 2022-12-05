@@ -94,7 +94,7 @@ async function main() {
         let loanId = BigNumber.from((await requestLoanTx.wait()).events[0].data);
 
         await loanDesk.connect(manager).approveLoan(loanId);
-        await poolContract.connect(borrower).borrow(loanId);
+        await loanDesk.connect(borrower).borrow(loanId);
 
         remainingLoanAmount = remainingLoanAmount.sub(loanAmount);
 

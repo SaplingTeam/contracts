@@ -84,6 +84,7 @@ describe('Attack Sapling Lending Pool', function () {
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
             coreAccessControl.address,
+            POOL_1_MANAGER_ROLE,
             TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
@@ -205,56 +206,56 @@ describe('Attack Sapling Lending Pool', function () {
 
             it('Revert If Borrow Twice Same Block', async function () {
                 //get initial loans count to check only 1 loan object was created
-                let prevLoansCount = await lendingPool.loansCount();
+                let prevLoansCount = await loanDesk.loansCount();
 
                 let balanceBefore = await liquidityToken.balanceOf(borrower1.address);
                 //turn of automining before write tx to keep the block open for the next call
                 await ethers.provider.send("evm_setAutomine", [false]);
-                await lendingPool.connect(borrower1).borrow(applicationId);
+                await loanDesk.connect(borrower1).borrow(applicationId);
 
                 //tun automining back on to prevent deadlock as expect() will hang until block is finalized
                 await ethers.provider.send("evm_setAutomine", [true]);
-                await expect(lendingPool.connect(borrower1).borrow(applicationId)).to.be.reverted;
+                await expect(loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
 
                 // check that only 1 new loan object was created
-                expect(await lendingPool.loansCount()).to.equal(prevLoansCount.add(1));
+                expect(await loanDesk.loansCount()).to.equal(prevLoansCount.add(1));
 
                 //get the loan after the block is mined, as the committed block
-                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
-                let loan = await lendingPool.loans(loanId);
+                let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
+                let loan = await loanDesk.loans(loanId);
 
                 expect(await liquidityToken.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
             });
 
             it('Revert If Borrow Twice Slow', async function () {
                 let balanceBefore = await liquidityToken.balanceOf(borrower1.address);
-                await lendingPool.connect(borrower1).borrow(applicationId);
-                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
-                let loan = await lendingPool.loans(loanId);
+                await loanDesk.connect(borrower1).borrow(applicationId);
+                let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
+                let loan = await loanDesk.loans(loanId);
                 await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
                 await ethers.provider.send('evm_mine');
-                await expect(lendingPool.connect(borrower1).borrow(applicationId)).to.be.reverted;
+                await expect(loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
                 expect(await liquidityToken.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
             });
 
             it('Revert If Borrow Repay Borrow', async function () {
-                await lendingPool.connect(borrower1).borrow(applicationId);
-                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
-                let loan = await lendingPool.loans(loanId);
-                let paymentAmount = (await lendingPool.loanBalanceDue(loanId));
+                await loanDesk.connect(borrower1).borrow(applicationId);
+                let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
+                let loan = await loanDesk.loans(loanId);
+                let paymentAmount = (await loanDesk.loanBalanceDue(loanId));
                 await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
-                await expect(lendingPool.connect(borrower1).borrow(applicationId)).to.be.reverted;
+                await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
+                await expect(loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
             });
 
             it('Revert If Borrow Repay Half Borrow', async function () {
-                await lendingPool.connect(borrower1).borrow(applicationId);
-                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
-                let loan = await lendingPool.loans(loanId);
-                let paymentAmount = (await lendingPool.loanBalanceDue(loanId)).div(2);
+                await loanDesk.connect(borrower1).borrow(applicationId);
+                let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
+                let loan = await loanDesk.loans(loanId);
+                let paymentAmount = (await loanDesk.loanBalanceDue(loanId)).div(2);
                 await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                await lendingPool.connect(borrower1).repay(loanId, paymentAmount);
-                await expect(lendingPool.connect(borrower1).borrow(applicationId)).to.be.reverted;
+                await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
+                await expect(loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
             });
 
             it('Revert If Request Loan Twice', async function () {
@@ -272,31 +273,33 @@ describe('Attack Sapling Lending Pool', function () {
                         '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                     )).to.be.reverted;
             });
+            
+            /// min payment amount requirement is not necessary with the loan payment carry feature
 
-            it('Revert On Tiny Repayment', async function () {
-                await lendingPool.connect(borrower1).borrow(applicationId);
-                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
-                const tinyAmount = 1;
-                await liquidityToken.connect(borrower1).approve(lendingPool.address, tinyAmount);
-                await expect(lendingPool.connect(borrower1).repay(loanId, tinyAmount)).to.be.reverted;
-            });
+            // it('Revert On Tiny Repayment', async function () {
+            //     await loanDesk.connect(borrower1).borrow(applicationId);
+            //     let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
+            //     const tinyAmount = 1;
+            //     await liquidityToken.connect(borrower1).approve(lendingPool.address, tinyAmount);
+            //     await expect(loanDesk.connect(borrower1).repay(loanId, tinyAmount)).to.be.reverted;
+            // });
 
             it('Check Repayment Math', async function () {
                 const quickFuzz = [10,20,30,40,50,60,70,80,90,100,249];
 
-                await lendingPool.connect(borrower1).borrow(applicationId);
-                let loanId = await lendingPool.recentLoanIdOf(borrower1.address);
+                await loanDesk.connect(borrower1).borrow(applicationId);
+                let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
 
                 await ethers.provider.send('evm_increaseTime', [60]);
                 await ethers.provider.send('evm_mine');
 
-                let balanceSimulated = await lendingPool.loanBalanceDue(loanId);
+                let balanceSimulated = await loanDesk.loanBalanceDue(loanId);
 
                 for (let i = 0; i < quickFuzz.length; i++) {
                     const multiAmount = BigNumber.from(quickFuzz[i]).mul(TOKEN_MULTIPLIER);
                     await liquidityToken.connect(borrower1).approve(lendingPool.address, multiAmount);
-                    await lendingPool.connect(borrower1).repay(loanId, multiAmount);
-                    let balanceOutstanding = await lendingPool.loanBalanceDue(loanId);
+                    await loanDesk.connect(borrower1).repay(loanId, multiAmount);
+                    let balanceOutstanding = await loanDesk.loanBalanceDue(loanId);
                     balanceSimulated = balanceSimulated.sub(multiAmount);
                     expect(balanceOutstanding).to.equal(balanceSimulated);
                 }

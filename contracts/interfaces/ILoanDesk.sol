@@ -63,6 +63,44 @@ interface ILoanDesk {
         uint256 offeredTime; //the time this offer was created or last updated
     }
 
+    /**
+     * Loan statuses. Initial value is defines as 'NULL' to differentiate the unintitialized state from the logical
+     * initial state.
+     */
+    enum LoanStatus {
+        NULL,
+        OUTSTANDING,
+        REPAID,
+        DEFAULTED
+    }
+
+    /// Loan object template
+    struct Loan {
+        uint256 id;
+        address loanDeskAddress;
+        uint256 applicationId;
+        address borrower;
+        uint256 amount;
+        uint256 duration;
+        uint256 gracePeriod;
+        uint256 installmentAmount;
+        uint16 installments;
+        uint16 apr;
+        uint256 borrowedTime;
+        LoanStatus status;
+    }
+
+    /// Loan payment details object template
+    struct LoanDetail {
+        uint256 loanId;
+        uint256 totalAmountRepaid;
+        uint256 principalAmountRepaid;
+        uint256 interestPaid;
+        uint256 paymentCarry;
+        uint256 interestPaidTillTime;
+        uint256 lastPaymentTime;
+    }
+
     /// Event for when a new loan is requested, and an application is created
     event LoanRequested(uint256 applicationId, address indexed borrower, uint256 amount);
 
@@ -81,6 +119,21 @@ interface ILoanDesk {
     /// Event for when a loan offer is accepted
     event LoanOfferAccepted(uint256 applicationId, address indexed borrower, uint256 amount);
 
+    /// Event for when loan offer is accepted and the loan is borrowed
+    event LoanBorrowed(uint256 loanId, address indexed borrower, uint256 applicationId);
+
+    /// Event for when a loan payment is initiated
+    event LoanRepaymentInitiated(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount);
+
+    /// Event for when a loan is fully repaid
+    event LoanRepaid(uint256 loanId, address indexed borrower);
+
+    /// Event for when a loan is closed
+    event LoanClosed(uint256 loanId, address indexed borrower, uint256 managerLossAmount, uint256 lenderLossAmount);
+
+    /// Event for when a loan is defaulted
+    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 managerLoss, uint256 lenderLoss);
+
     /// Setter event
     event MinLoanAmountSet(uint256 prevValue, uint256 newValue);
 
@@ -97,24 +150,24 @@ interface ILoanDesk {
     event TemplateLoanAPRSet(uint256 prevValue, uint256 newValue);
 
     /**
-     * @dev Hook to be called when a loan offer is accepted.
-     * @param appId ID of the application the accepted offer was made for.
+     * @notice Accessor for loan.
+     * @param loanId ID of the loan
+     * @return Loan struct instance for the specified loan ID.
      */
-    function onBorrow(uint256 appId) external;
+    function loanById(uint256 loanId) external view returns (Loan memory);
 
     /**
-     * @notice Accessor for application status.
-     * @dev NULL status is returned for nonexistent applications.
-     * @param appId ID of the application in question.
-     * @return Current status of the application with the specified ID.
+     * @notice Accessor for loan.
+     * @param loanId ID of the loan
+     * @return Loan struct instance for the specified loan ID.
      */
-    function applicationStatus(uint256 appId) external view returns (LoanApplicationStatus);
+    function loanDetailById(uint256 loanId) external view returns (LoanDetail memory);
 
     /**
-     * @notice Accessor for loan offer.
-     * @dev Loan offer is valid when the loan application is present and has OFFER_MADE status.
-     * @param appId ID of the application the offer was made for.
-     * @return LoanOffer struct instance for the specified application ID.
+     * @notice View indicating whether or not a given loan qualifies to be defaulted by a given caller.
+     * @param loanId ID of the loan to check
+     * @param caller An address that intends to call default() on the loan
+     * @return True if the given loan can be defaulted, false otherwise
      */
-    function loanOfferById(uint256 appId) external view returns (LoanOffer memory);
+    function canDefault(uint256 loanId, address caller) external view returns (bool);
 }

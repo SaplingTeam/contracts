@@ -83,6 +83,7 @@ describe('Loan Desk', function () {
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
             coreAccessControl.address,
+            POOL_1_MANAGER_ROLE,
             TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
@@ -97,6 +98,7 @@ describe('Loan Desk', function () {
                 upgrades.deployProxy(LoanDeskCF, [
                     lendingPool.address,
                     coreAccessControl.address,
+                    POOL_1_MANAGER_ROLE,
                     TOKEN_DECIMALS,
                 ]),
             ).to.be.not.reverted;
@@ -769,16 +771,16 @@ describe('Loan Desk', function () {
                                 apr,
                             );
 
-                        await lendingPool.connect(borrower2).borrow(otherApplicationId);
+                        await loanDesk.connect(borrower2).borrow(otherApplicationId);
 
-                        let otherLoanId = await lendingPool.recentLoanIdOf(borrower2.address);
-                        let loan = await lendingPool.loans(otherLoanId);
+                        let otherLoanId = await loanDesk.recentLoanIdOf(borrower2.address);
+                        let loan = await loanDesk.loans(otherLoanId);
                         await ethers.provider.send('evm_increaseTime', [
                             loan.duration.add(loan.gracePeriod).toNumber(),
                         ]);
                         await ethers.provider.send('evm_mine');
 
-                        await lendingPool.connect(manager).defaultLoan(otherLoanId);
+                        await loanDesk.connect(manager).defaultLoan(otherLoanId);
 
                         await expect(
                             loanDesk
@@ -1019,7 +1021,7 @@ describe('Loan Desk', function () {
 
                     describe('Rejection scenarios', function () {
                         it('Cancelling a loan that is not in APPROVED status should fail', async function () {
-                            await lendingPool.connect(borrower1).borrow(applicationId);
+                            await loanDesk.connect(borrower1).borrow(applicationId);
 
                             expect(await loanDesk.canCancel(applicationId, manager.address)).to.equal(false);
                             await expect(loanDesk.connect(manager).cancelLoan(applicationId)).to.be.reverted;

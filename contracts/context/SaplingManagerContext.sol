@@ -4,6 +4,8 @@ pragma solidity ^0.8.15;
 
 import "./SaplingContext.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @title Sapling Manager Context
  * @notice Provides manager access control, and a basic close functionality.

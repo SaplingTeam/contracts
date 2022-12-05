@@ -85,6 +85,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
             coreAccessControl.address,
+            POOL_1_MANAGER_ROLE,
             TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
@@ -521,9 +522,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     await loanDesk
                         .connect(manager)
                         .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                    await saplingPoolContext.connect(borrower1).borrow(applicationId);
+                    // await loanDesk.connect(borrower1).borrow(applicationId);
 
-                    await expect(saplingPoolContext.connect(manager).close()).to.be.reverted;
+                    // await expect(saplingPoolContext.connect(manager).close()).to.be.reverted;
                 });
             });
         });
@@ -603,15 +604,15 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 await loanDesk
                     .connect(manager)
                     .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                await saplingPoolContext.connect(borrower1).borrow(applicationId);
+                await loanDesk.connect(borrower1).borrow(applicationId);
 
-                let loanId = await saplingPoolContext.recentLoanIdOf(borrower1.address);
+                let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
 
-                let loan = await saplingPoolContext.loans(loanId);
+                let loan = await loanDesk.loans(loanId);
                 await ethers.provider.send('evm_increaseTime', [loan.duration.add(loan.gracePeriod).toNumber()]);
                 await ethers.provider.send('evm_mine');
 
-                await saplingPoolContext.connect(manager).defaultLoan(loanId);
+                await loanDesk.connect(manager).defaultLoan(loanId);
 
                 assertHardhatInvariant((await saplingPoolContext.balanceStaked()).eq(0));
                 assertHardhatInvariant(((await saplingPoolContext.balance()).poolFunds).eq(0));
@@ -1062,7 +1063,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     await loanDesk
                         .connect(manager)
                         .offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                    await saplingPoolContext.connect(borrower1).borrow(otherApplicationId);
+                    await loanDesk.connect(borrower1).borrow(otherApplicationId);
 
                     let amountWithdrawable = await saplingPoolContext.amountWithdrawable(lender1.address);
 
@@ -1128,17 +1129,17 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     await loanDesk
                         .connect(manager)
                         .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                    await saplingPoolContext.connect(borrower1).borrow(applicationId);
-                    let loanId = await saplingPoolContext.recentLoanIdOf(borrower1.address);
+                    await loanDesk.connect(borrower1).borrow(applicationId);
+                    let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
 
                     await ethers.provider.send('evm_increaseTime', [loanDuration.toNumber()]);
                     await ethers.provider.send('evm_mine');
 
-                    let paymentAmount = await saplingPoolContext.loanBalanceDue(loanId);
+                    let paymentAmount = await loanDesk.loanBalanceDue(loanId);
 
                     await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
                     await liquidityToken.connect(borrower1).approve(saplingPoolContext.address, paymentAmount);
-                    await saplingPoolContext.connect(borrower1).repay(loanId, paymentAmount);
+                    await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
                 });
 
                 it('Protocol can withdraw earned protocol fees', async function () {
@@ -1261,7 +1262,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         installments,
                         apr,
                     );
-                await saplingPoolContext.connect(borrower1).borrow(applicationId);
+                await loanDesk.connect(borrower1).borrow(applicationId);
             });
 
             it('Can view lender APY given current pool state', async function () {

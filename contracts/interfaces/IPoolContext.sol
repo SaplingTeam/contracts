@@ -118,4 +118,18 @@ interface IPoolContext {
 
     /// Setter event
     event ManagerEarnFactorSet(uint16 prevValue, uint16 newValue);
+
+    /**
+     * @notice Get liquidity token value of shares.
+     * @dev Shares are equivalent to pool tokens and are represented by them.
+     * @param shares Amount of shares
+     */
+    function sharesToTokens(uint256 shares) external view returns (uint256);
+
+    /**
+     * @notice Get a share value of liquidity tokens.
+     * @dev Shares are equivalent to pool tokens and are represented by them.
+     * @param tokens Amount of liquidity tokens.
+     */
+    function tokensToShares(uint256 tokens) external view returns (uint256);
 }

@@ -33,9 +33,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     /// Weighted average loan APR on the borrowed funds
     uint256 internal weightedAvgStrategyAPR;
 
-    /// Strategy id generator counter
-    uint256 private nextStrategyId;
-
     uint256 public MIN_WITHDRAWAL_REQUEST_AMOUNT;
 
     mapping (address => WithdrawalRequestState) public withrawalRequestStates;
@@ -109,7 +106,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         managerExcessLeverageComponent = uint256(config.managerEarnFactor) - oneHundredPercent;
 
         weightedAvgStrategyAPR = 0;
-        nextStrategyId = 1;
 
         MIN_WITHDRAWAL_REQUEST_AMOUNT = 10 * 10 ** tokenConfig.decimals;
     }
@@ -611,17 +607,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     }
 
     /**
-     * @dev Generator for next strategy id. i.e. loan, investment.
-     * @return Next available id.
-     */
-    function getNextStrategyId() internal nonReentrant returns (uint256) {
-        uint256 id = nextStrategyId;
-        nextStrategyId++;
-
-        return id;
-    }
-
-    /**
      * @dev Internal method to enter the pool with a liquidity token amount.
      *      With the exception of the manager's call, amount must not exceed amountDepositable().
      *      If the caller is the pool manager, entered funds are considered staked.
@@ -756,7 +741,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @dev Shares are equivalent to pool tokens and are represented by them.
      * @param shares Amount of shares
      */
-    function sharesToTokens(uint256 shares) internal view returns (uint256) {
+    function sharesToTokens(uint256 shares) public view override returns (uint256) {
         if (shares == 0 || balance.poolFunds == 0) {
              return 0;
         }
@@ -769,7 +754,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @dev Shares are equivalent to pool tokens and are represented by them.
      * @param tokens Amount of liquidity tokens.
      */
-    function tokensToShares(uint256 tokens) internal view returns (uint256) {
+    function tokensToShares(uint256 tokens) public view override returns (uint256) {
         uint256 totalPoolShares = IERC20(tokenConfig.poolToken).totalSupply();
 
         if (totalPoolShares == 0) {
@@ -787,13 +772,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         }
 
         return MathUpgradeable.mulDiv(tokens, totalPoolShares, balance.poolFunds);
-    }
-
-    /**
-     * @dev All time count of created strategies. i.e. Loans and investments
-     */
-    function strategyCount() internal view returns(uint256) {
-        return nextStrategyId - 1;
     }
 
     /**

@@ -82,6 +82,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
             coreAccessControl.address,
+            POOL_1_MANAGER_ROLE,
             TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();

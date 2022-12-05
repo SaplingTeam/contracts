@@ -7,52 +7,10 @@ pragma solidity ^0.8.15;
  */
 interface ILendingPool {
 
-    /**
-     * Loan statuses. Initial value is defines as 'NULL' to differentiate the unintitialized state from the logical
-     * initial state.
-     */
-    enum LoanStatus {
-        NULL,
-        OUTSTANDING,
-        REPAID,
-        DEFAULTED
-    }
-
-    /// Loan object template
-    struct Loan {
-        uint256 id;
-        address loanDeskAddress;
-        uint256 applicationId;
-        address borrower;
-        uint256 amount;
-        uint256 duration;
-        uint256 gracePeriod;
-        uint256 installmentAmount;
-        uint16 installments;
-        uint16 apr;
-        uint256 borrowedTime;
-        LoanStatus status;
-    }
-
-    /// Loan payment details object template
-    struct LoanDetail {
-        uint256 loanId;
-        uint256 totalAmountRepaid;
-        uint256 principalAmountRepaid;
-        uint256 interestPaid;
-        uint256 paymentCarry;
-        uint256 interestPaidTillTime;
-        uint256 lastPaymentTime;
-    }
-
     /// Event for when a new loan desk is set
     event LoanDeskSet(address from, address to);
 
-    /// Event for when loan offer is accepted and the loan is borrowed
-    event LoanBorrowed(uint256 loanId, address indexed borrower, uint256 applicationId);
-
-    /// Event for when a loan is fully repaid
-    event LoanRepaid(uint256 loanId, address indexed borrower);
+    event LoanFundsReleased(uint256 loanId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan is closed
     event LoanClosed(uint256 loanId, address indexed borrower, uint256 managerLossAmount, uint256 lenderLossAmount);
@@ -60,8 +18,8 @@ interface ILendingPool {
     /// Event for when a loan is defaulted
     event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 managerLoss, uint256 lenderLoss);
 
-    /// Event for when a loan payment is made
-    event LoanRepaymentMade(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount);
+    /// Event for when a loan payment is finalized
+    event LoanRepaymentFinalized(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount);
 
     /// Event for when a liqudity is allocated for a loan offer
     event OfferLiquidityAllocated(uint256 amount);
@@ -93,11 +51,44 @@ interface ILendingPool {
     function onOfferUpdate(uint256 prevAmount, uint256 amount) external;
 
     /**
+     * @notice Accept a loan offer and withdraw funds
+     * @dev Caller must be the loan desk.
+     *      Loan funds must not have been released before.
+     * @param loanId ID of the loan application to accept the offer of
+     */
+    function onBorrow(uint256 loanId) external;
+
+    function onRepay(
+        uint256 loanId, 
+        address borrower, 
+        address payer, 
+        uint256 transferAmount, 
+        uint256 paymentAmount, 
+        uint256 interestPayable
+    ) external;
+
+    function onDefault(
+        uint256 loanId,
+        uint16 apr,
+        uint256 carryAmountUsed,
+        uint256 loss
+    )
+     external 
+     returns (uint256, uint256);
+
+     function onCloseLoan(
+        uint256 loanId,
+        uint16 apr,
+        uint256 amountRepaid, 
+        uint256 remainingDifference
+    )
+     external
+     returns (uint256);
+
+    /**
      * @dev Hook for checking if the lending pool can provide liquidity for the total offered loans amount.
      * @param totalOfferedAmount Total sum of offered loan amount including outstanding offers
      * @return True if the pool has sufficient lending liquidity, false otherwise.
      */
     function canOffer(uint256 totalOfferedAmount) external view returns (bool);
-
-    function getPoolManagerRole() external view returns (bytes32);
 }

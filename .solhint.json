@@ -2,7 +2,7 @@
   "extends": "solhint:recommended",
   "plugins": [],
   "rules": {
-    "max-line-length": ["error", 120],
+    "max-line-length": ["warn", 120],
     "reason-string": ["warn", {"maxLength":76}],
     "constructor-syntax": "warn",
     "no-empty-blocks": "off",
