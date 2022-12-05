@@ -44,7 +44,7 @@ abstract contract SaplingManagerContext is SaplingContext {
     /// A modifier to limit access to the manager or to other applicable parties when the manager is considered inactive
     modifier managerOrApprovedOnInactive {
         require(
-            IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender) 
+            hasRole(POOL_MANAGER_ROLE, msg.sender) 
                 || authorizedOnInactiveManager(msg.sender),
             "SaplingManagerContext: caller is neither the manager nor an approved party"
         );
@@ -141,7 +141,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @param party Address to verify
      */
     function isNonUserAddress(address party) internal view override returns (bool) {
-        return IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, party) || super.isNonUserAddress(party);
+        return hasRole(POOL_MANAGER_ROLE, party) || super.isNonUserAddress(party);
     }
 
     /**

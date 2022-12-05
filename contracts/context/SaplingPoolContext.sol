@@ -65,7 +65,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         require(_poolToken != address(0), "SaplingPoolContext: pool token address is not set");
         require(_liquidityToken != address(0), "SaplingPoolContext: liquidity token address is not set");
-        assert(IERC20(_poolToken).totalSupply() == 0);
+        assert(totalPoolTokenSupply() == 0);
 
         uint8 decimals = IERC20Metadata(_liquidityToken).decimals();
 
@@ -233,13 +233,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @param amount Liquidity token amount to withdraw.
      */
     function withdraw(uint256 amount) public whenNotPaused onlyUser {
-
-        //todo remove redundant require
-        require(
-            !IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender), 
-            "SaplingPoolContext: pool manager address cannot use withdraw"
-        );
-
         uint256 sharesBurned = exitPool(amount);
 
         emit FundsWithdrawn(msg.sender, amount, sharesBurned);
@@ -429,12 +422,12 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         uint256 amount = 0;
 
-        if (IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender)) {
+        if (hasRole(POOL_MANAGER_ROLE, msg.sender)) {
             amount += balance.managerRevenue;
             balance.managerRevenue = 0;
         }
 
-        if (IAccessControl(accessControl).hasRole(SaplingRoles.TREASURY_ROLE, msg.sender)) {
+        if (hasRole(SaplingRoles.TREASURY_ROLE, msg.sender)) {
             amount += balance.protocolRevenue;
             balance.protocolRevenue = 0;
         }
@@ -501,11 +494,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     function revenueBalanceOf(address wallet) public view returns (uint256) {
         uint256 revenueBalance = 0;
 
-        if (IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, wallet)) {
+        if (hasRole(POOL_MANAGER_ROLE, wallet)) {
             revenueBalance += balance.managerRevenue;
         }
 
-        if (IAccessControl(accessControl).hasRole(SaplingRoles.TREASURY_ROLE, wallet)) {
+        if (hasRole(SaplingRoles.TREASURY_ROLE, wallet)) {
             revenueBalance += balance.protocolRevenue;
         }
 
@@ -552,7 +545,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @return Max amount of tokens unstakable by the manager.
      */
     function amountUnstakable() public view returns (uint256) {
-        uint256 totalPoolShares = IERC20(tokenConfig.poolToken).totalSupply();
+        uint256 totalPoolShares = totalPoolTokenSupply();
         uint256 withdrawableLiquidity = freeLenderLiquidity();
 
         if (
@@ -620,7 +613,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         require(amount > 0, "SaplingPoolContext: pool deposit amount is 0");
 
-        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender);
+        bool isManager = hasRole(POOL_MANAGER_ROLE, msg.sender);
 
         // allow the manager to add funds beyond the current pool limit
         require(
@@ -678,7 +671,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         uint256 shares = tokensToShares(amount);
 
-        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender);
+        bool isManager = hasRole(POOL_MANAGER_ROLE, msg.sender);
 
         require(
             !isManager
@@ -746,7 +739,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
              return 0;
         }
 
-        return MathUpgradeable.mulDiv(shares, balance.poolFunds, IERC20(tokenConfig.poolToken).totalSupply());
+        return MathUpgradeable.mulDiv(shares, balance.poolFunds, totalPoolTokenSupply());
     }
 
     /**
@@ -755,7 +748,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @param tokens Amount of liquidity tokens.
      */
     function tokensToShares(uint256 tokens) public view override returns (uint256) {
-        uint256 totalPoolShares = IERC20(tokenConfig.poolToken).totalSupply();
+        uint256 totalPoolShares = totalPoolTokenSupply();
 
         if (totalPoolShares == 0) {
             // a pool with no positions
@@ -772,6 +765,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         }
 
         return MathUpgradeable.mulDiv(tokens, totalPoolShares, balance.poolFunds);
+    }
+
+    // contract compiled size optimization accessor
+    function totalPoolTokenSupply() internal view returns (uint256) {
+        return IERC20(tokenConfig.poolToken).totalSupply();
     }
 
     /**
@@ -797,7 +795,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         uint256 currentStakePercent = MathUpgradeable.mulDiv(
             balance.stakedShares,
             oneHundredPercent,
-            IERC20(tokenConfig.poolToken).totalSupply()
+            totalPoolTokenSupply()
         );
         uint256 managerEarningsPercent = MathUpgradeable.mulDiv(
             currentStakePercent,
@@ -820,7 +818,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     function isPoolFunctional() internal view returns (bool) {
         return !(paused() || closed())
             && balance.stakedShares >= MathUpgradeable.mulDiv(
-                IERC20(tokenConfig.poolToken).totalSupply(),
+                totalPoolTokenSupply(),
                 config.targetStakePercent,
                 oneHundredPercent
             );

@@ -77,30 +77,31 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      *      Loan funds must not have been released before.
      * @param loanId ID of the loan application to accept the offer of
      */
-    function onBorrow(uint256 loanId) external onlyLoanDesk whenNotClosed whenNotPaused {
+    function onBorrow(uint256 loanId, address borrower, uint256 amount, uint16 apr) external onlyLoanDesk whenNotClosed whenNotPaused {
 
         // check
-        ILoanDesk.Loan memory loan = ILoanDesk(loanDesk).loanById(loanId);
-        require(loan.id == loanId && loan.status == ILoanDesk.LoanStatus.OUTSTANDING, "SaplingLendingPool: invalid loan status");
         require(loanFundsReleased[loanId] == false, "SaplingLendingPool: loan funds already released");
-        require(balance.allocatedFunds >= loan.amount, "SaplingLendingPool: insufficient allocated balance");
+
+        // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
 
         //// effect
+
+        loanFundsReleased[loanId] = true;
         
         uint256 prevStrategizedFunds = balance.strategizedFunds;
         
-        balance.tokenBalance -= loan.amount;
-        balance.allocatedFunds -= loan.amount;
-        balance.strategizedFunds += loan.amount;
+        balance.tokenBalance -= amount;
+        balance.allocatedFunds -= amount;
+        balance.strategizedFunds += amount;
 
-        weightedAvgStrategyAPR = (prevStrategizedFunds * weightedAvgStrategyAPR + loan.amount * loan.apr)
+        weightedAvgStrategyAPR = (prevStrategizedFunds * weightedAvgStrategyAPR + amount * apr)
             / balance.strategizedFunds;
 
         //// interactions
 
-        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), loan.borrower, loan.amount);
+        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), borrower, amount);
 
-        emit LoanFundsReleased(loanId, loan.borrower, loan.amount);
+        emit LoanFundsReleased(loanId, borrower, amount);
     }
 
     // /**
@@ -127,6 +128,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
 
         //// effect
+        loanClosed[loanId] == true;
+
         if (carryAmountUsed > 0) {
             balance.strategizedFunds -= carryAmountUsed;
             balance.rawLiquidity += carryAmountUsed;
@@ -191,7 +194,11 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         //// check
         require(loanClosed[loanId] == false, "SaplingLendingPool: loan is closed");
 
+        // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
+
         //// effect
+
+        loanClosed[loanId] == true;
 
         // charge manager's revenue
         if (remainingDifference > 0 && balance.managerRevenue > 0) {
@@ -314,8 +321,9 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     //  */
     function onRepay(
         uint256 loanId, 
-        address borrower, 
-        address payer, 
+        address borrower,
+        address payer,
+        uint16 apr,
         uint256 transferAmount, 
         uint256 paymentAmount, 
         uint256 interestPayable
@@ -328,13 +336,10 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     {
 
         //// check
-        ILoanDesk.Loan memory loan = ILoanDesk(loanDesk).loanById(loanId);
-        require(loan.id == loanId && loan.borrower == borrower, "SaplingLendingPool: not found");
-        /*
-         * Intentional check against tx origin.
-         * This hook is authorized only for LoanDesk, and msg.sender of LoanDesk is the payer.
-         */
-        require(payer == tx.origin, "SaplingLendingPool: payer consent not authorized"); // FIXME what if repay on behalf is called from a multisig wallet
+        require(loanFundsReleased[loanId] == true, "SaplingLendingPool: loan is not borrowed");
+        require(loanClosed[loanId] == false, "SaplingLendingPool: loan is closed");
+
+        // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
 
         //// effect
 
@@ -360,7 +365,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             uint256 currentStakePercent = MathUpgradeable.mulDiv(
                 balance.stakedShares,
                 oneHundredPercent,
-                IERC20(tokenConfig.poolToken).totalSupply()
+                totalPoolTokenSupply()
             );
 
             uint256 managerEarningsPercent = MathUpgradeable.mulDiv(
@@ -385,7 +390,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         balance.strategizedFunds -= principalPaid;
 
-        updateAvgStrategyApr(principalPaid, loan.apr);
+        updateAvgStrategyApr(principalPaid, apr);
 
         //// interactions
 
@@ -397,6 +402,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             transferAmount
         );
 
-        emit LoanRepaymentFinalized(loanId, loan.borrower, payer, transferAmount, interestPayable);
+        emit LoanRepaymentFinalized(loanId, borrower, payer, transferAmount, interestPayable);
     }
 }

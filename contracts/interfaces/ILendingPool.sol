@@ -56,12 +56,13 @@ interface ILendingPool {
      *      Loan funds must not have been released before.
      * @param loanId ID of the loan application to accept the offer of
      */
-    function onBorrow(uint256 loanId) external;
+    function onBorrow(uint256 loanId, address borrower, uint256 amount, uint16 apr) external;
 
     function onRepay(
         uint256 loanId, 
         address borrower, 
         address payer, 
+        uint16 apr,
         uint256 transferAmount, 
         uint256 paymentAmount, 
         uint256 interestPayable

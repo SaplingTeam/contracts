@@ -437,7 +437,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         LoanOffer storage offer = loanOffers[appId];
 
         // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
-        if (!IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, msg.sender)) {
+        if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
             // require inactivity grace period
             require(
                 block.timestamp > offer.offeredTime + MANAGER_INACTIVITY_GRACE_PERIOD,
@@ -515,7 +515,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         //// interactions
 
         // on pool
-        ILendingPool(pool).onBorrow(loanId);
+        ILendingPool(pool).onBorrow(loanId, offer.borrower, offer.amount, offer.apr);
 
         emit LoanBorrowed(loanId, offer.borrower, appId);
     }
@@ -610,7 +610,15 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
         //// interactions
 
-        ILendingPool(pool).onRepay(loanId, loan.borrower, msg.sender, transferAmount, paymentAmount, interestPayable);
+        ILendingPool(pool).onRepay(
+            loanId, 
+            loan.borrower, 
+            msg.sender, 
+            loan.apr, 
+            transferAmount, 
+            paymentAmount, 
+            interestPayable
+        );
     }
 
     /**
@@ -749,7 +757,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      */
     function canDefault(uint256 loanId, address caller) public view returns (bool) {
 
-        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, caller);
+        bool isManager = hasRole(POOL_MANAGER_ROLE, caller);
         console.log(isManager);
 
         if (!isManager && !authorizedOnInactiveManager(caller)) {
@@ -900,7 +908,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      *         false otherwise.
      */
     function canCancel(uint256 appId, address caller) external view returns (bool) {
-        bool isManager = IAccessControl(accessControl).hasRole(POOL_MANAGER_ROLE, caller);
+        bool isManager = hasRole(POOL_MANAGER_ROLE, caller);
         if (!isManager && !authorizedOnInactiveManager(caller)) {
             return false;
         }

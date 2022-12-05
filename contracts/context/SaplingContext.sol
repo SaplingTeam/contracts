@@ -18,7 +18,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
     address public accessControl;
 
     modifier onlyRole(bytes32 role) {
-        require(IAccessControl(accessControl).hasRole(role, msg.sender), "SaplingContext: unauthorized");
+        require(hasRole(role, msg.sender), "SaplingContext: unauthorized");
         _;
     }
 
@@ -59,16 +59,19 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
         _unpause();
     }
 
-
     /**
      * @notice Hook that is called to verify if an address is currently in any non-user/management position.
      * @dev When overriding, return "contract local verification result" AND super.isNonUserAddress(party).
      * @param party Address to verify
      */
     function isNonUserAddress(address party) internal view virtual returns (bool) {
-        return IAccessControl(accessControl).hasRole(SaplingRoles.GOVERNANCE_ROLE, party) 
-            || IAccessControl(accessControl).hasRole(SaplingRoles.TREASURY_ROLE, party)
-            || IAccessControl(accessControl).hasRole(SaplingRoles.PAUSER_ROLE, party);
+        return hasRole(SaplingRoles.GOVERNANCE_ROLE, party) 
+            || hasRole(SaplingRoles.TREASURY_ROLE, party)
+            || hasRole(SaplingRoles.PAUSER_ROLE, party);
+    }
+
+    function hasRole(bytes32 role, address party) internal view returns (bool) {
+        return IAccessControl(accessControl).hasRole(role, party);
     }
 
     /**
