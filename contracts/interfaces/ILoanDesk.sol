@@ -162,12 +162,4 @@ interface ILoanDesk {
      * @return Loan struct instance for the specified loan ID.
      */
     function loanDetailById(uint256 loanId) external view returns (LoanDetail memory);
-
-    /**
-     * @notice View indicating whether or not a given loan qualifies to be defaulted by a given caller.
-     * @param loanId ID of the loan to check
-     * @param caller An address that intends to call default() on the loan
-     * @return True if the given loan can be defaulted, false otherwise
-     */
-    function canDefault(uint256 loanId, address caller) external view returns (bool);
 }

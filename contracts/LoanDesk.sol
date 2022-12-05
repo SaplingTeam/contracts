@@ -9,6 +9,8 @@ import "./interfaces/ILoanDesk.sol";
 import "./interfaces/IPoolContext.sol";
 import "./interfaces/ILendingPool.sol";
 
+import "./lib/SaplingMath.sol";
+
 /**
  * @title Loan Desk
  * @notice Provides loan application and offer management.
@@ -124,14 +126,14 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
         uint256 _oneToken = 10 ** uint256(_decimals);
         safeMinAmount = _oneToken;
-        safeMaxApr = oneHundredPercent;
+        safeMaxApr = SaplingMath.oneHundredPercent;
 
         loanTemplate = LoanTemplate({
             minAmount: _oneToken * 100,
             minDuration: SAFE_MIN_DURATION,
             maxDuration: SAFE_MAX_DURATION,
             gracePeriod: 60 days,
-            apr: uint16(30 * 10 ** percentDecimals) // 30%
+            apr: uint16(30 * 10 ** SaplingMath.percentDecimals) // 30%
         });
 
         pool = _pool;
@@ -428,27 +430,14 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 appId
     )
         external
-        managerOrApprovedOnInactive
+        onlyRole(POOL_MANAGER_ROLE)
         applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE)
         whenNotPaused
     {
-        //// check
-
-        LoanOffer storage offer = loanOffers[appId];
-
-        // check if the call was made by an eligible non manager party, due to manager's inaction on the loan.
-        if (!hasRole(POOL_MANAGER_ROLE, msg.sender)) {
-            // require inactivity grace period
-            require(
-                block.timestamp > offer.offeredTime + MANAGER_INACTIVITY_GRACE_PERIOD,
-                "LoanDesk: too early to cancel this loan as a non-manager"
-            );
-        }
-
         //// effect
-
         loanApplications[appId].status = LoanApplicationStatus.OFFER_CANCELLED;
 
+        LoanOffer storage offer = loanOffers[appId];
         offeredFunds -= offer.amount;
 
         emit LoanOfferCancelled(appId, offer.borrower, offer.amount);
@@ -706,7 +695,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 interestPercent = MathUpgradeable.mulDiv(uint256(loan.apr) * 1e18, daysPassed, 365);
 
         uint256 principalOutstanding = loan.amount - detail.principalAmountRepaid;
-        uint256 interestOutstanding = MathUpgradeable.mulDiv(principalOutstanding, interestPercent, oneHundredPercent);
+        uint256 interestOutstanding = MathUpgradeable.mulDiv(principalOutstanding, interestPercent, SaplingMath.oneHundredPercent);
 
         return (principalOutstanding, interestOutstanding / 1e18, daysPassed);
     }
@@ -750,25 +739,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     }
 
     /**
-     * @notice View indicating whether or not a given loan qualifies to be defaulted by a given caller.
+     * @notice View indicating whether or not a given loan qualifies to be defaulted
      * @param loanId ID of the loan to check
-     * @param caller An address that intends to call default() on the loan
      * @return True if the given loan can be defaulted, false otherwise
      */
-    function canDefault(uint256 loanId, address caller) public view returns (bool) {
-
-        bool isManager = hasRole(POOL_MANAGER_ROLE, caller);
-        console.log(isManager);
-
-        if (!isManager && !authorizedOnInactiveManager(caller)) {
-            return false;
-        }
+    function canDefault(uint256 loanId) public view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (bool) {
 
         Loan storage loan = loans[loanId];
-
-        if (loan.status != LoanStatus.OUTSTANDING) {
-            return false;
-        }
 
         uint256 fxBandPercent = 200; //20% //TODO: use confgurable parameter on v1.1
 
@@ -779,8 +756,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             uint256 pastInstallments = (block.timestamp - loan.borrowedTime) / installmentPeriod;
             uint256 minTotalPayment = MathUpgradeable.mulDiv(
                 loan.installmentAmount * pastInstallments,
-                oneHundredPercent - fxBandPercent,
-                oneHundredPercent
+                SaplingMath.oneHundredPercent - fxBandPercent,
+                SaplingMath.oneHundredPercent
             );
 
             LoanDetail storage detail = loanDetails[loanId];
@@ -794,28 +771,26 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             paymentDueTime = loan.borrowedTime + loan.duration;
         }
 
-        return block.timestamp > (
-            paymentDueTime + loan.gracePeriod + (isManager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD)
-        );
+        return block.timestamp > paymentDueTime + loan.gracePeriod;
     }
 
     /**
      * @notice Default a loan.
      * @dev Loan must be in OUTSTANDING status.
      *      Caller must be the manager.
-     *      canDefault(loanId, msg.sender) must return 'true'.
+     *      canDefault(loanId) must return 'true'.
      * @param loanId ID of the loan to default
      */
     function defaultLoan(
         uint256 loanId
     )
         public
-        managerOrApprovedOnInactive
+        onlyRole(POOL_MANAGER_ROLE)
         whenNotPaused
     {
         //// check
 
-        require(canDefault(loanId, msg.sender), "LoanDesk: cannot default this loan at this time");
+        require(canDefault(loanId), "LoanDesk: cannot default this loan at this time");
 
         //// effect
 
@@ -903,19 +878,12 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /**
      * @notice View indicating whether or not a given loan offer qualifies to be cancelled by a given caller.
      * @param appId Application ID of the loan offer in question
-     * @param caller Address that intends to call cancel() on the loan offer
      * @return True if the given loan approval can be cancelled and can be cancelled by the specified caller,
      *         false otherwise.
      */
-    function canCancel(uint256 appId, address caller) external view returns (bool) {
-        bool isManager = hasRole(POOL_MANAGER_ROLE, caller);
-        if (!isManager && !authorizedOnInactiveManager(caller)) {
-            return false;
-        }
-
-        return loanApplications[appId].status == LoanApplicationStatus.OFFER_MADE && block.timestamp >= (
-                loanOffers[appId].offeredTime + (isManager ? 0 : MANAGER_INACTIVITY_GRACE_PERIOD)
-            );
+    function canCancel(uint256 appId) external view returns (bool) {
+        return loanApplications[appId].status == LoanApplicationStatus.OFFER_MADE 
+            && block.timestamp >= loanOffers[appId].offeredTime;
     }
 
     /**

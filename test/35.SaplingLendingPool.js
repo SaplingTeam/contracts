@@ -31,6 +31,7 @@ describe('Sapling Lending Pool', function () {
     let liquidityToken;
     let poolToken;
     let loanDesk;
+    let saplingMath;
 
     let deployer;
     let governance;
@@ -91,6 +92,8 @@ describe('Sapling Lending Pool', function () {
 
         await poolToken.connect(deployer).transferOwnership(lendingPool.address);
         await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
+
+        saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
     });
 
     describe('Deployment', function () {
@@ -149,9 +152,9 @@ describe('Sapling Lending Pool', function () {
         let loanDuration;
 
         before(async function () {
-            PERCENT_DECIMALS = await lendingPool.percentDecimals();
+            PERCENT_DECIMALS = await saplingMath.percentDecimals();
             TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
-            ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
+            ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
             exitFeePercent = (await lendingPool.config()).exitFeePercent;
 
             lender1 = addresses[1];
@@ -446,7 +449,7 @@ describe('Sapling Lending Pool', function () {
 
                     let loanDetail = await loanDesk.loanDetails(loanId);
                     let protocolEarningPercent = (await lendingPool.config()).protocolFeePercent;
-                    let ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
+                    let ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
 
                     let expectedProtocolFee = loanDetail.interestPaid
                         .mul(protocolEarningPercent)
@@ -466,7 +469,7 @@ describe('Sapling Lending Pool', function () {
                     let paymentAmount = await loanDesk.loanBalanceDue(loanId);
 
                     let protocolEarningPercent = (await lendingPool.config()).protocolFeePercent;
-                    let ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
+                    let ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
 
                     let stakedShares = (await lendingPool.balance()).stakedShares;
                     let totalPoolShares = await poolToken.totalSupply();
@@ -815,7 +818,7 @@ describe('Sapling Lending Pool', function () {
                         let poolFundsBefore = (await lendingPool.balance()).poolFunds;
                         let stakedBalanceBefore = await lendingPool.balanceStaked();
 
-                        expect(await loanDesk.canDefault(loanId, manager.address)).to.equal(true);
+                        expect(await loanDesk.canDefault(loanId)).to.equal(true);
                         await loanDesk.connect(manager).defaultLoan(loanId);
 
                         loan = await loanDesk.loans(loanId);
@@ -832,7 +835,7 @@ describe('Sapling Lending Pool', function () {
                         let poolFundsBefore = (await lendingPool.balance()).poolFunds;
                         let stakedBalanceBefore = await lendingPool.balanceStaked();
 
-                        expect(await loanDesk.canDefault(loanId, manager.address)).to.equal(true);
+                        expect(await loanDesk.canDefault(loanId)).to.equal(true);
                         await loanDesk.connect(manager).defaultLoan(loanId);
 
                         loan = await loanDesk.loans(loanId);
@@ -874,7 +877,7 @@ describe('Sapling Lending Pool', function () {
 
                         let otherLoanId = await loanDesk.recentLoanIdOf(borrower2.address);
 
-                        expect(await loanDesk.canDefault(otherLoanId, manager.address)).to.equal(true);
+                        expect(await loanDesk.canDefault(otherLoanId)).to.equal(true);
                         await loanDesk.connect(manager).defaultLoan(otherLoanId);
 
                         let loan = await loanDesk.loans(otherLoanId);
@@ -914,7 +917,7 @@ describe('Sapling Lending Pool', function () {
                         let otherLoanId = await loanDesk.recentLoanIdOf(borrower2.address);
                         let poolFundsBefore = (await lendingPool.balance()).poolFunds;
 
-                        expect(await loanDesk.canDefault(otherLoanId, manager.address)).to.equal(true);
+                        expect(await loanDesk.canDefault(otherLoanId)).to.equal(true);
                         await loanDesk.connect(manager).defaultLoan(otherLoanId);
 
                         let loan = await loanDesk.loans(otherLoanId);
@@ -958,7 +961,7 @@ describe('Sapling Lending Pool', function () {
                         await ethers.provider.send('evm_increaseTime', [loanDuration.div(installments).add(gracePeriod).add(1).toNumber()]);
                         await ethers.provider.send('evm_mine');
 
-                        expect(await loanDesk.canDefault(loanId2, manager.address)).to.equal(true);
+                        expect(await loanDesk.canDefault(loanId2)).to.equal(true);
                         await expect(loanDesk.connect(manager).defaultLoan(loanId2)).to.be.not.reverted;
                     });
 
@@ -971,86 +974,38 @@ describe('Sapling Lending Pool', function () {
                             loan = await loanDesk.loans(loanId);
                             assertHardhatInvariant(loan.status === LoanStatus.REPAID);
 
-                            expect(await loanDesk.canDefault(loanId, manager.address)).to.equal(false);
+                            await expect(loanDesk.canDefault(loanId)).to.be.revertedWith("LoanDesk: invalid status");
                             await expect(loanDesk.connect(manager).defaultLoan(loanId)).to.be.reverted;
                         });
 
                         it('Defaulting a nonexistent loan should fail', async function () {
-                            expect(await loanDesk.canDefault(loanId.add(1), manager.address)).to.equal(false);
+                            await expect(loanDesk.canDefault(loanId.add(1))).to.be.revertedWith("LoanDesk: not found");
                             await expect(loanDesk.connect(manager).defaultLoan(loanId.add(1))).to.be.reverted;
                         });
 
                         it('Defaulting a loan as the protocol should fail', async function () {
-                            expect(await loanDesk.canDefault(loanId, protocol.address)).to.equal(false);
+                            expect(await loanDesk.canDefault(loanId)).to.equal(true);
                             await expect(loanDesk.connect(protocol).defaultLoan(loanId)).to.be.reverted;
                         });
 
                         it('Defaulting a loan as the governance should fail', async function () {
-                            expect(await loanDesk.canDefault(loanId, governance.address)).to.equal(false);
+                            expect(await loanDesk.canDefault(loanId)).to.equal(true);
                             await expect(loanDesk.connect(governance).defaultLoan(loanId)).to.be.reverted;
                         });
 
                         it('Defaulting a loan as a lender should fail', async function () {
-                            expect(await loanDesk.canDefault(loanId, lender1.address)).to.equal(false);
+                            expect(await loanDesk.canDefault(loanId)).to.equal(true);
                             await expect(loanDesk.connect(lender1).defaultLoan(loanId)).to.be.reverted;
                         });
 
                         it('Defaulting a loan as the borrower should fail', async function () {
-                            expect(await loanDesk.canDefault(loanId, borrower1.address)).to.equal(false);
+                            expect(await loanDesk.canDefault(loanId)).to.equal(true);
                             await expect(loanDesk.connect(borrower1).defaultLoan(loanId)).to.be.reverted;
                         });
 
                         it('Defaulting a loan from an unrelated address should fail', async function () {
-                            expect(await loanDesk.canDefault(loanId, addresses[0].address)).to.equal(false);
+                            expect(await loanDesk.canDefault(loanId)).to.equal(true);
                             await expect(loanDesk.connect(addresses[0]).defaultLoan(loanId)).to.be.reverted;
-                        });
-                    });
-
-                    describe('Defaulting a loan on inactive manager', function () {
-                        after(async function () {
-                            await rollback();
-                        });
-
-                        before(async function () {
-                            await snapshot();
-
-                            let inactivityPeriod = await lendingPool.MANAGER_INACTIVITY_GRACE_PERIOD();
-                            let skipTime = Math.max(inactivityPeriod, 0) + 1;
-
-                            let depositAmount = BigNumber.from(1).mul(TOKEN_MULTIPLIER).div(2);
-                            await liquidityToken.connect(deployer).mint(lender2.address, depositAmount);
-                            await liquidityToken.connect(lender2).approve(lendingPool.address, depositAmount);
-                            await lendingPool.connect(lender2).deposit(depositAmount);
-
-                            await ethers.provider.send('evm_increaseTime', [skipTime]);
-                            await ethers.provider.send('evm_mine');
-                        });
-
-                        it('Protocol can default', async function () {
-                            expect(await loanDesk.canDefault(loanId, protocol.address)).to.equal(true);
-                            await expect(loanDesk.connect(protocol).defaultLoan(loanId)).to.be.not.reverted;
-                        });
-
-                        it('Governance can default', async function () {
-                            expect(await loanDesk.canDefault(loanId, governance.address)).to.equal(true);
-                            await expect(loanDesk.connect(governance).defaultLoan(loanId)).to.be.not.reverted;
-                        });
-
-                        describe('Rejection scenarios', function () {
-                            it("A lender without sufficient balance can't default", async function () {
-                                expect(await loanDesk.canDefault(loanId, lender2.address)).to.equal(false);
-                                await expect(loanDesk.connect(lender2).defaultLoan(loanId)).to.be.reverted;
-                            });
-
-                            it("Borrower can't default", async function () {
-                                expect(await loanDesk.canDefault(loanId, borrower1.address)).to.equal(false);
-                                await expect(loanDesk.connect(borrower1).defaultLoan(loanId)).to.be.reverted;
-                            });
-
-                            it("An unrelated address can't default", async function () {
-                                expect(await loanDesk.canDefault(loanId, addresses[0].address)).to.equal(false);
-                                await expect(loanDesk.connect(addresses[0]).defaultLoan(loanId)).to.be.reverted;
-                            });
                         });
                     });
                 });

@@ -31,6 +31,7 @@ describe('Attack Sapling Lending Pool', function () {
     let liquidityToken;
     let poolToken;
     let loanDesk;
+    let saplingMath;
 
     let deployer;
     let governance;
@@ -91,6 +92,8 @@ describe('Attack Sapling Lending Pool', function () {
 
         await poolToken.connect(deployer).transferOwnership(lendingPool.address);
         await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
+
+        saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
     });
 
     describe('Deployment', function () {
@@ -135,9 +138,9 @@ describe('Attack Sapling Lending Pool', function () {
         let loanDuration;
 
         before(async function () {
-            PERCENT_DECIMALS = await lendingPool.percentDecimals();
+            PERCENT_DECIMALS = await saplingMath.percentDecimals();
             TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
-            ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
+            ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
             exitFeePercent = (await lendingPool.config()).exitFeePercent;
 
             lender1 = addresses[1];

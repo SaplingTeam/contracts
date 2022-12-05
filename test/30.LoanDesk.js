@@ -30,6 +30,7 @@ describe('Loan Desk', function () {
     let lendingPool;
     let liquidityToken;
     let loanDesk;
+    let saplingMath;
 
     let deployer;
     let governance;
@@ -90,6 +91,8 @@ describe('Loan Desk', function () {
 
         await poolToken.connect(deployer).transferOwnership(lendingPool.address);
         await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
+
+        saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
     });
 
     describe('Deployment', function () {
@@ -134,7 +137,7 @@ describe('Loan Desk', function () {
             borrower1 = addresses[3];
             borrower2 = addresses[4];
 
-            PERCENT_DECIMALS = await lendingPool.percentDecimals();
+            PERCENT_DECIMALS = await saplingMath.percentDecimals();
             TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
 
             loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
@@ -708,7 +711,7 @@ describe('Loan Desk', function () {
                         let rawLiquidity = (await lendingPool.balance()).rawLiquidity;
                         let poolFunds = (await lendingPool.balance()).poolFunds;
                         let targetLiquidityPercent = (await lendingPool.config()).targetLiquidityPercent;
-                        let ONE_HUNDRED_PERCENT = await lendingPool.oneHundredPercent();
+                        let ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
 
                         let amountBorrowable = rawLiquidity.sub(
                             poolFunds.mul(targetLiquidityPercent).div(ONE_HUNDRED_PERCENT),
@@ -980,7 +983,7 @@ describe('Loan Desk', function () {
 
                 describe('Cancel', function () {
                     it('Manager can cancel', async function () {
-                        expect(await loanDesk.canCancel(applicationId, manager.address)).to.equal(true);
+                        expect(await loanDesk.canCancel(applicationId)).to.equal(true);
                         await loanDesk.connect(manager).cancelLoan(applicationId);
                         expect((await loanDesk.loanApplications(applicationId)).status).to.equal(
                             LoanApplicationStatus.OFFER_CANCELLED,
@@ -1023,81 +1026,38 @@ describe('Loan Desk', function () {
                         it('Cancelling a loan that is not in APPROVED status should fail', async function () {
                             await loanDesk.connect(borrower1).borrow(applicationId);
 
-                            expect(await loanDesk.canCancel(applicationId, manager.address)).to.equal(false);
+                            expect(await loanDesk.canCancel(applicationId)).to.equal(false);
                             await expect(loanDesk.connect(manager).cancelLoan(applicationId)).to.be.reverted;
                         });
 
                         it('Cancelling a nonexistent loan should fail', async function () {
-                            expect(await loanDesk.canCancel(applicationId.add(1), manager.address)).to.equal(false);
+                            expect(await loanDesk.canCancel(applicationId.add(1))).to.equal(false);
                             await expect(loanDesk.connect(manager).cancelLoan(applicationId.add(1))).to.be.reverted;
                         });
 
                         it('Cancelling a loan as the protocol should fail', async function () {
-                            expect(await loanDesk.canCancel(applicationId, protocol.address)).to.equal(false);
+                            expect(await loanDesk.canCancel(applicationId)).to.equal(true);
                             await expect(loanDesk.connect(protocol).cancelLoan(applicationId)).to.be.reverted;
                         });
 
                         it('Cancelling a loan as the governance should fail', async function () {
-                            expect(await loanDesk.canCancel(applicationId, governance.address)).to.equal(false);
+                            expect(await loanDesk.canCancel(applicationId)).to.equal(true);
                             await expect(loanDesk.connect(governance).cancelLoan(applicationId)).to.be.reverted;
                         });
 
                         it('Cancelling a loan as a lender should fail', async function () {
-                            expect(await loanDesk.canCancel(applicationId, lender1.address)).to.equal(false);
+                            expect(await loanDesk.canCancel(applicationId)).to.equal(true);
                             await expect(loanDesk.connect(lender1).cancelLoan(applicationId)).to.be.reverted;
                         });
 
                         it('Cancelling a loan as the borrower should fail', async function () {
-                            expect(await loanDesk.canCancel(applicationId, borrower1.address)).to.equal(false);
+                            expect(await loanDesk.canCancel(applicationId)).to.equal(true);
                             await expect(loanDesk.connect(borrower1).cancelLoan(applicationId)).to.be.reverted;
                         });
 
                         it('Cancelling a loan from an unrelated address should fail', async function () {
-                            expect(await loanDesk.canCancel(applicationId, addresses[0].address)).to.equal(false);
+                            expect(await loanDesk.canCancel(applicationId)).to.equal(true);
                             await expect(loanDesk.connect(addresses[0]).cancelLoan(applicationId)).to.be.reverted;
-                        });
-                    });
-
-                    describe('Cancelling a loan on inactive manager', function () {
-                        after(async function () {
-                            await rollback();
-                        });
-
-                        before(async function () {
-                            await snapshot();
-
-                            let inactivityPeriod = await lendingPool.MANAGER_INACTIVITY_GRACE_PERIOD();
-                            let skipTime = Math.max(inactivityPeriod, 0) + 86400;
-
-                            await ethers.provider.send('evm_increaseTime', [skipTime]);
-                            await ethers.provider.send('evm_mine');
-                        });
-
-                        it('Governance can cancel', async function () {
-                            expect(await loanDesk.canCancel(applicationId, governance.address)).to.equal(true);
-                            await expect(loanDesk.connect(governance).cancelLoan(applicationId)).to.be.not.reverted;
-                        });
-
-                        it('Protocol can cancel', async function () {
-                            expect(await loanDesk.canCancel(applicationId, protocol.address)).to.equal(true);
-                            await expect(loanDesk.connect(protocol).cancelLoan(applicationId)).to.be.not.reverted;
-                        });
-
-                        describe('Rejection scenarios', function () {
-                            it("A lender can't cancel", async function () {
-                                expect(await loanDesk.canCancel(applicationId, lender1.address)).to.equal(false);
-                                await expect(loanDesk.connect(lender1).cancelLoan(applicationId)).to.be.reverted;
-                            });
-
-                            it("Borrower can't cancel", async function () {
-                                expect(await loanDesk.canCancel(applicationId, borrower1.address)).to.equal(false);
-                                await expect(loanDesk.connect(borrower1).cancelLoan(applicationId)).to.be.reverted;
-                            });
-
-                            it("An unrelated address can't cancel", async function () {
-                                expect(await loanDesk.canCancel(applicationId, addresses[0].address)).to.equal(false);
-                                await expect(loanDesk.connect(addresses[0]).cancelLoan(applicationId)).to.be.reverted;
-                            });
                         });
                     });
                 });

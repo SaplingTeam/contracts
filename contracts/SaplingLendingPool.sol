@@ -356,7 +356,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             uint256 protocolEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable,
                 config.protocolFeePercent,
-                oneHundredPercent
+                SaplingMath.oneHundredPercent
             );
 
             balance.protocolRevenue += protocolEarnedInterest;
@@ -364,20 +364,20 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             //share revenue to manager
             uint256 currentStakePercent = MathUpgradeable.mulDiv(
                 balance.stakedShares,
-                oneHundredPercent,
+                SaplingMath.oneHundredPercent,
                 totalPoolTokenSupply()
             );
 
             uint256 managerEarningsPercent = MathUpgradeable.mulDiv(
                 currentStakePercent,
-                managerExcessLeverageComponent,
-                oneHundredPercent
+                config.managerEarnFactor - SaplingMath.oneHundredPercent,
+                SaplingMath.oneHundredPercent
             );
 
             uint256 managerEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable - protocolEarnedInterest,
                 managerEarningsPercent,
-                managerEarningsPercent + oneHundredPercent
+                managerEarningsPercent + SaplingMath.oneHundredPercent
             );
 
             balance.managerRevenue += managerEarnedInterest;

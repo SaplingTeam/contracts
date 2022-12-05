@@ -119,10 +119,6 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
             it('Pool is not closed', async function () {
                 expect(await saplingManagerContext.closed()).to.equal(false);
             });
-
-            it('Manager inactivity grace period is correct', async function () {
-                expect(await saplingManagerContext.MANAGER_INACTIVITY_GRACE_PERIOD()).to.equal(90 * 24 * 60 * 60);
-            });
         });
 
         describe('Close', function () {
