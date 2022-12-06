@@ -68,6 +68,15 @@ interface ILendingPool {
         uint256 interestPayable
     ) external;
 
+    function onCloseLoan(
+        uint256 loanId,
+        uint16 apr,
+        uint256 amountRepaid, 
+        uint256 remainingDifference
+    )
+     external
+     returns (uint256);
+
     function onDefault(
         uint256 loanId,
         uint16 apr,
@@ -76,15 +85,6 @@ interface ILendingPool {
     )
      external 
      returns (uint256, uint256);
-
-     function onCloseLoan(
-        uint256 loanId,
-        uint16 apr,
-        uint256 amountRepaid, 
-        uint256 remainingDifference
-    )
-     external
-     returns (uint256);
 
     /**
      * @dev Hook for checking if the lending pool can provide liquidity for the total offered loans amount.

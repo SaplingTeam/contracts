@@ -117,7 +117,7 @@ describe('Sapling Lending Pool', function () {
         });
 
         it('Empty pool to stake ratio is good', async function () {
-            expect(await lendingPool.poolCanLend()).to.equal(true);
+            expect(await lendingPool.isPoolFunctional()).to.equal(true);
         });
 
         it('Empty pool cannot offer any nonzero loan amount', async function () {
@@ -182,7 +182,8 @@ describe('Sapling Lending Pool', function () {
 
         describe('Initial state', function () {
             it('Initial balances are correct', async function () {
-                expect(await lendingPool.borrowedFunds()).to.equal(0);
+                let borrowedFunds = (await lendingPool.balance()).strategizedFunds;
+                expect(borrowedFunds).to.equal(0);
             });
         });
 

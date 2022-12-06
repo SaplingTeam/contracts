@@ -808,7 +808,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @notice Check if the pool is functional based on the current stake levels.
      * @return True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise.
      */
-    function isPoolFunctional() internal view returns (bool) {
+    function isPoolFunctional() public view returns (bool) {
         return !(paused() || closed())
             && balance.stakedShares >= MathUpgradeable.mulDiv(
                 totalPoolTokenSupply(),
