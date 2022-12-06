@@ -186,7 +186,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             uint256 protocolEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable,
                 config.protocolFeePercent,
-                SaplingMath.oneHundredPercent
+                SaplingMath.HUNDRED_PERCENT
             );
 
             balance.protocolRevenue += protocolEarnedInterest;
@@ -194,20 +194,20 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             //share revenue to manager
             uint256 currentStakePercent = MathUpgradeable.mulDiv(
                 balance.stakedShares,
-                SaplingMath.oneHundredPercent,
+                SaplingMath.HUNDRED_PERCENT,
                 totalPoolTokenSupply()
             );
 
             uint256 managerEarningsPercent = MathUpgradeable.mulDiv(
                 currentStakePercent,
-                config.managerEarnFactor - SaplingMath.oneHundredPercent,
-                SaplingMath.oneHundredPercent
+                config.managerEarnFactor - SaplingMath.HUNDRED_PERCENT,
+                SaplingMath.HUNDRED_PERCENT
             );
 
             uint256 managerEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable - protocolEarnedInterest,
                 managerEarningsPercent,
-                managerEarningsPercent + SaplingMath.oneHundredPercent
+                managerEarningsPercent + SaplingMath.HUNDRED_PERCENT
             );
 
             balance.managerRevenue += managerEarnedInterest;
@@ -280,9 +280,9 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         // charge manager's stake
         uint256 stakeChargeable = 0;
         if (remainingDifference > 0 && balance.stakedShares > 0) {
-            uint256 stakedBalance = sharesToTokens(balance.stakedShares);
+            uint256 stakedBalance = tokensToFunds(balance.stakedShares);
             uint256 amountChargeable = MathUpgradeable.min(remainingDifference, stakedBalance);
-            stakeChargeable = tokensToShares(amountChargeable);
+            stakeChargeable = fundsToTokens(amountChargeable);
 
             balance.stakedShares = balance.stakedShares - stakeChargeable;
             updatePoolLimit();
@@ -368,7 +368,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         uint256 lenderLoss = 0;
 
         if (loss > 0) {
-            uint256 remainingLostShares = tokensToShares(loss);
+            uint256 remainingLostShares = fundsToTokens(loss);
 
             balance.poolFunds -= loss;
             balance.strategizedFunds -= loss;
@@ -391,7 +391,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             }
 
             if (remainingLostShares > 0) {
-                lenderLoss = sharesToTokens(remainingLostShares);
+                lenderLoss = tokensToFunds(remainingLostShares);
                 managerLoss -= lenderLoss;
 
                 emit UnstakedLoss(lenderLoss);
@@ -408,6 +408,9 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @return True if the pool has sufficient lending liquidity, false otherwise
      */
     function canOffer(uint256 totalOfferedAmount) external view returns (bool) {
-        return isPoolFunctional() && strategyLiquidity() + balance.allocatedFunds >= totalOfferedAmount;
+        return !paused() 
+            && !closed() 
+            && maintainsStakeRatio()
+            && totalOfferedAmount <= strategyLiquidity() + balance.allocatedFunds;
     }
 }

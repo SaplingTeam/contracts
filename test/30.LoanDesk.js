@@ -139,7 +139,7 @@ describe('Loan Desk', function () {
             borrower1 = addresses[3];
             borrower2 = addresses[4];
 
-            PERCENT_DECIMALS = await saplingMath.percentDecimals();
+            PERCENT_DECIMALS = await saplingMath.PERCENT_DECIMALS();
             TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
 
             loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
@@ -712,7 +712,7 @@ describe('Loan Desk', function () {
                         let rawLiquidity = (await lendingPool.balance()).rawLiquidity;
                         let poolFunds = (await lendingPool.balance()).poolFunds;
                         let targetLiquidityPercent = (await lendingPool.config()).targetLiquidityPercent;
-                        let ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
+                        let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
 
                         let amountBorrowable = rawLiquidity.sub(
                             poolFunds.mul(targetLiquidityPercent).div(ONE_HUNDRED_PERCENT),

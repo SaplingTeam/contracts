@@ -112,7 +112,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             minDuration: Limits.SAFE_MIN_DURATION,
             maxDuration: Limits.SAFE_MAX_DURATION,
             gracePeriod: 60 days,
-            apr: uint16(30 * 10 ** SaplingMath.percentDecimals) // 30%
+            apr: uint16(30 * 10 ** SaplingMath.PERCENT_DECIMALS) // 30%
         });
 
         pool = _pool;
@@ -198,7 +198,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      * @param apr Loan APR to be enforced on the new loan offers.
      */
     function setTemplateLoanAPR(uint16 apr) external onlyRole(POOL_MANAGER_ROLE) {
-        require(Limits.SAFE_MIN_APR <= apr && apr <= SaplingMath.oneHundredPercent, "LoanDesk: APR is out of bounds");
+        require(Limits.SAFE_MIN_APR <= apr && apr <= SaplingMath.HUNDRED_PERCENT, "LoanDesk: APR is out of bounds");
 
         uint256 prevValue = loanTemplate.apr;
         loanTemplate.apr = apr;
@@ -757,8 +757,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             uint256 pastInstallments = (block.timestamp - loan.borrowedTime) / installmentPeriod;
             uint256 minTotalPayment = MathUpgradeable.mulDiv(
                 loan.installmentAmount * pastInstallments,
-                SaplingMath.oneHundredPercent - fxBandPercent,
-                SaplingMath.oneHundredPercent
+                SaplingMath.HUNDRED_PERCENT - fxBandPercent,
+                SaplingMath.HUNDRED_PERCENT
             );
 
             LoanDetail storage detail = loanDetails[loanId];
@@ -809,7 +809,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             1 <= _installments && _installments <= _duration / (1 days),
             "LoanDesk: invalid number of installments"
         );
-        require(Limits.SAFE_MIN_APR <= _apr && _apr <= SaplingMath.oneHundredPercent, "LoanDesk: invalid APR");
+        require(Limits.SAFE_MIN_APR <= _apr && _apr <= SaplingMath.HUNDRED_PERCENT, "LoanDesk: invalid APR");
     }
 
     /**
@@ -825,7 +825,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 interestPercent = MathUpgradeable.mulDiv(uint256(loan.apr) * 1e18, daysPassed, 365);
 
         uint256 principalOutstanding = loan.amount - detail.principalAmountRepaid;
-        uint256 interestOutstanding = MathUpgradeable.mulDiv(principalOutstanding, interestPercent, SaplingMath.oneHundredPercent);
+        uint256 interestOutstanding = MathUpgradeable.mulDiv(principalOutstanding, interestPercent, SaplingMath.HUNDRED_PERCENT);
 
         return (principalOutstanding, interestOutstanding / 1e18, daysPassed);
     }

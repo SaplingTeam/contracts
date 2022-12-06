@@ -172,9 +172,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
         let loanDuration;
 
         before(async function () {
-            PERCENT_DECIMALS = await saplingMath.percentDecimals();
+            PERCENT_DECIMALS = await saplingMath.PERCENT_DECIMALS();
             TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
-            ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
+            ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
             exitFeePercent = (await saplingPoolContext.config()).exitFeePercent;
 
             lender1 = addresses[1];
@@ -282,7 +282,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             describe('Target stake percent', function () {
                 it('Governance can set target stake percent', async function () {
                     let currentValue = (await saplingPoolContext.config()).targetStakePercent;
-                    let maxValue = await saplingMath.oneHundredPercent();
+                    let maxValue = await saplingMath.HUNDRED_PERCENT();
 
                     let newValue = 50 * 10 ** PERCENT_DECIMALS;
                     assertHardhatInvariant(newValue != currentValue && newValue <= maxValue);
@@ -294,7 +294,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 describe('Rejection scenarios', function () {
                     it('Target stake percent cannot be set to a value greater than the allowed maximum', async function () {
                         let currentValue = (await saplingPoolContext.config()).targetStakePercent;
-                        let maxValue = await saplingMath.oneHundredPercent();
+                        let maxValue = await saplingMath.HUNDRED_PERCENT();
 
                         await expect(saplingPoolContext.connect(governance).setTargetStakePercent(maxValue + 1)).to.be
                             .reverted;
@@ -302,7 +302,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                     it('A non-governance cannot set target stake percent', async function () {
                         let currentValue = (await saplingPoolContext.config()).targetStakePercent;
-                        let maxValue = await saplingMath.oneHundredPercent();
+                        let maxValue = await saplingMath.HUNDRED_PERCENT();
 
                         let newValue = 50 * 10 ** PERCENT_DECIMALS;
                         assertHardhatInvariant(newValue != currentValue && newValue <= maxValue);
@@ -316,7 +316,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             describe('Target liquidity percent', function () {
                 it('Manager can set target liquidity percent', async function () {
                     let currentValue = (await saplingPoolContext.config()).targetLiquidityPercent;
-                    let maxValue = await saplingMath.oneHundredPercent();
+                    let maxValue = await saplingMath.HUNDRED_PERCENT();
 
                     let newValue = 50 * 10 ** PERCENT_DECIMALS;
                     assertHardhatInvariant(newValue != currentValue && newValue <= maxValue);
@@ -328,7 +328,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 describe('Rejection scenarios', function () {
                     it('Target liquidity percent cannot be set to a value greater than the allowed maximum', async function () {
                         let currentValue = (await saplingPoolContext.config()).targetLiquidityPercent;
-                        let maxValue = await saplingMath.oneHundredPercent();
+                        let maxValue = await saplingMath.HUNDRED_PERCENT();
 
                         await expect(saplingPoolContext.connect(manager).setTargetLiquidityPercent(maxValue + 1)).to.be
                             .reverted;
@@ -336,7 +336,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                     it('A non-manager cannot set target liquidity percent', async function () {
                         let currentValue = (await saplingPoolContext.config()).targetLiquidityPercent;
-                        let maxValue = await saplingMath.oneHundredPercent();
+                        let maxValue = await saplingMath.HUNDRED_PERCENT();
 
                         let newValue = 50 * 10 ** PERCENT_DECIMALS;
                         assertHardhatInvariant(newValue != currentValue && newValue <= maxValue);
@@ -384,7 +384,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             describe("Manager's earn factor", function () {
                 it("Manager can set manager's earn factor", async function () {
                     let currentValue = (await saplingPoolContext.config()).managerEarnFactor;
-                    let minValue = await saplingMath.oneHundredPercent();
+                    let minValue = await saplingMath.HUNDRED_PERCENT();
                     let maxValue = (await saplingPoolContext.config()).managerEarnFactorMax;
 
                     let newValue = 125 * 10 ** PERCENT_DECIMALS;
@@ -396,7 +396,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 it("Manager's earn factor can be set while the pool is paused", async function () {
                     let currentValue = (await saplingPoolContext.config()).managerEarnFactor;
-                    let minValue = await saplingMath.oneHundredPercent();
+                    let minValue = await saplingMath.HUNDRED_PERCENT();
                     let maxValue = (await saplingPoolContext.config()).managerEarnFactorMax;
 
                     let newValue = 125 * 10 ** PERCENT_DECIMALS;
@@ -411,7 +411,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 describe('Rejection scenarios', function () {
                     it("Manager's earn factor cannot be set to a value less than the allowed minimum", async function () {
-                        let minValue = await saplingMath.oneHundredPercent();
+                        let minValue = await saplingMath.HUNDRED_PERCENT();
                         assertHardhatInvariant(minValue > 0);
                         await expect(saplingPoolContext.connect(manager).setManagerEarnFactor(minValue - 1)).to.be
                             .reverted;
@@ -425,7 +425,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                     it("A non-manager cannot set manager's earn factor", async function () {
                         let currentValue = (await saplingPoolContext.config()).managerEarnFactor;
-                        let minValue = await saplingMath.oneHundredPercent();
+                        let minValue = await saplingMath.HUNDRED_PERCENT();
                         let maxValue = (await saplingPoolContext.config()).managerEarnFactorMax;
 
                         let newValue = 125 * 10 ** PERCENT_DECIMALS;
@@ -442,7 +442,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             describe("Maximum for Manager's earn factor", function () {
                 it("Governance can set a maximum for manager's earn factor", async function () {
                     let currentValue = (await saplingPoolContext.config()).managerEarnFactorMax;
-                    let minValue = await saplingMath.oneHundredPercent();
+                    let minValue = await saplingMath.HUNDRED_PERCENT();
 
                     let newValue = currentValue - 1;
                     assertHardhatInvariant(currentValue >= minValue);
@@ -454,7 +454,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 it("Setting the maximum for manager's earn factor to less than current earn factor value will update the current earn factor", async function () {
                     let prevEarnFactor = (await saplingPoolContext.config()).managerEarnFactor;
                     let currentValue = (await saplingPoolContext.config()).managerEarnFactorMax;
-                    let minValue = await saplingMath.oneHundredPercent();
+                    let minValue = await saplingMath.HUNDRED_PERCENT();
 
                     let newValue = prevEarnFactor - 1;
                     assertHardhatInvariant(currentValue >= minValue);
@@ -466,7 +466,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 describe('Rejection scenarios', function () {
                     it("Maximum for Manager's earn factor cannot be set to a value less than the allowed minimum", async function () {
-                        let minValue = await saplingMath.oneHundredPercent();
+                        let minValue = await saplingMath.HUNDRED_PERCENT();
                         assertHardhatInvariant(minValue > 0);
                         await expect(saplingPoolContext.connect(governance).setManagerEarnFactorMax(minValue - 1)).to.be
                             .reverted;
@@ -474,7 +474,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                     it("A non-governance cannot set a maximum for manager's earn factor", async function () {
                         let currentValue = (await saplingPoolContext.config()).managerEarnFactorMax;
-                        let minValue = await saplingMath.oneHundredPercent();
+                        let minValue = await saplingMath.HUNDRED_PERCENT();
                         let maxValue = (await saplingPoolContext.config()).managerEarnFactorMax;
 
                         let newValue = 125 * 10 ** PERCENT_DECIMALS;
@@ -571,7 +571,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             it('Stake adjusts pool funds limit', async function () {
                 let targetStakePercent = (await saplingPoolContext.config()).targetStakePercent;
-                let oneHundredPercent = await saplingMath.oneHundredPercent();
+                let oneHundredPercent = await saplingMath.HUNDRED_PERCENT();
 
                 await saplingPoolContext.connect(manager).stake(stakeAmount);
                 let limit = (await saplingPoolContext.config()).poolFundsLimit;
@@ -877,7 +877,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             describe('Amount depositable', function () {
                 it('Can view amount depositable', async function () {
                     let targetStakePercent = (await saplingPoolContext.config()).targetStakePercent;
-                    let ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
+                    let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
                     let calculatedDepositable = stakeAmount
                         .mul(ONE_HUNDRED_PERCENT)
                         .div(targetStakePercent)
@@ -898,7 +898,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 it('Amount depositable is zero when pool is full', async function () {
                     let targetStakePercent = (await saplingPoolContext.config()).targetStakePercent;
-                    let ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
+                    let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
                     let calculatedDepositable = stakeAmount
                         .mul(ONE_HUNDRED_PERCENT)
                         .div(targetStakePercent)
@@ -1147,33 +1147,33 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 it('Protocol can withdraw earned protocol fees', async function () {
                     let tokenBalanceBefore = await liquidityToken.balanceOf(protocol.address);
-                    let poolBalanceBefore = await saplingPoolContext.revenueBalanceOf(protocol.address);
+                    let poolBalanceBefore = (await saplingPoolContext.balance()).protocolRevenue;
 
-                    await saplingPoolContext.connect(protocol).withdrawRevenue();
+                    await saplingPoolContext.connect(protocol).collectProtocolRevenue(poolBalanceBefore);
 
                     expect(await liquidityToken.balanceOf(protocol.address)).to.equal(
                         tokenBalanceBefore.add(poolBalanceBefore),
                     );
-                    expect(await saplingPoolContext.revenueBalanceOf(protocol.address)).to.equal(0);
+                    expect((await saplingPoolContext.balance()).protocolRevenue).to.equal(0);
                 });
 
                 it('Manager can withdraw earned protocol fees', async function () {
                     let tokenBalanceBefore = await liquidityToken.balanceOf(manager.address);
-                    let poolBalanceBefore = await saplingPoolContext.revenueBalanceOf(manager.address);
+                    let poolBalanceBefore = (await saplingPoolContext.balance()).managerRevenue;
 
-                    await saplingPoolContext.connect(manager).withdrawRevenue();
+                    await saplingPoolContext.connect(manager).collectManagerRevenue(poolBalanceBefore);
 
                     expect(await liquidityToken.balanceOf(manager.address)).to.equal(
                         tokenBalanceBefore.add(poolBalanceBefore),
                     );
-                    expect(await saplingPoolContext.revenueBalanceOf(manager.address)).to.equal(0);
+                    expect((await saplingPoolContext.balance()).managerRevenue).to.equal(0);
                 });
 
                 it('Protocol fee withdrawal is reflected on the pool contract balance', async function () {
                     let prevBalance = await liquidityToken.balanceOf(saplingPoolContext.address);
 
-                    let withdrawAmount = await saplingPoolContext.revenueBalanceOf(protocol.address);
-                    await saplingPoolContext.connect(protocol).withdrawRevenue();
+                    let withdrawAmount = (await saplingPoolContext.balance()).protocolRevenue;
+                    await saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount);
 
                     let balance = await liquidityToken.balanceOf(saplingPoolContext.address);
                     expect(balance)
@@ -1183,8 +1183,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 it('Protocol fee withdrawal is not reflected on pool liquidity', async function () {
                     let prevLiquidity = (await saplingPoolContext.balance()).rawLiquidity;
+                    let balanceBefore = (await saplingPoolContext.balance()).protocolRevenue;
 
-                    await saplingPoolContext.connect(protocol).withdrawRevenue();
+                    await saplingPoolContext.connect(protocol).collectProtocolRevenue(balanceBefore);
 
                     let liquidity = (await saplingPoolContext.balance()).rawLiquidity;
 
@@ -1194,8 +1195,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 it('Protocol fee withdrawal is not reflected on pool funds', async function () {
                     let prevPoolFunds = (await saplingPoolContext.balance()).poolFunds;
 
-                    let withdrawAmount = await saplingPoolContext.revenueBalanceOf(manager.address);
-                    await saplingPoolContext.connect(protocol).withdrawRevenue();
+                    let withdrawAmount = (await saplingPoolContext.balance()).managerRevenue;
+                    await saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount);
 
                     let poolFunds = (await saplingPoolContext.balance()).poolFunds;
 
@@ -1205,14 +1206,16 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 describe('Rejection scenarios', function () {
                     it('Protocol fees cannot be withdrawn while the pool is paused', async function () {
                         await saplingPoolContext.connect(governance).pause();
-                        await expect(saplingPoolContext.connect(protocol).withdrawRevenue()).to.be.reverted;
+                        let withdrawAmount = (await saplingPoolContext.balance()).protocolRevenue;
+                        await expect(saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount)).to.be.reverted;
                     });
 
                     it('Protocol withdrawal should fail when balance is zero', async function () {
-                        await saplingPoolContext.connect(protocol).withdrawRevenue();
+                        let withdrawAmount = (await saplingPoolContext.balance()).protocolRevenue;
+                        await saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount);
 
-                        expect(await saplingPoolContext.revenueBalanceOf(protocol.address)).to.equal(0);
-                        await expect(saplingPoolContext.connect(protocol).withdrawRevenue()).to.be.reverted;
+                        expect((await saplingPoolContext.balance()).protocolRevenue).to.equal(0);
+                        await expect(saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount)).to.be.reverted;
                     });
                 });
             });
@@ -1271,7 +1274,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             it('Can view lender APY given current pool state', async function () {
                 let apr = (await loanDesk.loanTemplate()).apr;
                 let protocolEarningPercent = (await saplingPoolContext.config()).protocolFeePercent;
-                let ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
+                let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
                 let managersEarnFactor = (await saplingPoolContext.config()).managerEarnFactor;
 
                 // pool APY
@@ -1298,7 +1301,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             it('Can view projected lender APY', async function () {
                 let apr = (await loanDesk.loanTemplate()).apr;
                 let protocolEarningPercent = (await saplingPoolContext.config()).protocolFeePercent;
-                let ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
+                let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
                 let managersEarnFactor = (await saplingPoolContext.config()).managerEarnFactor;
 
                 // pool APY
@@ -1327,7 +1330,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             it('Increase in borrow rate is linearly reflected on projected lender APY within margin of integer math accuracy', async function () {
                 let apr = (await loanDesk.loanTemplate()).apr;
                 let protocolEarningPercent = (await saplingPoolContext.config()).protocolFeePercent;
-                let ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
+                let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
                 let managersEarnFactor = (await saplingPoolContext.config()).managerEarnFactor;
 
                 let projectedBorrowAmount = loanAmount.div(2);
@@ -1363,7 +1366,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             describe('Rejection scenarios', function () {
                 it('APY projection should fail when borrow rate of over 100% is requested', async function () {
                     let apr = (await loanDesk.loanTemplate()).apr;
-                    let ONE_HUNDRED_PERCENT = await saplingMath.oneHundredPercent();
+                    let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
                     await expect(saplingPoolContext.projectedLenderAPY(ONE_HUNDRED_PERCENT + 1, apr)).to.be.reverted;
                 });
             });
