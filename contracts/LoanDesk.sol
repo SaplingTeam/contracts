@@ -10,6 +10,7 @@ import "./interfaces/IPoolContext.sol";
 import "./interfaces/ILendingPool.sol";
 
 import "./lib/SaplingMath.sol";
+import "./lib/Limits.sol";
 
 /**
  * @title Loan Desk
@@ -17,31 +18,16 @@ import "./lib/SaplingMath.sol";
  */
 contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeable {
 
-    /// Math safe minimum loan duration in seconds
-    uint256 public constant SAFE_MIN_DURATION = 1 days;
-
-    /// Math safe maximum loan duration in seconds
-    uint256 public constant SAFE_MAX_DURATION = 51 * 365 days;
-
-    /// Minimum allowed loan payment grace period
-    uint256 public constant MIN_LOAN_GRACE_PERIOD = 3 days;
-
-    /// Maximum allowed loan payment grace period
-    uint256 public constant MAX_LOAN_GRACE_PERIOD = 365 days;
-
-    /// Safe minimum for APR values
-    uint16 public constant SAFE_MIN_APR = 0; // 0%
-
-    /// Safe maximum for APR values
-    uint16 public safeMaxApr;
-
-    /// Math safe minimum loan amount including token decimals
-    uint256 public safeMinAmount;
+    /// Address of the lending pool contract
+    address public pool;
 
     LoanTemplate public loanTemplate;
 
-    /// Address of the lending pool contract
-    address public pool;
+
+    // Loan applications state 
+
+    /// Loan application id generator counter
+    uint256 private nextApplicationId;
 
     /// Total liquidity tokens allocated for loan offers and pending acceptance by the borrowers
     uint256 public offeredFunds;
@@ -55,6 +41,14 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /// Recent application id by address
     mapping(address => uint256) public recentApplicationIdOf;
 
+
+    // Loans state
+
+    /// Loan id generator counter
+    uint256 private nextLoanId;
+
+    uint256 public outstandingLoansCount;
+
     /// Loans by loan ID
     mapping(uint256 => Loan) public loans;
 
@@ -64,17 +58,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /// Recent loan id by address
     mapping(address => uint256) public recentLoanIdOf;
 
-    /// Loan application id generator counter
-    uint256 private nextApplicationId;
-
-    /// Loan id generator counter
-    uint256 private nextLoanId;
-
-    /// A modifier to limit access only to the lending pool contract
-    modifier onlyPool() {
-        require(msg.sender == pool, "LoanDesk: caller is not the lending pool");
-        _;
-    }
 
     /// A modifier to limit access only to when the application exists and has the specified status
     modifier applicationInStatus(uint256 applicationId, LoanApplicationStatus status) {
@@ -124,20 +107,17 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
         require(_pool != address(0), "LoanDesk: invalid pool address");
 
-        uint256 _oneToken = 10 ** uint256(_decimals);
-        safeMinAmount = _oneToken;
-        safeMaxApr = SaplingMath.oneHundredPercent;
-
         loanTemplate = LoanTemplate({
-            minAmount: _oneToken * 100,
-            minDuration: SAFE_MIN_DURATION,
-            maxDuration: SAFE_MAX_DURATION,
+            minAmount: 100 * 10 ** uint256(_decimals),
+            minDuration: Limits.SAFE_MIN_DURATION,
+            maxDuration: Limits.SAFE_MAX_DURATION,
             gracePeriod: 60 days,
             apr: uint16(30 * 10 ** SaplingMath.percentDecimals) // 30%
         });
 
         pool = _pool;
         offeredFunds = 0;
+        outstandingLoansCount = 0;
         nextApplicationId = 1;
         nextLoanId = 1;
     }
@@ -149,7 +129,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      * @param minAmount Minimum loan amount to be enforced on new loan requests and offers
      */
     function setMinLoanAmount(uint256 minAmount) external onlyRole(POOL_MANAGER_ROLE) {
-        require(safeMinAmount <= minAmount, "LoanDesk: new min loan amount is less than the safe limit");
+        require(Limits.SAFE_MIN_AMOUNT <= minAmount, "LoanDesk: new min loan amount is less than the safe limit");
 
         uint256 prevValue = loanTemplate.minAmount;
         loanTemplate.minAmount = minAmount;
@@ -165,7 +145,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      */
     function setMinLoanDuration(uint256 duration) external onlyRole(POOL_MANAGER_ROLE) {
         require(
-            SAFE_MIN_DURATION <= duration && duration <= loanTemplate.maxDuration,
+            Limits.SAFE_MIN_DURATION <= duration && duration <= loanTemplate.maxDuration,
             "LoanDesk: new min duration is out of bounds"
         );
 
@@ -183,7 +163,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      */
     function setMaxLoanDuration(uint256 duration) external onlyRole(POOL_MANAGER_ROLE) {
         require(
-            loanTemplate.minDuration <= duration && duration <= SAFE_MAX_DURATION,
+            loanTemplate.minDuration <= duration && duration <= Limits.SAFE_MAX_DURATION,
             "LoanDesk: new max duration is out of bounds"
         );
 
@@ -201,7 +181,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      */
     function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyRole(POOL_MANAGER_ROLE) {
         require(
-            MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= MAX_LOAN_GRACE_PERIOD,
+            Limits.MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= Limits.MAX_LOAN_GRACE_PERIOD,
             "LoanDesk: new grace period is out of bounds."
         );
 
@@ -213,12 +193,12 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
     /**
      * @notice Set a template loan APR
-     * @dev APR must be inclusively between SAFE_MIN_APR and safeMaxApr.
+     * @dev APR must be inclusively between SAFE_MIN_APR and 100%.
      *      Caller must be the manager.
      * @param apr Loan APR to be enforced on the new loan offers.
      */
     function setTemplateLoanAPR(uint16 apr) external onlyRole(POOL_MANAGER_ROLE) {
-        require(SAFE_MIN_APR <= apr && apr <= safeMaxApr, "LoanDesk: APR is out of bounds");
+        require(Limits.SAFE_MIN_APR <= apr && apr <= SaplingMath.oneHundredPercent, "LoanDesk: APR is out of bounds");
 
         uint256 prevValue = loanTemplate.apr;
         loanTemplate.apr = apr;
@@ -245,8 +225,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     )
         external
         onlyUser
-        whenNotClosed
         whenNotPaused
+        whenNotClosed
     {
         LoanApplicationStatus recentAppStatus = loanApplications[recentApplicationIdOf[msg.sender]].status;
         require(
@@ -330,8 +310,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
         LoanApplication storage app = loanApplications[appId];
 
-        require(ILendingPool(pool).canOffer(offeredFunds + _amount),
-            "LoanDesk: lending pool cannot offer this loan at this time");
+        require(
+            ILendingPool(pool).canOffer(offeredFunds + _amount),
+            "LoanDesk: lending pool cannot offer this loan at this time"
+        );
 
         //// effect
 
@@ -423,8 +405,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
     /**
      * @notice Cancel a loan.
-     * @dev Loan application must be in OFFER_MADE status.
-     *      Caller must be the manager or approved party when the manager is inactive.
+     * @dev Loan application must be in OFFER_MADE status. Caller must be the manager.
      */
     function cancelLoan(
         uint256 appId
@@ -501,6 +482,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
         recentLoanIdOf[offer.borrower] = loanId;
 
+        outstandingLoansCount++;
+
         //// interactions
 
         // on pool
@@ -509,49 +492,149 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         emit LoanBorrowed(loanId, offer.borrower, appId);
     }
 
-    // /**
-    //  * @notice Make a payment towards a loan.
-    //  * @dev Caller must be the borrower.
-    //  *      Loan must be in OUTSTANDING status.
-    //  *      Only the necessary sum is charged if amount exceeds amount due.
-    //  *      Amount charged will not exceed the amount parameter.
-    //  * @param loanId ID of the loan to make a payment towards.
-    //  * @param amount Payment amount in tokens.
-    //  * @return A pair of total amount charged including interest, and the interest charged.
-    //  */
+    /**
+     * @notice Make a payment towards a loan.
+     * @dev Caller must be the borrower.
+     *      Loan must be in OUTSTANDING status.
+     *      Only the necessary sum is charged if amount exceeds amount due.
+     *      Amount charged will not exceed the amount parameter.
+     * @param loanId ID of the loan to make a payment towards.
+     * @param amount Payment amount
+     */
     function repay(uint256 loanId, uint256 amount) external {
         // require the payer and the borrower to be the same to avoid mispayment
         require(loans[loanId].borrower == msg.sender, "LoanDesk: payer is not the borrower");
 
-        return repayBase(loanId, amount);
+        repayBase(loanId, amount);
     }
 
-    // /**
-    //  * @notice Make a payment towards a loan on behalf of a borrower.
-    //  * @dev Loan must be in OUTSTANDING status.
-    //  *      Only the necessary sum is charged if amount exceeds amount due.
-    //  *      Amount charged will not exceed the amount parameter.
-    //  * @param loanId ID of the loan to make a payment towards.
-    //  * @param amount Payment amount in tokens.
-    //  * @param borrower address of the borrower to make a payment on behalf of.
-    //  * @return A pair of total amount charged including interest, and the interest charged.
-    //  */
-    function repayOnBehalf(uint256 loanId, uint256 amount, address borrower ) external {
+    /**
+     * @notice Make a payment towards a loan on behalf of a borrower.
+     * @dev Loan must be in OUTSTANDING status.
+     *      Only the necessary sum is charged if amount exceeds amount due.
+     *      Amount charged will not exceed the amount parameter.
+     * @param loanId ID of the loan to make a payment towards.
+     * @param amount Payment amount
+     * @param borrower address of the borrower to make a payment on behalf of.
+     */
+    function repayOnBehalf(uint256 loanId, uint256 amount, address borrower) external {
         // require the borrower being paid on behalf off and the loan borrower to be the same to avoid mispayment
         require(loans[loanId].borrower == borrower, "LoanDesk: invalid borrower");
 
-        return repayBase(loanId, amount);
+        repayBase(loanId, amount);
     }
 
-    // /**
-    //  * @notice Make a payment towards a loan.
-    //  * @dev Loan must be in OUTSTANDING status.
-    //  *      Only the necessary sum is charged if amount exceeds amount due.
-    //  *      Amount charged will not exceed the amount parameter.
-    //  * @param loanId ID of the loan to make a payment towards
-    //  * @param amount Payment amount in tokens
-    //  * @return A pair of total amount charged including interest, and the interest charged
-    //  */
+    /**
+     * @notice Closes a loan. Closing a loan will repay the outstanding principal using the pool manager's revenue
+                            and/or staked funds. If these funds are not sufficient, the lenders will take the loss.
+     * @dev Loan must be in OUTSTANDING status.
+     *      Caller must be the manager.
+     * @param loanId ID of the loan to close
+     */
+    function closeLoan(
+        uint256 loanId
+    )
+        external
+        onlyRole(POOL_MANAGER_ROLE)
+        loanInStatus(loanId, LoanStatus.OUTSTANDING)
+        whenNotPaused
+        nonReentrant
+    {
+        //// effect
+
+        Loan storage loan = loans[loanId];
+        LoanDetail storage loanDetail = loanDetails[loanId];
+
+        uint256 amountCarryUsed = 0;
+
+        // use loan payment carry
+        if (loanDetail.paymentCarry > 0) {
+            loanDetail.principalAmountRepaid += loanDetail.paymentCarry;
+
+            amountCarryUsed = loanDetail.paymentCarry;
+            loanDetail.paymentCarry = 0;
+        }
+
+        loan.status = LoanStatus.REPAID;
+        outstandingLoansCount--;
+
+        uint256 remainingDifference = loanDetail.principalAmountRepaid < loan.amount
+            ? loan.amount - loanDetail.principalAmountRepaid
+            : 0;
+
+        uint256 amountRepaid = ILendingPool(pool).onCloseLoan(loan.id, loan.apr, amountCarryUsed, remainingDifference);
+
+        // external interaction based state update (intentional)
+        if (amountRepaid > 0) {
+            loanDetail.totalAmountRepaid += amountRepaid - amountCarryUsed;
+            loanDetail.principalAmountRepaid += amountRepaid;
+        }
+
+        remainingDifference = loanDetail.principalAmountRepaid < loan.amount
+            ? loan.amount - loanDetail.principalAmountRepaid
+            : 0;
+
+        emit LoanClosed(loanId, loan.borrower, amountRepaid, remainingDifference);
+    }
+
+    /**
+     * @notice Default a loan.
+     * @dev Loan must be in OUTSTANDING status.
+     *      Caller must be the manager.
+     *      canDefault(loanId) must return 'true'.
+     * @param loanId ID of the loan to default
+     */
+    function defaultLoan(
+        uint256 loanId
+    )
+        external
+        onlyRole(POOL_MANAGER_ROLE)
+        whenNotPaused
+    {
+        //// check
+
+        require(canDefault(loanId), "LoanDesk: cannot default this loan at this time");
+
+        //// effect
+
+        Loan storage loan = loans[loanId];
+        LoanDetail storage loanDetail = loanDetails[loanId];
+
+        loan.status = LoanStatus.DEFAULTED;
+        outstandingLoansCount--;
+
+        uint256 paymentCarry = loanDetail.paymentCarry;
+
+        if (loanDetail.paymentCarry > 0) {
+
+            loanDetail.principalAmountRepaid += loanDetail.paymentCarry;
+            loanDetail.lastPaymentTime = block.timestamp;
+
+            loanDetail.paymentCarry = 0;
+        }
+
+        uint256 loss = loan.amount > loanDetail.principalAmountRepaid
+            ? loan.amount - loanDetail.principalAmountRepaid
+            : 0;
+
+        (uint256 managerLoss, uint256 lenderLoss) = ILendingPool(pool).onDefault(
+            loanId, 
+            loan.apr, 
+            paymentCarry, 
+            loss
+        );
+
+        emit LoanDefaulted(loanId, loan.borrower, managerLoss, lenderLoss);
+    }
+
+    /**
+     * @notice Make a payment towards a loan.
+     * @dev Loan must be in OUTSTANDING status.
+     *      Only the necessary sum is charged if amount exceeds amount due.
+     *      Amount charged will not exceed the amount parameter.
+     * @param loanId ID of the loan to make a payment towards
+     * @param amount Payment amount in tokens
+     */
     function repayBase(uint256 loanId, uint256 amount) internal nonReentrant whenNotPaused {
 
         //// check
@@ -591,6 +674,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
         if (loanDetail.principalAmountRepaid >= loan.amount) {
             loan.status = LoanStatus.REPAID;
+            outstandingLoansCount--;
 
             emit LoanRepaid(loanId, loan.borrower);
         }
@@ -608,6 +692,142 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             paymentAmount, 
             interestPayable
         );
+    }
+
+    /**
+     * @notice Count of all loan requests in this pool.
+     * @return LoanApplication count.
+     */
+    function applicationsCount() external view returns(uint256) {
+        return nextApplicationId - 1;
+    }
+
+    /**
+     * @notice Count of all loans in this pool.
+     * @return Loan count.
+     */
+    function loansCount() external view returns(uint256) {
+        return nextLoanId - 1;
+    }
+
+    /**
+     * @notice Accessor for loan.
+     * @param loanId ID of the loan
+     * @return Loan struct instance for the specified loan ID.
+     */
+    function loanById(uint256 loanId) external view returns (Loan memory) {
+        return loans[loanId];
+    }
+
+    /**
+     * @notice Accessor for loan detail.
+     * @param loanId ID of the loan
+     * @return LoanDetail struct instance for the specified loan ID.
+     */
+    function loanDetailById(uint256 loanId) external view returns (LoanDetail memory) {
+        return loanDetails[loanId];
+    }
+
+     /**
+     * @notice Loan balance due including interest if paid in full at this time.
+     * @dev Loan must be in OUTSTANDING status.
+     * @param loanId ID of the loan to check the balance of
+     * @return Total amount due with interest on this loan
+     */
+    function loanBalanceDue(uint256 loanId) external view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns(uint256) {
+        (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
+        return principalOutstanding + interestOutstanding - loanDetails[loanId].paymentCarry;
+    }
+
+        /**
+     * @notice View indicating whether or not a given loan qualifies to be defaulted
+     * @param loanId ID of the loan to check
+     * @return True if the given loan can be defaulted, false otherwise
+     */
+    function canDefault(uint256 loanId) public view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (bool) {
+
+        Loan storage loan = loans[loanId];
+
+        uint256 fxBandPercent = 200; //20% //TODO: use confgurable parameter on v1.1
+
+        uint256 paymentDueTime;
+
+        if (loan.installments > 1) {
+            uint256 installmentPeriod = loan.duration / loan.installments;
+            uint256 pastInstallments = (block.timestamp - loan.borrowedTime) / installmentPeriod;
+            uint256 minTotalPayment = MathUpgradeable.mulDiv(
+                loan.installmentAmount * pastInstallments,
+                SaplingMath.oneHundredPercent - fxBandPercent,
+                SaplingMath.oneHundredPercent
+            );
+
+            LoanDetail storage detail = loanDetails[loanId];
+            uint256 totalRepaid = detail.principalAmountRepaid + detail.interestPaid;
+            if (totalRepaid >= minTotalPayment) {
+                return false;
+            }
+
+            paymentDueTime = loan.borrowedTime + ((totalRepaid / loan.installmentAmount) + 1) * installmentPeriod;
+        } else {
+            paymentDueTime = loan.borrowedTime + loan.duration;
+        }
+
+        return block.timestamp > paymentDueTime + loan.gracePeriod;
+    }
+
+    /**
+     * @notice Validates loan offer parameters
+     * @dev Throws a require-type exception on invalid loan parameter
+     * @param _amount Loan amount in liquidity tokens
+     * @param _duration Loan term in seconds
+     * @param _gracePeriod Loan payment grace period in seconds
+     * @param _installmentAmount Minimum payment amount on each instalment in liquidity tokens
+     * @param _installments The number of payment installments
+     * @param _apr Annual percentage rate of this loan
+     */
+    function validateLoanParams(
+        uint256 _amount,
+        uint256 _duration,
+        uint256 _gracePeriod,
+        uint256 _installmentAmount,
+        uint16 _installments,
+        uint16 _apr
+    ) private view
+    {
+        require(_amount >= loanTemplate.minAmount, "LoanDesk: invalid amount");
+        require(
+            loanTemplate.minDuration <= _duration && _duration <= loanTemplate.maxDuration,
+            "LoanDesk: invalid duration"
+        );
+        require(Limits.MIN_LOAN_GRACE_PERIOD <= _gracePeriod && _gracePeriod <= Limits.MAX_LOAN_GRACE_PERIOD,
+            "LoanDesk: invalid grace period");
+        require(
+            _installmentAmount == 0 || _installmentAmount >= Limits.SAFE_MIN_AMOUNT,
+            "LoanDesk: invalid installment amount"
+        );
+        require(
+            1 <= _installments && _installments <= _duration / (1 days),
+            "LoanDesk: invalid number of installments"
+        );
+        require(Limits.SAFE_MIN_APR <= _apr && _apr <= SaplingMath.oneHundredPercent, "LoanDesk: invalid APR");
+    }
+
+    /**
+     * @notice Loan balances due if paid in full at this time.
+     * @param loanId ID of the loan to check the balance of
+     * @return Principal outstanding, interest outstanding, and the number of interest acquired days
+     */
+    function loanBalanceDueWithInterest(uint256 loanId) private view returns (uint256, uint256, uint256) {
+        Loan storage loan = loans[loanId];
+        LoanDetail storage detail = loanDetails[loanId];
+
+        uint256 daysPassed = countInterestDays(detail.interestPaidTillTime, block.timestamp);
+        uint256 interestPercent = MathUpgradeable.mulDiv(uint256(loan.apr) * 1e18, daysPassed, 365);
+
+        uint256 principalOutstanding = loan.amount - detail.principalAmountRepaid;
+        uint256 interestOutstanding = MathUpgradeable.mulDiv(principalOutstanding, interestPercent, SaplingMath.oneHundredPercent);
+
+        return (principalOutstanding, interestOutstanding / 1e18, daysPassed);
     }
 
     /**
@@ -672,35 +892,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     }
 
     /**
-     * @notice Loan balance due including interest if paid in full at this time.
-     * @dev Loan must be in OUTSTANDING status.
-     * @param loanId ID of the loan to check the balance of
-     * @return Total amount due with interest on this loan
-     */
-    function loanBalanceDue(uint256 loanId) public view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns(uint256) {
-        (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
-        return principalOutstanding + interestOutstanding - loanDetails[loanId].paymentCarry;
-    }
-
-    /**
-     * @notice Loan balances due if paid in full at this time.
-     * @param loanId ID of the loan to check the balance of
-     * @return Principal outstanding, interest outstanding, and the number of interest acquired days
-     */
-    function loanBalanceDueWithInterest(uint256 loanId) internal view returns (uint256, uint256, uint256) {
-        Loan storage loan = loans[loanId];
-        LoanDetail storage detail = loanDetails[loanId];
-
-        uint256 daysPassed = countInterestDays(detail.interestPaidTillTime, block.timestamp);
-        uint256 interestPercent = MathUpgradeable.mulDiv(uint256(loan.apr) * 1e18, daysPassed, 365);
-
-        uint256 principalOutstanding = loan.amount - detail.principalAmountRepaid;
-        uint256 interestOutstanding = MathUpgradeable.mulDiv(principalOutstanding, interestPercent, SaplingMath.oneHundredPercent);
-
-        return (principalOutstanding, interestOutstanding / 1e18, daysPassed);
-    }
-
-    /**
      * @notice Get the number of days in a time period to witch an interest can be applied.
      * @dev Returns the ceiling of the count.
      * @param timeFrom Epoch timestamp of the start of the time period.
@@ -723,230 +914,11 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     }
 
     /**
-     * @notice Count of all loan requests in this pool.
-     * @return LoanApplication count.
-     */
-    function applicationsCount() external view returns(uint256) {
-        return nextApplicationId - 1;
-    }
-
-    /**
-     * @notice Count of all loans in this pool.
-     * @return Loan count.
-     */
-    function loansCount() external view returns(uint256) {
-        return nextLoanId - 1;
-    }
-
-    /**
-     * @notice View indicating whether or not a given loan qualifies to be defaulted
-     * @param loanId ID of the loan to check
-     * @return True if the given loan can be defaulted, false otherwise
-     */
-    function canDefault(uint256 loanId) public view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns (bool) {
-
-        Loan storage loan = loans[loanId];
-
-        uint256 fxBandPercent = 200; //20% //TODO: use confgurable parameter on v1.1
-
-        uint256 paymentDueTime;
-
-        if (loan.installments > 1) {
-            uint256 installmentPeriod = loan.duration / loan.installments;
-            uint256 pastInstallments = (block.timestamp - loan.borrowedTime) / installmentPeriod;
-            uint256 minTotalPayment = MathUpgradeable.mulDiv(
-                loan.installmentAmount * pastInstallments,
-                SaplingMath.oneHundredPercent - fxBandPercent,
-                SaplingMath.oneHundredPercent
-            );
-
-            LoanDetail storage detail = loanDetails[loanId];
-            uint256 totalRepaid = detail.principalAmountRepaid + detail.interestPaid;
-            if (totalRepaid >= minTotalPayment) {
-                return false;
-            }
-
-            paymentDueTime = loan.borrowedTime + ((totalRepaid / loan.installmentAmount) + 1) * installmentPeriod;
-        } else {
-            paymentDueTime = loan.borrowedTime + loan.duration;
-        }
-
-        return block.timestamp > paymentDueTime + loan.gracePeriod;
-    }
-
-    /**
-     * @notice Default a loan.
-     * @dev Loan must be in OUTSTANDING status.
-     *      Caller must be the manager.
-     *      canDefault(loanId) must return 'true'.
-     * @param loanId ID of the loan to default
-     */
-    function defaultLoan(
-        uint256 loanId
-    )
-        public
-        onlyRole(POOL_MANAGER_ROLE)
-        whenNotPaused
-    {
-        //// check
-
-        require(canDefault(loanId), "LoanDesk: cannot default this loan at this time");
-
-        //// effect
-
-        Loan storage loan = loans[loanId];
-        LoanDetail storage loanDetail = loanDetails[loanId];
-
-        loan.status = LoanStatus.DEFAULTED;
-
-        uint256 paymentCarry = loanDetail.paymentCarry;
-
-        if (loanDetail.paymentCarry > 0) {
-
-            loanDetail.principalAmountRepaid += loanDetail.paymentCarry;
-            loanDetail.lastPaymentTime = block.timestamp;
-
-            loanDetail.paymentCarry = 0;
-        }
-
-        uint256 loss = loan.amount > loanDetail.principalAmountRepaid
-            ? loan.amount - loanDetail.principalAmountRepaid
-            : 0;
-
-        (uint256 managerLoss, uint256 lenderLoss) = ILendingPool(pool).onDefault(
-            loanId, 
-            loan.apr, 
-            paymentCarry, 
-            loss
-        );
-
-        emit LoanDefaulted(loanId, loan.borrower, managerLoss, lenderLoss);
-    }
-
-    /**
-     * @notice Closes a loan. Closing a loan will repay the outstanding principal using the pool manager's revenue
-                            and/or staked funds. If these funds are not sufficient, the lenders will take the loss.
-     * @dev Loan must be in OUTSTANDING status.
-     *      Caller must be the manager.
-     * @param loanId ID of the loan to close
-     */
-    function closeLoan(
-        uint256 loanId
-    )
-        external
-        onlyRole(POOL_MANAGER_ROLE)
-        loanInStatus(loanId, LoanStatus.OUTSTANDING)
-        whenNotPaused
-        nonReentrant
-    {
-        //// effect
-
-        Loan storage loan = loans[loanId];
-        LoanDetail storage loanDetail = loanDetails[loanId];
-
-        uint256 amountCarryUsed = 0;
-
-        // use loan payment carry
-        if (loanDetail.paymentCarry > 0) {
-            loanDetail.principalAmountRepaid += loanDetail.paymentCarry;
-
-            amountCarryUsed = loanDetail.paymentCarry;
-            loanDetail.paymentCarry = 0;
-        }
-
-        loan.status = LoanStatus.REPAID;
-
-        uint256 remainingDifference = loanDetail.principalAmountRepaid < loan.amount
-            ? loan.amount - loanDetail.principalAmountRepaid
-            : 0;
-
-        uint256 amountRepaid = ILendingPool(pool).onCloseLoan(loan.id, loan.apr, amountCarryUsed, remainingDifference);
-
-        // external interaction based state update (intentional)
-        if (amountRepaid > 0) {
-            loanDetail.totalAmountRepaid += amountRepaid - amountCarryUsed;
-            loanDetail.principalAmountRepaid += amountRepaid;
-        }
-
-        remainingDifference = loanDetail.principalAmountRepaid < loan.amount
-            ? loan.amount - loanDetail.principalAmountRepaid
-            : 0;
-
-        emit LoanClosed(loanId, loan.borrower, amountRepaid, remainingDifference);
-    }
-
-    /**
-     * @notice View indicating whether or not a given loan offer qualifies to be cancelled by a given caller.
-     * @param appId Application ID of the loan offer in question
-     * @return True if the given loan approval can be cancelled and can be cancelled by the specified caller,
-     *         false otherwise.
-     */
-    function canCancel(uint256 appId) external view returns (bool) {
-        return loanApplications[appId].status == LoanApplicationStatus.OFFER_MADE 
-            && block.timestamp >= loanOffers[appId].offeredTime;
-    }
-
-    /**
-     * @notice Accessor for loan.
-     * @param loanId ID of the loan
-     * @return Loan struct instance for the specified loan ID.
-     */
-    function loanById(uint256 loanId) external view override returns (Loan memory) {
-        return loans[loanId];
-    }
-
-    /**
-     * @notice Accessor for loan detail.
-     * @param loanId ID of the loan
-     * @return LoanDetail struct instance for the specified loan ID.
-     */
-    function loanDetailById(uint256 loanId) external view override returns (LoanDetail memory) {
-        return loanDetails[loanId];
-    }
-
-    /**
      * @notice Indicates whether or not the contract can be closed in it's current state.
      * @dev Overrides a hook in SaplingManagerContext.
      * @return True if the contract is closed, false otherwise.
      */
-    function canClose() override internal pure returns (bool) {
-        return true;
-    }
-
-    /**
-     * @notice Validates loan offer parameters
-     * @dev Throws a require-type exception on invalid loan parameter
-     * @param _amount Loan amount in liquidity tokens
-     * @param _duration Loan term in seconds
-     * @param _gracePeriod Loan payment grace period in seconds
-     * @param _installmentAmount Minimum payment amount on each instalment in liquidity tokens
-     * @param _installments The number of payment installments
-     * @param _apr Annual percentage rate of this loan
-     */
-    function validateLoanParams(
-        uint256 _amount,
-        uint256 _duration,
-        uint256 _gracePeriod,
-        uint256 _installmentAmount,
-        uint16 _installments,
-        uint16 _apr
-    ) private view
-    {
-        require(_amount >= loanTemplate.minAmount, "LoanDesk: invalid amount");
-        require(
-            loanTemplate.minDuration <= _duration && _duration <= loanTemplate.maxDuration,
-            "LoanDesk: invalid duration"
-        );
-        require(MIN_LOAN_GRACE_PERIOD <= _gracePeriod && _gracePeriod <= MAX_LOAN_GRACE_PERIOD,
-            "LoanDesk: invalid grace period");
-        require(
-            _installmentAmount == 0 || _installmentAmount >= safeMinAmount,
-            "LoanDesk: invalid installment amount"
-        );
-        require(
-            1 <= _installments && _installments <= _duration / (1 days),
-            "LoanDesk: invalid number of installments"
-        );
-        require(SAFE_MIN_APR <= _apr && _apr <= safeMaxApr, "LoanDesk: invalid APR");
+    function canClose() internal view override returns (bool) {
+        return offeredFunds == 0 && outstandingLoansCount == 0;
     }
 }
