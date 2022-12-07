@@ -2,6 +2,9 @@
 
 pragma solidity ^0.8.15;
 
+/**
+ * Math safe and intended limits
+ */
 library Limits {
     
     /// Math safe minimum loan duration in seconds

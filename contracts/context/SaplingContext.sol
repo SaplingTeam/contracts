@@ -9,7 +9,7 @@ import "../lib/SaplingRoles.sol";
 
 /**
  * @title Sapling Context
- * @notice Provides governance access control, a common reference to the treasury wallet address, and basic pause
+ * @notice Provides reference to protocol level access control, and basic pause
  *         functionality by extending OpenZeppelin's Pausable contract.
  */
 abstract contract SaplingContext is Initializable, PausableUpgradeable {
@@ -17,6 +17,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
     /// Protocol access control
     address public accessControl;
 
+    /// Modifier to limit function access to a specific role
     modifier onlyRole(bytes32 role) {
         require(hasRole(role, msg.sender), "SaplingContext: unauthorized");
         _;
@@ -25,7 +26,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
     /**
      * @notice Creates a new SaplingContext.
      * @dev Addresses must not be 0.
-     * @param _accessControl Access control contract
+     * @param _accessControl Protocol level access control contract address
      */
     function __SaplingContext_init(address _accessControl) internal onlyInitializing {
         __Pausable_init();
@@ -43,8 +44,8 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
 
     /**
      * @notice Pause the contract.
-     * @dev Caller must be the governance.
-     *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause.
+     * @dev Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause.
+     *      Caller must have the PAUSER_ROLE. 
      */
     function pause() external onlyRole(SaplingRoles.PAUSER_ROLE) {
         _pause();
@@ -52,17 +53,19 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
 
     /**
      * @notice Resume the contract.
-     * @dev Caller must be the governance.
-     *      Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause.
+     * @dev Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause.
+     *      Caller must have the PAUSER_ROLE. 
+     *      
      */
     function unpause() external onlyRole(SaplingRoles.PAUSER_ROLE) {
         _unpause();
     }
 
     /**
-     * @notice Hook that is called to verify if an address is currently in any non-user/management position.
+     * @notice Verify if an address has any non-user/management roles
      * @dev When overriding, return "contract local verification result" AND super.isNonUserAddress(party).
      * @param party Address to verify
+     * @return True if the address has any roles, false otherwise
      */
     function isNonUserAddress(address party) internal view virtual returns (bool) {
         return hasRole(SaplingRoles.GOVERNANCE_ROLE, party) 
@@ -70,6 +73,12 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
             || hasRole(SaplingRoles.PAUSER_ROLE, party);
     }
 
+    /**
+     * @notice Verify if an address has a specific role.
+     * @param role Role to check against
+     * @param party Address to verify
+     * @return True if the address has the specified role, false otherwise
+     */
     function hasRole(bytes32 role, address party) internal view returns (bool) {
         return IAccessControl(accessControl).hasRole(role, party);
     }

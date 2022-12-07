@@ -128,7 +128,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         balance.allocatedFunds -= amount;
         balance.strategizedFunds += amount;
 
-        weightedAvgStrategyAPR = (prevStrategizedFunds * weightedAvgStrategyAPR + amount * apr)
+        config.weightedAvgStrategyAPR = (prevStrategizedFunds * config.weightedAvgStrategyAPR + amount * apr)
             / balance.strategizedFunds;
 
         //// interactions
@@ -140,15 +140,17 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
      /**
      * @dev Hook for repayments. Caller must be the LoanDesk. 
-     * Loan metadata is passed along as call arguments to avoid reentry callbacks to the LoanDesk. 
-     * Transfer amount can be less than the payment amount due to payment carry feature.
+     *      
+     *      Parameters besides the loanId exists simply to avoid rereading it from the caller via additinal inter 
+     *      contract call. Avoiding loop call reduces gas, contract bytecode size, and reduces the risk of reentrancy.
+     *
      * @param loanId ID of the loan which has just been borrowed
      * @param borrower Borrower address
      * @param payer Actual payer address
      * @param apr Loan apr
      * @param transferAmount Amount chargeable
-     * @param paymentAmount Payment amount for updating state
-     * @param interestPayable Interest amount for updating state
+     * @param paymentAmount Logical payment amount, may be different to the transfer amount due to a payment carry
+     * @param interestPayable Amount of interest paid, this value is already included in the payment amount
      */
     function onRepay(
         uint256 loanId, 
@@ -232,7 +234,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             transferAmount
         );
 
-        emit LoanRepaymentFinalized(loanId, borrower, payer, transferAmount, interestPayable);
+        emit LoanRepaymentConfirmed(loanId, borrower, payer, transferAmount, interestPayable);
     }
 
     /**
@@ -317,18 +319,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         return amountRepaid;
     }
-
-    /**
-     * @notice Closes a loan. 
-     * @dev Hook for closing a loan. Caller must be the LoanDesk. Closing a loan will repay the outstanding principal 
-     * using the pool manager's revenue and/or staked funds. If these funds are not sufficient, the lenders will 
-     * take the loss.
-     * @param loanId ID of the loan to close
-     * @param apr Loan apr
-     * @param amountRepaid Amount repaid based on outstanding payment carry
-     * @param remainingDifference Principal amount remaining to be resolved to close the loan
-     * @return Amount reimbursed by the pool manager funds
-     */
 
     /**
      * @dev Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 

@@ -7,11 +7,17 @@ import "./SaplingContext.sol";
 /**
  * @title Sapling Manager Context
  * @notice Provides manager access control, and a basic close functionality.
+ * @dev Close functionality is implemented in the same fashion as Openzeppelin's Pausable. 
  */
 abstract contract SaplingManagerContext is SaplingContext {
 
-    /// Manager role
-    bytes32 public POOL_MANAGER_ROLE;
+    /*
+     * Pool manager role
+     * 
+     * @dev The value of this role should be unique for each pool. Role must be created before the pool contract 
+     *      deployment, then passed during construction/initialization.
+     */
+    bytes32 public poolManagerRole;
 
     /// Flag indicating whether or not the pool is closed
     bool private _closed;
@@ -43,7 +49,7 @@ abstract contract SaplingManagerContext is SaplingContext {
     /**
      * @notice Create a new SaplingManagedContext.
      * @dev Addresses must not be 0.
-     * @param _accessControl Access control contract
+     * @param _accessControl Access control contract address
      * @param _managerRole Manager role
      */
     function __SaplingManagerContext_init(
@@ -59,20 +65,21 @@ abstract contract SaplingManagerContext is SaplingContext {
             Additional check for single init:
                 do not init again if a non-zero value is present in the values yet to be initialized.
         */
-        assert(_closed == false && POOL_MANAGER_ROLE == 0x00);
+        assert(_closed == false && poolManagerRole == 0x00);
 
-        POOL_MANAGER_ROLE = _managerRole;
+        poolManagerRole = _managerRole;
         _closed = false;
     }
 
     /**
-     * @notice Close the pool and stop borrowing, lender deposits, and staking.
-     * @dev Caller must be the manager.
-     *      Pool must be open.
-     *      No loans or approvals must be outstanding (borrowedFunds must equal to 0).
-     *      Emits 'PoolClosed' event.
+     * @notice Close the pool.
+     * @dev Only the functions using whenClosed and whenNotClosed modifiers will be affected by close.
+     *      Caller must have the pool manager role. Pool must be open.
+     *
+     *      Manager must have access to close function as the ability to unstake and withdraw all manager funds is 
+     *      only guaranteed when the pool is closed and all outstanding loans resolved. 
      */
-    function close() external onlyRole(POOL_MANAGER_ROLE) whenNotClosed {
+    function close() external onlyRole(poolManagerRole) whenNotClosed {
         require(canClose(), "SaplingManagerContext: cannot close the pool with outstanding loans");
 
         _closed = true;
@@ -82,12 +89,10 @@ abstract contract SaplingManagerContext is SaplingContext {
 
     /**
      * @notice Open the pool for normal operations.
-     * @dev Caller must be the manager.
-     *      Pool must be closed.
-     *      Opening the pool will not unpause any pauses in effect.
-     *      Emits 'PoolOpened' event.
+     * @dev Only the functions using whenClosed and whenNotClosed modifiers will be affected by open.
+     *      Caller must have the pool manager role. Pool must be closed.
      */
-    function open() external onlyRole(POOL_MANAGER_ROLE) whenClosed {
+    function open() external onlyRole(poolManagerRole) whenClosed {
         _closed = false;
 
         emit Opened(msg.sender);
@@ -101,19 +106,20 @@ abstract contract SaplingManagerContext is SaplingContext {
         return _closed;
     }
 
-    /**
-     * @notice Verify if an address is currently in any non-user/management position.
-     * @dev a hook in Sampling Context
+     /**
+     * @notice Verify if an address has any non-user/management roles
+     * @dev Overrides the same function in SaplingContext
      * @param party Address to verify
+     * @return True if the address has any roles, false otherwise
      */
     function isNonUserAddress(address party) internal view override returns (bool) {
-        return hasRole(POOL_MANAGER_ROLE, party) || super.isNonUserAddress(party);
+        return hasRole(poolManagerRole, party) || super.isNonUserAddress(party);
     }
 
     /**
      * @notice Indicates whether or not the contract can be closed in it's current state.
      * @dev A hook for the extending contract to implement.
-     * @return True if the contract is closed, false otherwise.
+     * @return True if the conditions of the closure are met, false otherwise.
      */
     function canClose() internal view virtual returns (bool);
 

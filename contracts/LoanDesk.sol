@@ -21,6 +21,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /// Address of the lending pool contract
     address public pool;
 
+    /// Default loan parameter values
     LoanTemplate public loanTemplate;
 
 
@@ -128,7 +129,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      *      Caller must be the manager.
      * @param minAmount Minimum loan amount to be enforced on new loan requests and offers
      */
-    function setMinLoanAmount(uint256 minAmount) external onlyRole(POOL_MANAGER_ROLE) {
+    function setMinLoanAmount(uint256 minAmount) external onlyRole(poolManagerRole) {
         require(Limits.SAFE_MIN_AMOUNT <= minAmount, "LoanDesk: new min loan amount is less than the safe limit");
 
         uint256 prevValue = loanTemplate.minAmount;
@@ -143,7 +144,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      *      Caller must be the manager.
      * @param duration Minimum loan duration to be enforced on new loan requests and offers
      */
-    function setMinLoanDuration(uint256 duration) external onlyRole(POOL_MANAGER_ROLE) {
+    function setMinLoanDuration(uint256 duration) external onlyRole(poolManagerRole) {
         require(
             Limits.SAFE_MIN_DURATION <= duration && duration <= loanTemplate.maxDuration,
             "LoanDesk: new min duration is out of bounds"
@@ -161,7 +162,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      *      Caller must be the manager.
      * @param duration Maximum loan duration to be enforced on new loan requests and offers
      */
-    function setMaxLoanDuration(uint256 duration) external onlyRole(POOL_MANAGER_ROLE) {
+    function setMaxLoanDuration(uint256 duration) external onlyRole(poolManagerRole) {
         require(
             loanTemplate.minDuration <= duration && duration <= Limits.SAFE_MAX_DURATION,
             "LoanDesk: new max duration is out of bounds"
@@ -179,7 +180,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      *      Caller must be the manager.
      * @param gracePeriod Loan payment grace period for new loan offers
      */
-    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyRole(POOL_MANAGER_ROLE) {
+    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyRole(poolManagerRole) {
         require(
             Limits.MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= Limits.MAX_LOAN_GRACE_PERIOD,
             "LoanDesk: new grace period is out of bounds."
@@ -197,7 +198,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      *      Caller must be the manager.
      * @param apr Loan APR to be enforced on the new loan offers.
      */
-    function setTemplateLoanAPR(uint16 apr) external onlyRole(POOL_MANAGER_ROLE) {
+    function setTemplateLoanAPR(uint16 apr) external onlyRole(poolManagerRole) {
         require(Limits.SAFE_MIN_APR <= apr && apr <= SaplingMath.HUNDRED_PERCENT, "LoanDesk: APR is out of bounds");
 
         uint256 prevValue = loanTemplate.apr;
@@ -265,7 +266,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 appId
     )
         external
-        onlyRole(POOL_MANAGER_ROLE)
+        onlyRole(poolManagerRole)
         applicationInStatus(appId, LoanApplicationStatus.APPLIED)
         whenNotPaused
     {
@@ -299,7 +300,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint16 _apr
     )
         external
-        onlyRole(POOL_MANAGER_ROLE)
+        onlyRole(poolManagerRole)
         applicationInStatus(appId, LoanApplicationStatus.APPLIED)
         whenNotClosed
         whenNotPaused
@@ -363,7 +364,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint16 _apr
     )
         external
-        onlyRole(POOL_MANAGER_ROLE)
+        onlyRole(poolManagerRole)
         applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE)
         whenNotClosed
         whenNotPaused
@@ -411,7 +412,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 appId
     )
         external
-        onlyRole(POOL_MANAGER_ROLE)
+        onlyRole(poolManagerRole)
         applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE)
         whenNotPaused
     {
@@ -535,7 +536,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 loanId
     )
         external
-        onlyRole(POOL_MANAGER_ROLE)
+        onlyRole(poolManagerRole)
         loanInStatus(loanId, LoanStatus.OUTSTANDING)
         whenNotPaused
         nonReentrant
@@ -588,7 +589,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 loanId
     )
         external
-        onlyRole(POOL_MANAGER_ROLE)
+        onlyRole(poolManagerRole)
         whenNotPaused
     {
         //// check
@@ -676,7 +677,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             loan.status = LoanStatus.REPAID;
             outstandingLoansCount--;
 
-            emit LoanRepaid(loanId, loan.borrower);
+            emit LoanFullyRepaid(loanId, loan.borrower);
         }
 
         emit LoanRepaymentInitiated(loanId, loan.borrower, msg.sender, transferAmount, interestPayable);

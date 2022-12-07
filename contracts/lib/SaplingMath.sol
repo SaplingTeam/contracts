@@ -2,8 +2,12 @@
 
 pragma solidity ^0.8.15;
 
+/**
+ * Sapling math library
+ */
 library SaplingMath {
     
+    /// The mumber of decimal digits in percentage values
     uint16 public constant PERCENT_DECIMALS = 1;
 
     /// A constant representing 100%

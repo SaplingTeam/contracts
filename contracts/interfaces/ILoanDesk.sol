@@ -9,7 +9,7 @@ interface ILoanDesk {
 
     /**
      * Loan application statuses. Initial value is defines as 'NULL' to differentiate the unintitialized state from
-     * the logical initial state.
+     * the logical initial states.
      */
     enum LoanApplicationStatus {
         NULL,
@@ -20,7 +20,9 @@ interface ILoanDesk {
         OFFER_CANCELLED
     }
 
+    /// Default loan parameter values
     struct LoanTemplate {
+        
         /// Minimum allowed loan amount
         uint256 minAmount;
 
@@ -37,30 +39,63 @@ interface ILoanDesk {
         uint16 apr;
     }
 
-    /// Loan application object template
+    /// Loan application object
     struct LoanApplication {
+
+        /// Application ID
         uint256 id;
+
+        /// Applicant address, the borrower
         address borrower;
+
+        /// Requested loan amount in liquidity tokens
         uint256 amount;
+
+        /// Requested loan duration in seconds
         uint256 duration;
+
+        /// Block timestamp
         uint256 requestedTime;
+
+        /// Application status
         LoanApplicationStatus status;
 
+        /// Applicant profile ID from the borrower metadata API
         string profileId;
+
+        /// Applicant profile digest from the borrower medatata API
         string profileDigest;
     }
 
-    /// Loan offer object template
+    /// Loan offer object
     struct LoanOffer {
-        uint256 applicationId; // ID of the loan application this offer is made for
-        address borrower; // applicant address
-        uint256 amount; // offered loan principal amount in liquidity tokens
-        uint256 duration; // requested loan term in seconds
-        uint256 gracePeriod; // payment grace period in seconds
-        uint256 installmentAmount; // minimum payment amount on each instalment in liquidity tokens
-        uint16 installments; //number of payment installments
-        uint16 apr; // annual percentage rate of this loan
-        uint256 offeredTime; //the time this offer was created or last updated
+
+        // Application ID, same as the loan application ID this offer is made for
+        uint256 applicationId; 
+
+        /// Applicant address, the borrower
+        address borrower;
+
+        /// Loan principal amount in liquidity tokens
+        uint256 amount;
+
+        /// Loan duration in seconds
+        uint256 duration; 
+
+        /// Repayment grace period in seconds
+        uint256 gracePeriod;
+
+        /// Installment amount in liquidity tokens
+        uint256 installmentAmount;
+
+        /// Installments, the minimum number of repayments
+        uint16 installments; 
+
+        /// Annual percentage rate
+        uint16 apr; 
+
+        /// Block timestamp of the offer creation/update
+        uint256 offeredTime;
     }
 
     /**
@@ -74,30 +109,71 @@ interface ILoanDesk {
         DEFAULTED
     }
 
-    /// Loan object template
+    /// Loan object
     struct Loan {
+
+        /// ID, increamental, value is not linked to application ID
         uint256 id;
+
+        /// Address of the loan desk contract this loan was created at
         address loanDeskAddress;
+
+        // Application ID, same as the loan application ID this loan is made for
         uint256 applicationId;
+
+        /// Recepient of the loan principal, the borrower
         address borrower;
+
+        /// Loan principal amount in liquidity tokens
         uint256 amount;
+
+        /// Loan duration in seconds
         uint256 duration;
+
+        /// Repayment grace period in seconds
         uint256 gracePeriod;
+
+        /// Installment amount in liquidity tokens
         uint256 installmentAmount;
+
+        /// Installments, the minimum number of repayments
         uint16 installments;
+
+        /// Annual percentage rate
         uint16 apr;
+
+        /// Block timestamp of funds release
         uint256 borrowedTime;
+
+        /// Loan status
         LoanStatus status;
     }
 
-    /// Loan payment details object template
+    /// Loan payment details
     struct LoanDetail {
+
+        /// Loan ID
         uint256 loanId;
+
+        /** 
+         * Total amount repaid in liquidity tokens.
+         * Total amount repaid must always equal to the sum of (principalAmountRepaid, interestPaid, paymentCarry)
+         */
         uint256 totalAmountRepaid;
+
+        /// Principal amount repaid in liquidity tokens
         uint256 principalAmountRepaid;
+
+        /// Interest paid in liquidity tokens
         uint256 interestPaid;
+
+        /// Payment carry 
         uint256 paymentCarry;
+
+        /// timestamp to calculate the interest from, on the outstanding principal
         uint256 interestPaidTillTime;
+
+        /// block timestamp of the last repayment
         uint256 lastPaymentTime;
     }
 
@@ -123,10 +199,16 @@ interface ILoanDesk {
     event LoanBorrowed(uint256 loanId, address indexed borrower, uint256 applicationId);
 
     /// Event for when a loan payment is initiated
-    event LoanRepaymentInitiated(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount);
+    event LoanRepaymentInitiated(
+        uint256 loanId, 
+        address borrower, 
+        address payer, 
+        uint256 amount, 
+        uint256 interestAmount
+    );
 
     /// Event for when a loan is fully repaid
-    event LoanRepaid(uint256 loanId, address indexed borrower);
+    event LoanFullyRepaid(uint256 loanId, address indexed borrower);
 
     /// Event for when a loan is closed
     event LoanClosed(uint256 loanId, address indexed borrower, uint256 managerLossAmount, uint256 lenderLossAmount);
