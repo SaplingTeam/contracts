@@ -293,15 +293,13 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         balance.withdrawalRequestedShares -= shareDifference;
 
         WithdrawalRequestState storage state = withdrawalRequestStates[request.wallet];
-        state.countOutstanding--;
         state.sharesLocked -= shareDifference;
 
         //// interactions
 
         // unlock shares
-        SafeERC20Upgradeable.safeTransferFrom(
+        SafeERC20Upgradeable.safeTransfer(
             IERC20Upgradeable(tokenConfig.poolToken),
-            address(this),
             request.wallet,
             shareDifference
         );
@@ -330,9 +328,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         //// interactions
 
         // unlock shares
-        SafeERC20Upgradeable.safeTransferFrom(
+        SafeERC20Upgradeable.safeTransfer(
             IERC20Upgradeable(tokenConfig.poolToken),
-            address(this),
             request.wallet,
             request.sharesLocked
         );
@@ -352,9 +349,16 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         //// check
 
         WithdrawalRequestQueue.Request memory request = withdrawalQueue.get(id);
+        
         uint256 requestedAmount = tokensToFunds(request.sharesLocked);
+        uint256 transferAmount = requestedAmount - MathUpgradeable.mulDiv(
+            requestedAmount, 
+            config.exitFeePercent, 
+            SaplingMath.HUNDRED_PERCENT
+        );
+
         require(
-            balance.rawLiquidity >= requestedAmount + tokensToFunds(request.sumOfSharesLockedAhead),
+            balance.rawLiquidity >= transferAmount + tokensToFunds(request.sumOfSharesLockedAhead),
             "SaplingPolContext: insufficient liqudity"
         );
 
@@ -363,23 +367,20 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         withdrawalQueue.remove(id);
 
         WithdrawalRequestState storage state = withdrawalRequestStates[request.wallet];
-        state.countOutstanding++;
+        state.countOutstanding--;
         state.sharesLocked -= request.sharesLocked;
 
-        balance.rawLiquidity -= requestedAmount;
-
-        //FIXME charge an exit fee
+        balance.rawLiquidity -= transferAmount;
 
         //// interactions
 
         // burn shares
         IPoolToken(tokenConfig.poolToken).burn(address(this), request.sharesLocked);
 
-        SafeERC20Upgradeable.safeTransferFrom(
+        SafeERC20Upgradeable.safeTransfer(
             IERC20Upgradeable(tokenConfig.liquidityToken),
-            address(this),
             request.wallet,
-            requestedAmount
+            transferAmount
         );
     }
 

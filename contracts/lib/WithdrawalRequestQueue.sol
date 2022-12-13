@@ -72,7 +72,7 @@ library WithdrawalRequestQueue {
 
         uint256 newId = list._lastRequestId + 1;
 
-        list._requests[list._lastRequestId] = Request({
+        list._requests[newId] = Request({
             id: newId,
             wallet: user,
             sharesLocked: shares,
@@ -87,12 +87,15 @@ library WithdrawalRequestQueue {
         list._lastRequestId = newId;
         list._ids.add(newId);
 
-        if (list._ids.length() == 1) {
+        if (list._head == 0) {
             list._head = newId;
-            list._tail = newId;
-        } else {
+        }
+
+        if (list._tail != 0) {
             list._requests[list._tail].next = newId;
         }
+
+        list._tail = newId;
 
         return newId;
     }
@@ -151,9 +154,13 @@ library WithdrawalRequestQueue {
         }
         
         list._ids.remove(id);
-        if (list._ids.length() == 0) {
-            list._head = 0;
-            list._tail = 0;
+
+        if (id == list._head) {
+            list._head = request.next;
+        }
+
+        if (id == list._tail) {
+            list._tail = request.prev;
         }
 
         delete list._requests[id];
