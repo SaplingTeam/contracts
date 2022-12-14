@@ -816,9 +816,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 interestPercent = MathUpgradeable.mulDiv(uint256(loan.apr) * 1e18, daysPassed, 365);
 
         uint256 principalOutstanding = loan.amount - detail.principalAmountRepaid;
-        uint256 interestOutstanding = MathUpgradeable.mulDiv(principalOutstanding, interestPercent, SaplingMath.HUNDRED_PERCENT);
+        uint256 interestOutstanding = MathUpgradeable.mulDiv(
+            principalOutstanding, 
+            interestPercent, 
+            SaplingMath.HUNDRED_PERCENT
+        ) / 1e18;
 
-        return (principalOutstanding, interestOutstanding / 1e18, daysPassed);
+        return (principalOutstanding, interestOutstanding, daysPassed);
     }
 
     /**
