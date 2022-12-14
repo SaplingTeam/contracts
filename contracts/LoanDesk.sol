@@ -56,9 +56,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /// LoanDetails by loan ID
     mapping(uint256 => LoanDetail) public loanDetails;
 
-    /// Recent loan id by address
-    mapping(address => uint256) public recentLoanIdOf;
-
 
     /// A modifier to limit access only to when the application exists and has the specified status
     modifier applicationInStatus(uint256 applicationId, LoanApplicationStatus status) {
@@ -479,8 +476,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             paymentCarry: 0,
             interestPaidTillTime: block.timestamp
         });
-
-        recentLoanIdOf[offer.borrower] = loanId;
 
         outstandingLoansCount++;
 

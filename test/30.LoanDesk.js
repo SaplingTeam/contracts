@@ -778,9 +778,10 @@ describe('Loan Desk', function () {
                                 apr,
                             );
 
-                        await loanDesk.connect(borrower2).borrow(otherApplicationId);
+                        let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
+                        let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
+                            .args.loanId;
 
-                        let otherLoanId = await loanDesk.recentLoanIdOf(borrower2.address);
                         let loan = await loanDesk.loans(otherLoanId);
                         await ethers.provider.send('evm_increaseTime', [
                             loan.duration.add(loan.gracePeriod).toNumber(),

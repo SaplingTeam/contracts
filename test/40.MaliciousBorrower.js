@@ -218,6 +218,7 @@ describe('Attack Sapling Lending Pool', function () {
                 //turn of automining before write tx to keep the block open for the next call
                 await ethers.provider.send("evm_setAutomine", [false]);
                 await loanDesk.connect(borrower1).borrow(applicationId);
+                let loanId = 1; //predict ID, automine is off
 
                 //tun automining back on to prevent deadlock as expect() will hang until block is finalized
                 await ethers.provider.send("evm_setAutomine", [true]);
@@ -227,7 +228,6 @@ describe('Attack Sapling Lending Pool', function () {
                 expect(await loanDesk.loansCount()).to.equal(prevLoansCount.add(1));
 
                 //get the loan after the block is mined, as the committed block
-                let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
                 let loan = await loanDesk.loans(loanId);
 
                 expect(await liquidityToken.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
@@ -235,8 +235,8 @@ describe('Attack Sapling Lending Pool', function () {
 
             it('Revert If Borrow Twice Slow', async function () {
                 let balanceBefore = await liquidityToken.balanceOf(borrower1.address);
-                await loanDesk.connect(borrower1).borrow(applicationId);
-                let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
+                let tx = await loanDesk.connect(borrower1).borrow(applicationId);
+                let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
                 let loan = await loanDesk.loans(loanId);
                 await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
                 await ethers.provider.send('evm_mine');
@@ -245,9 +245,8 @@ describe('Attack Sapling Lending Pool', function () {
             });
 
             it('Revert If Borrow Repay Borrow', async function () {
-                await loanDesk.connect(borrower1).borrow(applicationId);
-                let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
-                let loan = await loanDesk.loans(loanId);
+                let tx = await loanDesk.connect(borrower1).borrow(applicationId);
+                let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
                 let paymentAmount = (await loanDesk.loanBalanceDue(loanId));
                 await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
                 await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
@@ -255,9 +254,8 @@ describe('Attack Sapling Lending Pool', function () {
             });
 
             it('Revert If Borrow Repay Half Borrow', async function () {
-                await loanDesk.connect(borrower1).borrow(applicationId);
-                let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
-                let loan = await loanDesk.loans(loanId);
+                let tx = await loanDesk.connect(borrower1).borrow(applicationId);
+                let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
                 let paymentAmount = (await loanDesk.loanBalanceDue(loanId)).div(2);
                 await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
                 await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
@@ -279,22 +277,12 @@ describe('Attack Sapling Lending Pool', function () {
                         '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                     )).to.be.reverted;
             });
-            
-            /// min payment amount requirement is not necessary with the loan payment carry feature
-
-            // it('Revert On Tiny Repayment', async function () {
-            //     await loanDesk.connect(borrower1).borrow(applicationId);
-            //     let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
-            //     const tinyAmount = 1;
-            //     await liquidityToken.connect(borrower1).approve(lendingPool.address, tinyAmount);
-            //     await expect(loanDesk.connect(borrower1).repay(loanId, tinyAmount)).to.be.reverted;
-            // });
 
             it('Check Repayment Math', async function () {
                 const quickFuzz = [10,20,30,40,50,60,70,80,90,100,249];
 
-                await loanDesk.connect(borrower1).borrow(applicationId);
-                let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
+                let tx = await loanDesk.connect(borrower1).borrow(applicationId);
+                let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
                 await ethers.provider.send('evm_increaseTime', [60]);
                 await ethers.provider.send('evm_mine');

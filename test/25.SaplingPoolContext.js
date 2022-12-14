@@ -610,9 +610,10 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 await loanDesk
                     .connect(manager)
                     .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                await loanDesk.connect(borrower1).borrow(applicationId);
+                let tx = await loanDesk.connect(borrower1).borrow(applicationId);
 
-                let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
+                let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
+                    .args.loanId;
 
                 let loan = await loanDesk.loans(loanId);
                 await ethers.provider.send('evm_increaseTime', [loan.duration.add(loan.gracePeriod).toNumber()]);
@@ -1135,8 +1136,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     await loanDesk
                         .connect(manager)
                         .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                    await loanDesk.connect(borrower1).borrow(applicationId);
-                    let loanId = await loanDesk.recentLoanIdOf(borrower1.address);
+                    let tx = await loanDesk.connect(borrower1).borrow(applicationId);
+                    let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
                     await ethers.provider.send('evm_increaseTime', [loanDuration.toNumber()]);
                     await ethers.provider.send('evm_mine');
