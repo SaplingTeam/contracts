@@ -268,16 +268,16 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             });
 
             it('Initial balances are correct', async function () {
-                expect((await saplingPoolContext.balance()).tokenBalance).to.equal(0);
+                expect((await saplingPoolContext.balances()).tokenBalance).to.equal(0);
                 expect(await poolToken.totalSupply()).to.equal(0);
-                expect((await saplingPoolContext.balance()).stakedShares).to.equal(0);
+                expect((await saplingPoolContext.balances()).stakedShares).to.equal(0);
                 expect(await saplingPoolContext.poolFundsLimit()).to.equal(0);
-                expect((await saplingPoolContext.balance()).poolFunds).to.equal(0);
-                expect((await saplingPoolContext.balance()).rawLiquidity).to.equal(0);
-                expect((await saplingPoolContext.balance()).strategizedFunds).to.equal(0);
-                expect((await saplingPoolContext.balance()).allocatedFunds).to.equal(0);
-                expect((await saplingPoolContext.balance()).managerRevenue).to.equal(0);
-                expect((await saplingPoolContext.balance()).protocolRevenue).to.equal(0);
+                expect((await saplingPoolContext.balances()).poolFunds).to.equal(0);
+                expect((await saplingPoolContext.balances()).rawLiquidity).to.equal(0);
+                expect((await saplingPoolContext.balances()).strategizedFunds).to.equal(0);
+                expect((await saplingPoolContext.balances()).allocatedFunds).to.equal(0);
+                expect((await saplingPoolContext.balances()).managerRevenue).to.equal(0);
+                expect((await saplingPoolContext.balances()).protocolRevenue).to.equal(0);
             });
         });
 
@@ -557,17 +557,17 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             });
 
             it('Stake is reflected on pool liquidity', async function () {
-                let prevLiquidity = (await saplingPoolContext.balance()).rawLiquidity;
+                let prevLiquidity = (await saplingPoolContext.balances()).rawLiquidity;
                 await saplingPoolContext.connect(manager).stake(stakeAmount);
-                let liquidity = (await saplingPoolContext.balance()).rawLiquidity;
+                let liquidity = (await saplingPoolContext.balances()).rawLiquidity;
 
                 expect(liquidity).to.equal(prevLiquidity.add(stakeAmount));
             });
 
             it('Stake is reflected on pool funds', async function () {
-                let prevPoolFunds = (await saplingPoolContext.balance()).poolFunds;
+                let prevPoolFunds = (await saplingPoolContext.balances()).poolFunds;
                 await saplingPoolContext.connect(manager).stake(stakeAmount);
-                let poolFunds = (await saplingPoolContext.balance()).poolFunds;
+                let poolFunds = (await saplingPoolContext.balances()).poolFunds;
 
                 expect(poolFunds).to.equal(prevPoolFunds.add(stakeAmount));
             });
@@ -590,7 +590,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
                 await saplingPoolContext.connect(lender1).deposit(depositAmount);
 
-                let loanAmount = (await saplingPoolContext.balance()).poolFunds;
+                let loanAmount = (await saplingPoolContext.balances()).poolFunds;
                 let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
 
                 let requestLoanTx = await loanDesk
@@ -622,7 +622,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 await loanDesk.connect(manager).defaultLoan(loanId);
 
                 assertHardhatInvariant((await saplingPoolContext.balanceStaked()).eq(0));
-                assertHardhatInvariant(((await saplingPoolContext.balance()).poolFunds).eq(0));
+                assertHardhatInvariant(((await saplingPoolContext.balances()).poolFunds).eq(0));
 
                 await liquidityToken.connect(deployer).mint(manager.address, depositAmount);
                 await liquidityToken.connect(manager).approve(saplingPoolContext.address, stakeAmount);
@@ -750,15 +750,15 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     .to.equal(
                         prevBalance.sub(unstakeAmount).add(unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)),
                     )
-                    .and.equal((await saplingPoolContext.balance()).tokenBalance);
+                    .and.equal((await saplingPoolContext.balances()).tokenBalance);
             });
 
             it('Unstaking is reflected on pool liquidity', async function () {
-                let prevLiquidity = (await saplingPoolContext.balance()).rawLiquidity;
+                let prevLiquidity = (await saplingPoolContext.balances()).rawLiquidity;
 
                 await saplingPoolContext.connect(manager).unstake(unstakeAmount);
 
-                let liquidity = (await saplingPoolContext.balance()).rawLiquidity;
+                let liquidity = (await saplingPoolContext.balances()).rawLiquidity;
 
                 expect(liquidity).to.equal(
                     prevLiquidity.sub(unstakeAmount).add(unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)),
@@ -766,11 +766,11 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             });
 
             it('Unstaking is reflected on pool funds', async function () {
-                let prevPoolFunds = (await saplingPoolContext.balance()).poolFunds;
+                let prevPoolFunds = (await saplingPoolContext.balances()).poolFunds;
 
                 await saplingPoolContext.connect(manager).unstake(unstakeAmount);
 
-                let poolFunds = (await saplingPoolContext.balance()).poolFunds;
+                let poolFunds = (await saplingPoolContext.balances()).poolFunds;
 
                 expect(poolFunds).to.equal(
                     prevPoolFunds.sub(unstakeAmount).add(unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)),
@@ -853,27 +853,27 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 let balance = await liquidityToken.balanceOf(saplingPoolContext.address);
                 expect(balance)
                     .to.equal(prevBalance.add(depositAmount))
-                    .and.equal((await saplingPoolContext.balance()).tokenBalance);
+                    .and.equal((await saplingPoolContext.balances()).tokenBalance);
             });
 
             it('Deposit is reflected on pool liquidity', async function () {
-                let prevLiquidity = (await saplingPoolContext.balance()).rawLiquidity;
+                let prevLiquidity = (await saplingPoolContext.balances()).rawLiquidity;
 
                 await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
                 await saplingPoolContext.connect(lender1).deposit(depositAmount);
 
-                let liquidity = (await saplingPoolContext.balance()).rawLiquidity;
+                let liquidity = (await saplingPoolContext.balances()).rawLiquidity;
 
                 expect(liquidity).to.equal(prevLiquidity.add(depositAmount));
             });
 
             it('Deposit is reflected on pool funds', async function () {
-                let prevPoolFunds = (await saplingPoolContext.balance()).poolFunds;
+                let prevPoolFunds = (await saplingPoolContext.balances()).poolFunds;
 
                 await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
                 await saplingPoolContext.connect(lender1).deposit(depositAmount);
 
-                let poolFunds = (await saplingPoolContext.balance()).poolFunds;
+                let poolFunds = (await saplingPoolContext.balances()).poolFunds;
 
                 expect(poolFunds).to.equal(prevPoolFunds.add(depositAmount));
             });
@@ -1002,15 +1002,15 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                             .sub(withdrawAmount)
                             .add(withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)),
                     )
-                    .and.equal((await saplingPoolContext.balance()).tokenBalance);
+                    .and.equal((await saplingPoolContext.balances()).tokenBalance);
             });
 
             it('Withdraw is reflected on pool liquidity', async function () {
-                let prevLiquidity = (await saplingPoolContext.balance()).rawLiquidity;
+                let prevLiquidity = (await saplingPoolContext.balances()).rawLiquidity;
 
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
 
-                let liquidity = (await saplingPoolContext.balance()).rawLiquidity;
+                let liquidity = (await saplingPoolContext.balances()).rawLiquidity;
 
                 expect(liquidity).to.equal(
                     prevLiquidity.sub(withdrawAmount).add(withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)),
@@ -1018,11 +1018,11 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             });
 
             it('Withdraw is reflected on pool funds', async function () {
-                let prevPoolFunds = (await saplingPoolContext.balance()).poolFunds;
+                let prevPoolFunds = (await saplingPoolContext.balances()).poolFunds;
 
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
 
-                let poolFunds = (await saplingPoolContext.balance()).poolFunds;
+                let poolFunds = (await saplingPoolContext.balances()).poolFunds;
 
                 expect(poolFunds).to.equal(
                     prevPoolFunds.sub(withdrawAmount).add(withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)),
@@ -1151,58 +1151,58 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 it('Protocol can withdraw earned protocol fees', async function () {
                     let tokenBalanceBefore = await liquidityToken.balanceOf(protocol.address);
-                    let poolBalanceBefore = (await saplingPoolContext.balance()).protocolRevenue;
+                    let poolBalanceBefore = (await saplingPoolContext.balances()).protocolRevenue;
 
                     await saplingPoolContext.connect(protocol).collectProtocolRevenue(poolBalanceBefore);
 
                     expect(await liquidityToken.balanceOf(protocol.address)).to.equal(
                         tokenBalanceBefore.add(poolBalanceBefore),
                     );
-                    expect((await saplingPoolContext.balance()).protocolRevenue).to.equal(0);
+                    expect((await saplingPoolContext.balances()).protocolRevenue).to.equal(0);
                 });
 
                 it('Manager can withdraw earned protocol fees', async function () {
                     let tokenBalanceBefore = await liquidityToken.balanceOf(manager.address);
-                    let poolBalanceBefore = (await saplingPoolContext.balance()).managerRevenue;
+                    let poolBalanceBefore = (await saplingPoolContext.balances()).managerRevenue;
 
                     await saplingPoolContext.connect(manager).collectManagerRevenue(poolBalanceBefore);
 
                     expect(await liquidityToken.balanceOf(manager.address)).to.equal(
                         tokenBalanceBefore.add(poolBalanceBefore),
                     );
-                    expect((await saplingPoolContext.balance()).managerRevenue).to.equal(0);
+                    expect((await saplingPoolContext.balances()).managerRevenue).to.equal(0);
                 });
 
                 it('Protocol fee withdrawal is reflected on the pool contract balance', async function () {
                     let prevBalance = await liquidityToken.balanceOf(saplingPoolContext.address);
 
-                    let withdrawAmount = (await saplingPoolContext.balance()).protocolRevenue;
+                    let withdrawAmount = (await saplingPoolContext.balances()).protocolRevenue;
                     await saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount);
 
                     let balance = await liquidityToken.balanceOf(saplingPoolContext.address);
                     expect(balance)
                         .to.equal(prevBalance.sub(withdrawAmount))
-                        .and.equal((await saplingPoolContext.balance()).tokenBalance);
+                        .and.equal((await saplingPoolContext.balances()).tokenBalance);
                 });
 
                 it('Protocol fee withdrawal is not reflected on pool liquidity', async function () {
-                    let prevLiquidity = (await saplingPoolContext.balance()).rawLiquidity;
-                    let balanceBefore = (await saplingPoolContext.balance()).protocolRevenue;
+                    let prevLiquidity = (await saplingPoolContext.balances()).rawLiquidity;
+                    let balanceBefore = (await saplingPoolContext.balances()).protocolRevenue;
 
                     await saplingPoolContext.connect(protocol).collectProtocolRevenue(balanceBefore);
 
-                    let liquidity = (await saplingPoolContext.balance()).rawLiquidity;
+                    let liquidity = (await saplingPoolContext.balances()).rawLiquidity;
 
                     expect(liquidity).to.equal(prevLiquidity);
                 });
 
                 it('Protocol fee withdrawal is not reflected on pool funds', async function () {
-                    let prevPoolFunds = (await saplingPoolContext.balance()).poolFunds;
+                    let prevPoolFunds = (await saplingPoolContext.balances()).poolFunds;
 
-                    let withdrawAmount = (await saplingPoolContext.balance()).managerRevenue;
+                    let withdrawAmount = (await saplingPoolContext.balances()).managerRevenue;
                     await saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount);
 
-                    let poolFunds = (await saplingPoolContext.balance()).poolFunds;
+                    let poolFunds = (await saplingPoolContext.balances()).poolFunds;
 
                     expect(poolFunds).to.equal(prevPoolFunds);
                 });
@@ -1210,15 +1210,15 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 describe('Rejection scenarios', function () {
                     it('Protocol fees cannot be withdrawn while the pool is paused', async function () {
                         await saplingPoolContext.connect(governance).pause();
-                        let withdrawAmount = (await saplingPoolContext.balance()).protocolRevenue;
+                        let withdrawAmount = (await saplingPoolContext.balances()).protocolRevenue;
                         await expect(saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount)).to.be.reverted;
                     });
 
                     it('Protocol withdrawal should fail when balance is zero', async function () {
-                        let withdrawAmount = (await saplingPoolContext.balance()).protocolRevenue;
+                        let withdrawAmount = (await saplingPoolContext.balances()).protocolRevenue;
                         await saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount);
 
-                        expect((await saplingPoolContext.balance()).protocolRevenue).to.equal(0);
+                        expect((await saplingPoolContext.balances()).protocolRevenue).to.equal(0);
                         await expect(saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount)).to.be.reverted;
                     });
                 });

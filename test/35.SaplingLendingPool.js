@@ -185,7 +185,7 @@ describe('Sapling Lending Pool', function () {
 
         describe('Initial state', function () {
             it('Initial balances are correct', async function () {
-                let borrowedFunds = (await lendingPool.balance()).strategizedFunds;
+                let borrowedFunds = (await lendingPool.balances()).strategizedFunds;
                 expect(borrowedFunds).to.equal(0);
             });
         });
@@ -436,7 +436,7 @@ describe('Sapling Lending Pool', function () {
                 });
 
                 it('Repaying a loan will allocate protocol fees to the protocol', async function () {
-                    let balanceBefore = (await lendingPool.balance()).protocolRevenue;
+                    let balanceBefore = (await lendingPool.balances()).protocolRevenue;
                     let loan = await loanDesk.loans(loanId);
 
                     await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
@@ -454,13 +454,13 @@ describe('Sapling Lending Pool', function () {
                     let expectedProtocolFee = loanDetail.interestPaid
                         .mul(protocolEarningPercent)
                         .div(ONE_HUNDRED_PERCENT);
-                    expect((await lendingPool.balance()).protocolRevenue).to.equal(
+                    expect((await lendingPool.balances()).protocolRevenue).to.equal(
                         balanceBefore.add(expectedProtocolFee),
                     );
                 });
 
                 it('Repaying a loan will allocate protocol fees to the manager', async function () {
-                    let balanceBefore = (await lendingPool.balance()).managerRevenue;
+                    let balanceBefore = (await lendingPool.balances()).managerRevenue;
                     let loan = await loanDesk.loans(loanId);
 
                     await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
@@ -471,7 +471,7 @@ describe('Sapling Lending Pool', function () {
                     let protocolEarningPercent = (await lendingPool.config()).protocolFeePercent;
                     let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
 
-                    let stakedShares = (await lendingPool.balance()).stakedShares;
+                    let stakedShares = (await lendingPool.balances()).stakedShares;
                     let totalPoolShares = await poolToken.totalSupply();
                     let managerExcessLeverageComponent = ((await lendingPool.config()).managerEarnFactor) - ONE_HUNDRED_PERCENT;
 
@@ -495,7 +495,7 @@ describe('Sapling Lending Pool', function () {
                         .mul(managerEarningsPercent)
                         .div(managerEarningsPercent.add(ONE_HUNDRED_PERCENT));
 
-                    expect((await lendingPool.balance()).managerRevenue).to.equal(
+                    expect((await lendingPool.balances()).managerRevenue).to.equal(
                         balanceBefore.add(managerEarnedInterest),
                     );
                 });
@@ -815,7 +815,7 @@ describe('Sapling Lending Pool', function () {
                         await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
                         await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
 
-                        let poolFundsBefore = (await lendingPool.balance()).poolFunds;
+                        let poolFundsBefore = (await lendingPool.balances()).poolFunds;
                         let stakedBalanceBefore = await lendingPool.balanceStaked();
 
                         expect(await loanDesk.canDefault(loanId)).to.equal(true);
@@ -826,13 +826,13 @@ describe('Sapling Lending Pool', function () {
                         let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid.add(loanDetail.paymentCarry));
 
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
-                        expect((await lendingPool.balance()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount));
+                        expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount));
                         expect(await lendingPool.balanceStaked()).to.gte(stakedBalanceBefore.sub(lossAmount).sub(5))
                             .and.to.lte(stakedBalanceBefore.sub(lossAmount).add(5));
                     });
 
                     it('Manager can default a loan that has no payments made', async function () {
-                        let poolFundsBefore = (await lendingPool.balance()).poolFunds;
+                        let poolFundsBefore = (await lendingPool.balances()).poolFunds;
                         let stakedBalanceBefore = await lendingPool.balanceStaked();
 
                         expect(await loanDesk.canDefault(loanId)).to.equal(true);
@@ -843,7 +843,7 @@ describe('Sapling Lending Pool', function () {
                         let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid.add(loanDetail.paymentCarry));
 
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
-                        expect((await lendingPool.balance()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount));
+                        expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount));
                         expect(await lendingPool.balanceStaked()).to.equal(stakedBalanceBefore.sub(lossAmount));
                     });
 
@@ -875,7 +875,7 @@ describe('Sapling Lending Pool', function () {
                         ]);
                         await ethers.provider.send('evm_mine');
 
-                        let poolFundsBefore = (await lendingPool.balance()).poolFunds;
+                        let poolFundsBefore = (await lendingPool.balances()).poolFunds;
 
                         expect(await loanDesk.canDefault(otherLoanId)).to.equal(true);
                         await loanDesk.connect(manager).defaultLoan(otherLoanId);
@@ -884,7 +884,7 @@ describe('Sapling Lending Pool', function () {
                         let loanDetail = await loanDesk.loanDetails(otherLoanId);
                         let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
-                        expect((await lendingPool.balance()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount));
+                        expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount));
                         expect(await lendingPool.balanceStaked()).to.equal(0);
                     });
 
@@ -916,7 +916,7 @@ describe('Sapling Lending Pool', function () {
                         ]);
                         await ethers.provider.send('evm_mine');
 
-                        let poolFundsBefore = (await lendingPool.balance()).poolFunds;
+                        let poolFundsBefore = (await lendingPool.balances()).poolFunds;
 
                         expect(await loanDesk.canDefault(otherLoanId)).to.equal(true);
                         await loanDesk.connect(manager).defaultLoan(otherLoanId);
@@ -925,7 +925,7 @@ describe('Sapling Lending Pool', function () {
                         let loanDetail = await loanDesk.loanDetails(otherLoanId);
                         let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
-                        expect((await lendingPool.balance()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount));
+                        expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount));
                         expect(await lendingPool.balanceStaked()).to.equal(0);
                     });
 
@@ -1060,20 +1060,20 @@ describe('Sapling Lending Pool', function () {
                     let loanDetail = await loanDesk.loanDetails(loanId2);
                     let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
 
-                    let poolFundsBefore = (await lendingPool.balance()).poolFunds;
-                    let rawLiquidityBefore = (await lendingPool.balance()).rawLiquidity;
+                    let poolFundsBefore = (await lendingPool.balances()).poolFunds;
+                    let rawLiquidityBefore = (await lendingPool.balances()).rawLiquidity;
                     let stakedBalanceBefore = await lendingPool.balanceStaked();
-                    let managerRevenueBefore = (await lendingPool.balance()).managerRevenue;
+                    let managerRevenueBefore = (await lendingPool.balances()).managerRevenue;
 
                     await loanDesk.connect(manager).closeLoan(loanId2);
 
                     loan = await loanDesk.loans(loanId2);
                     expect(loan.status).to.equal(LoanStatus.REPAID);
 
-                    expect((await lendingPool.balance()).managerRevenue).to.equal(managerRevenueBefore.sub(lossAmount));
+                    expect((await lendingPool.balances()).managerRevenue).to.equal(managerRevenueBefore.sub(lossAmount));
                     expect(await lendingPool.balanceStaked()).to.equal(stakedBalanceBefore);
-                    expect((await lendingPool.balance()).rawLiquidity).to.equal(rawLiquidityBefore.add(lossAmount));
-                    expect((await lendingPool.balance()).poolFunds).to.equal(poolFundsBefore);
+                    expect((await lendingPool.balances()).rawLiquidity).to.equal(rawLiquidityBefore.add(lossAmount));
+                    expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore);
                 });
 
                 it('Closing a loan with loss more than the managers revenue but coverable with stake', async function () {
@@ -1086,21 +1086,21 @@ describe('Sapling Lending Pool', function () {
                     let loanDetail = await loanDesk.loanDetails(loanId2);
                     let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
 
-                    let poolFundsBefore = (await lendingPool.balance()).poolFunds;
-                    let rawLiquidityBefore = (await lendingPool.balance()).rawLiquidity;
+                    let poolFundsBefore = (await lendingPool.balances()).poolFunds;
+                    let rawLiquidityBefore = (await lendingPool.balances()).rawLiquidity;
                     let stakedBalanceBefore = await lendingPool.balanceStaked();
-                    let managerRevenueBefore = (await lendingPool.balance()).managerRevenue;
+                    let managerRevenueBefore = (await lendingPool.balances()).managerRevenue;
 
                     await loanDesk.connect(manager).closeLoan(loanId2);
 
                     loan = await loanDesk.loans(loanId2);
                     expect(loan.status).to.equal(LoanStatus.REPAID);
 
-                    expect((await lendingPool.balance()).managerRevenue).to.equal(0);
+                    expect((await lendingPool.balances()).managerRevenue).to.equal(0);
                     expect(await lendingPool.balanceStaked() - stakedBalanceBefore.sub(lossAmount.sub(managerRevenueBefore)))
                         .to.lt(BigNumber.from(20).mul(TOKEN_MULTIPLIER)); //allow inconsistency due to double conversion using integer math
-                    expect((await lendingPool.balance()).rawLiquidity).to.equal(rawLiquidityBefore.add(lossAmount));
-                    expect((await lendingPool.balance()).poolFunds).to.equal(poolFundsBefore);
+                    expect((await lendingPool.balances()).rawLiquidity).to.equal(rawLiquidityBefore.add(lossAmount));
+                    expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore);
                 });
 
                 it('Closing a loan with loss more than the managers revenue and stake', async function () {
@@ -1113,20 +1113,20 @@ describe('Sapling Lending Pool', function () {
                     let loanDetail = await loanDesk.loanDetails(loanId2);
                     let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid).sub(loanDetail.paymentCarry);
 
-                    let poolFundsBefore = (await lendingPool.balance()).poolFunds;
-                    let rawLiquidityBefore = (await lendingPool.balance()).rawLiquidity;
+                    let poolFundsBefore = (await lendingPool.balances()).poolFunds;
+                    let rawLiquidityBefore = (await lendingPool.balances()).rawLiquidity;
                     let stakedBalanceBefore = await lendingPool.balanceStaked();
-                    let managerRevenueBefore = (await lendingPool.balance()).managerRevenue;
+                    let managerRevenueBefore = (await lendingPool.balances()).managerRevenue;
 
                     await loanDesk.connect(manager).closeLoan(loanId2);
 
                     loan = await loanDesk.loans(loanId2);
                     expect(loan.status).to.equal(LoanStatus.REPAID);
 
-                    expect((await lendingPool.balance()).managerRevenue).to.equal(0);
+                    expect((await lendingPool.balances()).managerRevenue).to.equal(0);
                     expect(await lendingPool.balanceStaked()).to.lte(10 ** (TOKEN_DECIMALS - 4)); // lte 0.01 cent
-                    expect((await lendingPool.balance()).rawLiquidity).to.equal(rawLiquidityBefore.add(managerRevenueBefore.add(stakedBalanceBefore)));
-                    expect((await lendingPool.balance()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount.sub(managerRevenueBefore.add(stakedBalanceBefore))));
+                    expect((await lendingPool.balances()).rawLiquidity).to.equal(rawLiquidityBefore.add(managerRevenueBefore.add(stakedBalanceBefore)));
+                    expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount.sub(managerRevenueBefore.add(stakedBalanceBefore))));
                 });
 
                 describe('Rejection scenarios', function () {
