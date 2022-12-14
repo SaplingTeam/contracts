@@ -704,9 +704,9 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         bool isManager = hasRole(poolManagerRole, msg.sender);
 
         require(
-            !isManager
-                ? shares <= IERC20(tokenConfig.poolToken).balanceOf(msg.sender)
-                : shares <= balance.stakedShares,
+            isManager
+                ? shares <= balance.stakedShares
+                : shares <= IERC20(tokenConfig.poolToken).balanceOf(msg.sender),
             "SaplingPoolContext: insufficient balance"
         );
 
@@ -729,7 +729,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         //// interactions
 
         // burn shares
-        IPoolToken(tokenConfig.poolToken).burn(!isManager ? msg.sender : address(this), shares);
+        IPoolToken(tokenConfig.poolToken).burn(isManager ? address(this) : msg.sender, shares);
 
         // transfer liqudity tokens
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, transferAmount);
