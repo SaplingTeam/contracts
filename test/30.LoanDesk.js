@@ -95,6 +95,9 @@ describe('Loan Desk', function () {
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
         limits = await (await ethers.getContractFactory('Limits')).deploy();
+
+        await lendingPool.connect(manager).open();
+        await loanDesk.connect(manager).open();
     });
 
     describe('Deployment', function () {

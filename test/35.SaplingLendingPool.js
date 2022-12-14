@@ -94,6 +94,9 @@ describe('Sapling Lending Pool', function () {
         await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
+
+        await lendingPool.connect(manager).open();
+        await loanDesk.connect(manager).open();
     });
 
     describe('Deployment', function () {

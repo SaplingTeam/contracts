@@ -98,6 +98,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
         saplingPoolContext = lendingPool;
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
+
+        await lendingPool.connect(manager).open();
+        await loanDesk.connect(manager).open();
     });
 
     describe('Deployment', function () {

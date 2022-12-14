@@ -922,4 +922,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     function canClose() internal view override returns (bool) {
         return offeredFunds == 0 && outstandingLoansCount == 0;
     }
+
+    /**
+     * @notice Indicates whether or not the contract can be opened in it's current state.
+     * @dev Overrides a hook in SaplingManagerContext.
+     * @return True if the conditions to open are met, false otherwise.
+     */
+    function canOpen() internal view override returns (bool) {
+        return pool != address(0);
+    }
 }
