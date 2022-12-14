@@ -21,9 +21,6 @@ interface IPoolContext {
 
         // Auto or pseudo-constant parameters
 
-        /// MAX amount of liquidity tokens allowed in the pool based on staked assets
-        uint256 poolFundsLimit;
-
         /// Weighted average loan APR on the borrowed funds
         uint256 weightedAvgStrategyAPR;
 

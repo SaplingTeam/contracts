@@ -216,8 +216,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
             balance.rawLiquidity += paymentAmount - (protocolEarnedInterest + managerEarnedInterest);
             balance.poolFunds += interestPayable - (protocolEarnedInterest + managerEarnedInterest);
-
-            updatePoolLimit();
         }
 
         balance.strategizedFunds -= principalPaid;
@@ -287,7 +285,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             stakeChargeable = fundsToTokens(amountChargeable);
 
             balance.stakedShares = balance.stakedShares - stakeChargeable;
-            updatePoolLimit();
 
             if (balance.stakedShares == 0) {
                 emit StakedAssetsDepleted();
@@ -368,7 +365,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, balance.stakedShares);
                 remainingLostShares -= stakedShareLoss;
                 balance.stakedShares -= stakedShareLoss;
-                updatePoolLimit();
 
                 if (balance.stakedShares == 0) {
                     emit StakedAssetsDepleted();

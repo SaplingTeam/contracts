@@ -271,7 +271,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 expect((await saplingPoolContext.balance()).tokenBalance).to.equal(0);
                 expect(await poolToken.totalSupply()).to.equal(0);
                 expect((await saplingPoolContext.balance()).stakedShares).to.equal(0);
-                expect((await saplingPoolContext.config()).poolFundsLimit).to.equal(0);
+                expect(await saplingPoolContext.poolFundsLimit()).to.equal(0);
                 expect((await saplingPoolContext.balance()).poolFunds).to.equal(0);
                 expect((await saplingPoolContext.balance()).rawLiquidity).to.equal(0);
                 expect((await saplingPoolContext.balance()).strategizedFunds).to.equal(0);
@@ -577,7 +577,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 let oneHundredPercent = await saplingMath.HUNDRED_PERCENT();
 
                 await saplingPoolContext.connect(manager).stake(stakeAmount);
-                let limit = (await saplingPoolContext.config()).poolFundsLimit;
+                let limit = await saplingPoolContext.poolFundsLimit();
 
                 expect(limit).to.equal(stakeAmount.mul(oneHundredPercent / targetStakePercent));
             });

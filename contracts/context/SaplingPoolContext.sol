@@ -77,7 +77,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         uint16 _maxEarnFactor = uint16(1000 * 10 ** SaplingMath.PERCENT_DECIMALS);
 
         config = PoolConfig({
-            poolFundsLimit: 0,
             weightedAvgStrategyAPR: 0,
             exitFeePercent: SaplingMath.HUNDRED_PERCENT / 200, // 0.5%
             maxProtocolFeePercent: _maxProtocolFeePercent,
@@ -106,7 +105,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         uint16 prevValue = config.targetStakePercent;
         config.targetStakePercent = _targetStakePercent;
-        updatePoolLimit();
 
         emit TargetStakePercentSet(prevValue, config.targetStakePercent);
     }
@@ -397,10 +395,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         uint256 sharesMinted = enter(amount);
 
-        //// effect (intentional)
-        // this call depends on the outcome of the external calls in enter(amount), enter is nonReintrant
-        updatePoolLimit();
-
         emit FundsStaked(msg.sender, amount, sharesMinted);
     }
 
@@ -476,11 +470,12 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @return Max amount of tokens depositable to the pool.
      */
     function amountDepositable() external view returns (uint256) {
-        if (config.poolFundsLimit <= balance.poolFunds || closed() || paused()) {
+        uint256 poolLimit = poolFundsLimit();
+        if (poolLimit <= balance.poolFunds || closed() || paused()) {
             return 0;
         }
 
-        return config.poolFundsLimit - balance.poolFunds;
+        return poolLimit - balance.poolFunds;
     }
 
     /**
@@ -626,6 +621,16 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     }
 
     /**
+     * @dev View pool funds limit based on the staked funds.
+     * @return MAX amount of liquidity tokens allowed in the pool based on staked assets
+     */
+    function poolFundsLimit() public view returns (uint256) {
+        return tokensToFunds(
+            MathUpgradeable.mulDiv(balance.stakedShares, SaplingMath.HUNDRED_PERCENT, config.targetStakePercent)
+        );
+    }
+
+    /**
      * @dev Internal method to enter the pool with a liquidity token amount.
      *      With the exception of the manager's call, amount must not exceed amountDepositable().
      *      If the caller is the pool manager, entered funds are considered staked.
@@ -641,16 +646,15 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         bool isManager = hasRole(poolManagerRole, msg.sender);
 
-        // allow the manager to add funds beyond the current pool limit
-        require(
-            isManager ||
-            (
-                config.poolFundsLimit > balance.poolFunds &&
-                amount <= config.poolFundsLimit - balance.poolFunds
-            ),
-            "SaplingPoolContext: deposit amount is over the remaining pool limit"
-        );
-
+        // non-managers must follow pool size limit
+        if (!isManager) {
+            uint256 poolLimit = poolFundsLimit();
+            require(
+                poolLimit > balance.poolFunds && amount <= poolLimit - balance.poolFunds,
+                "SaplingPoolContext: deposit amount is over the remaining pool limit"
+            );
+        }
+        
         //// effect
 
         uint256 shares = fundsToTokens(amount);
@@ -710,7 +714,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         if (isManager) {
             balance.stakedShares -= shares;
-            updatePoolLimit();
         }
 
         uint256 transferAmount = amount - MathUpgradeable.mulDiv(
@@ -732,15 +735,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, transferAmount);
 
         return shares;
-    }
-
-    /**
-     * @dev Internal method to update the pool funds limit based on the staked funds.
-     */
-    function updatePoolLimit() internal {
-        config.poolFundsLimit = tokensToFunds(
-            MathUpgradeable.mulDiv(balance.stakedShares, SaplingMath.HUNDRED_PERCENT, config.targetStakePercent)
-        );
     }
 
     /**
