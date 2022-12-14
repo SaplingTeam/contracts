@@ -477,8 +477,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             principalAmountRepaid: 0,
             interestPaid: 0,
             paymentCarry: 0,
-            interestPaidTillTime: block.timestamp,
-            lastPaymentTime: 0
+            interestPaidTillTime: block.timestamp
         });
 
         recentLoanIdOf[offer.borrower] = loanId;
@@ -607,10 +606,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 paymentCarry = loanDetail.paymentCarry;
 
         if (loanDetail.paymentCarry > 0) {
-
             loanDetail.principalAmountRepaid += loanDetail.paymentCarry;
-            loanDetail.lastPaymentTime = block.timestamp;
-
             loanDetail.paymentCarry = 0;
         }
 
@@ -660,7 +656,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.totalAmountRepaid += transferAmount;
         loanDetail.principalAmountRepaid += principalPaid;
-        loanDetail.lastPaymentTime = block.timestamp;
         loanDetail.interestPaidTillTime += payableInterestDays * 86400;
 
         if (paymentAmount > transferAmount) {

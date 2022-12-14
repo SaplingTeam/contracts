@@ -360,7 +360,6 @@ describe('Sapling Lending Pool', function () {
                     loan = await loanDesk.loans(loanId);
                     let loanDetail = await loanDesk.loanDetails(loanId);
                     expect(loanDetail.totalAmountRepaid).to.equal(paymentAmount);
-                    expect(loanDetail.lastPaymentTime).to.equal(blockTimestamp);
                     expect(loan.status).to.equal(LoanStatus.OUTSTANDING);
                 });
 
@@ -384,7 +383,6 @@ describe('Sapling Lending Pool', function () {
 
                     let loanDetail = await loanDesk.loanDetails(loanId);
                     expect(loanDetail.totalAmountRepaid).to.equal(paymentAmount);
-                    expect(loanDetail.lastPaymentTime).to.equal(blockTimestamp);
                     expect((await loanDesk.loans(loanId)).status).to.equal(LoanStatus.REPAID);
                 });
 
@@ -410,7 +408,6 @@ describe('Sapling Lending Pool', function () {
                     loan = await loanDesk.loans(loanId);
                     let loanDetail = await loanDesk.loanDetails(loanId);
                     expect(loanDetail.totalAmountRepaid).to.equal(paymentAmount);
-                    expect(loanDetail.lastPaymentTime).to.equal(blockTimestamp);
                     expect(loan.status).to.equal(LoanStatus.OUTSTANDING);
                 });
 
@@ -435,7 +432,6 @@ describe('Sapling Lending Pool', function () {
 
                     let loanDetail = await loanDesk.loanDetails(loanId);
                     expect(loanDetail.totalAmountRepaid).to.equal(paymentAmount);
-                    expect(loanDetail.lastPaymentTime).to.equal(blockTimestamp);
                     expect((await loanDesk.loans(loanId)).status).to.equal(LoanStatus.REPAID);
                 });
 

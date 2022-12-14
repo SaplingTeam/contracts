@@ -172,9 +172,6 @@ interface ILoanDesk {
 
         /// timestamp to calculate the interest from, on the outstanding principal
         uint256 interestPaidTillTime;
-
-        /// block timestamp of the last repayment
-        uint256 lastPaymentTime;
     }
 
     /// Event for when a new loan is requested, and an application is created
