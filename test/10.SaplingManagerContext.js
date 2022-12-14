@@ -60,7 +60,6 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
         await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
-        await coreAccessControl.connect(governance).listRole("POOL_1_MANAGER_ROLE", 3);
         await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
 
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
