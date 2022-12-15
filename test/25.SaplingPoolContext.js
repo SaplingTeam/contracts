@@ -262,8 +262,12 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 expect(exitFeePercent).to.equal(0.5 * 10 ** PERCENT_DECIMALS);
             });
 
-            it('Empty pool lenderAPY is correct', async function () {
-                expect(await saplingPoolContext.currentLenderAPY()).to.equal(0);
+            it('Empty pool APY is correct', async function () {
+                let apyBreakdown = await saplingPoolContext.currentAPY();
+                expect(apyBreakdown.totalPoolAPY).to.equal(0);
+                expect(apyBreakdown.protocolRevenueComponent).to.equal(0);
+                expect(apyBreakdown.managerRevenueComponent).to.equal(0);
+                expect(apyBreakdown.lenderComponent).to.equal(0);
             });
 
             it('Initial balances are correct', async function () {
@@ -1298,7 +1302,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 let expectedLenderAPY = remainingAPY.sub(managerWithdrawableAPY).toNumber();
 
-                expect(await saplingPoolContext.currentLenderAPY()).to.equal(expectedLenderAPY);
+                let apyBreakdown = await saplingPoolContext.currentAPY();
+                expect(apyBreakdown.lenderComponent).to.equal(expectedLenderAPY);
             });
 
             it('Can view projected lender APY', async function () {
@@ -1327,7 +1332,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 let borrowRate = loanAmount.mul(ONE_HUNDRED_PERCENT).div(poolFunds).toNumber();
 
-                expect(await saplingPoolContext.projectedLenderAPY(borrowRate, apr)).to.equal(expectedLenderAPY);
+                expect((await saplingPoolContext.simpleProjectedAPY(borrowRate, apr)).lenderComponent)
+                    .to.equal(expectedLenderAPY);
             });
 
             it('Increase in borrow rate is linearly reflected on projected lender APY within margin of integer math accuracy', async function () {
@@ -1359,10 +1365,12 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 let borrowRate = projectedBorrowAmount.mul(ONE_HUNDRED_PERCENT).div(poolFunds).toNumber();
 
                 expect(
-                    (await saplingPoolContext.projectedLenderAPY(borrowRate * 2, apr)) - expectedLenderAPY * 2,
+                    (await saplingPoolContext.simpleProjectedAPY(borrowRate * 2, apr)).lenderComponent 
+                        - expectedLenderAPY * 2,
                 ).to.lte(10);
                 expect(
-                    (await saplingPoolContext.projectedLenderAPY(borrowRate * 3, apr)) - expectedLenderAPY * 3,
+                    (await saplingPoolContext.simpleProjectedAPY(borrowRate * 3, apr)).lenderComponent 
+                        - expectedLenderAPY * 3,
                 ).to.lte(10);
             });
 
@@ -1370,7 +1378,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 it('APY projection should fail when borrow rate of over 100% is requested', async function () {
                     let apr = (await loanDesk.loanTemplate()).apr;
                     let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
-                    await expect(saplingPoolContext.projectedLenderAPY(ONE_HUNDRED_PERCENT + 1, apr)).to.be.reverted;
+                    await expect(saplingPoolContext.simpleProjectedAPY(ONE_HUNDRED_PERCENT + 1, apr)).to.be.reverted;
                 });
             });
         });

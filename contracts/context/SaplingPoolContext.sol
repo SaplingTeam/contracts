@@ -542,25 +542,42 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     }
 
     /**
-     * @notice Estimated lender APY given the current pool state.
-     * @return Estimated current lender APY
+     * @notice Estimate APY breakdown given the current pool state.
+     * @return Current APY breakdown
      */
-    function currentLenderAPY() external view returns (uint16) {
-        return lenderAPY(balances.strategizedFunds, config.weightedAvgStrategyAPR);
+    function currentAPY() external view returns (APYBreakdown memory) {
+        return projectedAPYBreakdown(
+            totalPoolTokenSupply(),
+            balances.stakedShares,
+            balances.poolFunds,
+            balances.strategizedFunds, 
+            config.weightedAvgStrategyAPR,
+            config.protocolFeePercent,
+            config.managerEarnFactor
+        );
     }
 
+    //TODO decide if the funtion below is redundant
     /**
-     * @notice Projected lender APY given the current pool state and a specific strategy rate and an average apr.
+     * @notice Projected APY breakdown given the current pool state and a specific strategy rate and an average apr.
      * @dev Represent percentage parameter values in contract specific format.
      * @param strategyRate Percentage of pool funds projected to be used in strategies.
-     * @return Projected lender APY
+     * @param _avgStrategyAPR Weighted average APR of the funds in strategies.
+     * @return Projected APY breakdown
      */
-    function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view returns (uint16) {
+    function simpleProjectedAPY(
+        uint16 strategyRate, 
+        uint256 _avgStrategyAPR) external view returns (APYBreakdown memory) {
         require(strategyRate <= SaplingMath.HUNDRED_PERCENT, "SaplingPoolContext: invalid borrow rate");
 
-        return lenderAPY(
-            MathUpgradeable.mulDiv(balances.poolFunds, strategyRate, SaplingMath.HUNDRED_PERCENT),
-            _avgStrategyAPR
+        return projectedAPYBreakdown(
+            totalPoolTokenSupply(),
+            balances.stakedShares,
+            balances.poolFunds,
+            MathUpgradeable.mulDiv(balances.poolFunds, strategyRate, SaplingMath.HUNDRED_PERCENT), 
+            _avgStrategyAPR,
+            config.protocolFeePercent,
+            config.managerEarnFactor
         );
     }
 
@@ -826,33 +843,67 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     }
 
     /**
-     * @notice Lender APY given the current pool state, a specific strategized funds, and an average apr.
+     * @notice APY breakdown given a specified scenario.
      * @dev Represent percentage parameter values in contract specific format.
-     * @param _strategizedFunds Pool funds to be borrowed annually.
-     * @return Lender APY
+     * @param _totalPoolTokens total pull token supply. For current conditions use: totalPoolTokenSupply()
+     * @param _stakedTokens the amount of staked pool tokens. Must be less than or equal to _totalPoolTokens. 
+     *                      For current conditions use: balances.stakedShares
+     * @param _poolFunds liquidity token funds that make up the pool. For current conditions use: balances.poolFunds
+     * @param _strategizedFunds part of the pool funds that will remain in strategies. Must be less than or equal to 
+     *                          _poolFunds. For current conditions use: balances.strategizedFunds
+     * @param _avgStrategyAPR Weighted average APR of the funds in strategies. 
+     *                        For current conditions use: config.weightedAvgStrategyAPR
+     * @param _protocolFeePercent Protocol fee parameter. Must be less than 100%.
+     *                            For current conditions use: config.protocolFeePercent
+     * @param _managerEarnFactor Manager's earn factor. Must be greater than or equal to 1x (100%). 
+     *                           For current conditions use: config.managerEarnFactor
+     * @return Pool apy with protocol, manager, and lender components broken down.
      */
-    function lenderAPY(uint256 _strategizedFunds, uint256 _avgStrategyAPR) internal view returns (uint16) {
-        if (balances.poolFunds == 0 || _strategizedFunds == 0 || _avgStrategyAPR == 0) {
-            return 0;
+    function projectedAPYBreakdown(
+        uint256 _totalPoolTokens,
+        uint256 _stakedTokens,
+        uint256 _poolFunds,
+        uint256 _strategizedFunds,
+        uint256 _avgStrategyAPR,
+        uint16 _protocolFeePercent,
+        uint16 _managerEarnFactor
+    ) 
+        public 
+        pure 
+        returns (APYBreakdown memory) 
+    {
+        require(_stakedTokens <= _totalPoolTokens, "SaplingPoolContext: invalid parameter _stakedTokens");
+        require(_strategizedFunds <= _poolFunds, "SaplingPoolContext: invalid parameter _strategizedFunds");
+        require(
+            _protocolFeePercent <= SaplingMath.HUNDRED_PERCENT,
+            "SaplingPoolContext: invalid parameter _protocolFeePercent"
+        );
+        require(
+            _managerEarnFactor >= SaplingMath.HUNDRED_PERCENT,
+            "SaplingPoolContext: invalid parameter _managerEarnFactor"
+        );
+
+        if (_poolFunds == 0 || _strategizedFunds == 0 || _avgStrategyAPR == 0) {
+            return APYBreakdown(0, 0, 0, 0);
         }
 
         // pool APY
-        uint256 poolAPY = MathUpgradeable.mulDiv(_avgStrategyAPR, _strategizedFunds, balances.poolFunds);
+        uint256 poolAPY = MathUpgradeable.mulDiv(_avgStrategyAPR, _strategizedFunds, _poolFunds);
 
         // protocol APY
-        uint256 protocolAPY = MathUpgradeable.mulDiv(poolAPY, config.protocolFeePercent, SaplingMath.HUNDRED_PERCENT);
+        uint256 protocolAPY = MathUpgradeable.mulDiv(poolAPY, _protocolFeePercent, SaplingMath.HUNDRED_PERCENT);
 
         uint256 remainingAPY = poolAPY - protocolAPY;
 
         // manager withdrawableAPY
         uint256 currentStakePercent = MathUpgradeable.mulDiv(
-            balances.stakedShares,
+            _stakedTokens,
             SaplingMath.HUNDRED_PERCENT,
-            totalPoolTokenSupply()
+            _totalPoolTokens
         );
         uint256 managerEarningsPercent = MathUpgradeable.mulDiv(
             currentStakePercent,
-            config.managerEarnFactor - SaplingMath.HUNDRED_PERCENT,
+            _managerEarnFactor - SaplingMath.HUNDRED_PERCENT,
             SaplingMath.HUNDRED_PERCENT);
 
         uint256 managerWithdrawableAPY = MathUpgradeable.mulDiv(
@@ -861,7 +912,14 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             managerEarningsPercent + SaplingMath.HUNDRED_PERCENT
         );
 
-        return uint16(remainingAPY - managerWithdrawableAPY);
+        uint256 _lenderAPY = remainingAPY - managerWithdrawableAPY;
+
+        return APYBreakdown({
+            totalPoolAPY: uint16(poolAPY), 
+            protocolRevenueComponent: uint16(protocolAPY), 
+            managerRevenueComponent: uint16(managerWithdrawableAPY), 
+            lenderComponent: uint16(_lenderAPY)
+        });
     }
 
     /**

@@ -95,6 +95,22 @@ interface IPoolContext {
         uint8 countOutstanding;
     }
 
+    /// Helper struct for APY views
+    struct APYBreakdown {
+
+        /// Total pool APY
+        uint16 totalPoolAPY;
+
+        /// part of the pool APY allocated as protool revenue
+        uint16 protocolRevenueComponent;
+
+        /// part of the pool APY allocated as manager revenue
+        uint16 managerRevenueComponent;
+
+        /// part of the pool APY allocated as lender APY. Lender APY also applies manager's non-revenue yield on stake.
+        uint16 lenderComponent;
+    }
+
     /// Event for when the lender capital is lost due to defaults
     event UnstakedLoss(uint256 amount);
 
