@@ -122,7 +122,9 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @dev A hook for the extending contract to implement.
      * @return True if the conditions of the closure are met, false otherwise.
      */
-    function canClose() internal view virtual returns (bool);
+    function canClose() internal view virtual returns (bool) {
+        return true;
+    }
 
     /**
      * @notice Indicates whether or not the contract can be opened in it's current state.
