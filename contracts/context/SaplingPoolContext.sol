@@ -288,10 +288,9 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         
         uint256 shareDifference = withdrawalQueue.update(id, newShareAmount);
 
+        withdrawalRequestStates[request.wallet].sharesLocked -= shareDifference;
         balances.withdrawalRequestedShares -= shareDifference;
 
-        WithdrawalRequestState storage state = withdrawalRequestStates[request.wallet];
-        state.sharesLocked -= shareDifference;
 
         //// interactions
 
@@ -316,12 +315,12 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         //// effect
         withdrawalQueue.remove(id);
-
-        balances.withdrawalRequestedShares -= request.sharesLocked;
         
         WithdrawalRequestState storage state = withdrawalRequestStates[request.wallet];
         state.countOutstanding--;
         state.sharesLocked -= request.sharesLocked;
+        balances.withdrawalRequestedShares -= request.sharesLocked;
+
 
         //// interactions
 
@@ -334,19 +333,33 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     }
 
     /**
-     * @notice Fulfill a withdrawal request if liquidity requirements are met.
-     * @dev Anyone can trigger fullfilment of a withdrawal request. Fullfillment is on demand, and requests ahead 
-     *      in the queue do not have to be fullfilled as long as their liquidity requirements met.
+     * @notice Fulfill withdrawal request in a batch if liquidity requirements are met.
+     * @dev Anyone can trigger fulfillment of a withdrawal request. Fulfillment is on demand, and requests ahead 
+     *      in the queue do not have to be fulfilled as long as their liquidity requirements met.
      *      
-     *      It is in the interest of the pool manager to keep the withdrawal requests fullfilled as soon as there is 
+     *      It is in the interest of the pool manager to keep the withdrawal requests fulfilled as soon as there is 
      *      liquidity, as unfulfilled requests will keep earning yield but lock liquidity once the liquidity comes in.
      *
-     * @param id ID of the withdrawal request to fullfil.
+     * @param count The number of positions to fulfill starting from the head of the queue. 
+     *        If the count is greater than queue length, then the entrire queue is processed.
      */
-    function fullfilWithdrawalRequest(uint256 id) external whenNotPaused {
+    function fulfillWithdrawalRequests(uint256 count) external whenNotPaused nonReentrant {
+
+        uint256 remaining = MathUpgradeable.min(count, withdrawalQueue.length());
+        while (remaining > 0) {
+            fulfillNextWithdrawalRequest();
+            remaining--;
+        }
+    }
+
+    /**
+     * @dev Fulfill a single withdrawal request at the top of the queue.
+     */
+    function fulfillNextWithdrawalRequest() private {
+
         //// check
 
-        WithdrawalRequestQueue.Request memory request = withdrawalQueue.get(id);
+        WithdrawalRequestQueue.Request memory request = withdrawalQueue.head();
         
         uint256 requestedAmount = tokensToFunds(request.sharesLocked);
         uint256 transferAmount = requestedAmount - MathUpgradeable.mulDiv(
@@ -355,14 +368,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             SaplingMath.HUNDRED_PERCENT
         );
 
-        require(
-            balances.rawLiquidity >= transferAmount + tokensToFunds(request.sumOfSharesLockedAhead),
-            "SaplingPolContext: insufficient liqudity"
-        );
+        require(balances.rawLiquidity >= transferAmount, "SaplingPolContext: insufficient liqudity");
 
         //// effect
 
-        withdrawalQueue.remove(id);
+        withdrawalQueue.remove(request.id);
 
         WithdrawalRequestState storage state = withdrawalRequestStates[request.wallet];
         state.countOutstanding--;

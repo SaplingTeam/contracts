@@ -225,7 +225,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
                 }
             });
 
-            it('Withdrawal request will immediately fullfil when liquidity is available', async function () {
+            it('Withdrawal request will immediately fulfill when liquidity is available', async function () {
                 let amount = BigNumber.from(10).mul(TOKEN_MULTIPLIER);
                 let poolTokens = await lendingPool.fundsToTokens(amount);
 
@@ -261,7 +261,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
                 }
             });
 
-            it('Can fullfil a withdrawal request', async function () {
+            it('Can fulfill withdrawal requests', async function () {
                 let paymentAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
 
                 await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
@@ -274,7 +274,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
 
                 let prevBalance = await liquidityToken.balanceOf(lenders[0].address);
 
-                await expect(lendingPool.connect(lenders[0]).fullfilWithdrawalRequest(1)).to.be.not.reverted;
+                await expect(lendingPool.connect(lenders[0]).fulfillWithdrawalRequests(1)).to.be.not.reverted;
 
                 let requestState = await lendingPool.withdrawalRequestStates(lenders[0].address);
                 expect(requestState.sharesLocked).to.be.eq(0);

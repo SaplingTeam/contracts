@@ -24,15 +24,7 @@ library WithdrawalRequestQueue {
         /// Amount of pool tokens locked in this request
         uint256 sharesLocked;
 
-        /* Preprocessing fields */
-
-        /// Sum of pool tokens currently locked in all positions ahead in the queue
-        uint256 sumOfSharesLockedAhead;
-
         /* Linked list fields */
-
-        /// Index of this node in the list
-        uint256 index;
 
         /// ID of the previous node
         uint256 prev;
@@ -68,18 +60,12 @@ library WithdrawalRequestQueue {
      * @return id of the newly queued request
      */
     function queue(LinkedMap storage list, address user, uint256 shares) internal returns (uint256) {
-        Request storage prevQueuedRequest = list._requests[list._tail];
-
         uint256 newId = list._lastRequestId + 1;
 
         list._requests[newId] = Request({
             id: newId,
             wallet: user,
             sharesLocked: shares,
-            sumOfSharesLockedAhead: prevQueuedRequest.id != 0 
-                ? prevQueuedRequest.sumOfSharesLockedAhead + prevQueuedRequest.sharesLocked 
-                : 0,
-            index: list._ids.length(),
             prev: list._tail,
             next: 0
         });
@@ -118,12 +104,7 @@ library WithdrawalRequestQueue {
         );
         
         uint256 shareDifference = request.sharesLocked - newShareAmount;
-
-        if (request.next > 0) {
-            for (uint256 i = request.next; i < list._ids.length(); i++) {                
-                list._requests[i].sumOfSharesLockedAhead -= shareDifference;
-            }
-        }
+        request.sharesLocked = newShareAmount;
 
         return shareDifference;
     }
@@ -139,13 +120,6 @@ library WithdrawalRequestQueue {
         Request storage request = list._requests[id];
 
         if (request.next > 0) {
-            for (uint256 i = request.next; i < list._ids.length(); i++) {
-                Request storage nextRequest = list._requests[i];
-                
-                nextRequest.index--;
-                nextRequest.sumOfSharesLockedAhead -= request.sharesLocked;
-            }
-
             list._requests[request.next].prev = request.prev;
         }
 
@@ -181,18 +155,20 @@ library WithdrawalRequestQueue {
      * @param list Storage reference to LinkedMap
      * @return ID of the first (head) node in the queue
      */
-    function head(LinkedMap storage list) internal view returns (uint256) {
-        return list._head;
+    function head(LinkedMap storage list) internal view returns (Request memory) {
+        require(list._head != 0, "WithdrawalRequestQueue: list is empty");
+        return list._requests[list._head];
     }
 
     /**
      * @notice Accessor
      * @dev ID value of 0 is not used, and a return value of 0 means the queue is empty.
      * @param list storage reference to LinkedMap
-     * @return ID of the last (tail) node in the queue
+     * @return Node (withdrawal request) with the given ID
      */
-    function tail(LinkedMap storage list) internal view returns (uint256) {
-        return list._tail;
+    function tail(LinkedMap storage list) internal view returns (Request memory) {
+        require(list._tail != 0, "WithdrawalRequestQueue: list is empty");
+        return list._requests[list._tail];
     }
 
     /**
