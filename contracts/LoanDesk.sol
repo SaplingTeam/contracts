@@ -56,9 +56,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /// LoanDetails by loan ID
     mapping(uint256 => LoanDetail) public loanDetails;
 
-    /// Recent loan id by address
-    mapping(address => uint256) public recentLoanIdOf;
-
 
     /// A modifier to limit access only to when the application exists and has the specified status
     modifier applicationInStatus(uint256 applicationId, LoanApplicationStatus status) {
@@ -477,11 +474,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             principalAmountRepaid: 0,
             interestPaid: 0,
             paymentCarry: 0,
-            interestPaidTillTime: block.timestamp,
-            lastPaymentTime: 0
+            interestPaidTillTime: block.timestamp
         });
-
-        recentLoanIdOf[offer.borrower] = loanId;
 
         outstandingLoansCount++;
 
@@ -607,10 +601,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 paymentCarry = loanDetail.paymentCarry;
 
         if (loanDetail.paymentCarry > 0) {
-
             loanDetail.principalAmountRepaid += loanDetail.paymentCarry;
-            loanDetail.lastPaymentTime = block.timestamp;
-
             loanDetail.paymentCarry = 0;
         }
 
@@ -660,7 +651,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.totalAmountRepaid += transferAmount;
         loanDetail.principalAmountRepaid += principalPaid;
-        loanDetail.lastPaymentTime = block.timestamp;
         loanDetail.interestPaidTillTime += payableInterestDays * 86400;
 
         if (paymentAmount > transferAmount) {
@@ -826,9 +816,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 interestPercent = MathUpgradeable.mulDiv(uint256(loan.apr) * 1e18, daysPassed, 365);
 
         uint256 principalOutstanding = loan.amount - detail.principalAmountRepaid;
-        uint256 interestOutstanding = MathUpgradeable.mulDiv(principalOutstanding, interestPercent, SaplingMath.HUNDRED_PERCENT);
+        uint256 interestOutstanding = MathUpgradeable.mulDiv(
+            principalOutstanding, 
+            interestPercent, 
+            SaplingMath.HUNDRED_PERCENT
+        ) / 1e18;
 
-        return (principalOutstanding, interestOutstanding / 1e18, daysPassed);
+        return (principalOutstanding, interestOutstanding, daysPassed);
     }
 
     /**
@@ -921,5 +915,14 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      */
     function canClose() internal view override returns (bool) {
         return offeredFunds == 0 && outstandingLoansCount == 0;
+    }
+
+    /**
+     * @notice Indicates whether or not the contract can be opened in it's current state.
+     * @dev Overrides a hook in SaplingManagerContext.
+     * @return True if the conditions to open are met, false otherwise.
+     */
+    function canOpen() internal view override returns (bool) {
+        return pool != address(0);
     }
 }

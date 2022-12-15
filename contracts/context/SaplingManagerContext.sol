@@ -68,7 +68,7 @@ abstract contract SaplingManagerContext is SaplingContext {
         assert(_closed == false && poolManagerRole == 0x00);
 
         poolManagerRole = _managerRole;
-        _closed = false;
+        _closed = true;
     }
 
     /**
@@ -80,7 +80,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      *      only guaranteed when the pool is closed and all outstanding loans resolved. 
      */
     function close() external onlyRole(poolManagerRole) whenNotClosed {
-        require(canClose(), "SaplingManagerContext: cannot close the pool with outstanding loans");
+        require(canClose(), "SaplingManagerContext: cannot close the pool under current conditions");
 
         _closed = true;
 
@@ -93,6 +93,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      *      Caller must have the pool manager role. Pool must be closed.
      */
     function open() external onlyRole(poolManagerRole) whenClosed {
+        require(canOpen(), "SaplingManagerContext: cannot open the pool under current conditions");
         _closed = false;
 
         emit Opened(msg.sender);
@@ -121,7 +122,18 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @dev A hook for the extending contract to implement.
      * @return True if the conditions of the closure are met, false otherwise.
      */
-    function canClose() internal view virtual returns (bool);
+    function canClose() internal view virtual returns (bool) {
+        return true;
+    }
+
+    /**
+     * @notice Indicates whether or not the contract can be opened in it's current state.
+     * @dev A hook for the extending contract to implement.
+     * @return True if the conditions to open are met, false otherwise.
+     */
+    function canOpen() internal view virtual returns (bool) {
+        return true;
+    }
 
     /**
      * @dev Slots reserved for future state variables

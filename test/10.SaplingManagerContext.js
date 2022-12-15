@@ -60,7 +60,6 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
         await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
-        await coreAccessControl.connect(governance).listRole("POOL_1_MANAGER_ROLE", 3);
         await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
 
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
@@ -95,6 +94,8 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
 
         SaplingManagerContextCF = SaplingLendingPoolCF;
         saplingManagerContext = lendingPool;
+
+        await loanDesk.connect(manager).open();
     });
 
     describe('Deployment', function () {
@@ -110,18 +111,22 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
         });
     });
 
-    describe('Use Cases', function () {
-        describe('Initial State', function () {
-            it('Pool manager address is correct', async function () {
-                expect(await coreAccessControl.getRoleMember(POOL_1_MANAGER_ROLE, 0)).to.equal(manager.address);
-            });
-
-            it('Pool is not closed', async function () {
-                expect(await saplingManagerContext.closed()).to.equal(false);
-            });
+    describe('Initial State', function () {
+        it('Pool manager address is correct', async function () {
+            expect(await coreAccessControl.getRoleMember(POOL_1_MANAGER_ROLE, 0)).to.equal(manager.address);
         });
 
+        it('Pool is closed', async function () {
+            expect(await saplingManagerContext.closed()).to.equal(true);
+        });
+    });
+
+    describe('Use Cases', function () {
         describe('Close', function () {
+            beforeEach(async function () {
+                await saplingManagerContext.connect(manager).open();
+            });
+
             it('Manager can close', async function () {
                 await saplingManagerContext.connect(manager).close();
                 expect(await saplingManagerContext.closed()).to.equal(true);
@@ -140,10 +145,6 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
         });
 
         describe('Open', function () {
-            beforeEach(async function () {
-                await saplingManagerContext.connect(manager).close();
-            });
-
             it('Manager can open', async function () {
                 await saplingManagerContext.connect(manager).open();
                 expect(await saplingManagerContext.closed()).to.equal(false);

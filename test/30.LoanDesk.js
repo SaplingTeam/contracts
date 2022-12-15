@@ -60,7 +60,6 @@ describe('Loan Desk', function () {
         await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
-        await coreAccessControl.connect(governance).listRole("POOL_1_MANAGER_ROLE", 3);
         await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
 
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
@@ -95,6 +94,9 @@ describe('Loan Desk', function () {
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
         limits = await (await ethers.getContractFactory('Limits')).deploy();
+
+        await lendingPool.connect(manager).open();
+        await loanDesk.connect(manager).open();
     });
 
     describe('Deployment', function () {
@@ -709,8 +711,8 @@ describe('Loan Desk', function () {
                     });
 
                     it('Offering a loan with an amount greater than available liquidity should fail', async function () {
-                        let rawLiquidity = (await lendingPool.balance()).rawLiquidity;
-                        let poolFunds = (await lendingPool.balance()).poolFunds;
+                        let rawLiquidity = (await lendingPool.balances()).rawLiquidity;
+                        let poolFunds = (await lendingPool.balances()).poolFunds;
                         let targetLiquidityPercent = (await lendingPool.config()).targetLiquidityPercent;
                         let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
 
@@ -775,9 +777,10 @@ describe('Loan Desk', function () {
                                 apr,
                             );
 
-                        await loanDesk.connect(borrower2).borrow(otherApplicationId);
+                        let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
+                        let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
+                            .args.loanId;
 
-                        let otherLoanId = await loanDesk.recentLoanIdOf(borrower2.address);
                         let loan = await loanDesk.loans(otherLoanId);
                         await ethers.provider.send('evm_increaseTime', [
                             loan.duration.add(loan.gracePeriod).toNumber(),

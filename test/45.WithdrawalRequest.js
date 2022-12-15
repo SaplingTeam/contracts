@@ -60,7 +60,6 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
         await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
-        await coreAccessControl.connect(governance).listRole("POOL_1_MANAGER_ROLE", 3);
         await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
 
         SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
@@ -94,6 +93,9 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
         await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
+
+        await lendingPool.connect(manager).open();
+        await loanDesk.connect(manager).open();
     });
 
     describe('Use Cases', function () {
@@ -175,9 +177,8 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
                     apr,
                 );
             
-            await loanDesk.connect(borrower1).borrow(applicationId);
-
-            loanId = await loanDesk.recentLoanIdOf(borrower1.address);
+            let tx = await loanDesk.connect(borrower1).borrow(applicationId);
+            loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
         });
 
         describe('Withdrawal Request', function () {
@@ -224,7 +225,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
                 }
             });
 
-            it('Withdrawal request will immediately fullfil when liquidity is available', async function () {
+            it('Withdrawal request will immediately fulfill when liquidity is available', async function () {
                 let amount = BigNumber.from(10).mul(TOKEN_MULTIPLIER);
                 let poolTokens = await lendingPool.fundsToTokens(amount);
 
@@ -260,7 +261,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
                 }
             });
 
-            it('Can fullfil a withdrawal request', async function () {
+            it('Can fulfill withdrawal requests', async function () {
                 let paymentAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
 
                 await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
@@ -273,7 +274,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
 
                 let prevBalance = await liquidityToken.balanceOf(lenders[0].address);
 
-                await expect(lendingPool.connect(lenders[0]).fullfilWithdrawalRequest(1)).to.be.not.reverted;
+                await expect(lendingPool.connect(lenders[0]).fulfillWithdrawalRequests(1)).to.be.not.reverted;
 
                 let requestState = await lendingPool.withdrawalRequestStates(lenders[0].address);
                 expect(requestState.sharesLocked).to.be.eq(0);

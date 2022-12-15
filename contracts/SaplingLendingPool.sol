@@ -72,8 +72,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     function onOffer(uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed {
         require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
 
-        balance.rawLiquidity -= amount;
-        balance.allocatedFunds += amount;
+        balances.rawLiquidity -= amount;
+        balances.allocatedFunds += amount;
 
         emit OfferLiquidityAllocated(amount);
     }
@@ -87,8 +87,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     function onOfferUpdate(uint256 prevAmount, uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed {
         require(strategyLiquidity() + prevAmount >= amount, "SaplingLendingPool: insufficient liquidity");
 
-        balance.rawLiquidity = balance.rawLiquidity + prevAmount - amount;
-        balance.allocatedFunds = balance.allocatedFunds - prevAmount + amount;
+        balances.rawLiquidity = balances.rawLiquidity + prevAmount - amount;
+        balances.allocatedFunds = balances.allocatedFunds - prevAmount + amount;
 
         emit OfferLiquidityUpdated(prevAmount, amount);
     }
@@ -122,14 +122,14 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         loanFundsReleased[loanDesk][loanId] = true;
         
-        uint256 prevStrategizedFunds = balance.strategizedFunds;
+        uint256 prevStrategizedFunds = balances.strategizedFunds;
         
-        balance.tokenBalance -= amount;
-        balance.allocatedFunds -= amount;
-        balance.strategizedFunds += amount;
+        balances.tokenBalance -= amount;
+        balances.allocatedFunds -= amount;
+        balances.strategizedFunds += amount;
 
         config.weightedAvgStrategyAPR = (prevStrategizedFunds * config.weightedAvgStrategyAPR + amount * apr)
-            / balance.strategizedFunds;
+            / balances.strategizedFunds;
 
         //// interactions
 
@@ -175,12 +175,12 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         //// effect
 
-        balance.tokenBalance += transferAmount;
+        balances.tokenBalance += transferAmount;
 
         uint256 principalPaid;
         if (interestPayable == 0) {
             principalPaid = paymentAmount;
-            balance.rawLiquidity += paymentAmount;
+            balances.rawLiquidity += paymentAmount;
         } else {
             principalPaid = paymentAmount - interestPayable;
 
@@ -191,11 +191,11 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 SaplingMath.HUNDRED_PERCENT
             );
 
-            balance.protocolRevenue += protocolEarnedInterest;
+            balances.protocolRevenue += protocolEarnedInterest;
 
             //share revenue to manager
             uint256 currentStakePercent = MathUpgradeable.mulDiv(
-                balance.stakedShares,
+                balances.stakedShares,
                 SaplingMath.HUNDRED_PERCENT,
                 totalPoolTokenSupply()
             );
@@ -212,15 +212,13 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 managerEarningsPercent + SaplingMath.HUNDRED_PERCENT
             );
 
-            balance.managerRevenue += managerEarnedInterest;
+            balances.managerRevenue += managerEarnedInterest;
 
-            balance.rawLiquidity += paymentAmount - (protocolEarnedInterest + managerEarnedInterest);
-            balance.poolFunds += interestPayable - (protocolEarnedInterest + managerEarnedInterest);
-
-            updatePoolLimit();
+            balances.rawLiquidity += paymentAmount - (protocolEarnedInterest + managerEarnedInterest);
+            balances.poolFunds += interestPayable - (protocolEarnedInterest + managerEarnedInterest);
         }
 
-        balance.strategizedFunds -= principalPaid;
+        balances.strategizedFunds -= principalPaid;
 
         updateAvgStrategyApr(principalPaid, apr);
 
@@ -270,10 +268,10 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         loanClosed[loanDesk][loanId] == true;
 
         // charge manager's revenue
-        if (remainingDifference > 0 && balance.managerRevenue > 0) {
-            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, balance.managerRevenue);
+        if (remainingDifference > 0 && balances.managerRevenue > 0) {
+            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, balances.managerRevenue);
 
-            balance.managerRevenue -= amountChargeable;
+            balances.managerRevenue -= amountChargeable;
 
             remainingDifference -= amountChargeable;
             amountRepaid += amountChargeable;
@@ -281,15 +279,14 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         // charge manager's stake
         uint256 stakeChargeable = 0;
-        if (remainingDifference > 0 && balance.stakedShares > 0) {
-            uint256 stakedBalance = tokensToFunds(balance.stakedShares);
+        if (remainingDifference > 0 && balances.stakedShares > 0) {
+            uint256 stakedBalance = tokensToFunds(balances.stakedShares);
             uint256 amountChargeable = MathUpgradeable.min(remainingDifference, stakedBalance);
             stakeChargeable = fundsToTokens(amountChargeable);
 
-            balance.stakedShares = balance.stakedShares - stakeChargeable;
-            updatePoolLimit();
+            balances.stakedShares = balances.stakedShares - stakeChargeable;
 
-            if (balance.stakedShares == 0) {
+            if (balances.stakedShares == 0) {
                 emit StakedAssetsDepleted();
             }
 
@@ -298,14 +295,14 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         }
 
         if (amountRepaid > 0) {
-            balance.strategizedFunds -= amountRepaid;
-            balance.rawLiquidity += amountRepaid;
+            balances.strategizedFunds -= amountRepaid;
+            balances.rawLiquidity += amountRepaid;
         }
 
         // charge pool (close loan and reduce borrowed funds/poolfunds)
         if (remainingDifference > 0) {
-            balance.strategizedFunds -= remainingDifference;
-            balance.poolFunds -= remainingDifference;
+            balances.strategizedFunds -= remainingDifference;
+            balances.poolFunds -= remainingDifference;
 
             emit UnstakedLoss(remainingDifference);
         }
@@ -350,8 +347,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         loanClosed[loanDesk][loanId] == true;
 
         if (carryAmountUsed > 0) {
-            balance.strategizedFunds -= carryAmountUsed;
-            balance.rawLiquidity += carryAmountUsed;
+            balances.strategizedFunds -= carryAmountUsed;
+            balances.rawLiquidity += carryAmountUsed;
         }
 
         uint256 managerLoss = loss;
@@ -360,17 +357,16 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         if (loss > 0) {
             uint256 remainingLostShares = fundsToTokens(loss);
 
-            balance.poolFunds -= loss;
-            balance.strategizedFunds -= loss;
+            balances.poolFunds -= loss;
+            balances.strategizedFunds -= loss;
             updateAvgStrategyApr(loss, apr);
 
-            if (balance.stakedShares > 0) {
-                uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, balance.stakedShares);
+            if (balances.stakedShares > 0) {
+                uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, balances.stakedShares);
                 remainingLostShares -= stakedShareLoss;
-                balance.stakedShares -= stakedShareLoss;
-                updatePoolLimit();
+                balances.stakedShares -= stakedShareLoss;
 
-                if (balance.stakedShares == 0) {
+                if (balances.stakedShares == 0) {
                     emit StakedAssetsDepleted();
                 }
 
@@ -401,6 +397,15 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         return !paused() 
             && !closed() 
             && maintainsStakeRatio()
-            && totalOfferedAmount <= strategyLiquidity() + balance.allocatedFunds;
+            && totalOfferedAmount <= strategyLiquidity() + balances.allocatedFunds;
+    }
+
+    /**
+     * @notice Indicates whether or not the contract can be opened in it's current state.
+     * @dev Overrides a hook in SaplingManagerContext.
+     * @return True if the conditions to open are met, false otherwise.
+     */
+    function canOpen() internal view override returns (bool) {
+        return loanDesk != address(0);
     }
 }
