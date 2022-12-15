@@ -36,6 +36,14 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     /// Withdrawal request queue
     WithdrawalRequestQueue.LinkedMap private withdrawalQueue;
 
+    modifier noWithdrawalRequests() {
+        require(
+            withdrawalRequestStates[msg.sender].countOutstanding == 0,
+            "SaplingPoolContext: deposit not allowed while having withdrawal requests"
+        );
+        _;
+    }
+
     /**
      * @notice Creates a SaplingPoolContext.
      * @dev Addresses must not be 0.
@@ -195,9 +203,10 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @dev Deposit amount must be non zero and not exceed amountDepositable().
      *      An appropriate spend limit must be present at the token contract.
      *      Caller must not be any of: manager, protocol, governance.
+     *      Caller must not have any outstanding withdrawal requests.
      * @param amount Liquidity token amount to deposit.
      */
-    function deposit(uint256 amount) external onlyUser whenNotPaused whenNotClosed {
+    function deposit(uint256 amount) external onlyUser noWithdrawalRequests whenNotPaused whenNotClosed {
         uint256 sharesMinted = enter(amount);
 
         emit FundsDeposited(msg.sender, amount, sharesMinted);
