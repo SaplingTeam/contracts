@@ -13,6 +13,22 @@ contract SaplingManagerContextTester is SaplingManagerContext {
 
     event ValueChanged(uint256 prevValue, uint256 newValue);
 
+
+    /**
+     * @dev Initializer
+     * @param _accessControl Access control contract
+     * @param _managerRole Manager role
+     */
+    function initialize(
+        address _accessControl,
+        bytes32 _managerRole
+    )
+        public
+        initializer
+    {
+         __SaplingManagerContext_init(_accessControl, _managerRole);
+    }
+
     /**
      * @dev Wrapper for an internal function
      */
