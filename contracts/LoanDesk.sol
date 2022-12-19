@@ -226,11 +226,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         whenNotPaused
         whenNotClosed
     {
-        LoanApplicationStatus recentAppStatus = loanApplications[recentApplicationIdOf[msg.sender]].status;
-        require(
-            recentAppStatus != LoanApplicationStatus.APPLIED && recentAppStatus != LoanApplicationStatus.OFFER_MADE,
-            "LoanDesk: another loan application is pending"
-        );
+        require(!hasOpenApplication(msg.sender), "LoanDesk: another loan application is pending");
         require(_amount >= loanTemplate.minAmount, "LoanDesk: loan amount is less than the minimum allowed");
         require(loanTemplate.minDuration <= _duration, "LoanDesk: loan duration is less than minimum allowed");
         require(loanTemplate.maxDuration >= _duration, "LoanDesk: loan duration is greater than maximum allowed");
@@ -728,6 +724,12 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     function loanBalanceDue(uint256 loanId) external view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns(uint256) {
         (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
         return principalOutstanding + interestOutstanding - loanDetails[loanId].paymentCarry;
+    }
+
+    function hasOpenApplication(address account) public view returns (bool) {
+        LoanApplicationStatus recentAppStatus = loanApplications[recentApplicationIdOf[account]].status;
+        return recentAppStatus == LoanApplicationStatus.APPLIED 
+            || recentAppStatus == LoanApplicationStatus.OFFER_MADE;
     }
 
         /**
