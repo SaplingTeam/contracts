@@ -11,7 +11,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 512
+        runs: 384
       },
     },
   },
@@ -46,7 +46,7 @@ module.exports = {
     polygonMumbai: {
       url: "https://matic-mumbai.chainstacklabs.com/",
       chainId: 80001,
-      gas: 5500000,
+      gas: 9500000,
       accounts: {
         mnemonic: process.env.TESTNET_MNEMONIC
       }
