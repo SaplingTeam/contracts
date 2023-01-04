@@ -259,7 +259,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         //TODO update if the last position belongs to the user, else queue
 
-        withdrawalQueue.queue(msg.sender, shares);
+        uint256 requestId = withdrawalQueue.queue(msg.sender, shares);
 
         state.countOutstanding++;
         state.sharesLocked += shares;
@@ -274,7 +274,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             shares
         );
 
-        //TODO event
+        emit WithdrawalRequested(requestId, msg.sender, shares);
     }
 
     /**
@@ -296,6 +296,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         //// effect
         
         uint256 shareDifference = withdrawalQueue.update(id, newShareAmount);
+        uint256 prevLockedShares = withdrawalRequestStates[request.wallet].sharesLocked;
 
         withdrawalRequestStates[request.wallet].sharesLocked -= shareDifference;
         balances.withdrawalRequestedShares -= shareDifference;
@@ -309,6 +310,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             request.wallet,
             shareDifference
         );
+
+        emit WithdrawalRequestUpdated(id, prevLockedShares, withdrawalRequestStates[request.wallet].sharesLocked);
     }
 
     /**
@@ -339,6 +342,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             request.wallet,
             request.sharesLocked
         );
+
+        emit WithdrawalRequestCancelled(id);
     }
 
     /**
@@ -399,6 +404,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             request.wallet,
             transferAmount
         );
+
+        emit WithdrawalRequestFulfilled(request.id, transferAmount);
     }
 
     /**

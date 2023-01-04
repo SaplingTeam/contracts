@@ -131,6 +131,18 @@ interface IPoolContext {
     /// Event for when a non user revenue is withdrawn
     event RevenueWithdrawn(address wallet, uint256 amount);
 
+    /// Event for when a new withdrawal request is made
+    event WithdrawalRequested(uint256 id, address wallet, uint256 tokensLocked);
+
+    /// Event for when a withdrawal request amount is updated
+    event WithdrawalRequestUpdated(uint256 id,  uint256 prevTokensLocked, uint256 tokensLocked);
+
+    /// Event for when a withdrawal request is cancelled
+    event WithdrawalRequestCancelled(uint256 id);
+
+    /// Event for when a withdrawal request is fully fulfilled 
+    event WithdrawalRequestFulfilled(uint256 id, uint256 amount);
+
     /// Setter event
     event TargetStakePercentSet(uint16 prevValue, uint16 newValue);
 
