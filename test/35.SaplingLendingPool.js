@@ -1050,7 +1050,7 @@ describe('Sapling Lending Pool', function () {
                 });
 
                 it('Closing a loan with loss less than the managers revenue', async function () {
-                    let paymentAmount = BigNumber.from(5300).mul(TOKEN_MULTIPLIER);
+                    let paymentAmount = BigNumber.from(5350).mul(TOKEN_MULTIPLIER);
                     await liquidityToken.connect(deployer).mint(borrower2.address, paymentAmount);
                     await liquidityToken.connect(borrower2).approve(lendingPool.address, paymentAmount);
                     await loanDesk.connect(borrower2).repay(loanId2, paymentAmount);

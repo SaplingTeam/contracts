@@ -31,7 +31,6 @@ describe('Loan Desk', function () {
     let liquidityToken;
     let loanDesk;
     let saplingMath;
-    let limits;
 
     let deployer;
     let governance;
@@ -93,7 +92,6 @@ describe('Loan Desk', function () {
         await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
-        limits = await (await ethers.getContractFactory('Limits')).deploy();
 
         await lendingPool.connect(manager).open();
         await loanDesk.connect(manager).open();
@@ -154,7 +152,7 @@ describe('Loan Desk', function () {
                 let maxValue = 100 * 10 ** PERCENT_DECIMALS;
                 let defaultValue = 30 * 10 ** PERCENT_DECIMALS;
 
-                expect(await limits.SAFE_MIN_APR()).to.equal(minValue);
+                expect(await saplingMath.SAFE_MIN_APR()).to.equal(minValue);
                 expect((await loanDesk.loanTemplate()).apr)
                     .to.equal(defaultValue)
                     .and.gte(minValue)
@@ -166,8 +164,8 @@ describe('Loan Desk', function () {
                 let maxValue = BigNumber.from(365 * 24 * 60 * 60);
                 let defaultValue = BigNumber.from(60 * 24 * 60 * 60);
 
-                expect(await limits.MIN_LOAN_GRACE_PERIOD()).to.equal(minValue);
-                expect(await limits.MAX_LOAN_GRACE_PERIOD()).to.equal(maxValue);
+                expect(await saplingMath.MIN_LOAN_GRACE_PERIOD()).to.equal(minValue);
+                expect(await saplingMath.MAX_LOAN_GRACE_PERIOD()).to.equal(maxValue);
                 expect((await loanDesk.loanTemplate()).gracePeriod)
                     .to.equal(defaultValue)
                     .and.gte(minValue)
@@ -179,7 +177,7 @@ describe('Loan Desk', function () {
             describe('Loan APR', function () {
                 it('Manager can set a template loan APR', async function () {
                     let currentValue = (await loanDesk.loanTemplate()).apr;
-                    let minValue = await limits.SAFE_MIN_APR();
+                    let minValue = await saplingMath.SAFE_MIN_APR();
                     let maxValue = 100 * 10 ** PERCENT_DECIMALS;
 
                     let newValue = 40 * 10 ** PERCENT_DECIMALS;
@@ -191,7 +189,7 @@ describe('Loan Desk', function () {
 
                 it('Loan APR can be set while the pool is paused', async function () {
                     let currentValue = (await loanDesk.loanTemplate()).apr;
-                    let minValue = await limits.SAFE_MIN_APR();
+                    let minValue = await saplingMath.SAFE_MIN_APR();
                     let maxValue = 100 * 10 ** PERCENT_DECIMALS;
 
                     let newValue = 40 * 10 ** PERCENT_DECIMALS;
@@ -204,7 +202,7 @@ describe('Loan Desk', function () {
 
                 describe('Rejection scenarios', function () {
                     it('Loan APR cannot be set to a value less than the allowed minimum', async function () {
-                        let minValue = await limits.SAFE_MIN_APR();
+                        let minValue = await saplingMath.SAFE_MIN_APR();
                         if (minValue > 0) {
                             await expect(loanDesk.connect(manager).setTemplateLoanAPR(minValue - 1)).to.be.reverted;
                         }
@@ -217,7 +215,7 @@ describe('Loan Desk', function () {
 
                     it('A non-manager cannot set the loan APR', async function () {
                         let currentValue = (await loanDesk.loanTemplate()).apr;
-                        let minValue = await limits.SAFE_MIN_APR();
+                        let minValue = await saplingMath.SAFE_MIN_APR();
                         let maxValue = 100 * 10 ** PERCENT_DECIMALS;
 
                         let newValue = 40 * 10 ** PERCENT_DECIMALS;
@@ -248,7 +246,7 @@ describe('Loan Desk', function () {
 
                 describe('Rejection scenarios', function () {
                     it('Minimum loan amount cannot be set to a value less than the allowed minimum', async function () {
-                        let minValue = await limits.SAFE_MIN_AMOUNT();
+                        let minValue = await saplingMath.SAFE_MIN_AMOUNT();
                         await expect(loanDesk.connect(manager).setMinLoanAmount(minValue.sub(1))).to.be.reverted;
                     });
 
@@ -287,7 +285,7 @@ describe('Loan Desk', function () {
 
                 describe('Rejection scenarios', function () {
                     it('Minimum loan duration cannot be set to a value less than the allowed minimum', async function () {
-                        let minValue = await limits.SAFE_MIN_DURATION();
+                        let minValue = await saplingMath.SAFE_MIN_DURATION();
                         if (minValue > 0) {
                             await expect(loanDesk.connect(manager).setMinLoanDuration(minValue.sub(1))).to.be.reverted;
                         }
@@ -314,7 +312,7 @@ describe('Loan Desk', function () {
                 it('Manager can set a template maximum loan duration', async function () {
                     let currentValue = (await loanDesk.loanTemplate()).maxDuration;
                     let minValue = (await loanDesk.loanTemplate()).minDuration;
-                    let maxValue = await limits.SAFE_MAX_DURATION();
+                    let maxValue = await saplingMath.SAFE_MAX_DURATION();
 
                     let newValue = currentValue.sub(1);
                     assertHardhatInvariant(minValue.lte(newValue) && newValue.lte(maxValue));
@@ -326,7 +324,7 @@ describe('Loan Desk', function () {
                 it('Maximum loan duration can be set while the pool is paused', async function () {
                     let currentValue = (await loanDesk.loanTemplate()).maxDuration;
                     let minValue = (await loanDesk.loanTemplate()).minDuration;
-                    let maxValue = await limits.SAFE_MAX_DURATION();
+                    let maxValue = await saplingMath.SAFE_MAX_DURATION();
 
                     let newValue = currentValue.sub(1);
                     assertHardhatInvariant(minValue.lte(newValue) && newValue.lte(maxValue));
@@ -345,14 +343,14 @@ describe('Loan Desk', function () {
                     });
 
                     it('Maximum loan duration cannot be set to a value greater than the allowed maximum', async function () {
-                        let maxValue = await limits.SAFE_MAX_DURATION();
+                        let maxValue = await saplingMath.SAFE_MAX_DURATION();
                         await expect(loanDesk.connect(manager).setMaxLoanDuration(maxValue.add(1))).to.be.reverted;
                     });
 
                     it('A non-manager cannot set the maximum loan duration', async function () {
                         let currentValue = (await loanDesk.loanTemplate()).maxDuration;
                         let minValue = (await loanDesk.loanTemplate()).minDuration;
-                        let maxValue = await limits.SAFE_MAX_DURATION();
+                        let maxValue = await saplingMath.SAFE_MAX_DURATION();
 
                         let newValue = currentValue.sub(1);
                         assertHardhatInvariant(minValue.lte(newValue) && newValue.lte(maxValue));
@@ -365,8 +363,8 @@ describe('Loan Desk', function () {
             describe('Loan grace period', function () {
                 it('Manager can set a template loan grace period', async function () {
                     let currentValue = (await loanDesk.loanTemplate()).gracePeriod;
-                    let minValue = await limits.MIN_LOAN_GRACE_PERIOD();
-                    let maxValue = await limits.MAX_LOAN_GRACE_PERIOD();
+                    let minValue = await saplingMath.MIN_LOAN_GRACE_PERIOD();
+                    let maxValue = await saplingMath.MAX_LOAN_GRACE_PERIOD();
 
                     let newValue = currentValue.add(1);
                     assertHardhatInvariant(minValue.lte(newValue) && newValue.lte(maxValue));
@@ -377,8 +375,8 @@ describe('Loan Desk', function () {
 
                 it('Loan grace period can be set while the pool is paused', async function () {
                     let currentValue = (await loanDesk.loanTemplate()).gracePeriod;
-                    let minValue = await limits.MIN_LOAN_GRACE_PERIOD();
-                    let maxValue = await limits.MAX_LOAN_GRACE_PERIOD();
+                    let minValue = await saplingMath.MIN_LOAN_GRACE_PERIOD();
+                    let maxValue = await saplingMath.MAX_LOAN_GRACE_PERIOD();
 
                     let newValue = currentValue.add(1);
                     assertHardhatInvariant(minValue.lte(newValue) && newValue.lte(maxValue));
@@ -390,7 +388,7 @@ describe('Loan Desk', function () {
 
                 describe('Rejection scenarios', function () {
                     it('Loan grace period cannot be set to a value less than the allowed minimum', async function () {
-                        let minValue = await limits.MIN_LOAN_GRACE_PERIOD();
+                        let minValue = await saplingMath.MIN_LOAN_GRACE_PERIOD();
                         if (minValue > 0) {
                             await expect(loanDesk.connect(manager).setTemplateLoanGracePeriod(minValue.sub(1))).to.be
                                 .reverted;
@@ -398,15 +396,15 @@ describe('Loan Desk', function () {
                     });
 
                     it('Loan grace period cannot be set to a value greater than the allowed maximum', async function () {
-                        let maxValue = await limits.MAX_LOAN_GRACE_PERIOD();
+                        let maxValue = await saplingMath.MAX_LOAN_GRACE_PERIOD();
                         await expect(loanDesk.connect(manager).setTemplateLoanGracePeriod(maxValue.add(1))).to.be
                             .reverted;
                     });
 
                     it('A non-manager cannot set the loan grace period', async function () {
                         let currentValue = (await loanDesk.loanTemplate()).gracePeriod;
-                        let minValue = await limits.MIN_LOAN_GRACE_PERIOD();
-                        let maxValue = await limits.MAX_LOAN_GRACE_PERIOD();
+                        let minValue = await saplingMath.MIN_LOAN_GRACE_PERIOD();
+                        let maxValue = await saplingMath.MAX_LOAN_GRACE_PERIOD();
 
                         let newValue = currentValue.add(1);
                         assertHardhatInvariant(minValue.lte(newValue) && newValue.lte(maxValue));

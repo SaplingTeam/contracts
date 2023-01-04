@@ -49,9 +49,6 @@ interface IPoolContext {
 
         /// exit fee percentage
         uint16 exitFeePercent;
-
-        /// An upper bound for percentage of paid interest to be allocated as protocol fee
-        uint16 maxProtocolFeePercent;
     }
 
     /// Key pool balances

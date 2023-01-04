@@ -81,21 +81,22 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         assert(totalPoolTokenSupply() == 0);
         
-        uint16 _maxProtocolFeePercent = uint16(10 * 10 ** SaplingMath.PERCENT_DECIMALS);
+        uint16 _protocolFeePercent = uint16(
+            MathUpgradeable.min(uint16(20 * 10 ** SaplingMath.PERCENT_DECIMALS), SaplingMath.MAX_PROTOCOL_FEE_PERCENT)
+        );
         uint16 _maxEarnFactor = uint16(1000 * 10 ** SaplingMath.PERCENT_DECIMALS);
 
         config = PoolConfig({
             minWithdrawalRequestAmount: 10 * 10 ** tokenConfig.decimals,
             targetStakePercent: uint16(10 * 10 ** SaplingMath.PERCENT_DECIMALS),
-            protocolFeePercent: _maxProtocolFeePercent,
+            protocolFeePercent: _protocolFeePercent,
             managerEarnFactorMax: _maxEarnFactor,
 
             targetLiquidityPercent: 0,
             managerEarnFactor: uint16(MathUpgradeable.min(150 * 10 ** SaplingMath.PERCENT_DECIMALS, _maxEarnFactor)),
 
             weightedAvgStrategyAPR: 0,
-            exitFeePercent: SaplingMath.HUNDRED_PERCENT / 200, // 0.5%
-            maxProtocolFeePercent: _maxProtocolFeePercent
+            exitFeePercent: SaplingMath.HUNDRED_PERCENT / 200 // 0.5%
         });
     }
 
@@ -137,13 +138,13 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
     /**
      * @notice Set the protocol earning percent for the pool.
-     * @dev _protocolEarningPercent must be inclusively between 0 and maxProtocolFeePercent.
+     * @dev _protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_FEE_PERCENT.
      *      Caller must be the governance.
      * @param _protocolEarningPercent new protocol earning percent.
      */
     function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
         require(
-            0 <= _protocolEarningPercent && _protocolEarningPercent <= config.maxProtocolFeePercent,
+            0 <= _protocolEarningPercent && _protocolEarningPercent <= SaplingMath.MAX_PROTOCOL_FEE_PERCENT,
             "SaplingPoolContext: protocol earning percent is out of bounds"
         );
 

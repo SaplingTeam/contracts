@@ -236,10 +236,10 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             it('Protocol fee percent is correct', async function () {
                 let minValue = 0 * 10 ** PERCENT_DECIMALS;
-                let maxValue = 10 * 10 ** PERCENT_DECIMALS;
-                let defaultValue = 10 * 10 ** PERCENT_DECIMALS;
+                let maxValue = 50 * 10 ** PERCENT_DECIMALS;
+                let defaultValue = 20 * 10 ** PERCENT_DECIMALS;
 
-                expect((await saplingPoolContext.config()).maxProtocolFeePercent).to.equal(maxValue);
+                expect(await saplingMath.MAX_PROTOCOL_FEE_PERCENT()).to.equal(maxValue);
                 expect((await saplingPoolContext.config()).protocolFeePercent)
                     .to.equal(defaultValue)
                     .and.gte(minValue)
@@ -356,7 +356,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             describe('Protocol fee percent', function () {
                 it('Governance can set protocol fee percent', async function () {
                     let currentValue = (await saplingPoolContext.config()).protocolFeePercent;
-                    let maxValue = (await saplingPoolContext.config()).maxProtocolFeePercent;
+                    let maxValue = await saplingMath.MAX_PROTOCOL_FEE_PERCENT();
 
                     let newValue = 2 * 10 ** PERCENT_DECIMALS;
                     assertHardhatInvariant(newValue != currentValue && newValue <= maxValue);
@@ -368,7 +368,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 describe('Rejection scenarios', function () {
                     it('Protocol fee percent cannot be set to a value greater than the allowed maximum', async function () {
                         let currentValue = (await saplingPoolContext.config()).protocolFeePercent;
-                        let maxValue = (await saplingPoolContext.config()).maxProtocolFeePercent;
+                        let maxValue = await saplingMath.MAX_PROTOCOL_FEE_PERCENT();
 
                         await expect(saplingPoolContext.connect(governance).setProtocolEarningPercent(maxValue + 1)).to
                             .be.reverted;
@@ -376,7 +376,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                     it('A non-governance cannot set protocol fee percent', async function () {
                         let currentValue = (await saplingPoolContext.config()).protocolFeePercent;
-                        let maxValue = (await saplingPoolContext.config()).maxProtocolFeePercent;
+                        let maxValue = await saplingMath.MAX_PROTOCOL_FEE_PERCENT();
 
                         let newValue = 2 * 10 ** PERCENT_DECIMALS;
                         assertHardhatInvariant(newValue != currentValue && newValue <= maxValue);

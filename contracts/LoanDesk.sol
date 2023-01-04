@@ -10,7 +10,6 @@ import "./interfaces/IPoolContext.sol";
 import "./interfaces/ILendingPool.sol";
 
 import "./lib/SaplingMath.sol";
-import "./lib/Limits.sol";
 
 /**
  * @title Loan Desk
@@ -107,8 +106,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
         loanTemplate = LoanTemplate({
             minAmount: 100 * 10 ** uint256(_decimals),
-            minDuration: Limits.SAFE_MIN_DURATION,
-            maxDuration: Limits.SAFE_MAX_DURATION,
+            minDuration: SaplingMath.SAFE_MIN_DURATION,
+            maxDuration: SaplingMath.SAFE_MAX_DURATION,
             gracePeriod: 60 days,
             apr: uint16(30 * 10 ** SaplingMath.PERCENT_DECIMALS) // 30%
         });
@@ -127,7 +126,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      * @param minAmount Minimum loan amount to be enforced on new loan requests and offers
      */
     function setMinLoanAmount(uint256 minAmount) external onlyRole(poolManagerRole) {
-        require(Limits.SAFE_MIN_AMOUNT <= minAmount, "LoanDesk: new min loan amount is less than the safe limit");
+        require(SaplingMath.SAFE_MIN_AMOUNT <= minAmount, "LoanDesk: new min loan amount is less than the safe limit");
 
         uint256 prevValue = loanTemplate.minAmount;
         loanTemplate.minAmount = minAmount;
@@ -143,7 +142,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      */
     function setMinLoanDuration(uint256 duration) external onlyRole(poolManagerRole) {
         require(
-            Limits.SAFE_MIN_DURATION <= duration && duration <= loanTemplate.maxDuration,
+            SaplingMath.SAFE_MIN_DURATION <= duration && duration <= loanTemplate.maxDuration,
             "LoanDesk: new min duration is out of bounds"
         );
 
@@ -161,7 +160,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      */
     function setMaxLoanDuration(uint256 duration) external onlyRole(poolManagerRole) {
         require(
-            loanTemplate.minDuration <= duration && duration <= Limits.SAFE_MAX_DURATION,
+            loanTemplate.minDuration <= duration && duration <= SaplingMath.SAFE_MAX_DURATION,
             "LoanDesk: new max duration is out of bounds"
         );
 
@@ -179,7 +178,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      */
     function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyRole(poolManagerRole) {
         require(
-            Limits.MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= Limits.MAX_LOAN_GRACE_PERIOD,
+            SaplingMath.MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= SaplingMath.MAX_LOAN_GRACE_PERIOD,
             "LoanDesk: new grace period is out of bounds."
         );
 
@@ -196,7 +195,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      * @param apr Loan APR to be enforced on the new loan offers.
      */
     function setTemplateLoanAPR(uint16 apr) external onlyRole(poolManagerRole) {
-        require(Limits.SAFE_MIN_APR <= apr && apr <= SaplingMath.HUNDRED_PERCENT, "LoanDesk: APR is out of bounds");
+        require(
+            SaplingMath.SAFE_MIN_APR <= apr && apr <= SaplingMath.HUNDRED_PERCENT,
+            "LoanDesk: APR is out of bounds"
+        );
 
         uint256 prevValue = loanTemplate.apr;
         loanTemplate.apr = apr;
@@ -792,17 +794,17 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             loanTemplate.minDuration <= _duration && _duration <= loanTemplate.maxDuration,
             "LoanDesk: invalid duration"
         );
-        require(Limits.MIN_LOAN_GRACE_PERIOD <= _gracePeriod && _gracePeriod <= Limits.MAX_LOAN_GRACE_PERIOD,
+        require(SaplingMath.MIN_LOAN_GRACE_PERIOD <= _gracePeriod && _gracePeriod <= SaplingMath.MAX_LOAN_GRACE_PERIOD,
             "LoanDesk: invalid grace period");
         require(
-            _installmentAmount == 0 || _installmentAmount >= Limits.SAFE_MIN_AMOUNT,
+            _installmentAmount == 0 || _installmentAmount >= SaplingMath.SAFE_MIN_AMOUNT,
             "LoanDesk: invalid installment amount"
         );
         require(
             1 <= _installments && _installments <= _duration / (1 days),
             "LoanDesk: invalid number of installments"
         );
-        require(Limits.SAFE_MIN_APR <= _apr && _apr <= SaplingMath.HUNDRED_PERCENT, "LoanDesk: invalid APR");
+        require(SaplingMath.SAFE_MIN_APR <= _apr && _apr <= SaplingMath.HUNDRED_PERCENT, "LoanDesk: invalid APR");
     }
 
     /**
