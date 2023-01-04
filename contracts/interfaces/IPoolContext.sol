@@ -18,19 +18,6 @@ interface IPoolContext {
 
     /// Pool configuration
     struct PoolConfig {
-
-        // Auto or pseudo-constant parameters
-
-        /// Weighted average loan APR on the borrowed funds
-        uint16 weightedAvgStrategyAPR;
-
-        /// exit fee percentage
-        uint16 exitFeePercent;
-
-        /// An upper bound for percentage of paid interest to be allocated as protocol fee
-        uint16 maxProtocolFeePercent;
-
-
         // Governance maintained parameters
 
         /// Minimum liquidity token amount for withdrawal requests
@@ -53,6 +40,18 @@ interface IPoolContext {
 
         /// Target percentage of pool funds to keep liquid.
         uint16 targetLiquidityPercent;
+
+
+        // Auto or pseudo-constant parameters
+
+        /// Weighted average loan APR on the borrowed funds
+        uint16 weightedAvgStrategyAPR;
+
+        /// exit fee percentage
+        uint16 exitFeePercent;
+
+        /// An upper bound for percentage of paid interest to be allocated as protocol fee
+        uint16 maxProtocolFeePercent;
     }
 
     /// Key pool balances

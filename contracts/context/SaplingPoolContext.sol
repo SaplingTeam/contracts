@@ -85,17 +85,17 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         uint16 _maxEarnFactor = uint16(1000 * 10 ** SaplingMath.PERCENT_DECIMALS);
 
         config = PoolConfig({
-            weightedAvgStrategyAPR: 0,
-            exitFeePercent: SaplingMath.HUNDRED_PERCENT / 200, // 0.5%
-            maxProtocolFeePercent: _maxProtocolFeePercent,
-
             minWithdrawalRequestAmount: 10 * 10 ** tokenConfig.decimals,
             targetStakePercent: uint16(10 * 10 ** SaplingMath.PERCENT_DECIMALS),
             protocolFeePercent: _maxProtocolFeePercent,
             managerEarnFactorMax: _maxEarnFactor,
 
             targetLiquidityPercent: 0,
-            managerEarnFactor: uint16(MathUpgradeable.min(150 * 10 ** SaplingMath.PERCENT_DECIMALS, _maxEarnFactor))
+            managerEarnFactor: uint16(MathUpgradeable.min(150 * 10 ** SaplingMath.PERCENT_DECIMALS, _maxEarnFactor)),
+
+            weightedAvgStrategyAPR: 0,
+            exitFeePercent: SaplingMath.HUNDRED_PERCENT / 200, // 0.5%
+            maxProtocolFeePercent: _maxProtocolFeePercent
         });
     }
 
@@ -933,5 +933,5 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     /**
      * @dev Slots reserved for future state variables
      */
-    uint256[35] private __gap;
+    uint256[30] private __gap;
 }
