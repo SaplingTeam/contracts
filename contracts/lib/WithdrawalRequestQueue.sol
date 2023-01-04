@@ -155,6 +155,16 @@ library WithdrawalRequestQueue {
      * @param list Storage reference to LinkedMap
      * @return ID of the first (head) node in the queue
      */
+    function headID(LinkedMap storage list) internal view returns (uint256) {
+        return list._head;
+    }
+
+    /**
+     * @notice Accessor
+     * @dev ID value of 0 is not used, and a return value of 0 means the queue is empty.
+     * @param list Storage reference to LinkedMap
+     * @return First node in the queue
+     */
     function head(LinkedMap storage list) internal view returns (Request memory) {
         require(list._head != 0, "WithdrawalRequestQueue: list is empty");
         return list._requests[list._head];
@@ -164,7 +174,7 @@ library WithdrawalRequestQueue {
      * @notice Accessor
      * @dev ID value of 0 is not used, and a return value of 0 means the queue is empty.
      * @param list storage reference to LinkedMap
-     * @return Node (withdrawal request) with the given ID
+     * @return Last node in the queue
      */
     function tail(LinkedMap storage list) internal view returns (Request memory) {
         require(list._tail != 0, "WithdrawalRequestQueue: list is empty");

@@ -349,8 +349,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
     /**
      * @notice Fulfill withdrawal request in a batch if liquidity requirements are met.
-     * @dev Anyone can trigger fulfillment of a withdrawal request. Fulfillment is on demand, and requests ahead 
-     *      in the queue do not have to be fulfilled as long as their liquidity requirements met.
+     * @dev Anyone can trigger fulfillment of a withdrawal request.
      *      
      *      It is in the interest of the pool manager to keep the withdrawal requests fulfilled as soon as there is 
      *      liquidity, as unfulfilled requests will keep earning yield but lock liquidity once the liquidity comes in.
@@ -368,13 +367,37 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
     }
 
     /**
+     * @notice Fulfill a single arbitrary withdrawal request.
+     * @dev Anyone can trigger fulfillment of a withdrawal request. Fulfillment is on demand, and other requests 
+     *      in the queue are not processed but their liquidity requirements have to be met.
+     *
+     * @param id ID of the withdrawal request to fulfill
+     */
+    function fulfillWithdrawalRequestById(uint256 id) external whenNotPaused nonReentrant {
+        require(
+            balances.rawLiquidity >= tokensToFunds(balances.withdrawalRequestedShares),
+            "SaplingPoolContext: insufficient liquidity for arbitrary request fulfillment"
+        );
+
+        fulfillWithdrawalRequest(id);
+    }
+
+    /**
      * @dev Fulfill a single withdrawal request at the top of the queue.
      */
     function fulfillNextWithdrawalRequest() private {
+        fulfillWithdrawalRequest(withdrawalQueue.headID());
+    }
+
+    /**
+     * @dev Fulfill a single withdrawal request by id.
+     * @param id ID of the withdrawal request to fulfill
+     */
+    function fulfillWithdrawalRequest(uint256 id) private {
 
         //// check
 
-        WithdrawalRequestQueue.Request memory request = withdrawalQueue.head();
+        WithdrawalRequestQueue.Request memory request = withdrawalQueue.get(id);
         
         uint256 requestedAmount = tokensToFunds(request.sharesLocked);
         uint256 transferAmount = requestedAmount - MathUpgradeable.mulDiv(
