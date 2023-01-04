@@ -128,8 +128,9 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         balances.allocatedFunds -= amount;
         balances.strategizedFunds += amount;
 
-        config.weightedAvgStrategyAPR = (prevStrategizedFunds * config.weightedAvgStrategyAPR + amount * apr)
-            / balances.strategizedFunds;
+        config.weightedAvgStrategyAPR = uint16(
+            (prevStrategizedFunds * config.weightedAvgStrategyAPR + amount * apr) / balances.strategizedFunds
+        );
 
         //// interactions
 

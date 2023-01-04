@@ -780,10 +780,10 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      */
     function updateAvgStrategyApr(uint256 amountReducedBy, uint16 apr) internal {
         if (balances.strategizedFunds > 0) {
-            config.weightedAvgStrategyAPR = (
-                (balances.strategizedFunds + amountReducedBy) * config.weightedAvgStrategyAPR - amountReducedBy * apr
-            )
-                / balances.strategizedFunds;
+            config.weightedAvgStrategyAPR = uint16(
+                ((balances.strategizedFunds + amountReducedBy) * config.weightedAvgStrategyAPR - amountReducedBy * apr)
+                / balances.strategizedFunds
+            );
         } else {
             config.weightedAvgStrategyAPR = 0;
         }

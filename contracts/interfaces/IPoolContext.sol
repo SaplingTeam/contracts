@@ -22,7 +22,7 @@ interface IPoolContext {
         // Auto or pseudo-constant parameters
 
         /// Weighted average loan APR on the borrowed funds
-        uint256 weightedAvgStrategyAPR;
+        uint16 weightedAvgStrategyAPR;
 
         /// exit fee percentage
         uint16 exitFeePercent;
