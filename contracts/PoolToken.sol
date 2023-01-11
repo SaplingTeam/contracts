@@ -2,6 +2,8 @@
 pragma solidity ^0.8.15;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/draft-ERC20Permit.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/IPoolToken.sol";
 
@@ -9,7 +11,7 @@ import "./interfaces/IPoolToken.sol";
  * @title Sapling Pool Token
  * @notice Ownership of the token represents the lender shares in the respective pools.
  */
-contract PoolToken is IPoolToken, ERC20, Ownable {
+contract PoolToken is IPoolToken, ERC20, ERC20Permit, ERC20Votes, Ownable {
 
     uint8 private immutable _decimals;
 
@@ -19,7 +21,7 @@ contract PoolToken is IPoolToken, ERC20, Ownable {
      * @param symbol Token symbol
      * @param tokenDecimals The number of decimal digits used to represent the fractional part of the token values.
      */
-    constructor(string memory name, string memory symbol, uint8 tokenDecimals) ERC20(name, symbol) {
+    constructor(string memory name, string memory symbol, uint8 tokenDecimals) ERC20(name, symbol) ERC20Permit(name) {
         _decimals = tokenDecimals;
     }
 
@@ -51,5 +53,28 @@ contract PoolToken is IPoolToken, ERC20, Ownable {
      */
     function decimals() public view override returns (uint8) {
         return _decimals;
+    }
+
+    // The following functions are overrides required by Solidity.
+
+    function _afterTokenTransfer(address from, address to, uint256 amount)
+        internal
+        override(ERC20, ERC20Votes)
+    {
+        super._afterTokenTransfer(from, to, amount);
+    }
+
+    function _mint(address to, uint256 amount)
+        internal
+        override(ERC20, ERC20Votes)
+    {
+        super._mint(to, amount);
+    }
+
+    function _burn(address account, uint256 amount)
+        internal
+        override(ERC20, ERC20Votes)
+    {
+        super._burn(account, amount);
     }
 }
