@@ -58,6 +58,7 @@ async function main() {
         liquidityTokenAddress,
         coreAccessControl.address,
         POOL_1_MANAGER_ROLE,
+        POOL_1_LENDER_GOVERNANCE_ROLE,
     ]);
     await saplingPoolContract.deployed();
     console.log("LendingPool address: \t\t", saplingPoolContract.address);
@@ -68,6 +69,7 @@ async function main() {
         saplingPoolContract.address,
         coreAccessControl.address,
         POOL_1_MANAGER_ROLE,
+        POOL_1_LENDER_GOVERNANCE_ROLE,
         DECIMALS,
     ]);
     await loanDeskContract.deployed();

@@ -41,6 +41,7 @@ async function main() {
       liquidityTokenAddress,
       coreAccessControl.address,
       POOL_1_MANAGER_ROLE,
+      POOL_1_LENDER_GOVERNANCE_ROLE,
   ]);
     await saplingPoolContract.deployed();
   saplingPoolContract = await ethers.getContractAt("SaplingLendingPool", '0xADC6b846bdA2909a9218a9E7957aa0469B96626B');
@@ -52,6 +53,7 @@ async function main() {
       saplingPoolContract.address,
       coreAccessControl.address,
       POOL_1_MANAGER_ROLE,
+      POOL_1_LENDER_GOVERNANCE_ROLE,
       DECIMALS,
   ]);
     await loanDeskContract.deployed();
