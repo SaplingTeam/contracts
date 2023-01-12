@@ -41,5 +41,10 @@ Then update the values accordingly in `.env`
 - Check contracts code style: `npm run check`
 - Autoformat all unit test code: `npm run pretty-tests`
 
+## Contributing
+
+If you would like to contribute, join 👥-contributors channel on [Sapling discord](https://discord.gg/BPjRn2wn5F) 
+and tell us about how you'd like to help.
+
 ## License 
 Sapling V1 contracts are under the [MIT](https://raw.githubusercontent.com/SaplingTeam/contracts/v1/LICENSE) license.
