@@ -18,15 +18,17 @@ contract SaplingManagerContextTester is SaplingManagerContext {
      * @dev Initializer
      * @param _accessControl Access control contract
      * @param _managerRole Manager role
+     * @param _lenderGovernanceRole Role held by the timelock control that executed passed lender votes
      */
     function initialize(
         address _accessControl,
-        bytes32 _managerRole
+        bytes32 _managerRole,
+        bytes32 _lenderGovernanceRole
     )
         public
         initializer
     {
-         __SaplingManagerContext_init(_accessControl, _managerRole);
+         __SaplingManagerContext_init(_accessControl, _managerRole, _lenderGovernanceRole);
     }
 
     /**

@@ -15,9 +15,11 @@ interface ILoanDesk {
         NULL,
         APPLIED,
         DENIED,
+        OFFER_DRAFTED,
+        OFFER_DRAFT_LOCKED,
         OFFER_MADE,
         OFFER_ACCEPTED,
-        OFFER_CANCELLED
+        CANCELLED
     }
 
     /// Default loan parameter values
@@ -181,10 +183,16 @@ interface ILoanDesk {
     event LoanRequestDenied(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan offer is made
-    event LoanOffered(uint256 applicationId, address indexed borrower, uint256 amount);
+    event LoanOfferDrafted(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan offer is updated
-    event LoanOfferUpdated(uint256 applicationId, address indexed borrower, uint256 prevAmount, uint256 newAmount);
+    event OfferDraftUpdated(uint256 applicationId, address indexed borrower, uint256 prevAmount, uint256 newAmount);
+
+    /// Event for when a loan offer draft is locked and is made available for voting
+    event LoanOfferDraftLocked(uint256 applicationId);
+
+    /// Event for when a loan offer has passed voting and is now available to borrow
+    event LoanOfferMade(uint256 applicationId);
 
     /// Event for when a loan offer is cancelled
     event LoanOfferCancelled(uint256 applicationId, address indexed borrower, uint256 amount);

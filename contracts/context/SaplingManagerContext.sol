@@ -11,13 +11,21 @@ import "./SaplingContext.sol";
  */
 abstract contract SaplingManagerContext is SaplingContext {
 
-    /*
+    /**
      * Pool manager role
      * 
      * @dev The value of this role should be unique for each pool. Role must be created before the pool contract 
      *      deployment, then passed during construction/initialization.
      */
     bytes32 public poolManagerRole;
+
+    /**
+     * Lender manager role
+     * @notice Role given to the address of the timelock contract that executes a loan offer upon a passing vote
+     * @dev The value of this role should be unique for each pool. Role must be created before the pool contract 
+     *      deployment, then passed during construction/initialization.
+     */
+    bytes32 public lenderGovernanceRole;
 
     /// Flag indicating whether or not the pool is closed
     bool private _closed;
@@ -51,10 +59,12 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @dev Addresses must not be 0.
      * @param _accessControl Access control contract address
      * @param _managerRole Manager role
+     * @param _lenderGovernanceRole Role held by the timelock control that executed passed lender votes
      */
     function __SaplingManagerContext_init(
         address _accessControl,
-        bytes32 _managerRole
+        bytes32 _managerRole,
+        bytes32 _lenderGovernanceRole
     )
         internal
         onlyInitializing
@@ -68,6 +78,7 @@ abstract contract SaplingManagerContext is SaplingContext {
         assert(_closed == false && poolManagerRole == 0x00);
 
         poolManagerRole = _managerRole;
+        lenderGovernanceRole = _lenderGovernanceRole;
         _closed = true;
     }
 
