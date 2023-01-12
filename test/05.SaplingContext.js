@@ -24,6 +24,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
     const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+    const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
 
@@ -35,6 +36,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
 
     let deployer;
     let governance;
+    let lenderGovernance;
     let protocol;
     let manager;
     let addresses;
@@ -48,7 +50,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
     });
 
     before(async function () {
-        [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
+        [deployer, governance, lenderGovernance, protocol, manager, ...addresses] = await ethers.getSigners();
 
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
@@ -61,6 +63,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
         await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
 
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         let PoolTokenCF = await ethers.getContractFactory('PoolToken');
@@ -75,6 +78,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             liquidityToken.address,
             coreAccessControl.address,
             POOL_1_MANAGER_ROLE,
+            POOL_1_LENDER_GOVERNANCE_ROLE,
         ]);
         await lendingPool.deployed();
 
@@ -82,6 +86,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             lendingPool.address,
             coreAccessControl.address,
             POOL_1_MANAGER_ROLE,
+            POOL_1_LENDER_GOVERNANCE_ROLE,
             TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
@@ -102,6 +107,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                     liquidityToken.address,
                     coreAccessControl.address,
                     POOL_1_MANAGER_ROLE,
+                    POOL_1_LENDER_GOVERNANCE_ROLE,
                 ]),
             ).to.be.not.reverted;
         });
@@ -114,6 +120,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                         liquidityToken.address,
                         NULL_ADDRESS,
                         POOL_1_MANAGER_ROLE,
+                        POOL_1_LENDER_GOVERNANCE_ROLE,
                     ]),
                 ).to.be.reverted;
             });
