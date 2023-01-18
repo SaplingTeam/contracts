@@ -789,7 +789,12 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      * @param loanId ID of the loan to check the balance of
      * @return Total amount due with interest on this loan
      */
-    function loanBalanceDue(uint256 loanId) external view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns(uint256) {
+    function loanBalanceDue(uint256 loanId)
+        external
+        view
+        loanInStatus(loanId, LoanStatus.OUTSTANDING)
+        returns(uint256)
+    {
         (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
         return principalOutstanding + interestOutstanding - loanDetails[loanId].paymentCarry;
     }
