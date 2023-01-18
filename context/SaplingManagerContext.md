@@ -4,13 +4,18 @@
 
 Provides manager access control, and a basic close functionality.
 
-### manager
+_Close functionality is implemented in the same fashion as Openzeppelin's Pausable._
+
+### poolManagerRole
 
 ```solidity
-address manager
+bytes32 poolManagerRole
 ```
 
-Manager address
+Pool manager role
+
+_The value of this role should be unique for each pool. Role must be created before the pool contract 
+     deployment, then passed during construction/initialization._
 
 ### _closed
 
@@ -19,32 +24,6 @@ bool _closed
 ```
 
 Flag indicating whether or not the pool is closed
-
-### percentDecimals
-
-```solidity
-uint16 percentDecimals
-```
-
-Number of decimal digits in integer percent values used across the contract
-
-### oneHundredPercent
-
-```solidity
-uint16 oneHundredPercent
-```
-
-A constant representing 100%
-
-### MANAGER_INACTIVITY_GRACE_PERIOD
-
-```solidity
-uint256 MANAGER_INACTIVITY_GRACE_PERIOD
-```
-
-Grace period for the manager to be inactive on a given loan /cancel/default decision.
-        After this grace period of managers inaction on a given loan authorized parties
-        can also call cancel() and default(). Other requirements for loan cancellation/default still apply.
 
 ### Closed
 
@@ -61,30 +40,6 @@ event Opened(address account)
 ```
 
 Event for when the contract is reopened
-
-### ManagerTransferred
-
-```solidity
-event ManagerTransferred(address from, address to)
-```
-
-Event for when a new manager is set
-
-### onlyManager
-
-```solidity
-modifier onlyManager()
-```
-
-A modifier to limit access only to the manager
-
-### managerOrApprovedOnInactive
-
-```solidity
-modifier managerOrApprovedOnInactive()
-```
-
-A modifier to limit access to the manager or to other applicable parties when the manager is considered inactive
 
 ### onlyUser
 
@@ -113,7 +68,7 @@ Modifier to limit function access to when the contract is closed
 ### __SaplingManagerContext_init
 
 ```solidity
-function __SaplingManagerContext_init(address _governance, address _treasury, address _manager) internal
+function __SaplingManagerContext_init(address _accessControl, bytes32 _managerRole) internal
 ```
 
 Create a new SaplingManagedContext.
@@ -122,24 +77,8 @@ _Addresses must not be 0._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _governance | address | Governance address |
-| _treasury | address | Treasury wallet address |
-| _manager | address | Manager address |
-
-### transferManager
-
-```solidity
-function transferManager(address _manager) external
-```
-
-Transfer the manager.
-
-_Caller must be the governance.
-     New manager address must not be 0, and must not be one of current non-user addresses._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _manager | address | New manager address |
+| _accessControl | address | Access control contract address |
+| _managerRole | bytes32 | Manager role |
 
 ### close
 
@@ -147,12 +86,13 @@ _Caller must be the governance.
 function close() external
 ```
 
-Close the pool and stop borrowing, lender deposits, and staking.
+Close the pool.
 
-_Caller must be the manager.
-     Pool must be open.
-     No loans or approvals must be outstanding (borrowedFunds must equal to 0).
-     Emits 'PoolClosed' event._
+_Only the functions using whenClosed and whenNotClosed modifiers will be affected by close.
+     Caller must have the pool manager role. Pool must be open.
+
+     Manager must have access to close function as the ability to unstake and withdraw all manager funds is 
+     only guaranteed when the pool is closed and all outstanding loans resolved._
 
 ### open
 
@@ -162,10 +102,8 @@ function open() external
 
 Open the pool for normal operations.
 
-_Caller must be the manager.
-     Pool must be closed.
-     Opening the pool will not unpause any pauses in effect.
-     Emits 'PoolOpened' event._
+_Only the functions using whenClosed and whenNotClosed modifiers will be affected by open.
+     Caller must have the pool manager role. Pool must be closed._
 
 ### closed
 
@@ -185,13 +123,17 @@ Indicates whether or not the contract is closed.
 function isNonUserAddress(address party) internal view returns (bool)
 ```
 
-Verify if an address is currently in any non-user/management position.
+Verify if an address has any non-user/management roles
 
-_a hook in Sampling Context_
+_Overrides the same function in SaplingContext_
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | party | address | Address to verify |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the address has any roles, false otherwise |
 
 ### canClose
 
@@ -205,24 +147,27 @@ _A hook for the extending contract to implement._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | bool | True if the contract is closed, false otherwise. |
+| [0] | bool | True if the conditions of the closure are met, false otherwise. |
 
-### authorizedOnInactiveManager
+### canOpen
 
 ```solidity
-function authorizedOnInactiveManager(address caller) internal view virtual returns (bool)
+function canOpen() internal view virtual returns (bool)
 ```
 
-Indicates whether or not the the caller is authorized to take applicable managing actions when the
-        manager is inactive.
+Indicates whether or not the contract can be opened in it's current state.
 
 _A hook for the extending contract to implement._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| caller | address | Caller's address. |
+| [0] | bool | True if the conditions to open are met, false otherwise. |
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | bool | True if the caller is authorized at this time, false otherwise. |
+### __gap
+
+```solidity
+uint256[48] __gap
+```
+
+_Slots reserved for future state variables_
 

@@ -4,35 +4,17 @@
 
 Provides loan application and offer management.
 
-### LoanApplication
+### lenderGovernanceRole
 
 ```solidity
-struct LoanApplication {
-  uint256 id;
-  address borrower;
-  uint256 amount;
-  uint256 duration;
-  uint256 requestedTime;
-  enum ILoanDesk.LoanApplicationStatus status;
-  string profileId;
-  string profileDigest;
-}
+bytes32 lenderGovernanceRole
 ```
 
-### BorrowerStats
+Lender governance role
+Role given to the address of the timelock contract that executes a loan offer upon a passing vote
 
-```solidity
-struct BorrowerStats {
-  address borrower;
-  uint256 countRequested;
-  uint256 countDenied;
-  uint256 countOffered;
-  uint256 countBorrowed;
-  uint256 countCancelled;
-  uint256 recentApplicationId;
-  bool hasOpenApplication;
-}
-```
+_The value of this role should be unique for each pool. Role must be created before the pool contract
+     deployment, then passed during construction/initialization._
 
 ### pool
 
@@ -42,101 +24,13 @@ address pool
 
 Address of the lending pool contract
 
-### safeMinAmount
+### loanTemplate
 
 ```solidity
-uint256 safeMinAmount
+struct ILoanDesk.LoanTemplate loanTemplate
 ```
 
-Math safe minimum loan amount including token decimals
-
-### minLoanAmount
-
-```solidity
-uint256 minLoanAmount
-```
-
-Minimum allowed loan amount
-
-### SAFE_MIN_DURATION
-
-```solidity
-uint256 SAFE_MIN_DURATION
-```
-
-Math safe minimum loan duration in seconds
-
-### SAFE_MAX_DURATION
-
-```solidity
-uint256 SAFE_MAX_DURATION
-```
-
-Math safe maximum loan duration in seconds
-
-### minLoanDuration
-
-```solidity
-uint256 minLoanDuration
-```
-
-Minimum loan duration in seconds
-
-### maxLoanDuration
-
-```solidity
-uint256 maxLoanDuration
-```
-
-Maximum loan duration in seconds
-
-### templateLoanGracePeriod
-
-```solidity
-uint256 templateLoanGracePeriod
-```
-
-Loan payment grace period after which a loan can be defaulted
-
-### MIN_LOAN_GRACE_PERIOD
-
-```solidity
-uint256 MIN_LOAN_GRACE_PERIOD
-```
-
-Minimum allowed loan payment grace period
-
-### MAX_LOAN_GRACE_PERIOD
-
-```solidity
-uint256 MAX_LOAN_GRACE_PERIOD
-```
-
-Maximum allowed loan payment grace period
-
-### SAFE_MIN_APR
-
-```solidity
-uint16 SAFE_MIN_APR
-```
-
-Safe minimum for APR values
-
-### safeMaxApr
-
-```solidity
-uint16 safeMaxApr
-```
-
-Safe maximum for APR values
-
-### templateLoanAPR
-
-```solidity
-uint16 templateLoanAPR
-```
-
-Loan APR to be applied for the new loan requests
+Default loan parameter values
 
 ### nextApplicationId
 
@@ -146,10 +40,18 @@ uint256 nextApplicationId
 
 Loan application id generator counter
 
+### offeredFunds
+
+```solidity
+uint256 offeredFunds
+```
+
+Total liquidity tokens allocated for loan offers and pending acceptance by the borrowers
+
 ### loanApplications
 
 ```solidity
-mapping(uint256 => struct LoanDesk.LoanApplication) loanApplications
+mapping(uint256 => struct ILoanDesk.LoanApplication) loanApplications
 ```
 
 Loan applications by applicationId
@@ -162,117 +64,43 @@ mapping(uint256 => struct ILoanDesk.LoanOffer) loanOffers
 
 Loan offers by applicationId
 
-### borrowerStats
+### recentApplicationIdOf
 
 ```solidity
-mapping(address => struct LoanDesk.BorrowerStats) borrowerStats
+mapping(address => uint256) recentApplicationIdOf
 ```
 
-Borrower statistics by address
+Recent application id by address
 
-### offeredFunds
+### nextLoanId
 
 ```solidity
-uint256 offeredFunds
+uint256 nextLoanId
 ```
 
-Total liquidity tokens allocated for loan offers and pending acceptance by the borrowers
+Loan id generator counter
 
-### LoanRequested
+### outstandingLoansCount
 
 ```solidity
-event LoanRequested(uint256 applicationId, address borrower, uint256 amount)
+uint256 outstandingLoansCount
 ```
 
-Event for when a new loan is requested, and an application is created
-
-### LoanRequestDenied
+### loans
 
 ```solidity
-event LoanRequestDenied(uint256 applicationId, address borrower, uint256 amount)
+mapping(uint256 => struct ILoanDesk.Loan) loans
 ```
 
-Event for when a loan request is denied
+Loans by loan ID
 
-### LoanOffered
+### loanDetails
 
 ```solidity
-event LoanOffered(uint256 applicationId, address borrower, uint256 amount)
+mapping(uint256 => struct ILoanDesk.LoanDetail) loanDetails
 ```
 
-Event for when a loan offer is made
-
-### LoanOfferUpdated
-
-```solidity
-event LoanOfferUpdated(uint256 applicationId, address borrower, uint256 prevAmount, uint256 newAmount)
-```
-
-Event for when a loan offer is updated
-
-### LoanOfferCancelled
-
-```solidity
-event LoanOfferCancelled(uint256 applicationId, address borrower, uint256 amount)
-```
-
-Event for when a loan offer is cancelled
-
-### LoanOfferAccepted
-
-```solidity
-event LoanOfferAccepted(uint256 applicationId, address borrower, uint256 amount)
-```
-
-Event for when a loan offer is accepted
-
-### MinLoanAmountSet
-
-```solidity
-event MinLoanAmountSet(uint256 prevValue, uint256 newValue)
-```
-
-Setter event
-
-### MinLoanDurationSet
-
-```solidity
-event MinLoanDurationSet(uint256 prevValue, uint256 newValue)
-```
-
-Setter event
-
-### MaxLoanDurationSet
-
-```solidity
-event MaxLoanDurationSet(uint256 prevValue, uint256 newValue)
-```
-
-Setter event
-
-### TemplateLoanGracePeriodSet
-
-```solidity
-event TemplateLoanGracePeriodSet(uint256 prevValue, uint256 newValue)
-```
-
-Setter event
-
-### TemplateLoanAPRSet
-
-```solidity
-event TemplateLoanAPRSet(uint256 prevValue, uint256 newValue)
-```
-
-Setter event
-
-### onlyPool
-
-```solidity
-modifier onlyPool()
-```
-
-A modifier to limit access only to the lending pool contract
+LoanDetails by loan ID
 
 ### applicationInStatus
 
@@ -281,6 +109,12 @@ modifier applicationInStatus(uint256 applicationId, enum ILoanDesk.LoanApplicati
 ```
 
 A modifier to limit access only to when the application exists and has the specified status
+
+### loanInStatus
+
+```solidity
+modifier loanInStatus(uint256 loanId, enum ILoanDesk.LoanStatus status)
+```
 
 ### disableIntitializers
 
@@ -293,7 +127,7 @@ _Disable initializers_
 ### initialize
 
 ```solidity
-function initialize(address _pool, address _governance, address _treasury, address _manager, uint8 _decimals) public
+function initialize(address _pool, address _accessControl, bytes32 _managerRole, bytes32 _lenderGovernanceRole, uint8 _decimals) public
 ```
 
 Initializer a new LoanDesk.
@@ -303,25 +137,25 @@ _Addresses must not be 0._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _pool | address | Lending pool address |
-| _governance | address | Governance address |
-| _treasury | address | Treasury wallet address |
-| _manager | address | Manager address |
+| _accessControl | address | Access control contract |
+| _managerRole | bytes32 | Manager role |
+| _lenderGovernanceRole | bytes32 | Role held by the timelock control that executed passed lender votes |
 | _decimals | uint8 | Lending pool liquidity token decimals |
 
 ### setMinLoanAmount
 
 ```solidity
-function setMinLoanAmount(uint256 _minLoanAmount) external
+function setMinLoanAmount(uint256 minAmount) external
 ```
 
 Set a minimum loan amount.
 
-_minLoanAmount must be greater than or equal to safeMinAmount.
+_minAmount must be greater than or equal to safeMinAmount.
      Caller must be the manager._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _minLoanAmount | uint256 | Minimum loan amount to be enforced on new loan requests and offers |
+| minAmount | uint256 | Minimum loan amount to be enforced on new loan requests and offers |
 
 ### setMinLoanDuration
 
@@ -331,7 +165,7 @@ function setMinLoanDuration(uint256 duration) external
 
 Set the minimum loan duration
 
-_Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxLoanDuration.
+_Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxDuration.
      Caller must be the manager._
 
 | Name | Type | Description |
@@ -346,7 +180,7 @@ function setMaxLoanDuration(uint256 duration) external
 
 Set the maximum loan duration.
 
-_Duration must be in seconds and inclusively between minLoanDuration and SAFE_MAX_DURATION.
+_Duration must be in seconds and inclusively between minDuration and SAFE_MAX_DURATION.
      Caller must be the manager._
 
 | Name | Type | Description |
@@ -376,7 +210,7 @@ function setTemplateLoanAPR(uint16 apr) external
 
 Set a template loan APR
 
-_APR must be inclusively between SAFE_MIN_APR and safeMaxApr.
+_APR must be inclusively between SAFE_MIN_APR and 100%.
      Caller must be the manager._
 
 | Name | Type | Description |
@@ -392,7 +226,7 @@ function requestLoan(uint256 _amount, uint256 _duration, string _profileId, stri
 Request a new loan.
 
 _Requested amount must be greater or equal to minLoanAmount().
-     Loan duration must be between minLoanDuration() and maxLoanDuration().
+     Loan duration must be between minDuration() and maxDuration().
      Multiple pending applications from the same address are not allowed -
      most recent loan/application of the caller must not have APPLIED status._
 
@@ -414,13 +248,13 @@ Deny a loan.
 _Loan must be in APPLIED status.
      Caller must be the manager._
 
-### offerLoan
+### draftOffer
 
 ```solidity
-function offerLoan(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint16 _apr) external
+function draftOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint16 _apr) external
 ```
 
-Approve a loan application and offer a loan.
+Draft a loan offer for an application.
 
 _Loan application must be in APPLIED status.
      Caller must be the manager.
@@ -437,15 +271,15 @@ _Loan application must be in APPLIED status.
 | _installments | uint16 | The number of payment installments |
 | _apr | uint16 | Annual percentage rate of this loan |
 
-### updateOffer
+### updateDraftOffer
 
 ```solidity
-function updateOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint16 _apr) external
+function updateDraftOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint16 _apr) external
 ```
 
-Update an existing loan offer.
+Update an existing draft loan offer.
 
-_Loan application must be in OFFER_MADE status.
+_Loan application must be in OFFER_DRAFTED status.
      Caller must be the manager.
      Loan amount must not exceed available liquidity -
      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool._
@@ -460,6 +294,40 @@ _Loan application must be in OFFER_MADE status.
 | _installments | uint16 | The number of payment installments |
 | _apr | uint16 | Annual percentage rate of this loan |
 
+### lockDraftOffer
+
+```solidity
+function lockDraftOffer(uint256 appId) external
+```
+
+Lock a draft loan offer.
+
+_Loan application must be in OFFER_DRAFTED status.
+     Caller must be the manager.
+     Loan amount must not exceed available liquidity -
+     canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| appId | uint256 | Loan application id |
+
+### offerLoan
+
+```solidity
+function offerLoan(uint256 appId) external
+```
+
+Make a loan offer.
+
+_Loan application must be in OFFER_DRAFT_LOCKED status.
+     Caller must be the manager.
+     Loan amount must not exceed available liquidity -
+     canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| appId | uint256 | Loan application id |
+
 ### cancelLoan
 
 ```solidity
@@ -468,109 +336,203 @@ function cancelLoan(uint256 appId) external
 
 Cancel a loan.
 
-_Loan application must be in OFFER_MADE status.
-     Caller must be the manager or approved party when the manager is inactive._
+_Loan application must be in OFFER_MADE status. Caller must be the manager._
 
-### onBorrow
-
-```solidity
-function onBorrow(uint256 appId) external
-```
-
-Hook to be called when a loan offer is accepted. Updates the loan offer and liquidity state.
-
-_Loan application must be in OFFER_MADE status.
-     Caller must be the lending pool._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| appId | uint256 | ID of the application the accepted offer was made for. |
-
-### canCancel
+### borrow
 
 ```solidity
-function canCancel(uint256 appId, address caller) external view returns (bool)
+function borrow(uint256 appId) external
 ```
 
-View indicating whether or not a given loan offer qualifies to be cancelled by a given caller.
+Accept a loan offer and withdraw funds
+
+_Caller must be the borrower of the loan in question.
+     The loan must be in OFFER_MADE status._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| appId | uint256 | Application ID of the loan offer in question |
-| caller | address | Address that intends to call cancel() on the loan offer |
+| appId | uint256 | ID of the loan application to accept the offer of |
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | bool | True if the given loan approval can be cancelled and can be cancelled by the specified caller,         false otherwise. |
-
-### applicationStatus
+### repay
 
 ```solidity
-function applicationStatus(uint256 appId) external view returns (enum ILoanDesk.LoanApplicationStatus)
+function repay(uint256 loanId, uint256 amount) external
 ```
 
-Accessor for application status.
+Make a payment towards a loan.
 
-_NULL status is returned for nonexistent applications._
+_Caller must be the borrower.
+     Loan must be in OUTSTANDING status.
+     Only the necessary sum is charged if amount exceeds amount due.
+     Amount charged will not exceed the amount parameter._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| appId | uint256 | ID of the application in question. |
+| loanId | uint256 | ID of the loan to make a payment towards. |
+| amount | uint256 | Payment amount |
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | enum ILoanDesk.LoanApplicationStatus | Current status of the application with the specified ID. |
-
-### loanOfferById
+### repayOnBehalf
 
 ```solidity
-function loanOfferById(uint256 appId) external view returns (struct ILoanDesk.LoanOffer)
+function repayOnBehalf(uint256 loanId, uint256 amount, address borrower) external
 ```
 
-Accessor for loan offer.
+Make a payment towards a loan on behalf of a borrower.
 
-_Loan offer is valid when the loan application is present and has OFFER_MADE status._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| appId | uint256 | ID of the application the offer was made for. |
+_Loan must be in OUTSTANDING status.
+     Only the necessary sum is charged if amount exceeds amount due.
+     Amount charged will not exceed the amount parameter._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | struct ILoanDesk.LoanOffer | LoanOffer struct instance for the specified application ID. |
+| loanId | uint256 | ID of the loan to make a payment towards. |
+| amount | uint256 | Payment amount |
+| borrower | address | address of the borrower to make a payment on behalf of. |
 
-### authorizedOnInactiveManager
+### closeLoan
 
 ```solidity
-function authorizedOnInactiveManager(address caller) internal view returns (bool)
+function closeLoan(uint256 loanId) external
 ```
 
-Indicates whether or not the the caller is authorized to take applicable managing actions when the
-        manager is inactive.
+Closes a loan. Closing a loan will repay the outstanding principal using the pool manager's revenue
+                            and/or staked funds. If these funds are not sufficient, the lenders will take the loss.
 
-_Overrides a hook in SaplingManagerContext._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| caller | address | Caller's address. |
+_Loan must be in OUTSTANDING status.
+     Caller must be the manager._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | bool | True if the caller is authorized at this time, false otherwise. |
+| loanId | uint256 | ID of the loan to close |
 
-### canClose
+### defaultLoan
 
 ```solidity
-function canClose() internal pure returns (bool)
+function defaultLoan(uint256 loanId) external
 ```
 
-Indicates whether or not the contract can be closed in it's current state.
+Default a loan.
 
-_Overrides a hook in SaplingManagerContext._
+_Loan must be in OUTSTANDING status.
+     Caller must be the manager.
+     canDefault(loanId) must return 'true'._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | bool | True if the contract is closed, false otherwise. |
+| loanId | uint256 | ID of the loan to default |
+
+### repayBase
+
+```solidity
+function repayBase(uint256 loanId, uint256 amount) internal
+```
+
+Make a payment towards a loan.
+
+_Loan must be in OUTSTANDING status.
+     Only the necessary sum is charged if amount exceeds amount due.
+     Amount charged will not exceed the amount parameter._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan to make a payment towards |
+| amount | uint256 | Payment amount in tokens |
+
+### applicationsCount
+
+```solidity
+function applicationsCount() external view returns (uint256)
+```
+
+Count of all loan requests in this pool.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | LoanApplication count. |
+
+### loansCount
+
+```solidity
+function loansCount() external view returns (uint256)
+```
+
+Count of all loans in this pool.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Loan count. |
+
+### loanById
+
+```solidity
+function loanById(uint256 loanId) external view returns (struct ILoanDesk.Loan)
+```
+
+Accessor for loan.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | struct ILoanDesk.Loan | Loan struct instance for the specified loan ID. |
+
+### loanDetailById
+
+```solidity
+function loanDetailById(uint256 loanId) external view returns (struct ILoanDesk.LoanDetail)
+```
+
+Accessor for loan detail.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | struct ILoanDesk.LoanDetail | LoanDetail struct instance for the specified loan ID. |
+
+### loanBalanceDue
+
+```solidity
+function loanBalanceDue(uint256 loanId) external view returns (uint256)
+```
+
+Loan balance due including interest if paid in full at this time.
+
+_Loan must be in OUTSTANDING status._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan to check the balance of |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Total amount due with interest on this loan |
+
+### hasOpenApplication
+
+```solidity
+function hasOpenApplication(address account) public view returns (bool)
+```
+
+### canDefault
+
+```solidity
+function canDefault(uint256 loanId) public view returns (bool)
+```
+
+View indicating whether or not a given loan qualifies to be defaulted
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan to check |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the given loan can be defaulted, false otherwise |
 
 ### validateLoanParams
 
@@ -590,4 +552,89 @@ _Throws a require-type exception on invalid loan parameter_
 | _installmentAmount | uint256 | Minimum payment amount on each instalment in liquidity tokens |
 | _installments | uint16 | The number of payment installments |
 | _apr | uint16 | Annual percentage rate of this loan |
+
+### loanBalanceDueWithInterest
+
+```solidity
+function loanBalanceDueWithInterest(uint256 loanId) private view returns (uint256, uint256, uint256)
+```
+
+Loan balances due if paid in full at this time.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan to check the balance of |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Principal outstanding, interest outstanding, and the number of interest acquired days |
+| [1] | uint256 |  |
+| [2] | uint256 |  |
+
+### payableLoanBalance
+
+```solidity
+function payableLoanBalance(uint256 loanId, uint256 maxPaymentAmount) private view returns (uint256, uint256, uint256, uint256)
+```
+
+Loan balances payable given a max payment amount.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| loanId | uint256 | ID of the loan to check the balance of |
+| maxPaymentAmount | uint256 | Maximum liquidity token amount user has agreed to pay towards the loan |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Total transfer camount, paymentAmount, interest payable, and the number of payable interest days,         and the current loan balance |
+| [1] | uint256 |  |
+| [2] | uint256 |  |
+| [3] | uint256 |  |
+
+### countInterestDays
+
+```solidity
+function countInterestDays(uint256 timeFrom, uint256 timeTo) private pure returns (uint256)
+```
+
+Get the number of days in a time period to witch an interest can be applied.
+
+_Returns the ceiling of the count._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| timeFrom | uint256 | Epoch timestamp of the start of the time period. |
+| timeTo | uint256 | Epoch timestamp of the end of the time period. |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Ceil count of days in a time period to witch an interest can be applied. |
+
+### canClose
+
+```solidity
+function canClose() internal view returns (bool)
+```
+
+Indicates whether or not the contract can be closed in it's current state.
+
+_Overrides a hook in SaplingManagerContext._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the contract is closed, false otherwise. |
+
+### canOpen
+
+```solidity
+function canOpen() internal view returns (bool)
+```
+
+Indicates whether or not the contract can be opened in it's current state.
+
+_Overrides a hook in SaplingManagerContext._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the conditions to open are met, false otherwise. |
 

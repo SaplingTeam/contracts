@@ -68,3 +68,21 @@ Accessor for token decimals.
 | ---- | ---- | ----------- |
 | [0] | uint8 | The number of decimal digits used to represent the fractional part of the token values. |
 
+### _afterTokenTransfer
+
+```solidity
+function _afterTokenTransfer(address from, address to, uint256 amount) internal
+```
+
+### _mint
+
+```solidity
+function _mint(address to, uint256 amount) internal
+```
+
+### _burn
+
+```solidity
+function _burn(address account, uint256 amount) internal
+```
+

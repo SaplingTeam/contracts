@@ -1,79 +1,64 @@
 # Solidity API
 
-## SaplingLendingPool
+## ILendingPool
 
-_Extends SaplingPoolContext with lending strategy._
+_This interface has all LendingPool events, structs, and LoanDesk function hooks._
 
-### loanDesk
-
-```solidity
-address loanDesk
-```
-
-Address of the loan desk contract
-
-### loanFundsReleased
+### LoanDeskSet
 
 ```solidity
-mapping(address => mapping(uint256 => bool)) loanFundsReleased
+event LoanDeskSet(address from, address to)
 ```
 
-Mark loan funds released flags to guards against double withdrawals due to future bugs or compromised LoanDesk
+Event for when a new loan desk is set
 
-### loanClosed
+### LoanFundsReleased
 
 ```solidity
-mapping(address => mapping(uint256 => bool)) loanClosed
+event LoanFundsReleased(uint256 loanId, address borrower, uint256 amount)
 ```
 
-Mark the loans closed to guards against double actions due to future bugs or compromised LoanDesk
+Event whn loan funds are released after accepting a loan offer
 
-### onlyLoanDesk
+### LoanClosed
 
 ```solidity
-modifier onlyLoanDesk()
+event LoanClosed(uint256 loanId, address borrower, uint256 managerLossAmount, uint256 lenderLossAmount)
 ```
 
-A modifier to limit access only to the loan desk contract
+Event for when a loan is closed
 
-### disableIntitializers
+### LoanDefaulted
 
 ```solidity
-function disableIntitializers() external
+event LoanDefaulted(uint256 loanId, address borrower, uint256 managerLoss, uint256 lenderLoss)
 ```
 
-_Disable initializers_
+Event for when a loan is defaulted
 
-### initialize
+### OfferLiquidityAllocated
 
 ```solidity
-function initialize(address _poolToken, address _liquidityToken, address _accessControl, bytes32 _managerRole) public
+event OfferLiquidityAllocated(uint256 amount)
 ```
 
-Creates a Sapling pool.
+Event for when a liquidity is allocated for a loan offer
 
-_Addresses must not be 0._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
-| _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
-| _accessControl | address | Access control contract |
-| _managerRole | bytes32 | Manager role |
-
-### setLoanDesk
+### OfferLiquidityUpdated
 
 ```solidity
-function setLoanDesk(address _loanDesk) external
+event OfferLiquidityUpdated(uint256 prevAmount, uint256 newAmount)
 ```
 
-Links a new loan desk for the pool to use. Intended for use upon initial pool deployment.
+Event for when the liquidity is adjusted for a loan offer
 
-_Caller must be the governance._
+### LoanRepaymentConfirmed
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _loanDesk | address | New LoanDesk address |
+```solidity
+event LoanRepaymentConfirmed(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount)
+```
+
+Event for when a loan repayments are made
 
 ### onOffer
 
@@ -81,7 +66,8 @@ _Caller must be the governance._
 function onOffer(uint256 amount) external
 ```
 
-_Hook for a new loan offer. Caller must be the LoanDesk._
+_Hook for a new loan offer.
+     Caller must be the LoanDesk._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -93,8 +79,7 @@ _Hook for a new loan offer. Caller must be the LoanDesk._
 function onOfferUpdate(uint256 prevAmount, uint256 amount) external
 ```
 
-_Hook for a loan offer amount update. Amount update can be due to offer update or
-     cancellation. Caller must be the LoanDesk._
+_Hook for a loan offfer amount update._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -107,15 +92,17 @@ _Hook for a loan offer amount update. Amount update can be due to offer update o
 function onBorrow(uint256 loanId, address borrower, uint256 amount, uint16 apr) external
 ```
 
-_Hook for borrow. Releases the loan funds to the borrower. Caller must be the LoanDesk. 
-Loan metadata is passed along as call arguments to avoid reentry callbacks to the LoanDesk._
+_Hook for borrowing a loan. Caller must be the loan desk.
+
+     Parameters besides the loanId exists simply to avoid rereading it from the caller via additinal inter 
+     contract call. Avoiding loop call reduces gas, contract bytecode size, and reduces the risk of reentrancy._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan which has just been borrowed |
-| borrower | address | Address of the borrower |
-| amount | uint256 | Loan principal amount |
-| apr | uint16 | Loan apr |
+| loanId | uint256 | ID of the loan being borrowed |
+| borrower | address | Wallet address of the borrower, same as loan.borrower |
+| amount | uint256 | Loan principal amount, same as loan.amount |
+| apr | uint16 | Loan annual percentage rate, same as loan.apr |
 
 ### onRepay
 
@@ -125,7 +112,7 @@ function onRepay(uint256 loanId, address borrower, address payer, uint16 apr, ui
 
 _Hook for repayments. Caller must be the LoanDesk. 
      
-     Parameters besides the loanId exists simply to avoid rereading it from the caller via additinal inter 
+     Parameters besides the loanId exists simply to avoid rereading it from the caller via additional inter 
      contract call. Avoiding loop call reduces gas, contract bytecode size, and reduces the risk of reentrancy._
 
 | Name | Type | Description |
@@ -145,8 +132,8 @@ function onCloseLoan(uint256 loanId, uint16 apr, uint256 amountRepaid, uint256 r
 ```
 
 _Hook for closing a loan. Caller must be the LoanDesk. Closing a loan will repay the outstanding principal 
-using the pool manager's revenue and/or staked funds. If these funds are not sufficient, the lenders will 
-share the loss._
+     using the pool manager's revenue and/or staked funds. If these funds are not sufficient, the lenders will 
+     share the loss._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -192,18 +179,4 @@ _Hook for checking if the lending pool can provide liquidity for the total offer
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | bool | True if the pool has sufficient lending liquidity, false otherwise |
-
-### canOpen
-
-```solidity
-function canOpen() internal view returns (bool)
-```
-
-Indicates whether or not the contract can be opened in it's current state.
-
-_Overrides a hook in SaplingManagerContext._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | bool | True if the conditions to open are met, false otherwise. |
 

@@ -2,53 +2,29 @@
 
 ## SaplingContext
 
-Provides governance access control, a common reverence to the treasury wallet address, and basic pause
+Provides reference to protocol level access control, and basic pause
         functionality by extending OpenZeppelin's Pausable contract.
 
-### governance
+### accessControl
 
 ```solidity
-address governance
+address accessControl
 ```
 
-Protocol governance
+Protocol access control
 
-### treasury
+### onlyRole
 
 ```solidity
-address treasury
+modifier onlyRole(bytes32 role)
 ```
 
-Protocol treasury wallet address
-
-### GovernanceTransferred
-
-```solidity
-event GovernanceTransferred(address from, address to)
-```
-
-Event for when a new governance is set
-
-### TreasuryWalletTransferred
-
-```solidity
-event TreasuryWalletTransferred(address from, address to)
-```
-
-Event for when a new treasury wallet is set
-
-### onlyGovernance
-
-```solidity
-modifier onlyGovernance()
-```
-
-A modifier to limit access only to the governance
+Modifier to limit function access to a specific role
 
 ### __SaplingContext_init
 
 ```solidity
-function __SaplingContext_init(address _governance, address _treasury) internal
+function __SaplingContext_init(address _accessControl) internal
 ```
 
 Creates a new SaplingContext.
@@ -57,8 +33,7 @@ _Addresses must not be 0._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _governance | address | Governance address |
-| _treasury | address | Treasury wallet address |
+| _accessControl | address | Protocol level access control contract address |
 
 ### pause
 
@@ -68,8 +43,8 @@ function pause() external
 
 Pause the contract.
 
-_Caller must be the governance.
-     Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause._
+_Only the functions using whenPaused and whenNotPaused modifiers will be affected by pause.
+     Caller must have the PAUSER_ROLE._
 
 ### unpause
 
@@ -79,50 +54,8 @@ function unpause() external
 
 Resume the contract.
 
-_Caller must be the governance.
-     Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause._
-
-### transferGovernance
-
-```solidity
-function transferGovernance(address _governance) external
-```
-
-Transfer the governance.
-
-_Caller must be the governance.
-     New governance address must not be 0, and must not be one of current non-user addresses._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _governance | address | New governance address. |
-
-### transferTreasury
-
-```solidity
-function transferTreasury(address _treasury) external
-```
-
-Transfer the treasury role.
-
-_Caller must be the governance.
-     New treasury address must not be 0, and must not be one of current non-user addresses._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _treasury | address | New treasury wallet address |
-
-### afterTreasuryWalletTransfer
-
-```solidity
-function afterTreasuryWalletTransfer(address from) internal virtual
-```
-
-Hook that is called after a new treasury wallet address has been set.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| from | address | Address of the previous treasury wallet. |
+_Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause.
+     Caller must have the PAUSER_ROLE._
 
 ### isNonUserAddress
 
@@ -130,11 +63,40 @@ Hook that is called after a new treasury wallet address has been set.
 function isNonUserAddress(address party) internal view virtual returns (bool)
 ```
 
-Hook that is called to verify if an address is currently in any non-user/management position.
+Verify if an address has any non-user/management roles
 
 _When overriding, return "contract local verification result" AND super.isNonUserAddress(party)._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | party | address | Address to verify |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the address has any roles, false otherwise |
+
+### hasRole
+
+```solidity
+function hasRole(bytes32 role, address party) internal view returns (bool)
+```
+
+Verify if an address has a specific role.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| role | bytes32 | Role to check against |
+| party | address | Address to verify |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | True if the address has the specified role, false otherwise |
+
+### __gap
+
+```solidity
+uint256[49] __gap
+```
+
+_Slots reserved for future state variables_
 

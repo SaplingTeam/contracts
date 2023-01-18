@@ -5,283 +5,56 @@
 Provides common pool functionality with lender deposits, manager's first loss capital staking,
         and reward distribution.
 
-### poolToken
+### tokenConfig
 
 ```solidity
-address poolToken
+struct IPoolContext.TokenConfig tokenConfig
 ```
 
-Address of an ERC20 token managed and issued by the pool
+Tokens configuration
 
-### liquidityToken
+### config
 
 ```solidity
-address liquidityToken
+struct IPoolContext.PoolConfig config
 ```
 
-Address of an ERC20 liquidity token accepted by the pool
+Pool configuration
 
-### tokenDecimals
+### balances
 
 ```solidity
-uint8 tokenDecimals
+struct IPoolContext.PoolBalance balances
 ```
 
-tokenDecimals value retrieved from the liquidity token contract upon contract construction
+Key pool balances
 
-### oneToken
+### withdrawalRequestStates
 
 ```solidity
-uint256 oneToken
+mapping(address => struct IPoolContext.WithdrawalRequestState) withdrawalRequestStates
 ```
 
-A value representing 1.0 token amount, padded with zeros for decimals
+Per user withdrawal request states
 
-### tokenBalance
+### withdrawalQueue
 
 ```solidity
-uint256 tokenBalance
+struct WithdrawalRequestQueue.LinkedMap withdrawalQueue
 ```
 
-Total liquidity tokens currently held by this contract
+Withdrawal request queue
 
-### poolFundsLimit
+### noWithdrawalRequests
 
 ```solidity
-uint256 poolFundsLimit
+modifier noWithdrawalRequests()
 ```
-
-MAX amount of liquidity tokens allowed in the pool based on staked assets
-
-### poolFunds
-
-```solidity
-uint256 poolFunds
-```
-
-Current amount of liquidity tokens in the pool, including both liquid and allocated funds
-
-### poolLiquidity
-
-```solidity
-uint256 poolLiquidity
-```
-
-Current amount of liquid tokens, available to for pool strategies or withdrawals
-
-### allocatedFunds
-
-```solidity
-uint256 allocatedFunds
-```
-
-Current funds allocated for pool strategies
-
-### strategizedFunds
-
-```solidity
-uint256 strategizedFunds
-```
-
-Current funds committed to strategies such as borrowing or investing
-
-### stakedShares
-
-```solidity
-uint256 stakedShares
-```
-
-Manager's staked shares
-
-### targetStakePercent
-
-```solidity
-uint16 targetStakePercent
-```
-
-Target percentage ratio of staked shares to total shares
-
-### targetLiquidityPercent
-
-```solidity
-uint16 targetLiquidityPercent
-```
-
-Target percentage of pool funds to keep liquid.
-
-### exitFeePercent
-
-```solidity
-uint256 exitFeePercent
-```
-
-exit fee percentage
-
-### managerEarnFactor
-
-```solidity
-uint16 managerEarnFactor
-```
-
-Manager's leveraged earn factor represented as a percentage
-
-### managerEarnFactorMax
-
-```solidity
-uint16 managerEarnFactorMax
-```
-
-Governance set upper bound for the manager's leveraged earn factor
-
-### managerExcessLeverageComponent
-
-```solidity
-uint256 managerExcessLeverageComponent
-```
-
-Part of the managers leverage factor, earnings of witch will be allocated for the manager as protocol earnings.
-This value is always equal to (managerEarnFactor - oneHundredPercent)
-
-### protocolFeePercent
-
-```solidity
-uint16 protocolFeePercent
-```
-
-Percentage of paid interest to be allocated as protocol fee
-
-### maxProtocolFeePercent
-
-```solidity
-uint16 maxProtocolFeePercent
-```
-
-An upper bound for percentage of paid interest to be allocated as protocol fee
-
-### nonUserRevenues
-
-```solidity
-mapping(address => uint256) nonUserRevenues
-```
-
-Protocol revenues of non-user addresses
-
-### weightedAvgStrategyAPR
-
-```solidity
-uint256 weightedAvgStrategyAPR
-```
-
-Weighted average loan APR on the borrowed funds
-
-### nextStrategyId
-
-```solidity
-uint256 nextStrategyId
-```
-
-Strategy id generator counter
-
-### UnstakedLoss
-
-```solidity
-event UnstakedLoss(uint256 amount, address currentManager)
-```
-
-Event for when the lender capital is lost due to defaults
-
-### StakedAssetsDepleted
-
-```solidity
-event StakedAssetsDepleted(address currentManager)
-```
-
-Event for when the Manager's staked assets are depleted due to defaults
-
-### FundsDeposited
-
-```solidity
-event FundsDeposited(address wallet, uint256 amount, uint256 tokensIssued)
-```
-
-Event for when lender funds are deposited
-
-### FundsWithdrawn
-
-```solidity
-event FundsWithdrawn(address wallet, uint256 amount, uint256 tokensRedeemed)
-```
-
-Event for when lender funds are withdrawn
-
-### FundsStaked
-
-```solidity
-event FundsStaked(address wallet, uint256 amount, uint256 tokensIssued)
-```
-
-Event for when pool manager funds are staked
-
-### FundsUnstaked
-
-```solidity
-event FundsUnstaked(address wallet, uint256 amount, uint256 tokensRedeemed)
-```
-
-Event for when pool manager funds are unstaked
-
-### RevenueWithdrawn
-
-```solidity
-event RevenueWithdrawn(address wallet, uint256 amount)
-```
-
-Event for when a non user revenue is withdrawn
-
-### TargetStakePercentSet
-
-```solidity
-event TargetStakePercentSet(uint16 prevValue, uint16 newValue)
-```
-
-Setter event
-
-### TargetLiqudityPercentSet
-
-```solidity
-event TargetLiqudityPercentSet(uint16 prevValue, uint16 newValue)
-```
-
-Setter event
-
-### ProtocolFeePercentSet
-
-```solidity
-event ProtocolFeePercentSet(uint16 prevValue, uint16 newValue)
-```
-
-Setter event
-
-### ManagerEarnFactorMaxSet
-
-```solidity
-event ManagerEarnFactorMaxSet(uint16 prevValue, uint16 newValue)
-```
-
-Setter event
-
-### ManagerEarnFactorSet
-
-```solidity
-event ManagerEarnFactorSet(uint16 prevValue, uint16 newValue)
-```
-
-Setter event
 
 ### __SaplingPoolContext_init
 
 ```solidity
-function __SaplingPoolContext_init(address _poolToken, address _liquidityToken, address _governance, address _treasury, address _manager) internal
+function __SaplingPoolContext_init(address _poolToken, address _liquidityToken, address _accessControl, bytes32 _managerRole) internal
 ```
 
 Creates a SaplingPoolContext.
@@ -292,9 +65,8 @@ _Addresses must not be 0._
 | ---- | ---- | ----------- |
 | _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
 | _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
-| _governance | address | Governance address |
-| _treasury | address | Treasury wallet address |
-| _manager | address | Manager address |
+| _accessControl | address | Access control contract |
+| _managerRole | bytes32 | Manager role |
 
 ### setTargetStakePercent
 
@@ -304,7 +76,7 @@ function setTargetStakePercent(uint16 _targetStakePercent) external
 
 Set the target stake percent for the pool.
 
-__targetStakePercent must be greater than 0 and less than or equal to oneHundredPercent.
+__targetStakePercent must be greater than 0 and less than or equal to SaplingMath.HUNDRED_PERCENT.
      Caller must be the governance._
 
 | Name | Type | Description |
@@ -319,7 +91,7 @@ function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external
 
 Set the target liquidity percent for the pool.
 
-__targetLiquidityPercent must be inclusively between 0 and oneHundredPercent.
+__targetLiquidityPercent must be inclusively between 0 and SaplingMath.HUNDRED_PERCENT.
      Caller must be the manager._
 
 | Name | Type | Description |
@@ -334,7 +106,7 @@ function setProtocolEarningPercent(uint16 _protocolEarningPercent) external
 
 Set the protocol earning percent for the pool.
 
-__protocolEarningPercent must be inclusively between 0 and maxProtocolFeePercent.
+__protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_FEE_PERCENT.
      Caller must be the governance._
 
 | Name | Type | Description |
@@ -349,8 +121,8 @@ function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external
 
 Set an upper bound for the manager's earn factor percent.
 
-__managerEarnFactorMax must be greater than or equal to oneHundredPercent. If the current earn factor is
-     greater than the new maximum, then the current earn factor is set to the new maximum.
+__managerEarnFactorMax must be greater than or equal to SaplingMath.HUNDRED_PERCENT. If the current 
+     earn factor is greater than the new maximum, then the current earn factor is set to the new maximum.
      Caller must be the governance._
 
 | Name | Type | Description |
@@ -365,7 +137,7 @@ function setManagerEarnFactor(uint16 _managerEarnFactor) external
 
 Set the manager's earn factor percent.
 
-__managerEarnFactorMax must be inclusively between oneHundredPercent and managerEarnFactorMax.
+__managerEarnFactorMax must be inclusively between SaplingMath.HUNDRED_PERCENT and managerEarnFactorMax.
      Caller must be the manager._
 
 | Name | Type | Description |
@@ -383,7 +155,8 @@ Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an e
 
 _Deposit amount must be non zero and not exceed amountDepositable().
      An appropriate spend limit must be present at the token contract.
-     Caller must not be any of: manager, protocol, governance._
+     Caller must not be any of: manager, protocol, governance.
+     Caller must not have any outstanding withdrawal requests._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -392,7 +165,7 @@ _Deposit amount must be non zero and not exceed amountDepositable().
 ### withdraw
 
 ```solidity
-function withdraw(uint256 amount) external
+function withdraw(uint256 amount) public
 ```
 
 Withdraw liquidity tokens from the pool. Withdrawals redeem equivalent amount of the caller's pool tokens
@@ -404,6 +177,100 @@ _Withdrawal amount must be non zero and not exceed amountWithdrawable()._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | amount | uint256 | Liquidity token amount to withdraw. |
+
+### requestWithdrawal
+
+```solidity
+function requestWithdrawal(uint256 shares) external
+```
+
+Request funds for withdrawal by locking in pool tokens.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| shares | uint256 | Amount of pool tokens to lock. |
+
+### updateWithdrawalRequest
+
+```solidity
+function updateWithdrawalRequest(uint256 id, uint256 newShareAmount) external
+```
+
+Update a withdrawal request.
+
+_Existing request funds can only be decreseased. Minimum request amount rule must be maintained. 
+     Requested position must belong to the caller._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| id | uint256 | ID of the withdrawal request to update. |
+| newShareAmount | uint256 | New total pool token amount to be locked in the request. |
+
+### cancelWithdrawalRequest
+
+```solidity
+function cancelWithdrawalRequest(uint256 id) external
+```
+
+Cancel a withdrawal request.
+
+_Requested position must belong to the caller._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| id | uint256 | ID of the withdrawal request to update. |
+
+### fulfillWithdrawalRequests
+
+```solidity
+function fulfillWithdrawalRequests(uint256 count) external
+```
+
+Fulfill withdrawal request in a batch if liquidity requirements are met.
+
+_Anyone can trigger fulfillment of a withdrawal request.
+     
+     It is in the interest of the pool manager to keep the withdrawal requests fulfilled as soon as there is 
+     liquidity, as unfulfilled requests will keep earning yield but lock liquidity once the liquidity comes in._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| count | uint256 | The number of positions to fulfill starting from the head of the queue.         If the count is greater than queue length, then the entrire queue is processed. |
+
+### fulfillWithdrawalRequestById
+
+```solidity
+function fulfillWithdrawalRequestById(uint256 id) external
+```
+
+Fulfill a single arbitrary withdrawal request.
+
+_Anyone can trigger fulfillment of a withdrawal request. Fulfillment is on demand, and other requests 
+     in the queue are not processed but their liquidity requirements have to be met._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| id | uint256 | ID of the withdrawal request to fulfill |
+
+### fulfillNextWithdrawalRequest
+
+```solidity
+function fulfillNextWithdrawalRequest() private
+```
+
+_Fulfill a single withdrawal request at the top of the queue._
+
+### fulfillWithdrawalRequest
+
+```solidity
+function fulfillWithdrawalRequest(uint256 id) private
+```
+
+_Fulfill a single withdrawal request by id._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| id | uint256 | ID of the withdrawal request to fulfill |
 
 ### stake
 
@@ -438,17 +305,35 @@ _Caller must be the manager.
 | ---- | ---- | ----------- |
 | amount | uint256 | Liquidity token amount to unstake. |
 
-### withdrawRevenue
+### collectProtocolRevenue
 
 ```solidity
-function withdrawRevenue() external
+function collectProtocolRevenue(uint256 amount) external
 ```
 
-Withdraws protocol revenue belonging to the caller.
+Withdraw protocol revenue.
 
-_revenueBalanceOf(msg.sender) must be greater than 0.
-     Caller's all accumulated earnings will be withdrawn.
-     Protocol earnings are represented in liquidity tokens._
+_Revenue is in liquidity tokens.
+     Caller must have the treasury role._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amount | uint256 | Liquidity token amount to withdraw. |
+
+### collectManagerRevenue
+
+```solidity
+function collectManagerRevenue(uint256 amount) external
+```
+
+Withdraw manager's leveraged earnings.
+
+_Revenue is in liquidity tokens. 
+     Caller must have the pool manager role._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amount | uint256 | Liquidity token amount to withdraw. |
 
 ### amountDepositable
 
@@ -482,6 +367,50 @@ _Return value depends on the callers balance, and is limited by pool liquidity._
 | ---- | ---- | ----------- |
 | [0] | uint256 | Max amount of tokens withdrawable by the caller. |
 
+### withdrawalRequestsLength
+
+```solidity
+function withdrawalRequestsLength() external view returns (uint256)
+```
+
+Accessor
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Current length of the withdrawal queue |
+
+### getWithdrawalRequestAt
+
+```solidity
+function getWithdrawalRequestAt(uint256 i) external view returns (struct WithdrawalRequestQueue.Request)
+```
+
+Accessor
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| i | uint256 | Index of the withdrawal request in the queue |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | struct WithdrawalRequestQueue.Request | WithdrawalRequestQueue object |
+
+### getWithdrawalRequestById
+
+```solidity
+function getWithdrawalRequestById(uint256 id) external view returns (struct WithdrawalRequestQueue.Request)
+```
+
+Accessor
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| id | uint256 | ID of the withdrawal request |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | struct WithdrawalRequestQueue.Request | WithdrawalRequestQueue object |
+
 ### balanceStaked
 
 ```solidity
@@ -494,55 +423,36 @@ Check the manager's staked liquidity token balance in the pool.
 | ---- | ---- | ----------- |
 | [0] | uint256 | Liquidity token balance of the manager's stake. |
 
-### revenueBalanceOf
+### currentAPY
 
 ```solidity
-function revenueBalanceOf(address wallet) external view returns (uint256)
+function currentAPY() external view returns (struct IPoolContext.APYBreakdown)
 ```
 
-Check the special addresses' revenue from the protocol.
-
-_This method is useful for manager and protocol addresses.
-     Calling this method for a non-protocol associated addresses will return 0._
+Estimate APY breakdown given the current pool state.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| wallet | address | Address of the wallet to check the earnings balance of. |
+| [0] | struct IPoolContext.APYBreakdown | Current APY breakdown |
 
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Accumulated liquidity token revenue of the wallet from the protocol. |
-
-### currentLenderAPY
+### simpleProjectedAPY
 
 ```solidity
-function currentLenderAPY() external view returns (uint16)
+function simpleProjectedAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view returns (struct IPoolContext.APYBreakdown)
 ```
 
-Estimated lender APY given the current pool state.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint16 | Estimated current lender APY |
-
-### projectedLenderAPY
-
-```solidity
-function projectedLenderAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view returns (uint16)
-```
-
-Projected lender APY given the current pool state and a specific strategy rate and an average apr.
+Projected APY breakdown given the current pool state and a specific strategy rate and an average apr.
 
 _Represent percentage parameter values in contract specific format._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | strategyRate | uint16 | Percentage of pool funds projected to be used in strategies. |
-| _avgStrategyAPR | uint256 |  |
+| _avgStrategyAPR | uint256 | Weighted average APR of the funds in strategies. |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint16 | Projected lender APY |
+| [0] | struct IPoolContext.APYBreakdown | Projected APY breakdown |
 
 ### balanceOf
 
@@ -588,22 +498,34 @@ Current liquidity available for pool strategies such as lending or investing.
 | ---- | ---- | ----------- |
 | [0] | uint256 | Strategy liquidity amount. |
 
-### getNextStrategyId
+### freeLenderLiquidity
 
 ```solidity
-function getNextStrategyId() internal returns (uint256)
+function freeLenderLiquidity() public view returns (uint256)
 ```
 
-_Generator for next strategy id. i.e. loan, investment._
+Accessor
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Next available id. |
+| [0] | uint256 | Shared liquidity available for all lenders to withdraw immediately without queuing withdrawal requests. |
 
-### enterPool
+### poolFundsLimit
 
 ```solidity
-function enterPool(uint256 amount) internal returns (uint256)
+function poolFundsLimit() public view returns (uint256)
+```
+
+_View pool funds limit based on the staked funds._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | MAX amount of liquidity tokens allowed in the pool based on staked assets |
+
+### enter
+
+```solidity
+function enter(uint256 amount) internal returns (uint256)
 ```
 
 _Internal method to enter the pool with a liquidity token amount.
@@ -620,10 +542,10 @@ Shares are equivalent to pool tokens and are represented by them._
 | ---- | ---- | ----------- |
 | [0] | uint256 | Amount of pool tokens minted and allocated to the caller. |
 
-### exitPool
+### exit
 
 ```solidity
-function exitPool(uint256 amount) internal returns (uint256)
+function exit(uint256 amount) internal returns (uint256)
 ```
 
 _Internal method to exit the pool with a liquidity token amount.
@@ -640,14 +562,6 @@ Shares are equivalent to pool tokens and are represented by them._
 | ---- | ---- | ----------- |
 | [0] | uint256 | Amount of pool tokens burned and taken from the caller. |
 
-### updatePoolLimit
-
-```solidity
-function updatePoolLimit() internal
-```
-
-_Internal method to update the pool funds limit based on the staked funds._
-
 ### updateAvgStrategyApr
 
 ```solidity
@@ -661,82 +575,71 @@ _Internal method to update the weighted average loan apr based on the amount red
 | amountReducedBy | uint256 | amount by which the funds committed into strategy were reduced, due to repayment or loss |
 | apr | uint16 | annual percentage rate of the strategy |
 
-### sharesToTokens
+### tokensToFunds
 
 ```solidity
-function sharesToTokens(uint256 shares) internal view returns (uint256)
+function tokensToFunds(uint256 poolTokens) public view returns (uint256)
 ```
 
 Get liquidity token value of shares.
 
-_Shares are equivalent to pool tokens and are represented by them._
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| poolTokens | uint256 | Pool token amount |
+
+### fundsToTokens
+
+```solidity
+function fundsToTokens(uint256 liquidityTokens) public view returns (uint256)
+```
+
+Get pool token value of liquidity tokens.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| shares | uint256 | Amount of shares |
+| liquidityTokens | uint256 | Amount of liquidity tokens. |
 
-### tokensToShares
-
-```solidity
-function tokensToShares(uint256 tokens) internal view returns (uint256)
-```
-
-Get a share value of liquidity tokens.
-
-_Shares are equivalent to pool tokens and are represented by them._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| tokens | uint256 | Amount of liquidity tokens. |
-
-### strategyCount
+### maintainsStakeRatio
 
 ```solidity
-function strategyCount() internal view returns (uint256)
+function maintainsStakeRatio() public view returns (bool)
 ```
 
-_All time count of created strategies. i.e. Loans and investments_
-
-### lenderAPY
-
-```solidity
-function lenderAPY(uint256 _strategizedFunds, uint256 _avgStrategyAPR) internal view returns (uint16)
-```
-
-Lender APY given the current pool state, a specific strategized funds, and an average apr.
-
-_Represent percentage parameter values in contract specific format._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| _strategizedFunds | uint256 | Pool funds to be borrowed annually. |
-| _avgStrategyAPR | uint256 |  |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint16 | Lender APY |
-
-### isPoolFunctional
-
-```solidity
-function isPoolFunctional() internal view returns (bool)
-```
-
-Check if the pool is functional based on the current stake levels.
+Check if the pool has sufficient stake
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | bool | True if the staked funds provide at least a minimum ratio to the pool funds, False otherwise. |
 
-### authorizedOnInactiveManager
+### totalPoolTokenSupply
 
 ```solidity
-function authorizedOnInactiveManager(address caller) internal view returns (bool)
+function totalPoolTokenSupply() internal view returns (uint256)
 ```
 
-_Implementation of the abstract hook in SaplingManagedContext.
-     Governance, protocol wallet addresses are authorised to take
-     certain actions when the manager is inactive._
+### projectedAPYBreakdown
+
+```solidity
+function projectedAPYBreakdown(uint256 _totalPoolTokens, uint256 _stakedTokens, uint256 _poolFunds, uint256 _strategizedFunds, uint256 _avgStrategyAPR, uint16 _protocolFeePercent, uint16 _managerEarnFactor) public pure returns (struct IPoolContext.APYBreakdown)
+```
+
+APY breakdown given a specified scenario.
+
+_Represent percentage parameter values in contract specific format._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _totalPoolTokens | uint256 | total pull token supply. For current conditions use: totalPoolTokenSupply() |
+| _stakedTokens | uint256 | the amount of staked pool tokens. Must be less than or equal to _totalPoolTokens.                       For current conditions use: balances.stakedShares |
+| _poolFunds | uint256 | liquidity token funds that make up the pool. For current conditions use: balances.poolFunds |
+| _strategizedFunds | uint256 | part of the pool funds that will remain in strategies. Must be less than or equal to                           _poolFunds. For current conditions use: balances.strategizedFunds |
+| _avgStrategyAPR | uint256 | Weighted average APR of the funds in strategies.                         For current conditions use: config.weightedAvgStrategyAPR |
+| _protocolFeePercent | uint16 | Protocol fee parameter. Must be less than 100%.                            For current conditions use: config.protocolFeePercent |
+| _managerEarnFactor | uint16 | Manager's earn factor. Must be greater than or equal to 1x (100%).                            For current conditions use: config.managerEarnFactor |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | struct IPoolContext.APYBreakdown | Pool apy with protocol, manager, and lender components broken down. |
 
 ### canClose
 
@@ -746,4 +649,12 @@ function canClose() internal view returns (bool)
 
 _Implementation of the abstract hook in SaplingManagedContext.
      Pool can be close when no funds remain committed to strategies._
+
+### __gap
+
+```solidity
+uint256[30] __gap
+```
+
+_Slots reserved for future state variables_
 
