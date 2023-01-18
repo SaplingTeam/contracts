@@ -81,8 +81,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE,
-            POOL_1_LENDER_GOVERNANCE_ROLE,
+            POOL_1_MANAGER_ROLE
         ]);
         await lendingPool.deployed();
 
@@ -114,8 +113,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     poolToken.address,
                     liquidityToken.address,
                     coreAccessControl.address,
-                    POOL_1_MANAGER_ROLE,
-                    POOL_1_LENDER_GOVERNANCE_ROLE,
+                    POOL_1_MANAGER_ROLE
                 ]),
             ).to.be.not.reverted;
         });
@@ -127,8 +125,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         poolToken.address,
                         NULL_ADDRESS,
                         coreAccessControl.address,
-                        POOL_1_MANAGER_ROLE,
-                        POOL_1_LENDER_GOVERNANCE_ROLE,
+                        POOL_1_MANAGER_ROLE
                     ]),
                 ).to.be.reverted;
             });
@@ -139,8 +136,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         NULL_ADDRESS,
                         liquidityToken.address,
                         coreAccessControl.address,
-                        POOL_1_MANAGER_ROLE,
-                        POOL_1_LENDER_GOVERNANCE_ROLE,
+                        POOL_1_MANAGER_ROLE
                     ]),
                 ).to.be.reverted;
             });
@@ -157,8 +153,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         badPoolToken.address,
                         liquidityToken.address,
                         coreAccessControl.address,
-                        POOL_1_MANAGER_ROLE,
-                        POOL_1_LENDER_GOVERNANCE_ROLE,
+                        POOL_1_MANAGER_ROLE
                     ]),
                 ).to.be.reverted;
             });

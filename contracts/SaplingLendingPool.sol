@@ -41,19 +41,17 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
      * @param _accessControl Access control contract
      * @param _managerRole Manager role
-     * @param _lenderGovernanceRole Role held by the timelock control that executed passed lender votes
      */
     function initialize(
         address _poolToken,
         address _liquidityToken,
         address _accessControl,
-        bytes32 _managerRole,
-        bytes32 _lenderGovernanceRole
+        bytes32 _managerRole
     )
         public
         initializer
     {
-        __SaplingPoolContext_init(_poolToken, _liquidityToken, _accessControl, _managerRole, _lenderGovernanceRole);
+        __SaplingPoolContext_init(_poolToken, _liquidityToken, _accessControl, _managerRole);
     }
 
     /**

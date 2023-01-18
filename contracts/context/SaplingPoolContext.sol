@@ -51,19 +51,17 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
      * @param _accessControl Access control contract
      * @param _managerRole Manager role
-     * @param _lenderGovernanceRole Role held by the timelock control that executed passed lender votes
      */
     function __SaplingPoolContext_init(
         address _poolToken,
         address _liquidityToken,
         address _accessControl,
-        bytes32 _managerRole,
-        bytes32 _lenderGovernanceRole
+        bytes32 _managerRole
     )
         internal
         onlyInitializing
     {
-        __SaplingManagerContext_init(_accessControl, _managerRole, _lenderGovernanceRole);
+        __SaplingManagerContext_init(_accessControl, _managerRole);
 
         /*
             Additional check for single init:

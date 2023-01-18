@@ -77,8 +77,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE,
-            POOL_1_LENDER_GOVERNANCE_ROLE,
+            POOL_1_MANAGER_ROLE
         ]);
         await lendingPool.deployed();
 
@@ -106,8 +105,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                     poolToken.address,
                     liquidityToken.address,
                     coreAccessControl.address,
-                    POOL_1_MANAGER_ROLE,
-                    POOL_1_LENDER_GOVERNANCE_ROLE,
+                    POOL_1_MANAGER_ROLE
                 ]),
             ).to.be.not.reverted;
         });
@@ -119,8 +117,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                         poolToken.address,
                         liquidityToken.address,
                         NULL_ADDRESS,
-                        POOL_1_MANAGER_ROLE,
-                        POOL_1_LENDER_GOVERNANCE_ROLE,
+                        POOL_1_MANAGER_ROLE
                     ]),
                 ).to.be.reverted;
             });

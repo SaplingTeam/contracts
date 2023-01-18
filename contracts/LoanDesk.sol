@@ -17,6 +17,14 @@ import "./lib/SaplingMath.sol";
  */
 contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeable {
 
+    /**
+     * Lender governance role
+     * @notice Role given to the address of the timelock contract that executes a loan offer upon a passing vote
+     * @dev The value of this role should be unique for each pool. Role must be created before the pool contract
+     *      deployment, then passed during construction/initialization.
+     */
+    bytes32 public lenderGovernanceRole;
+
     /// Address of the lending pool contract
     address public pool;
 
@@ -97,7 +105,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         public
         initializer
     {
-        __SaplingManagerContext_init(_accessControl, _managerRole, _lenderGovernanceRole);
+        __SaplingManagerContext_init(_accessControl, _managerRole);
 
         /*
             Additional check for single init:
@@ -115,6 +123,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             apr: uint16(30 * 10 ** SaplingMath.PERCENT_DECIMALS) // 30%
         });
 
+        lenderGovernanceRole = _lenderGovernanceRole;
         pool = _pool;
         offeredFunds = 0;
         outstandingLoansCount = 0;
