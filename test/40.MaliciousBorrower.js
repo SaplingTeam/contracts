@@ -24,6 +24,7 @@ describe('Attack Sapling Lending Pool', function () {
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
     const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+    const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
 
@@ -35,6 +36,7 @@ describe('Attack Sapling Lending Pool', function () {
 
     let deployer;
     let governance;
+    let lenderGovernance;
     let protocol;
     let manager;
     let addresses;
@@ -48,7 +50,7 @@ describe('Attack Sapling Lending Pool', function () {
     });
 
     before(async function () {
-        [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
+        [deployer, governance, lenderGovernance, protocol, manager, ...addresses] = await ethers.getSigners();
 
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
@@ -61,6 +63,7 @@ describe('Attack Sapling Lending Pool', function () {
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
         await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
 
         SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
@@ -77,7 +80,7 @@ describe('Attack Sapling Lending Pool', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE,
+            POOL_1_MANAGER_ROLE
         ]);
         await lendingPool.deployed();
 
@@ -85,6 +88,7 @@ describe('Attack Sapling Lending Pool', function () {
             lendingPool.address,
             coreAccessControl.address,
             POOL_1_MANAGER_ROLE,
+            POOL_1_LENDER_GOVERNANCE_ROLE,
             TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
@@ -105,7 +109,7 @@ describe('Attack Sapling Lending Pool', function () {
                     poolToken.address,
                     liquidityToken.address,
                     coreAccessControl.address,
-                    POOL_1_MANAGER_ROLE,
+                    POOL_1_MANAGER_ROLE
                 ]),
             ).to.be.not.reverted;
         });
@@ -198,7 +202,7 @@ describe('Attack Sapling Lending Pool', function () {
                 application = await loanDesk.loanApplications(applicationId);
                 await loanDesk
                     .connect(manager)
-                    .offerLoan(
+                    .draftOffer(
                         applicationId,
                         application.amount,
                         application.duration,
@@ -207,6 +211,8 @@ describe('Attack Sapling Lending Pool', function () {
                         installments,
                         apr,
                     );
+                await loanDesk.connect(manager).lockDraftOffer(applicationId);
+                await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
             });
 
             it('Revert If Borrow Twice Same Block', async function () {

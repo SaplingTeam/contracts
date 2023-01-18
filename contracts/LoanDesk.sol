@@ -17,6 +17,14 @@ import "./lib/SaplingMath.sol";
  */
 contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeable {
 
+    /**
+     * Lender governance role
+     * @notice Role given to the address of the timelock contract that executes a loan offer upon a passing vote
+     * @dev The value of this role should be unique for each pool. Role must be created before the pool contract
+     *      deployment, then passed during construction/initialization.
+     */
+    bytes32 public lenderGovernanceRole;
+
     /// Address of the lending pool contract
     address public pool;
 
@@ -83,12 +91,15 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      * @dev Addresses must not be 0.
      * @param _pool Lending pool address
      * @param _accessControl Access control contract
+     * @param _managerRole Manager role
+     * @param _lenderGovernanceRole Role held by the timelock control that executed passed lender votes
      * @param _decimals Lending pool liquidity token decimals
      */
     function initialize(
         address _pool,
         address _accessControl,
         bytes32 _managerRole,
+        bytes32 _lenderGovernanceRole,
         uint8 _decimals
     )
         public
@@ -112,6 +123,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             apr: uint16(30 * 10 ** SaplingMath.PERCENT_DECIMALS) // 30%
         });
 
+        lenderGovernanceRole = _lenderGovernanceRole;
         pool = _pool;
         offeredFunds = 0;
         outstandingLoansCount = 0;
@@ -272,7 +284,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     }
 
     /**
-     * @notice Approve a loan application and offer a loan.
+     * @notice Draft a loan offer for an application.
      * @dev Loan application must be in APPLIED status.
      *      Caller must be the manager.
      *      Loan amount must not exceed available liquidity -
@@ -285,7 +297,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      * @param _installments The number of payment installments
      * @param _apr Annual percentage rate of this loan
      */
-    function offerLoan(
+    function draftOffer(
         uint256 appId,
         uint256 _amount,
         uint256 _duration,
@@ -326,18 +338,18 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         });
 
         offeredFunds = offeredFunds + _amount;
-        loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
+        loanApplications[appId].status = LoanApplicationStatus.OFFER_DRAFTED;
 
         //// interactions
 
         ILendingPool(pool).onOffer(_amount);
 
-        emit LoanOffered(appId, app.borrower, _amount);
+        emit LoanOfferDrafted(appId, app.borrower, _amount);
     }
 
     /**
-     * @notice Update an existing loan offer.
-     * @dev Loan application must be in OFFER_MADE status.
+     * @notice Update an existing draft loan offer.
+     * @dev Loan application must be in OFFER_DRAFTED status.
      *      Caller must be the manager.
      *      Loan amount must not exceed available liquidity -
      *      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool.
@@ -349,7 +361,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      * @param _installments The number of payment installments
      * @param _apr Annual percentage rate of this loan
      */
-    function updateOffer(
+    function updateDraftOffer(
         uint256 appId,
         uint256 _amount,
         uint256 _duration,
@@ -360,7 +372,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     )
         external
         onlyRole(poolManagerRole)
-        applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE)
+        applicationInStatus(appId, LoanApplicationStatus.OFFER_DRAFTED)
         whenNotClosed
         whenNotPaused
     {
@@ -390,7 +402,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         offer.apr = _apr;
         offer.offeredTime = block.timestamp;
 
-        emit LoanOfferUpdated(appId, offer.borrower, prevAmount, offer.amount);
+        emit OfferDraftUpdated(appId, offer.borrower, prevAmount, offer.amount);
 
         //// interactions
         if (prevAmount != offer.amount) {
@@ -398,6 +410,51 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         }
     }
 
+    /**
+     * @notice Lock a draft loan offer.
+     * @dev Loan application must be in OFFER_DRAFTED status.
+     *      Caller must be the manager.
+     *      Loan amount must not exceed available liquidity -
+     *      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool.
+     * @param appId Loan application id
+     */
+    function lockDraftOffer(
+        uint256 appId
+    )
+        external
+        onlyRole(poolManagerRole)
+        applicationInStatus(appId, LoanApplicationStatus.OFFER_DRAFTED)
+        whenNotClosed
+        whenNotPaused
+    {
+        //// effect
+        loanApplications[appId].status = LoanApplicationStatus.OFFER_DRAFT_LOCKED;
+
+        emit LoanOfferDraftLocked(appId);
+    }
+
+    /**
+     * @notice Make a loan offer.
+     * @dev Loan application must be in OFFER_DRAFT_LOCKED status.
+     *      Caller must be the manager.
+     *      Loan amount must not exceed available liquidity -
+     *      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool.
+     * @param appId Loan application id
+     */
+    function offerLoan(
+        uint256 appId
+    )
+        external
+        onlyRole(lenderGovernanceRole)
+        applicationInStatus(appId, LoanApplicationStatus.OFFER_DRAFT_LOCKED)
+        whenNotClosed
+        whenNotPaused
+    {
+        //// effect
+        loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
+
+        emit LoanOfferMade(appId);
+    }
 
     /**
      * @notice Cancel a loan.
@@ -408,11 +465,20 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     )
         external
         onlyRole(poolManagerRole)
-        applicationInStatus(appId, LoanApplicationStatus.OFFER_MADE)
         whenNotPaused
     {
+        /// check
+        require(appId != 0, "LoanDesk: invalid id");
+        LoanApplicationStatus status = loanApplications[appId].status;
+        require(
+            status == LoanApplicationStatus.OFFER_DRAFTED 
+            || status == LoanApplicationStatus.OFFER_DRAFT_LOCKED 
+            || status == LoanApplicationStatus.OFFER_MADE, 
+            "LoanDesk: invalid status"
+        );
+
         //// effect
-        loanApplications[appId].status = LoanApplicationStatus.OFFER_CANCELLED;
+        loanApplications[appId].status = LoanApplicationStatus.CANCELLED;
 
         LoanOffer storage offer = loanOffers[appId];
         offeredFunds -= offer.amount;
@@ -723,7 +789,12 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      * @param loanId ID of the loan to check the balance of
      * @return Total amount due with interest on this loan
      */
-    function loanBalanceDue(uint256 loanId) external view loanInStatus(loanId, LoanStatus.OUTSTANDING) returns(uint256) {
+    function loanBalanceDue(uint256 loanId)
+        external
+        view
+        loanInStatus(loanId, LoanStatus.OUTSTANDING)
+        returns(uint256)
+    {
         (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
         return principalOutstanding + interestOutstanding - loanDetails[loanId].paymentCarry;
     }
@@ -731,6 +802,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     function hasOpenApplication(address account) public view returns (bool) {
         LoanApplicationStatus recentAppStatus = loanApplications[recentApplicationIdOf[account]].status;
         return recentAppStatus == LoanApplicationStatus.APPLIED 
+            || recentAppStatus == LoanApplicationStatus.OFFER_DRAFTED
+            || recentAppStatus == LoanApplicationStatus.OFFER_DRAFT_LOCKED
             || recentAppStatus == LoanApplicationStatus.OFFER_MADE;
     }
 

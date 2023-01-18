@@ -11,7 +11,7 @@ import "./SaplingContext.sol";
  */
 abstract contract SaplingManagerContext is SaplingContext {
 
-    /*
+    /**
      * Pool manager role
      * 
      * @dev The value of this role should be unique for each pool. Role must be created before the pool contract 

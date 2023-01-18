@@ -24,6 +24,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
     const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+    const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
 
@@ -36,6 +37,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
     let deployer;
     let governance;
+    let lenderGovernance;
     let protocol;
     let manager;
     let addresses;
@@ -49,7 +51,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
     });
 
     before(async function () {
-        [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
+        [deployer, governance, lenderGovernance, protocol, manager, ...addresses] = await ethers.getSigners();
 
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
@@ -62,6 +64,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
         await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
 
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
@@ -78,7 +81,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE,
+            POOL_1_MANAGER_ROLE
         ]);
         await lendingPool.deployed();
 
@@ -86,6 +89,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             lendingPool.address,
             coreAccessControl.address,
             POOL_1_MANAGER_ROLE,
+            POOL_1_LENDER_GOVERNANCE_ROLE,
             TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
@@ -109,7 +113,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     poolToken.address,
                     liquidityToken.address,
                     coreAccessControl.address,
-            POOL_1_MANAGER_ROLE,
+                    POOL_1_MANAGER_ROLE
                 ]),
             ).to.be.not.reverted;
         });
@@ -121,7 +125,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         poolToken.address,
                         NULL_ADDRESS,
                         coreAccessControl.address,
-                        POOL_1_MANAGER_ROLE,
+                        POOL_1_MANAGER_ROLE
                     ]),
                 ).to.be.reverted;
             });
@@ -132,7 +136,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         NULL_ADDRESS,
                         liquidityToken.address,
                         coreAccessControl.address,
-                        POOL_1_MANAGER_ROLE,
+                        POOL_1_MANAGER_ROLE
                     ]),
                 ).to.be.reverted;
             });
@@ -149,7 +153,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         badPoolToken.address,
                         liquidityToken.address,
                         coreAccessControl.address,
-                        POOL_1_MANAGER_ROLE,
+                        POOL_1_MANAGER_ROLE
                     ]),
                 ).to.be.reverted;
             });
@@ -530,10 +534,12 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     let apr = (await loanDesk.loanTemplate()).apr;
                     await loanDesk
                         .connect(manager)
-                        .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                    // await loanDesk.connect(borrower1).borrow(applicationId);
+                        .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
+                    await loanDesk.connect(manager).lockDraftOffer(applicationId);
+                    await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+                    await loanDesk.connect(borrower1).borrow(applicationId);
 
-                    // await expect(saplingPoolContext.connect(manager).close()).to.be.reverted;
+                    await expect(saplingPoolContext.connect(manager).close()).to.be.reverted;
                 });
             });
         });
@@ -612,7 +618,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 await loanDesk
                     .connect(manager)
-                    .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
+                    .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
+                await loanDesk.connect(manager).lockDraftOffer(applicationId);
+                await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
                 let tx = await loanDesk.connect(borrower1).borrow(applicationId);
 
                 let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
@@ -1072,7 +1080,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                     await loanDesk
                         .connect(manager)
-                        .offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
+                        .draftOffer(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
+                    await loanDesk.connect(manager).lockDraftOffer(otherApplicationId);
+                    await loanDesk.connect(lenderGovernance).offerLoan(otherApplicationId);
                     await loanDesk.connect(borrower1).borrow(otherApplicationId);
 
                     let amountWithdrawable = await saplingPoolContext.amountWithdrawable(lender1.address);
@@ -1107,7 +1117,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                     await loanDesk
                         .connect(manager)
-                        .offerLoan(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
+                        .draftOffer(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
 
                     await expect(saplingPoolContext.connect(borrower2).withdraw(loanAmount)).to.be.reverted;
                 });
@@ -1138,7 +1148,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                     await loanDesk
                         .connect(manager)
-                        .offerLoan(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
+                        .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
+                    await loanDesk.connect(manager).lockDraftOffer(applicationId);
+                    await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
                     let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                     let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
@@ -1266,7 +1278,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 await loanDesk
                     .connect(manager)
-                    .offerLoan(
+                    .draftOffer(
                         applicationId,
                         application.amount,
                         application.duration,
@@ -1275,6 +1287,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         installments,
                         apr,
                     );
+                    await loanDesk.connect(manager).lockDraftOffer(applicationId);
+                    await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
                 await loanDesk.connect(borrower1).borrow(applicationId);
             });
 

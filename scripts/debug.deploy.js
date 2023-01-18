@@ -1,10 +1,10 @@
 const { BigNumber } = require('ethers');
+const {ethers} = require("hardhat");
 
 async function main() {
-    [deployer, governance, protocol, manager, ...addrs] = await ethers.getSigners();
+    [deployer, governance, manager, ...addrs] = await ethers.getSigners();
 
     const governanceAddress = '0x70f3637e717323b59A4C20977DB92652e584628b';
-    const protocolAddress = '0x99FBBeb892b48e1eb8457d5a6e4991C46f802459';
     const managerAddress = '0x457aBC13c93D34FEc541C78aF91f64531eEe2516';
 
     const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
@@ -12,6 +12,7 @@ async function main() {
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
     const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+    const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     console.log("Deployer address: \t\t", deployer.address);
     console.log("Balance before: \t\t", (await deployer.getBalance()).toString());
@@ -24,11 +25,6 @@ async function main() {
 
     const DECIMALS = await liquidityTokenContract.decimals();
 
-    console.log("\nDeploying pool token contract ...");
-    PoolToken = await ethers.getContractFactory("PoolToken");
-    poolTokenContract = await PoolToken.deploy("Sapling Test Lending Pool Token", "SLPT", DECIMALS);
-    console.log("PoolToken address: \t\t", poolTokenContract.address);
-
     console.log("\nDeploying access control contract ...");
     let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
@@ -36,7 +32,7 @@ async function main() {
     await coreAccessControl.connect(deployer).grantRole(GOVERNANCE_ROLE, deployer.address);
 
     await coreAccessControl.connect(deployer).grantRole(GOVERNANCE_ROLE, governanceAddress);
-    await coreAccessControl.connect(deployer).grantRole(TREASURY_ROLE, protocolAddress);
+    await coreAccessControl.connect(deployer).grantRole(TREASURY_ROLE, governanceAddress);
     await coreAccessControl.connect(deployer).grantRole(PAUSER_ROLE, governanceAddress);
 
     await coreAccessControl.connect(deployer).grantRole(POOL_1_MANAGER_ROLE, managerAddress);
@@ -48,8 +44,12 @@ async function main() {
 
     console.log("deployer: ", deployer.address);
     console.log("governance: ", governanceAddress);
-    console.log("protocol: ", protocolAddress);
     console.log("manager: ", managerAddress);
+
+    console.log("\nDeploying pool token contract ...");
+    PoolToken = await ethers.getContractFactory("PoolToken");
+    poolTokenContract = await PoolToken.deploy("Sapling Test Lending Pool Token", "SLPT", DECIMALS);
+    console.log("PoolToken address: \t\t", poolTokenContract.address);
 
     console.log("\nDeploying lending pool contract ...");
     SaplingPool = await ethers.getContractFactory("SaplingLendingPool");
@@ -68,6 +68,7 @@ async function main() {
         saplingPoolContract.address,
         coreAccessControl.address,
         POOL_1_MANAGER_ROLE,
+        POOL_1_LENDER_GOVERNANCE_ROLE,
         DECIMALS,
     ]);
     await loanDeskContract.deployed();

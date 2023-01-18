@@ -23,6 +23,7 @@ describe('Loan Desk', function () {
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
     const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+    const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
 
@@ -34,6 +35,7 @@ describe('Loan Desk', function () {
 
     let deployer;
     let governance;
+    let lenderGovernance;
     let protocol;
     let manager;
     let addresses;
@@ -47,7 +49,7 @@ describe('Loan Desk', function () {
     });
 
     before(async function () {
-        [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
+        [deployer, governance, lenderGovernance, protocol, manager, ...addresses] = await ethers.getSigners();
 
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
@@ -60,6 +62,7 @@ describe('Loan Desk', function () {
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
         await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
 
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         LoanDeskCF = await ethers.getContractFactory('LoanDesk');
@@ -76,7 +79,7 @@ describe('Loan Desk', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE,
+            POOL_1_MANAGER_ROLE
         ]);
         await lendingPool.deployed();
 
@@ -84,6 +87,7 @@ describe('Loan Desk', function () {
             lendingPool.address,
             coreAccessControl.address,
             POOL_1_MANAGER_ROLE,
+            POOL_1_LENDER_GOVERNANCE_ROLE,
             TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
@@ -104,6 +108,7 @@ describe('Loan Desk', function () {
                     lendingPool.address,
                     coreAccessControl.address,
                     POOL_1_MANAGER_ROLE,
+                    POOL_1_LENDER_GOVERNANCE_ROLE,
                     TOKEN_DECIMALS,
                 ]),
             ).to.be.not.reverted;
@@ -117,9 +122,11 @@ describe('Loan Desk', function () {
             NULL: 0,
             APPLIED: 1,
             DENIED: 2,
-            OFFER_MADE: 3,
-            OFFER_ACCEPTED: 4,
-            OFFER_CANCELLED: 5,
+            OFFER_DRAFTED: 3,
+            OFFER_DRAFT_LOCKED: 4,
+            OFFER_MADE: 5,
+            OFFER_ACCEPTED: 6,
+            CANCELLED: 7,
         };
 
         let PERCENT_DECIMALS;
@@ -629,13 +636,13 @@ describe('Loan Desk', function () {
             });
 
             describe('Offer', function () {
-                it('Manager can offer loans', async function () {
+                it('Manager make loan offer drafts', async function () {
                     let offeredFunds = await loanDesk.offeredFunds();
                     expect(await lendingPool.canOffer(offeredFunds.add(application.amount))).to.equal(true);
 
                     await loanDesk
                         .connect(manager)
-                        .offerLoan(
+                        .draftOffer(
                             applicationId,
                             application.amount,
                             application.duration,
@@ -647,16 +654,16 @@ describe('Loan Desk', function () {
                     let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
 
                     expect((await loanDesk.loanApplications(applicationId)).status).to.equal(
-                        LoanApplicationStatus.OFFER_MADE,
+                        LoanApplicationStatus.OFFER_DRAFTED,
                     );
                     expect((await loanDesk.loanOffers(applicationId)).offeredTime).to.equal(blockTimestamp);
                 });
 
                 describe('Rejection scenarios', function () {
-                    it('Offering a loan with installment number less than 1 should fail', async function () {
+                    it('Making a draft offer with installment number less than 1 should fail', async function () {
                         await expect(loanDesk
                         .connect(manager)
-                        .offerLoan(
+                        .draftOffer(
                             applicationId,
                             application.amount,
                             application.duration,
@@ -667,10 +674,10 @@ describe('Loan Desk', function () {
                         )).to.be.revertedWith('LoanDesk: invalid number of installments');
                     });
 
-                    it('Offering a loan with installment number greater than the number of days in the duration should fail', async function () {
+                    it('Making a draft offer with installment number greater than the number of days in the duration should fail', async function () {
                         await expect(loanDesk
                         .connect(manager)
-                        .offerLoan(
+                        .draftOffer(
                             applicationId,
                             application.amount,
                             application.duration,
@@ -684,7 +691,7 @@ describe('Loan Desk', function () {
                     it('Offering a loan that is not in APPLIED status should fail', async function () {
                         await loanDesk
                             .connect(manager)
-                            .offerLoan(
+                            .draftOffer(
                                 applicationId,
                                 application.amount,
                                 application.duration,
@@ -696,7 +703,7 @@ describe('Loan Desk', function () {
                         await expect(
                             loanDesk
                                 .connect(manager)
-                                .offerLoan(
+                                .draftOffer(
                                     applicationId,
                                     application.amount,
                                     application.duration,
@@ -733,7 +740,7 @@ describe('Loan Desk', function () {
                         await expect(
                             loanDesk
                                 .connect(manager)
-                                .offerLoan(
+                                .draftOffer(
                                     otherApplicationId,
                                     otherApplication.amount,
                                     otherApplication.duration,
@@ -765,7 +772,7 @@ describe('Loan Desk', function () {
 
                         await loanDesk
                             .connect(manager)
-                            .offerLoan(
+                            .draftOffer(
                                 otherApplicationId,
                                 otherApplication.amount,
                                 otherApplication.duration,
@@ -774,7 +781,8 @@ describe('Loan Desk', function () {
                                 installments,
                                 apr,
                             );
-
+                        await loanDesk.connect(manager).lockDraftOffer(otherApplicationId);
+                        await loanDesk.connect(lenderGovernance).offerLoan(otherApplicationId);
                         let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
                         let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
                             .args.loanId;
@@ -790,7 +798,7 @@ describe('Loan Desk', function () {
                         await expect(
                             loanDesk
                                 .connect(manager)
-                                .offerLoan(
+                                .draftOffer(
                                     applicationId,
                                     application.amount,
                                     application.duration,
@@ -814,7 +822,7 @@ describe('Loan Desk', function () {
                         await expect(
                             loanDesk
                                 .connect(manager)
-                                .offerLoan(
+                                .draftOffer(
                                     applicationId,
                                     application.amount,
                                     application.duration,
@@ -831,7 +839,7 @@ describe('Loan Desk', function () {
                         await expect(
                             loanDesk
                                 .connect(manager)
-                                .offerLoan(
+                                .draftOffer(
                                     applicationId,
                                     application.amount,
                                     application.duration,
@@ -847,7 +855,7 @@ describe('Loan Desk', function () {
                         await expect(
                             loanDesk
                                 .connect(manager)
-                                .offerLoan(
+                                .draftOffer(
                                     applicationId.add(1),
                                     application.amount,
                                     application.duration,
@@ -863,7 +871,7 @@ describe('Loan Desk', function () {
                         await expect(
                             loanDesk
                                 .connect(protocol)
-                                .offerLoan(
+                                .draftOffer(
                                     applicationId,
                                     application.amount,
                                     application.duration,
@@ -879,7 +887,7 @@ describe('Loan Desk', function () {
                         await expect(
                             loanDesk
                                 .connect(governance)
-                                .offerLoan(
+                                .draftOffer(
                                     applicationId,
                                     application.amount,
                                     application.duration,
@@ -895,7 +903,7 @@ describe('Loan Desk', function () {
                         await expect(
                             loanDesk
                                 .connect(lender1)
-                                .offerLoan(
+                                .draftOffer(
                                     applicationId,
                                     application.amount,
                                     application.duration,
@@ -911,7 +919,7 @@ describe('Loan Desk', function () {
                         await expect(
                             loanDesk
                                 .connect(borrower1)
-                                .offerLoan(
+                                .draftOffer(
                                     applicationId,
                                     application.amount,
                                     application.duration,
@@ -927,7 +935,7 @@ describe('Loan Desk', function () {
                         await expect(
                             loanDesk
                                 .connect(addresses[0])
-                                .offerLoan(
+                                .draftOffer(
                                     applicationId,
                                     application.amount,
                                     application.duration,
@@ -951,7 +959,7 @@ describe('Loan Desk', function () {
 
                     await loanDesk
                         .connect(manager)
-                        .offerLoan(
+                        .draftOffer(
                             applicationId,
                             application.amount,
                             application.duration,
@@ -971,7 +979,7 @@ describe('Loan Desk', function () {
                         expect(await lendingPool.canOffer(offeredFunds.sub(offer.amount).add(newOfferedAmount)))
                             .to.equal(true);
 
-                        await expect(loanDesk.connect(manager).updateOffer(
+                        await expect(loanDesk.connect(manager).updateDraftOffer(
                                 offer.applicationId,
                                 newOfferedAmount,
                                 offer.duration,
@@ -987,7 +995,7 @@ describe('Loan Desk', function () {
                     it('Manager can cancel', async function () {
                         await loanDesk.connect(manager).cancelLoan(applicationId);
                         expect((await loanDesk.loanApplications(applicationId)).status).to.equal(
-                            LoanApplicationStatus.OFFER_CANCELLED,
+                            LoanApplicationStatus.CANCELLED,
                         );
                     });
 
@@ -1007,7 +1015,7 @@ describe('Loan Desk', function () {
                         let otherApplication = await loanDesk.loanApplications(otherApplicationId);
                         await loanDesk
                             .connect(manager)
-                            .offerLoan(
+                            .draftOffer(
                                 otherApplicationId,
                                 otherApplication.amount,
                                 otherApplication.duration,
@@ -1019,12 +1027,14 @@ describe('Loan Desk', function () {
 
                         await loanDesk.connect(manager).cancelLoan(applicationId);
                         expect((await loanDesk.loanApplications(applicationId)).status).to.equal(
-                            LoanApplicationStatus.OFFER_CANCELLED,
+                            LoanApplicationStatus.CANCELLED,
                         );
                     });
 
                     describe('Rejection scenarios', function () {
                         it('Cancelling a loan that is not in APPROVED status should fail', async function () {
+                            await loanDesk.connect(manager).lockDraftOffer(applicationId);
+                            await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
                             await loanDesk.connect(borrower1).borrow(applicationId);
                             await expect(loanDesk.connect(manager).cancelLoan(applicationId)).to.be.reverted;
                         });
@@ -1078,7 +1088,7 @@ describe('Loan Desk', function () {
                     it('Denying a loan that is not in APPLIED status should fail', async function () {
                         await loanDesk
                             .connect(manager)
-                            .offerLoan(
+                            .draftOffer(
                                 applicationId,
                                 application.amount,
                                 application.duration,
