@@ -11,12 +11,12 @@ import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.so
 /**
  * @dev Governor contract generated using OpenZeppelin contracts wizzard
  */
-contract PoolGovernance is Governor, GovernorSettings, GovernorCountingSimple, GovernorVotes, GovernorVotesQuorumFraction, GovernorTimelockControl {
+contract LenderGovernance is Governor, GovernorSettings, GovernorCountingSimple, GovernorVotes, GovernorVotesQuorumFraction, GovernorTimelockControl {
     constructor(IVotes _token, TimelockController _timelock)
-        Governor("PoolGovernance")
+        Governor("LenderGovernance")
         GovernorSettings(1 /* 1 block */, 50400 /* 1 week */, 0)
         GovernorVotes(_token)
-        GovernorVotesQuorumFraction(1)
+        GovernorVotesQuorumFraction(51)
         GovernorTimelockControl(_timelock)
     {}
 
