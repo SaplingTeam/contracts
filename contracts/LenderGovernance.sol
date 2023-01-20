@@ -22,7 +22,7 @@ contract LenderGovernance
 {
     constructor(IVotes _token, TimelockController _timelock)
         Governor("LenderGovernance")
-        GovernorSettings(1 /* 1 block */, 50400 /* 1 week */, 0)
+        GovernorSettings(1 /* 1 block */, 40659 /* 24h on Polygon using 2.125s block time */, 1)
         GovernorVotes(_token)
         GovernorVotesQuorumFraction(51)
         GovernorTimelockControl(_timelock)
