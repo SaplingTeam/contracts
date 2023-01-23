@@ -656,7 +656,6 @@ describe('Loan Desk', function () {
                     expect((await loanDesk.loanApplications(applicationId)).status).to.equal(
                         LoanApplicationStatus.OFFER_DRAFTED,
                     );
-                    expect((await loanDesk.loanOffers(applicationId)).offeredTime).to.equal(blockTimestamp);
                 });
 
                 describe('Rejection scenarios', function () {
@@ -782,7 +781,9 @@ describe('Loan Desk', function () {
                                 apr,
                             );
                         await loanDesk.connect(manager).lockDraftOffer(otherApplicationId);
-                        await loanDesk.connect(lenderGovernance).offerLoan(otherApplicationId);
+                        await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(otherApplicationId);
                         let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
                         let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
                             .args.loanId;
@@ -1034,7 +1035,9 @@ describe('Loan Desk', function () {
                     describe('Rejection scenarios', function () {
                         it('Cancelling a loan that is not in APPROVED status should fail', async function () {
                             await loanDesk.connect(manager).lockDraftOffer(applicationId);
-                            await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+                            await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId);
                             await loanDesk.connect(borrower1).borrow(applicationId);
                             await expect(loanDesk.connect(manager).cancelLoan(applicationId)).to.be.reverted;
                         });

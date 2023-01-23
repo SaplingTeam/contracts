@@ -212,7 +212,9 @@ describe('Attack Sapling Lending Pool', function () {
                         apr,
                     );
                 await loanDesk.connect(manager).lockDraftOffer(applicationId);
-                await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+                await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId);
             });
 
             it('Revert If Borrow Twice Same Block', async function () {
