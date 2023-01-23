@@ -181,7 +181,9 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
                     apr,
                 );
             await loanDesk.connect(manager).lockDraftOffer(applicationId);
-            await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+            await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId);
             let tx = await loanDesk.connect(borrower1).borrow(applicationId);
             loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
         });

@@ -221,7 +221,9 @@ describe('Sapling Lending Pool', function () {
                         .connect(manager)
                         .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                     await loanDesk.connect(manager).lockDraftOffer(applicationId);
-                    await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+                    await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId);
                     await loanDesk.connect(borrower1).borrow(applicationId);
 
                     await expect(lendingPool.connect(manager).close()).to.be.reverted;
@@ -271,7 +273,9 @@ describe('Sapling Lending Pool', function () {
             it('Borrowers can borrow', async function () {
                 let balanceBefore = await liquidityToken.balanceOf(borrower1.address);
                 await loanDesk.connect(manager).lockDraftOffer(applicationId);
-                await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+                await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId);
                 let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                 let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
@@ -340,7 +344,9 @@ describe('Sapling Lending Pool', function () {
                     .connect(manager)
                     .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                 await loanDesk.connect(manager).lockDraftOffer(applicationId);
-                await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+                await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId);
                 let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                 loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
             });
@@ -579,7 +585,9 @@ describe('Sapling Lending Pool', function () {
                             .connect(manager)
                             .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                         await loanDesk.connect(manager).lockDraftOffer(applicationId);
-                        await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+                        await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId);
                         let tx = await loanDesk.connect(borrower2).borrow(applicationId);
                         loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
@@ -875,7 +883,9 @@ describe('Sapling Lending Pool', function () {
                             .connect(manager)
                             .draftOffer(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                         await loanDesk.connect(manager).lockDraftOffer(otherApplicationId);
-                        await loanDesk.connect(lenderGovernance).offerLoan(otherApplicationId);
+                        await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(otherApplicationId);
                         let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
                         let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
                             .args.loanId;
@@ -918,7 +928,9 @@ describe('Sapling Lending Pool', function () {
                             .connect(manager)
                             .draftOffer(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                         await loanDesk.connect(manager).lockDraftOffer(otherApplicationId);
-                        await loanDesk.connect(lenderGovernance).offerLoan(otherApplicationId);
+                        await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(otherApplicationId);
                         let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
                         let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
                             .args.loanId;
@@ -968,7 +980,9 @@ describe('Sapling Lending Pool', function () {
                                 apr,
                             );
                         await loanDesk.connect(manager).lockDraftOffer(applicationId2);
-                        await loanDesk.connect(lenderGovernance).offerLoan(applicationId2);
+                        await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId2);
                         let tx = await loanDesk.connect(borrower2).borrow(applicationId2);
                         let loanId2 = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
@@ -1053,7 +1067,9 @@ describe('Sapling Lending Pool', function () {
                         .connect(manager)
                         .draftOffer(applicationId, newLoanAmount, loanDuration, gracePeriod, 0, installments, apr);
                     await loanDesk.connect(manager).lockDraftOffer(applicationId);
-                    await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+                    await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId);
                     let tx = await loanDesk.connect(borrower2).borrow(applicationId);
                     loanId2 = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 

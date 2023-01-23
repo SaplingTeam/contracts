@@ -536,7 +536,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .connect(manager)
                         .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                     await loanDesk.connect(manager).lockDraftOffer(applicationId);
-                    await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+                    await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId);
                     await loanDesk.connect(borrower1).borrow(applicationId);
 
                     await expect(saplingPoolContext.connect(manager).close()).to.be.reverted;
@@ -620,7 +622,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     .connect(manager)
                     .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                 await loanDesk.connect(manager).lockDraftOffer(applicationId);
-                await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+                await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId);
                 let tx = await loanDesk.connect(borrower1).borrow(applicationId);
 
                 let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
@@ -1082,7 +1086,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .connect(manager)
                         .draftOffer(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                     await loanDesk.connect(manager).lockDraftOffer(otherApplicationId);
-                    await loanDesk.connect(lenderGovernance).offerLoan(otherApplicationId);
+                    await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(otherApplicationId);
                     await loanDesk.connect(borrower1).borrow(otherApplicationId);
 
                     let amountWithdrawable = await saplingPoolContext.amountWithdrawable(lender1.address);
@@ -1150,7 +1156,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .connect(manager)
                         .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                     await loanDesk.connect(manager).lockDraftOffer(applicationId);
-                    await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+                    await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId);
                     let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                     let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
@@ -1288,7 +1296,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         apr,
                     );
                     await loanDesk.connect(manager).lockDraftOffer(applicationId);
-                    await loanDesk.connect(lenderGovernance).offerLoan(applicationId);
+                    await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
+                await ethers.provider.send('evm_mine');
+                await loanDesk.connect(manager).offerLoan(applicationId);
                 await loanDesk.connect(borrower1).borrow(applicationId);
             });
 
