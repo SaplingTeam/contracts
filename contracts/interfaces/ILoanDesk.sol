@@ -94,7 +94,10 @@ interface ILoanDesk {
         uint16 installments; 
 
         /// Annual percentage rate
-        uint16 apr; 
+        uint16 apr;
+
+        // block timestamp when the offer was locked
+        uint256 lockedTime;
 
         /// Block timestamp of the offer creation/update
         uint256 offeredTime;

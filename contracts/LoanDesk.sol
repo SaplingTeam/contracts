@@ -334,7 +334,8 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             installmentAmount: _installmentAmount,
             installments: _installments,
             apr: _apr,
-            offeredTime: block.timestamp
+            lockedTime: 0,
+            offeredTime: 0
         });
 
         offeredFunds = offeredFunds + _amount;
@@ -400,7 +401,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         offer.installmentAmount = _installmentAmount;
         offer.installments = _installments;
         offer.apr = _apr;
-        offer.offeredTime = block.timestamp;
 
         emit OfferDraftUpdated(appId, offer.borrower, prevAmount, offer.amount);
 
@@ -429,6 +429,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     {
         //// effect
         loanApplications[appId].status = LoanApplicationStatus.OFFER_DRAFT_LOCKED;
+        loanOffers[appId].lockedTime = block.timestamp;
 
         emit LoanOfferDraftLocked(appId);
     }
@@ -445,13 +446,22 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 appId
     )
         external
-        onlyRole(lenderGovernanceRole)
+        onlyRole(poolManagerRole)
         applicationInStatus(appId, LoanApplicationStatus.OFFER_DRAFT_LOCKED)
         whenNotClosed
         whenNotPaused
     {
+        LoanOffer storage offer = loanOffers[appId];
+
+        //// check
+        require(
+            block.timestamp > offer.lockedTime + SaplingMath.LOAN_LOCK_PERIOD,
+            "LoanDesk: voting lock period is in effect"
+        );
+
         //// effect
         loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
+        loanOffers[appId].offeredTime = block.timestamp;
 
         emit LoanOfferMade(appId);
     }
@@ -464,7 +474,6 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 appId
     )
         external
-        onlyRole(poolManagerRole)
         whenNotPaused
     {
         /// check
@@ -477,10 +486,18 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             "LoanDesk: invalid status"
         );
 
+        LoanOffer storage offer = loanOffers[appId];
+
+        if(!hasRole(poolManagerRole, msg.sender)) {
+            require(
+                hasRole(lenderGovernanceRole, msg.sender) && status == LoanApplicationStatus.OFFER_DRAFT_LOCKED
+                && block.timestamp < offer.lockedTime + SaplingMath.LOAN_LOCK_PERIOD,
+                    "SaplingContext: unauthorized"
+            );
+        }
+
         //// effect
         loanApplications[appId].status = LoanApplicationStatus.CANCELLED;
-
-        LoanOffer storage offer = loanOffers[appId];
         offeredFunds -= offer.amount;
 
         emit LoanOfferCancelled(appId, offer.borrower, offer.amount);
