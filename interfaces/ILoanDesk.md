@@ -58,6 +58,7 @@ struct LoanOffer {
   uint256 installmentAmount;
   uint16 installments;
   uint16 apr;
+  uint256 lockedTime;
   uint256 offeredTime;
 }
 ```

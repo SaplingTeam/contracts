@@ -76,3 +76,11 @@ uint256 SAFE_MIN_AMOUNT
 
 Math safe minimum loan amount, raw value
 
+### LOAN_LOCK_PERIOD
+
+```solidity
+uint256 LOAN_LOCK_PERIOD
+```
+
+Minimum loan offer lock period for lenders to be able to vite against
+
