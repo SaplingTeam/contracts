@@ -233,7 +233,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             transferAmount
         );
 
-        emit LoanRepaymentConfirmed(loanId, borrower, payer, transferAmount, interestPayable);
+        emit LoanRepaymentProcessed(loanId, borrower, payer, transferAmount, interestPayable);
     }
 
     /**
@@ -287,8 +287,10 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
             balances.stakedShares = balances.stakedShares - stakeChargeable;
 
+            emit StakerLoss(loanId, amountChargeable);
+
             if (balances.stakedShares == 0) {
-                emit StakedAssetsDepleted();
+                emit StakedFundsDepleted();
             }
 
             remainingDifference -= amountChargeable;
@@ -305,7 +307,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             balances.strategizedFunds -= remainingDifference;
             balances.poolFunds -= remainingDifference;
 
-            emit UnstakedLoss(remainingDifference);
+            emit SharedLenderLoss(loanId, remainingDifference);
         }
 
         updateAvgStrategyApr(amountRepaid + remainingDifference, apr);
@@ -368,7 +370,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 balances.stakedShares -= stakedShareLoss;
 
                 if (balances.stakedShares == 0) {
-                    emit StakedAssetsDepleted();
+                    emit StakedFundsDepleted();
                 }
 
                 //// interactions
@@ -381,7 +383,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 lenderLoss = tokensToFunds(remainingLostShares);
                 managerLoss -= lenderLoss;
 
-                emit UnstakedLoss(lenderLoss);
+                emit SharedLenderLoss(loanId, lenderLoss);
             }
         }
 

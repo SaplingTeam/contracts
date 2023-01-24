@@ -108,52 +108,58 @@ interface IPoolContext {
     }
 
     /// Event for when the lender capital is lost due to defaults
-    event UnstakedLoss(uint256 amount);
+    event SharedLenderLoss(uint256 fromLoanId, uint256 amount);
+
+    /// Event for when the staker's funds are lost due to defaults or closures
+    event StakerLoss(uint256 fromLoanId, uint256 amount);
 
     /// Event for when the Manager's staked assets are depleted due to defaults
-    event StakedAssetsDepleted();
+    event StakedFundsDepleted();
 
     /// Event for when lender funds are deposited
-    event FundsDeposited(address wallet, uint256 amount, uint256 tokensIssued);
+    event FundsDeposited(address wallet, uint256 amount, uint256 sharesIssued);
 
     /// Event for when lender funds are withdrawn
-    event FundsWithdrawn(address wallet, uint256 amount, uint256 tokensRedeemed);
+    event FundsWithdrawn(address wallet, uint256 amount, uint256 sharesRedeemed);
 
     /// Event for when pool manager funds are staked
-    event FundsStaked(address wallet, uint256 amount, uint256 tokensIssued);
+    event FundsStaked(address wallet, uint256 amount, uint256 sharesIssued);
 
     /// Event for when pool manager funds are unstaked
-    event FundsUnstaked(address wallet, uint256 amount, uint256 tokensRedeemed);
+    event FundsUnstaked(address wallet, uint256 amount, uint256 sharesRedeemed);
 
-    /// Event for when a non user revenue is withdrawn
-    event RevenueWithdrawn(address wallet, uint256 amount);
+    /// Event for when the protocol revenue is collected
+    event ProtocolRevenueCollected(address wallet, uint256 amount);
+
+    /// Event for when the staker earnings are collected
+    event StakerEarningsCollected(address wallet, uint256 amount);
 
     /// Event for when a new withdrawal request is made
-    event WithdrawalRequested(uint256 id, address wallet, uint256 tokensLocked);
+    event WithdrawalRequested(uint256 id, address wallet, uint256 sharesLocked);
 
     /// Event for when a withdrawal request amount is updated
-    event WithdrawalRequestUpdated(uint256 id,  uint256 prevTokensLocked, uint256 tokensLocked);
+    event WithdrawalRequestUpdated(uint256 id, address wallet, uint256 prevSharesLocked, uint256 sharesLocked);
 
     /// Event for when a withdrawal request is cancelled
-    event WithdrawalRequestCancelled(uint256 id);
+    event WithdrawalRequestCancelled(uint256 id, address wallet);
 
     /// Event for when a withdrawal request is fully fulfilled 
-    event WithdrawalRequestFulfilled(uint256 id, uint256 amount);
+    event WithdrawalRequestFulfilled(uint256 id, address wallet, uint256 amount);
 
     /// Setter event
     event TargetStakePercentSet(uint16 prevValue, uint16 newValue);
 
     /// Setter event
-    event TargetLiqudityPercentSet(uint16 prevValue, uint16 newValue);
+    event TargetLiquidityPercentSet(uint16 prevValue, uint16 newValue);
 
     /// Setter event
     event ProtocolFeePercentSet(uint16 prevValue, uint16 newValue);
 
     /// Setter event
-    event ManagerEarnFactorMaxSet(uint16 prevValue, uint16 newValue);
+    event StakerEarnFactorMaxSet(uint16 prevValue, uint16 newValue);
 
     /// Setter event
-    event ManagerEarnFactorSet(uint16 prevValue, uint16 newValue);
+    event StakerEarnFactorSet(uint16 prevValue, uint16 newValue);
 
     /**
      * @notice Get liquidity token value of shares.

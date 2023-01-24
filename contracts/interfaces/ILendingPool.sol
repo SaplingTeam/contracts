@@ -8,16 +8,16 @@ pragma solidity ^0.8.15;
 interface ILendingPool {
 
     /// Event for when a new loan desk is set
-    event LoanDeskSet(address from, address to);
+    event LoanDeskSet(address prevAddress, address newAddress);
 
     /// Event whn loan funds are released after accepting a loan offer
     event LoanFundsReleased(uint256 loanId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan is closed
-    event LoanClosed(uint256 loanId, address indexed borrower, uint256 managerLossAmount, uint256 lenderLossAmount);
+    event LoanClosed(uint256 loanId, address indexed borrower, uint256 stakerLoss, uint256 lenderLoss);
 
     /// Event for when a loan is defaulted
-    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 managerLoss, uint256 lenderLoss);
+    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 stakerLoss, uint256 lenderLoss);
 
     /// Event for when a liquidity is allocated for a loan offer
     event OfferLiquidityAllocated(uint256 amount);
@@ -26,7 +26,7 @@ interface ILendingPool {
     event OfferLiquidityUpdated(uint256 prevAmount, uint256 newAmount);
 
     /// Event for when a loan repayments are made
-    event LoanRepaymentConfirmed(
+    event LoanRepaymentProcessed(
         uint256 loanId, 
         address borrower, 
         address payer, 
@@ -77,7 +77,7 @@ interface ILendingPool {
      */
     function onRepay(
         uint256 loanId, 
-        address borrower, 
+        address borrower,
         address payer, 
         uint16 apr,
         uint256 transferAmount, 

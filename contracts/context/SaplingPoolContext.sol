@@ -133,7 +133,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         uint16 prevValue = config.targetLiquidityPercent;
         config.targetLiquidityPercent = _targetLiquidityPercent;
 
-        emit TargetLiqudityPercentSet(prevValue, config.targetLiquidityPercent);
+        emit TargetLiquidityPercentSet(prevValue, config.targetLiquidityPercent);
     }
 
     /**
@@ -174,10 +174,10 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             uint16 prevEarnFactor = config.managerEarnFactor;
             config.managerEarnFactor = config.managerEarnFactorMax;
 
-            emit ManagerEarnFactorSet(prevEarnFactor, config.managerEarnFactor);
+            emit StakerEarnFactorSet(prevEarnFactor, config.managerEarnFactor);
         }
 
-        emit ManagerEarnFactorMaxSet(prevValue, config.managerEarnFactorMax);
+        emit StakerEarnFactorMaxSet(prevValue, config.managerEarnFactorMax);
     }
 
     /**
@@ -195,7 +195,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
         uint16 prevValue = config.managerEarnFactor;
         config.managerEarnFactor = _managerEarnFactor;
 
-        emit ManagerEarnFactorSet(prevValue, config.managerEarnFactor);
+        emit StakerEarnFactorSet(prevValue, config.managerEarnFactor);
     }
 
     /**
@@ -312,7 +312,12 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             shareDifference
         );
 
-        emit WithdrawalRequestUpdated(id, prevLockedShares, withdrawalRequestStates[request.wallet].sharesLocked);
+        emit WithdrawalRequestUpdated(
+            id,
+            request.wallet,
+            prevLockedShares,
+            withdrawalRequestStates[request.wallet].sharesLocked
+        );
     }
 
     /**
@@ -344,7 +349,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             request.sharesLocked
         );
 
-        emit WithdrawalRequestCancelled(id);
+        emit WithdrawalRequestCancelled(id, request.wallet);
     }
 
     /**
@@ -429,7 +434,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
             transferAmount
         );
 
-        emit WithdrawalRequestFulfilled(request.id, transferAmount);
+        emit WithdrawalRequestFulfilled(request.id, request.wallet, transferAmount);
     }
 
     /**
@@ -486,7 +491,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, amount);
 
-        emit RevenueWithdrawn(msg.sender, amount);
+        emit ProtocolRevenueCollected(msg.sender, amount);
     }
 
     /**
@@ -511,7 +516,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingManagerContext, Ree
 
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, amount);
 
-        emit RevenueWithdrawn(msg.sender, amount);
+        emit StakerEarningsCollected(msg.sender, amount);
     }
 
     /**

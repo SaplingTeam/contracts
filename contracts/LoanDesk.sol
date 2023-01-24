@@ -261,7 +261,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
         recentApplicationIdOf[msg.sender] = appId;
 
-        emit LoanRequested(appId, msg.sender, _amount);
+        emit LoanRequested(appId, msg.sender, _amount, _duration);
     }
 
     /**
@@ -280,7 +280,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         LoanApplication storage app = loanApplications[appId];
         app.status = LoanApplicationStatus.DENIED;
 
-        emit LoanRequestDenied(appId, app.borrower, app.amount);
+        emit LoanRequestDenied(appId, app.borrower);
     }
 
     /**
@@ -345,7 +345,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
         ILendingPool(pool).onOffer(_amount);
 
-        emit LoanOfferDrafted(appId, app.borrower, _amount);
+        emit LoanDrafted(appId, app.borrower, _amount);
     }
 
     /**
@@ -402,7 +402,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         offer.installments = _installments;
         offer.apr = _apr;
 
-        emit OfferDraftUpdated(appId, offer.borrower, prevAmount, offer.amount);
+        emit LoanDraftUpdated(appId, offer.borrower, prevAmount, offer.amount);
 
         //// interactions
         if (prevAmount != offer.amount) {
@@ -431,7 +431,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         loanApplications[appId].status = LoanApplicationStatus.OFFER_DRAFT_LOCKED;
         loanOffers[appId].lockedTime = block.timestamp;
 
-        emit LoanOfferDraftLocked(appId);
+        emit LoanDraftLocked(appId, loanApplications[appId].borrower);
     }
 
     /**
@@ -463,7 +463,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
         loanOffers[appId].offeredTime = block.timestamp;
 
-        emit LoanOfferMade(appId);
+        emit LoanOffered(appId, loanApplications[appId].borrower);
     }
 
     /**
@@ -565,7 +565,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         // on pool
         ILendingPool(pool).onBorrow(loanId, offer.borrower, offer.amount, offer.apr);
 
-        emit LoanBorrowed(loanId, offer.borrower, appId);
+        emit LoanBorrowed(loanId, appId, offer.borrower, offer.amount);
     }
 
     /**

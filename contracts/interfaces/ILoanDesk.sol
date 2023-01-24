@@ -180,31 +180,31 @@ interface ILoanDesk {
     }
 
     /// Event for when a new loan is requested, and an application is created
-    event LoanRequested(uint256 applicationId, address indexed borrower, uint256 amount);
+    event LoanRequested(uint256 applicationId, address indexed borrower, uint256 amount, uint256 duration);
 
     /// Event for when a loan request is denied
-    event LoanRequestDenied(uint256 applicationId, address indexed borrower, uint256 amount);
+    event LoanRequestDenied(uint256 applicationId, address indexed borrower);
 
     /// Event for when a loan offer is made
-    event LoanOfferDrafted(uint256 applicationId, address indexed borrower, uint256 amount);
+    event LoanDrafted(uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan offer is updated
-    event OfferDraftUpdated(uint256 applicationId, address indexed borrower, uint256 prevAmount, uint256 newAmount);
+    event LoanDraftUpdated(uint256 applicationId, address indexed borrower, uint256 prevAmount, uint256 newAmount);
 
     /// Event for when a loan offer draft is locked and is made available for voting
-    event LoanOfferDraftLocked(uint256 applicationId);
+    event LoanDraftLocked(uint256 applicationId, address indexed borrower);
 
     /// Event for when a loan offer has passed voting and is now available to borrow
-    event LoanOfferMade(uint256 applicationId);
-
-    /// Event for when a loan offer is cancelled
-    event LoanOfferCancelled(uint256 applicationId, address indexed borrower, uint256 amount);
+    event LoanOffered(uint256 applicationId, address indexed borrower);
 
     /// Event for when a loan offer is accepted
     event LoanOfferAccepted(uint256 applicationId, address indexed borrower, uint256 amount);
 
+    /// Event for when a loan offer is cancelled
+    event LoanOfferCancelled(uint256 applicationId, address indexed borrower, uint256 amount);
+
     /// Event for when loan offer is accepted and the loan is borrowed
-    event LoanBorrowed(uint256 loanId, address indexed borrower, uint256 applicationId);
+    event LoanBorrowed(uint256 loanId, uint256 applicationId, address indexed borrower, uint256 amount);
 
     /// Event for when a loan payment is initiated
     event LoanRepaymentInitiated(
@@ -219,10 +219,10 @@ interface ILoanDesk {
     event LoanFullyRepaid(uint256 loanId, address indexed borrower);
 
     /// Event for when a loan is closed
-    event LoanClosed(uint256 loanId, address indexed borrower, uint256 managerLossAmount, uint256 lenderLossAmount);
+    event LoanClosed(uint256 loanId, address indexed borrower, uint256 stakerLoss, uint256 lenderLoss);
 
     /// Event for when a loan is defaulted
-    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 managerLoss, uint256 lenderLoss);
+    event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 stakerLoss, uint256 lenderLoss);
 
     /// Setter event
     event MinLoanAmountSet(uint256 prevValue, uint256 newValue);
