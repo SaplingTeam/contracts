@@ -22,7 +22,7 @@ describe('Loan Desk', function () {
     const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+    const POOL_1_STAKER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_STAKER_ROLE"));
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
@@ -37,7 +37,7 @@ describe('Loan Desk', function () {
     let governance;
     let lenderGovernance;
     let protocol;
-    let manager;
+    let staker;
     let addresses;
 
     beforeEach(async function () {
@@ -49,7 +49,7 @@ describe('Loan Desk', function () {
     });
 
     before(async function () {
-        [deployer, governance, lenderGovernance, protocol, manager, ...addresses] = await ethers.getSigners();
+        [deployer, governance, lenderGovernance, protocol, staker, ...addresses] = await ethers.getSigners();
 
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
@@ -61,7 +61,7 @@ describe('Loan Desk', function () {
         await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
-        await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_STAKER_ROLE, staker.address);
         await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
 
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
@@ -79,14 +79,14 @@ describe('Loan Desk', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE
+            POOL_1_STAKER_ROLE
         ]);
         await lendingPool.deployed();
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE,
+            POOL_1_STAKER_ROLE,
             POOL_1_LENDER_GOVERNANCE_ROLE,
             TOKEN_DECIMALS,
         ]);
@@ -97,8 +97,8 @@ describe('Loan Desk', function () {
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
 
-        await lendingPool.connect(manager).open();
-        await loanDesk.connect(manager).open();
+        await lendingPool.connect(staker).open();
+        await loanDesk.connect(staker).open();
     });
 
     describe('Deployment', function () {
@@ -107,7 +107,7 @@ describe('Loan Desk', function () {
                 upgrades.deployProxy(LoanDeskCF, [
                     lendingPool.address,
                     coreAccessControl.address,
-                    POOL_1_MANAGER_ROLE,
+                    POOL_1_STAKER_ROLE,
                     POOL_1_LENDER_GOVERNANCE_ROLE,
                     TOKEN_DECIMALS,
                 ]),
@@ -182,7 +182,7 @@ describe('Loan Desk', function () {
 
         describe('Setting pool parameters', function () {
             describe('Loan APR', function () {
-                it('Manager can set a template loan APR', async function () {
+                it('Staker can set a template loan APR', async function () {
                     let currentValue = (await loanDesk.loanTemplate()).apr;
                     let minValue = await saplingMath.SAFE_MIN_APR();
                     let maxValue = 100 * 10 ** PERCENT_DECIMALS;
@@ -190,7 +190,7 @@ describe('Loan Desk', function () {
                     let newValue = 40 * 10 ** PERCENT_DECIMALS;
                     assertHardhatInvariant(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
 
-                    await loanDesk.connect(manager).setTemplateLoanAPR(newValue);
+                    await loanDesk.connect(staker).setTemplateLoanAPR(newValue);
                     expect((await loanDesk.loanTemplate()).apr).to.equal(newValue);
                 });
 
@@ -204,23 +204,23 @@ describe('Loan Desk', function () {
 
                     await loanDesk.connect(governance).pause();
 
-                    await expect(loanDesk.connect(manager).setTemplateLoanAPR(newValue)).to.be.not.reverted;
+                    await expect(loanDesk.connect(staker).setTemplateLoanAPR(newValue)).to.be.not.reverted;
                 });
 
                 describe('Rejection scenarios', function () {
                     it('Loan APR cannot be set to a value less than the allowed minimum', async function () {
                         let minValue = await saplingMath.SAFE_MIN_APR();
                         if (minValue > 0) {
-                            await expect(loanDesk.connect(manager).setTemplateLoanAPR(minValue - 1)).to.be.reverted;
+                            await expect(loanDesk.connect(staker).setTemplateLoanAPR(minValue - 1)).to.be.reverted;
                         }
                     });
 
                     it('Loan APR cannot be set to a value greater than the allowed maximum', async function () {
                         let maxValue = 100 * 10 ** PERCENT_DECIMALS;
-                        await expect(loanDesk.connect(manager).setTemplateLoanAPR(maxValue + 1)).to.be.reverted;
+                        await expect(loanDesk.connect(staker).setTemplateLoanAPR(maxValue + 1)).to.be.reverted;
                     });
 
-                    it('A non-manager cannot set the loan APR', async function () {
+                    it('A non-staker cannot set the loan APR', async function () {
                         let currentValue = (await loanDesk.loanTemplate()).apr;
                         let minValue = await saplingMath.SAFE_MIN_APR();
                         let maxValue = 100 * 10 ** PERCENT_DECIMALS;
@@ -234,11 +234,11 @@ describe('Loan Desk', function () {
             });
 
             describe('Minimum loan amount', function () {
-                it('Manager can set a minimum loan amount', async function () {
+                it('Staker can set a minimum loan amount', async function () {
                     let currentValue = (await loanDesk.loanTemplate()).minAmount;
                     let newValue = currentValue.add(1);
 
-                    await loanDesk.connect(manager).setMinLoanAmount(newValue);
+                    await loanDesk.connect(staker).setMinLoanAmount(newValue);
                     expect((await loanDesk.loanTemplate()).minAmount).to.equal(newValue);
                 });
 
@@ -248,16 +248,16 @@ describe('Loan Desk', function () {
 
                     await loanDesk.connect(governance).pause();
 
-                    await expect(loanDesk.connect(manager).setMinLoanAmount(newValue)).to.be.not.reverted;
+                    await expect(loanDesk.connect(staker).setMinLoanAmount(newValue)).to.be.not.reverted;
                 });
 
                 describe('Rejection scenarios', function () {
                     it('Minimum loan amount cannot be set to a value less than the allowed minimum', async function () {
                         let minValue = await saplingMath.SAFE_MIN_AMOUNT();
-                        await expect(loanDesk.connect(manager).setMinLoanAmount(minValue.sub(1))).to.be.reverted;
+                        await expect(loanDesk.connect(staker).setMinLoanAmount(minValue.sub(1))).to.be.reverted;
                     });
 
-                    it('A non-manager cannot set the loan APR', async function () {
+                    it('A non-staker cannot set the loan APR', async function () {
                         let currentValue = (await loanDesk.loanTemplate()).minAmount;
                         let newValue = currentValue.add(1);
 
@@ -267,14 +267,14 @@ describe('Loan Desk', function () {
             });
 
             describe('Minimum loan duration', function () {
-                it('Manager can set a template minimum loan duration', async function () {
+                it('Staker can set a template minimum loan duration', async function () {
                     let currentValue = (await loanDesk.loanTemplate()).minDuration;
                     let maxValue = (await loanDesk.loanTemplate()).maxDuration;
 
                     let newValue = currentValue.add(1);
                     assertHardhatInvariant(newValue.lte(maxValue));
 
-                    await loanDesk.connect(manager).setMinLoanDuration(newValue);
+                    await loanDesk.connect(staker).setMinLoanDuration(newValue);
                     expect((await loanDesk.loanTemplate()).minDuration).to.equal(newValue);
                 });
 
@@ -287,23 +287,23 @@ describe('Loan Desk', function () {
 
                     await loanDesk.connect(governance).pause();
 
-                    await expect(loanDesk.connect(manager).setMinLoanDuration(newValue)).to.be.not.reverted;
+                    await expect(loanDesk.connect(staker).setMinLoanDuration(newValue)).to.be.not.reverted;
                 });
 
                 describe('Rejection scenarios', function () {
                     it('Minimum loan duration cannot be set to a value less than the allowed minimum', async function () {
                         let minValue = await saplingMath.SAFE_MIN_DURATION();
                         if (minValue > 0) {
-                            await expect(loanDesk.connect(manager).setMinLoanDuration(minValue.sub(1))).to.be.reverted;
+                            await expect(loanDesk.connect(staker).setMinLoanDuration(minValue.sub(1))).to.be.reverted;
                         }
                     });
 
                     it('Minimum loan duration cannot be set to a value greater than the allowed maximum', async function () {
                         let maxValue = (await loanDesk.loanTemplate()).maxDuration;
-                        await expect(loanDesk.connect(manager).setMinLoanDuration(maxValue.add(1))).to.be.reverted;
+                        await expect(loanDesk.connect(staker).setMinLoanDuration(maxValue.add(1))).to.be.reverted;
                     });
 
-                    it('A non-manager cannot set the minimum loan duration', async function () {
+                    it('A non-staker cannot set the minimum loan duration', async function () {
                         let currentValue = (await loanDesk.loanTemplate()).minDuration;
                         let maxValue = (await loanDesk.loanTemplate()).maxDuration;
 
@@ -316,7 +316,7 @@ describe('Loan Desk', function () {
             });
 
             describe('Maximum loan duration', function () {
-                it('Manager can set a template maximum loan duration', async function () {
+                it('Staker can set a template maximum loan duration', async function () {
                     let currentValue = (await loanDesk.loanTemplate()).maxDuration;
                     let minValue = (await loanDesk.loanTemplate()).minDuration;
                     let maxValue = await saplingMath.SAFE_MAX_DURATION();
@@ -324,7 +324,7 @@ describe('Loan Desk', function () {
                     let newValue = currentValue.sub(1);
                     assertHardhatInvariant(minValue.lte(newValue) && newValue.lte(maxValue));
 
-                    await loanDesk.connect(manager).setMaxLoanDuration(newValue);
+                    await loanDesk.connect(staker).setMaxLoanDuration(newValue);
                     expect((await loanDesk.loanTemplate()).maxDuration).to.equal(newValue);
                 });
 
@@ -338,23 +338,23 @@ describe('Loan Desk', function () {
 
                     await loanDesk.connect(governance).pause();
 
-                    await expect(loanDesk.connect(manager).setMaxLoanDuration(newValue)).to.be.not.reverted;
+                    await expect(loanDesk.connect(staker).setMaxLoanDuration(newValue)).to.be.not.reverted;
                 });
 
                 describe('Rejection scenarios', function () {
                     it('Maximum loan duration cannot be set to a value less than the allowed minimum', async function () {
                         let minValue = (await loanDesk.loanTemplate()).minDuration;
                         if (minValue > 0) {
-                            await expect(loanDesk.connect(manager).setMaxLoanDuration(minValue.sub(1))).to.be.reverted;
+                            await expect(loanDesk.connect(staker).setMaxLoanDuration(minValue.sub(1))).to.be.reverted;
                         }
                     });
 
                     it('Maximum loan duration cannot be set to a value greater than the allowed maximum', async function () {
                         let maxValue = await saplingMath.SAFE_MAX_DURATION();
-                        await expect(loanDesk.connect(manager).setMaxLoanDuration(maxValue.add(1))).to.be.reverted;
+                        await expect(loanDesk.connect(staker).setMaxLoanDuration(maxValue.add(1))).to.be.reverted;
                     });
 
-                    it('A non-manager cannot set the maximum loan duration', async function () {
+                    it('A non-staker cannot set the maximum loan duration', async function () {
                         let currentValue = (await loanDesk.loanTemplate()).maxDuration;
                         let minValue = (await loanDesk.loanTemplate()).minDuration;
                         let maxValue = await saplingMath.SAFE_MAX_DURATION();
@@ -368,7 +368,7 @@ describe('Loan Desk', function () {
             });
 
             describe('Loan grace period', function () {
-                it('Manager can set a template loan grace period', async function () {
+                it('Staker can set a template loan grace period', async function () {
                     let currentValue = (await loanDesk.loanTemplate()).gracePeriod;
                     let minValue = await saplingMath.MIN_LOAN_GRACE_PERIOD();
                     let maxValue = await saplingMath.MAX_LOAN_GRACE_PERIOD();
@@ -376,7 +376,7 @@ describe('Loan Desk', function () {
                     let newValue = currentValue.add(1);
                     assertHardhatInvariant(minValue.lte(newValue) && newValue.lte(maxValue));
 
-                    await loanDesk.connect(manager).setTemplateLoanGracePeriod(newValue);
+                    await loanDesk.connect(staker).setTemplateLoanGracePeriod(newValue);
                     expect((await loanDesk.loanTemplate()).gracePeriod).to.equal(newValue);
                 });
 
@@ -390,25 +390,25 @@ describe('Loan Desk', function () {
 
                     await loanDesk.connect(governance).pause();
 
-                    await expect(loanDesk.connect(manager).setTemplateLoanGracePeriod(newValue)).to.be.not.reverted;
+                    await expect(loanDesk.connect(staker).setTemplateLoanGracePeriod(newValue)).to.be.not.reverted;
                 });
 
                 describe('Rejection scenarios', function () {
                     it('Loan grace period cannot be set to a value less than the allowed minimum', async function () {
                         let minValue = await saplingMath.MIN_LOAN_GRACE_PERIOD();
                         if (minValue > 0) {
-                            await expect(loanDesk.connect(manager).setTemplateLoanGracePeriod(minValue.sub(1))).to.be
+                            await expect(loanDesk.connect(staker).setTemplateLoanGracePeriod(minValue.sub(1))).to.be
                                 .reverted;
                         }
                     });
 
                     it('Loan grace period cannot be set to a value greater than the allowed maximum', async function () {
                         let maxValue = await saplingMath.MAX_LOAN_GRACE_PERIOD();
-                        await expect(loanDesk.connect(manager).setTemplateLoanGracePeriod(maxValue.add(1))).to.be
+                        await expect(loanDesk.connect(staker).setTemplateLoanGracePeriod(maxValue.add(1))).to.be
                             .reverted;
                     });
 
-                    it('A non-manager cannot set the loan grace period', async function () {
+                    it('A non-staker cannot set the loan grace period', async function () {
                         let currentValue = (await loanDesk.loanTemplate()).gracePeriod;
                         let minValue = await saplingMath.MIN_LOAN_GRACE_PERIOD();
                         let maxValue = await saplingMath.MAX_LOAN_GRACE_PERIOD();
@@ -540,7 +540,7 @@ describe('Loan Desk', function () {
                 });
 
                 it('Requesting a loan when the loan desk is closed should fail', async function () {
-                    await loanDesk.connect(manager).close();
+                    await loanDesk.connect(staker).close();
                     await expect(
                         loanDesk
                             .connect(borrower1)
@@ -553,10 +553,10 @@ describe('Loan Desk', function () {
                     ).to.be.reverted;
                 });
 
-                it('Requesting a loan as the manager should fail', async function () {
+                it('Requesting a loan as the staker should fail', async function () {
                     await expect(
                         loanDesk
-                            .connect(manager)
+                            .connect(staker)
                             .requestLoan(
                                 loanAmount,
                                 loanDuration,
@@ -626,9 +626,9 @@ describe('Loan Desk', function () {
                 let stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
                 let depositAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
 
-                await liquidityToken.connect(deployer).mint(manager.address, stakeAmount);
-                await liquidityToken.connect(manager).approve(lendingPool.address, stakeAmount);
-                await lendingPool.connect(manager).stake(stakeAmount);
+                await liquidityToken.connect(deployer).mint(staker.address, stakeAmount);
+                await liquidityToken.connect(staker).approve(lendingPool.address, stakeAmount);
+                await lendingPool.connect(staker).stake(stakeAmount);
 
                 await liquidityToken.connect(deployer).mint(lender1.address, depositAmount);
                 await liquidityToken.connect(lender1).approve(lendingPool.address, depositAmount);
@@ -636,12 +636,12 @@ describe('Loan Desk', function () {
             });
 
             describe('Offer', function () {
-                it('Manager make loan offer drafts', async function () {
+                it('Staker make loan offer drafts', async function () {
                     let offeredFunds = await loanDesk.offeredFunds();
                     expect(await lendingPool.canOffer(offeredFunds.add(application.amount))).to.equal(true);
 
                     await loanDesk
-                        .connect(manager)
+                        .connect(staker)
                         .draftOffer(
                             applicationId,
                             application.amount,
@@ -661,7 +661,7 @@ describe('Loan Desk', function () {
                 describe('Rejection scenarios', function () {
                     it('Making a draft offer with installment number less than 1 should fail', async function () {
                         await expect(loanDesk
-                        .connect(manager)
+                        .connect(staker)
                         .draftOffer(
                             applicationId,
                             application.amount,
@@ -675,7 +675,7 @@ describe('Loan Desk', function () {
 
                     it('Making a draft offer with installment number greater than the number of days in the duration should fail', async function () {
                         await expect(loanDesk
-                        .connect(manager)
+                        .connect(staker)
                         .draftOffer(
                             applicationId,
                             application.amount,
@@ -689,7 +689,7 @@ describe('Loan Desk', function () {
 
                     it('Offering a loan that is not in APPLIED status should fail', async function () {
                         await loanDesk
-                            .connect(manager)
+                            .connect(staker)
                             .draftOffer(
                                 applicationId,
                                 application.amount,
@@ -701,7 +701,7 @@ describe('Loan Desk', function () {
                             );
                         await expect(
                             loanDesk
-                                .connect(manager)
+                                .connect(staker)
                                 .draftOffer(
                                     applicationId,
                                     application.amount,
@@ -738,7 +738,7 @@ describe('Loan Desk', function () {
 
                         await expect(
                             loanDesk
-                                .connect(manager)
+                                .connect(staker)
                                 .draftOffer(
                                     otherApplicationId,
                                     otherApplication.amount,
@@ -770,7 +770,7 @@ describe('Loan Desk', function () {
                         let otherApplication = await loanDesk.loanApplications(otherApplicationId);
 
                         await loanDesk
-                            .connect(manager)
+                            .connect(staker)
                             .draftOffer(
                                 otherApplicationId,
                                 otherApplication.amount,
@@ -780,10 +780,10 @@ describe('Loan Desk', function () {
                                 installments,
                                 apr,
                             );
-                        await loanDesk.connect(manager).lockDraftOffer(otherApplicationId);
+                        await loanDesk.connect(staker).lockDraftOffer(otherApplicationId);
                         await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
                 await ethers.provider.send('evm_mine');
-                await loanDesk.connect(manager).offerLoan(otherApplicationId);
+                await loanDesk.connect(staker).offerLoan(otherApplicationId);
                         let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
                         let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
                             .args.loanId;
@@ -794,11 +794,11 @@ describe('Loan Desk', function () {
                         ]);
                         await ethers.provider.send('evm_mine');
 
-                        await loanDesk.connect(manager).defaultLoan(otherLoanId);
+                        await loanDesk.connect(staker).defaultLoan(otherLoanId);
 
                         await expect(
                             loanDesk
-                                .connect(manager)
+                                .connect(staker)
                                 .draftOffer(
                                     applicationId,
                                     application.amount,
@@ -813,8 +813,8 @@ describe('Loan Desk', function () {
 
                     /*
                     it ("Offering a loan when lending is paused should fail", async function () {
-                        await lendingPool.connect(manager).pauseLending();
-                        await expect(loanDesk.connect(manager).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
+                        await lendingPool.connect(staker).pauseLending();
+                        await expect(loanDesk.connect(staker).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
                     });
                     */
 
@@ -822,7 +822,7 @@ describe('Loan Desk', function () {
                         await loanDesk.connect(governance).pause();
                         await expect(
                             loanDesk
-                                .connect(manager)
+                                .connect(staker)
                                 .draftOffer(
                                     applicationId,
                                     application.amount,
@@ -836,10 +836,10 @@ describe('Loan Desk', function () {
                     });
 
                     it('Offering a loan when the pool is closed should fail', async function () {
-                        await loanDesk.connect(manager).close();
+                        await loanDesk.connect(staker).close();
                         await expect(
                             loanDesk
-                                .connect(manager)
+                                .connect(staker)
                                 .draftOffer(
                                     applicationId,
                                     application.amount,
@@ -855,7 +855,7 @@ describe('Loan Desk', function () {
                     it('Offering a nonexistent loan should fail', async function () {
                         await expect(
                             loanDesk
-                                .connect(manager)
+                                .connect(staker)
                                 .draftOffer(
                                     applicationId.add(1),
                                     application.amount,
@@ -959,7 +959,7 @@ describe('Loan Desk', function () {
                     await snapshot();
 
                     await loanDesk
-                        .connect(manager)
+                        .connect(staker)
                         .draftOffer(
                             applicationId,
                             application.amount,
@@ -972,7 +972,7 @@ describe('Loan Desk', function () {
                 });
 
                 describe('Update', function () {
-                    it('Manager can update loan offers', async function () {
+                    it('Staker can update loan offers', async function () {
                         let offeredFunds = await loanDesk.offeredFunds();
                         let offer = await loanDesk.loanOffers(applicationId);
 
@@ -980,7 +980,7 @@ describe('Loan Desk', function () {
                         expect(await lendingPool.canOffer(offeredFunds.sub(offer.amount).add(newOfferedAmount)))
                             .to.equal(true);
 
-                        await expect(loanDesk.connect(manager).updateDraftOffer(
+                        await expect(loanDesk.connect(staker).updateDraftOffer(
                                 offer.applicationId,
                                 newOfferedAmount,
                                 offer.duration,
@@ -993,14 +993,14 @@ describe('Loan Desk', function () {
                 });
 
                 describe('Cancel', function () {
-                    it('Manager can cancel', async function () {
-                        await loanDesk.connect(manager).cancelLoan(applicationId);
+                    it('Staker can cancel', async function () {
+                        await loanDesk.connect(staker).cancelLoan(applicationId);
                         expect((await loanDesk.loanApplications(applicationId)).status).to.equal(
                             LoanApplicationStatus.CANCELLED,
                         );
                     });
 
-                    it('Manager can cancel while other loans are present (Updating weighted avg loan APR', async function () {
+                    it('Staker can cancel while other loans are present (Updating weighted avg loan APR', async function () {
                         let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                         let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
                         let requestLoanTx = await loanDesk
@@ -1015,7 +1015,7 @@ describe('Loan Desk', function () {
 
                         let otherApplication = await loanDesk.loanApplications(otherApplicationId);
                         await loanDesk
-                            .connect(manager)
+                            .connect(staker)
                             .draftOffer(
                                 otherApplicationId,
                                 otherApplication.amount,
@@ -1026,7 +1026,7 @@ describe('Loan Desk', function () {
                                 apr,
                             );
 
-                        await loanDesk.connect(manager).cancelLoan(applicationId);
+                        await loanDesk.connect(staker).cancelLoan(applicationId);
                         expect((await loanDesk.loanApplications(applicationId)).status).to.equal(
                             LoanApplicationStatus.CANCELLED,
                         );
@@ -1034,16 +1034,16 @@ describe('Loan Desk', function () {
 
                     describe('Rejection scenarios', function () {
                         it('Cancelling a loan that is not in APPROVED status should fail', async function () {
-                            await loanDesk.connect(manager).lockDraftOffer(applicationId);
+                            await loanDesk.connect(staker).lockDraftOffer(applicationId);
                             await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
                 await ethers.provider.send('evm_mine');
-                await loanDesk.connect(manager).offerLoan(applicationId);
+                await loanDesk.connect(staker).offerLoan(applicationId);
                             await loanDesk.connect(borrower1).borrow(applicationId);
-                            await expect(loanDesk.connect(manager).cancelLoan(applicationId)).to.be.reverted;
+                            await expect(loanDesk.connect(staker).cancelLoan(applicationId)).to.be.reverted;
                         });
 
                         it('Cancelling a nonexistent loan should fail', async function () {
-                            await expect(loanDesk.connect(manager).cancelLoan(applicationId.add(1))).to.be.reverted;
+                            await expect(loanDesk.connect(staker).cancelLoan(applicationId.add(1))).to.be.reverted;
                         });
 
                         it('Cancelling a loan as the protocol should fail', async function () {
@@ -1070,15 +1070,15 @@ describe('Loan Desk', function () {
             });
 
             describe('Deny', function () {
-                it('manager can deny loans', async function () {
-                    await loanDesk.connect(manager).denyLoan(applicationId);
+                it('Staker can deny loans', async function () {
+                    await loanDesk.connect(staker).denyLoan(applicationId);
                     expect((await loanDesk.loanApplications(applicationId)).status).to.equal(
                         LoanApplicationStatus.DENIED,
                     );
                 });
 
                 it('Borrowers can request another loan after the previous request is no longer pending', async function () {
-                    await loanDesk.connect(manager).denyLoan(applicationId);
+                    await loanDesk.connect(staker).denyLoan(applicationId);
                     await expect(loanDesk.connect(borrower1).requestLoan(
                             loanAmount,
                             loanDuration,
@@ -1090,7 +1090,7 @@ describe('Loan Desk', function () {
                 describe('Rejection scenarios', function () {
                     it('Denying a loan that is not in APPLIED status should fail', async function () {
                         await loanDesk
-                            .connect(manager)
+                            .connect(staker)
                             .draftOffer(
                                 applicationId,
                                 application.amount,
@@ -1100,11 +1100,11 @@ describe('Loan Desk', function () {
                                 installments,
                                 apr,
                             );
-                        await expect(loanDesk.connect(manager).denyLoan(applicationId)).to.be.reverted;
+                        await expect(loanDesk.connect(staker).denyLoan(applicationId)).to.be.reverted;
                     });
 
                     it('Denying a nonexistent loan should fail', async function () {
-                        await expect(loanDesk.connect(manager).denyLoan(applicationId.add(1))).to.be.reverted;
+                        await expect(loanDesk.connect(staker).denyLoan(applicationId.add(1))).to.be.reverted;
                     });
 
                     it('Denying a loan as the protocol should fail', async function () {

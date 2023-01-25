@@ -87,13 +87,13 @@ interface ILendingPool {
 
     /**
      * @dev Hook for closing a loan. Caller must be the LoanDesk. Closing a loan will repay the outstanding principal 
-     *      using the pool manager's revenue and/or staked funds. If these funds are not sufficient, the lenders will 
+     *      using the staker's revenue and/or staked funds. If these funds are not sufficient, the lenders will
      *      share the loss.
      * @param loanId ID of the loan to close
      * @param apr Loan apr
      * @param amountRepaid Amount repaid based on outstanding payment carry
      * @param remainingDifference Principal amount remaining to be resolved to close the loan
-     * @return Amount reimbursed by the pool manager funds
+     * @return Amount reimbursed by the staker funds
      */
     function onCloseLoan(
         uint256 loanId,
@@ -122,7 +122,7 @@ interface ILendingPool {
      returns (uint256, uint256);
 
     /**
-     * @notice View indicating whether or not a given loan can be offered by the manager.
+     * @notice View indicating whether or not a given loan can be offered by the staker.
      * @dev Hook for checking if the lending pool can provide liquidity for the total offered loans amount.
      * @param totalOfferedAmount Total sum of offered loan amount including outstanding offers
      * @return True if the pool has sufficient lending liquidity, false otherwise

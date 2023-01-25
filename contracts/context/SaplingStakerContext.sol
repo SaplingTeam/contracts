@@ -5,19 +5,19 @@ pragma solidity ^0.8.15;
 import "./SaplingContext.sol";
 
 /**
- * @title Sapling Manager Context
- * @notice Provides manager access control, and a basic close functionality.
- * @dev Close functionality is implemented in the same fashion as Openzeppelin's Pausable. 
+ * @title Sapling Staker Context
+ * @notice Provides staker access control, and a basic close functionality.
+ * @dev Close functionality is implemented in the same fashion as Openzeppelin's Pausable.
  */
-abstract contract SaplingManagerContext is SaplingContext {
+abstract contract SaplingStakerContext is SaplingContext {
 
     /**
-     * Pool manager role
+     * Staker role
      * 
      * @dev The value of this role should be unique for each pool. Role must be created before the pool contract 
      *      deployment, then passed during construction/initialization.
      */
-    bytes32 public poolManagerRole;
+    bytes32 public poolStakerRole;
 
     /// Flag indicating whether or not the pool is closed
     bool private _closed;
@@ -28,33 +28,33 @@ abstract contract SaplingManagerContext is SaplingContext {
     /// Event for when the contract is reopened
     event Opened(address account);
 
-    /// A modifier to limit access only to non-management users
+    /// A modifier to limit access only to users without roles
     modifier onlyUser() {
-        require(!isNonUserAddress(msg.sender), "SaplingManagerContext: caller is not a user");
+        require(!isNonUserAddress(msg.sender), "SaplingStakerContext: caller is not a user");
         _;
     }
 
     /// Modifier to limit function access to when the contract is not closed
     modifier whenNotClosed {
-        require(!_closed, "SaplingManagerContext: closed");
+        require(!_closed, "SaplingStakerContext: closed");
         _;
     }
 
     /// Modifier to limit function access to when the contract is closed
     modifier whenClosed {
-        require(_closed, "SaplingManagerContext: not closed");
+        require(_closed, "SaplingStakerContext: not closed");
         _;
     }
 
     /**
-     * @notice Create a new SaplingManagedContext.
+     * @notice Create a new SaplingStakerContext.
      * @dev Addresses must not be 0.
      * @param _accessControl Access control contract address
-     * @param _managerRole Manager role
+     * @param _stakerRole Staker role
      */
-    function __SaplingManagerContext_init(
+    function __SaplingStakerContext_init(
         address _accessControl,
-        bytes32 _managerRole
+        bytes32 _stakerRole
     )
         internal
         onlyInitializing
@@ -65,22 +65,22 @@ abstract contract SaplingManagerContext is SaplingContext {
             Additional check for single init:
                 do not init again if a non-zero value is present in the values yet to be initialized.
         */
-        assert(_closed == false && poolManagerRole == 0x00);
+        assert(_closed == false && poolStakerRole == 0x00);
 
-        poolManagerRole = _managerRole;
+        poolStakerRole = _stakerRole;
         _closed = true;
     }
 
     /**
      * @notice Close the pool.
      * @dev Only the functions using whenClosed and whenNotClosed modifiers will be affected by close.
-     *      Caller must have the pool manager role. Pool must be open.
+     *      Caller must have the staker role. Pool must be open.
      *
-     *      Manager must have access to close function as the ability to unstake and withdraw all manager funds is 
+     *      Staker must have access to close function as the ability to unstake and withdraw all staked funds is
      *      only guaranteed when the pool is closed and all outstanding loans resolved. 
      */
-    function close() external onlyRole(poolManagerRole) whenNotClosed {
-        require(canClose(), "SaplingManagerContext: cannot close the pool under current conditions");
+    function close() external onlyRole(poolStakerRole) whenNotClosed {
+        require(canClose(), "SaplingStakerContext: cannot close the pool under current conditions");
 
         _closed = true;
 
@@ -90,10 +90,10 @@ abstract contract SaplingManagerContext is SaplingContext {
     /**
      * @notice Open the pool for normal operations.
      * @dev Only the functions using whenClosed and whenNotClosed modifiers will be affected by open.
-     *      Caller must have the pool manager role. Pool must be closed.
+     *      Caller must have the staker role. Pool must be closed.
      */
-    function open() external onlyRole(poolManagerRole) whenClosed {
-        require(canOpen(), "SaplingManagerContext: cannot open the pool under current conditions");
+    function open() external onlyRole(poolStakerRole) whenClosed {
+        require(canOpen(), "SaplingStakerContext: cannot open the pool under current conditions");
         _closed = false;
 
         emit Opened(msg.sender);
@@ -114,7 +114,7 @@ abstract contract SaplingManagerContext is SaplingContext {
      * @return True if the address has any roles, false otherwise
      */
     function isNonUserAddress(address party) internal view override returns (bool) {
-        return hasRole(poolManagerRole, party) || super.isNonUserAddress(party);
+        return hasRole(poolStakerRole, party) || super.isNonUserAddress(party);
     }
 
     /**

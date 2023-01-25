@@ -23,7 +23,7 @@ describe('Sapling Lending Pool', function () {
     const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+    const POOL_1_STAKER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_STAKER_ROLE"));
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
@@ -38,7 +38,7 @@ describe('Sapling Lending Pool', function () {
     let governance;
     let lenderGovernance;
     let protocol;
-    let manager;
+    let staker;
     let addresses;
 
     beforeEach(async function () {
@@ -50,7 +50,7 @@ describe('Sapling Lending Pool', function () {
     });
 
     before(async function () {
-        [deployer, governance, lenderGovernance, protocol, manager, ...addresses] = await ethers.getSigners();
+        [deployer, governance, lenderGovernance, protocol, staker, ...addresses] = await ethers.getSigners();
 
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
@@ -62,7 +62,7 @@ describe('Sapling Lending Pool', function () {
         await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
-        await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_STAKER_ROLE, staker.address);
         await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
 
         SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
@@ -80,14 +80,14 @@ describe('Sapling Lending Pool', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE
+            POOL_1_STAKER_ROLE
         ]);
         await lendingPool.deployed();
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE,
+            POOL_1_STAKER_ROLE,
             POOL_1_LENDER_GOVERNANCE_ROLE,
             TOKEN_DECIMALS,
         ]);
@@ -98,8 +98,8 @@ describe('Sapling Lending Pool', function () {
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
 
-        await lendingPool.connect(manager).open();
-        await loanDesk.connect(manager).open();
+        await lendingPool.connect(staker).open();
+        await loanDesk.connect(staker).open();
     });
 
     describe('Deployment', function () {
@@ -109,7 +109,7 @@ describe('Sapling Lending Pool', function () {
                     poolToken.address,
                     liquidityToken.address,
                     coreAccessControl.address,
-                    POOL_1_MANAGER_ROLE
+                    POOL_1_STAKER_ROLE
                 ]),
             ).to.be.not.reverted;
         });
@@ -177,9 +177,9 @@ describe('Sapling Lending Pool', function () {
             loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
 
-            await liquidityToken.connect(deployer).mint(manager.address, stakeAmount);
-            await liquidityToken.connect(manager).approve(lendingPool.address, stakeAmount);
-            await lendingPool.connect(manager).stake(stakeAmount);
+            await liquidityToken.connect(deployer).mint(staker.address, stakeAmount);
+            await liquidityToken.connect(staker).approve(lendingPool.address, stakeAmount);
+            await lendingPool.connect(staker).stake(stakeAmount);
 
             await liquidityToken.connect(deployer).mint(lender1.address, depositAmount);
             await liquidityToken.connect(lender1).approve(lendingPool.address, depositAmount);
@@ -198,8 +198,8 @@ describe('Sapling Lending Pool', function () {
         });
 
         describe('Close Pool', function () {
-            it('Manager can close the pool', async function () {
-                await lendingPool.connect(manager).close();
+            it('Staker can close the pool', async function () {
+                await lendingPool.connect(staker).close();
                 expect(await lendingPool.closed()).to.equal(true);
             });
 
@@ -218,15 +218,15 @@ describe('Sapling Lending Pool', function () {
                     let installments = 1;
                     let apr = (await loanDesk.loanTemplate()).apr;
                     await loanDesk
-                        .connect(manager)
+                        .connect(staker)
                         .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                    await loanDesk.connect(manager).lockDraftOffer(applicationId);
+                    await loanDesk.connect(staker).lockDraftOffer(applicationId);
                     await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
                 await ethers.provider.send('evm_mine');
-                await loanDesk.connect(manager).offerLoan(applicationId);
+                await loanDesk.connect(staker).offerLoan(applicationId);
                     await loanDesk.connect(borrower1).borrow(applicationId);
 
-                    await expect(lendingPool.connect(manager).close()).to.be.reverted;
+                    await expect(lendingPool.connect(staker).close()).to.be.reverted;
                 });
             });
         });
@@ -258,7 +258,7 @@ describe('Sapling Lending Pool', function () {
                 applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                 application = await loanDesk.loanApplications(applicationId);
                 await loanDesk
-                    .connect(manager)
+                    .connect(staker)
                     .draftOffer(
                         applicationId,
                         application.amount,
@@ -272,10 +272,10 @@ describe('Sapling Lending Pool', function () {
 
             it('Borrowers can borrow', async function () {
                 let balanceBefore = await liquidityToken.balanceOf(borrower1.address);
-                await loanDesk.connect(manager).lockDraftOffer(applicationId);
+                await loanDesk.connect(staker).lockDraftOffer(applicationId);
                 await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
                 await ethers.provider.send('evm_mine');
-                await loanDesk.connect(manager).offerLoan(applicationId);
+                await loanDesk.connect(staker).offerLoan(applicationId);
                 let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                 let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
@@ -287,7 +287,7 @@ describe('Sapling Lending Pool', function () {
 
             describe('Rejection scenarios', function () {
                 it('Borrowing a loan that is not in APPROVED status should fail', async function () {
-                    await loanDesk.connect(manager).cancelLoan(applicationId);
+                    await loanDesk.connect(staker).cancelLoan(applicationId);
                     await expect(loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
                 });
 
@@ -341,12 +341,12 @@ describe('Sapling Lending Pool', function () {
                 let installments = 1;
                 let apr = (await loanDesk.loanTemplate()).apr;
                 await loanDesk
-                    .connect(manager)
+                    .connect(staker)
                     .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                await loanDesk.connect(manager).lockDraftOffer(applicationId);
+                await loanDesk.connect(staker).lockDraftOffer(applicationId);
                 await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
                 await ethers.provider.send('evm_mine');
-                await loanDesk.connect(manager).offerLoan(applicationId);
+                await loanDesk.connect(staker).offerLoan(applicationId);
                 let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                 loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
             });
@@ -472,8 +472,8 @@ describe('Sapling Lending Pool', function () {
                     );
                 });
 
-                it('Repaying a loan will allocate protocol fees to the manager', async function () {
-                    let balanceBefore = (await lendingPool.balances()).managerRevenue;
+                it('Repaying a loan will allocate protocol fees to the staker', async function () {
+                    let balanceBefore = (await lendingPool.balances()).stakerEarnings;
                     let loan = await loanDesk.loans(loanId);
 
                     await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
@@ -486,11 +486,11 @@ describe('Sapling Lending Pool', function () {
 
                     let stakedShares = (await lendingPool.balances()).stakedShares;
                     let totalPoolShares = await poolToken.totalSupply();
-                    let managerExcessLeverageComponent = ((await lendingPool.config()).managerEarnFactor) - ONE_HUNDRED_PERCENT;
+                    let stakerExcessLeverageComponent = ((await lendingPool.config()).stakerEarnFactor) - ONE_HUNDRED_PERCENT;
 
                     let currentStakePercent = stakedShares.mul(ONE_HUNDRED_PERCENT).div(totalPoolShares);
-                    let managerEarningsPercent = currentStakePercent
-                        .mul(managerExcessLeverageComponent)
+                    let stakerEarningsPercent = currentStakePercent
+                        .mul(stakerExcessLeverageComponent)
                         .div(ONE_HUNDRED_PERCENT);
 
                     await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
@@ -503,13 +503,13 @@ describe('Sapling Lending Pool', function () {
                         .mul(protocolEarningPercent)
                         .div(ONE_HUNDRED_PERCENT);
 
-                    let managerEarnedInterest = loanDetail.interestPaid
+                    let stakerEarnedInterest = loanDetail.interestPaid
                         .sub(expectedProtocolFee)
-                        .mul(managerEarningsPercent)
-                        .div(managerEarningsPercent.add(ONE_HUNDRED_PERCENT));
+                        .mul(stakerEarningsPercent)
+                        .div(stakerEarningsPercent.add(ONE_HUNDRED_PERCENT));
 
-                    expect((await lendingPool.balances()).managerRevenue).to.equal(
-                        balanceBefore.add(managerEarnedInterest),
+                    expect((await lendingPool.balances()).stakerEarnings).to.equal(
+                        balanceBefore.add(stakerEarnedInterest),
                     );
                 });
 
@@ -582,12 +582,12 @@ describe('Sapling Lending Pool', function () {
                         let installments = 1;
                         let apr = 600;
                         await loanDesk
-                            .connect(manager)
+                            .connect(staker)
                             .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                        await loanDesk.connect(manager).lockDraftOffer(applicationId);
+                        await loanDesk.connect(staker).lockDraftOffer(applicationId);
                         await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
                 await ethers.provider.send('evm_mine');
-                await loanDesk.connect(manager).offerLoan(applicationId);
+                await loanDesk.connect(staker).offerLoan(applicationId);
                         let tx = await loanDesk.connect(borrower2).borrow(applicationId);
                         loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
@@ -683,7 +683,7 @@ describe('Sapling Lending Pool', function () {
                         // test
 
                         let prevCarry = (await loanDesk.loanDetails(loanId)).paymentCarry;
-                        await loanDesk.connect(manager).closeLoan(loanId);
+                        await loanDesk.connect(staker).closeLoan(loanId);
                         let carry = (await loanDesk.loanDetails(loanId)).paymentCarry;
 
                         expect(prevCarry).to.not.equal(0);
@@ -707,7 +707,7 @@ describe('Sapling Lending Pool', function () {
                         // test
 
                         let prevCarry = (await loanDesk.loanDetails(loanId)).paymentCarry;
-                        await loanDesk.connect(manager).defaultLoan(loanId);
+                        await loanDesk.connect(staker).defaultLoan(loanId);
                         let carry = (await loanDesk.loanDetails(loanId)).paymentCarry;
 
                         expect(prevCarry).to.not.equal(0);
@@ -806,7 +806,7 @@ describe('Sapling Lending Pool', function () {
                 describe('Default before the grace period', function () {
                     describe('Rejection scenarios', function () {
                         it('Defaulting a loan before the grace period is up should fail', async function () {
-                            await expect(loanDesk.connect(manager).defaultLoan(loanId)).to.be.reverted;
+                            await expect(loanDesk.connect(staker).defaultLoan(loanId)).to.be.reverted;
                         });
                     });
                 });
@@ -826,7 +826,7 @@ describe('Sapling Lending Pool', function () {
                         await ethers.provider.send('evm_mine');
                     });
 
-                    it('Manager can default a partially repaid loan', async function () {
+                    it('Staker can default a partially repaid loan', async function () {
                         let paymentAmount = (await loanDesk.loanBalanceDue(loanId)).div(2);
                         await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
                         await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
@@ -835,7 +835,7 @@ describe('Sapling Lending Pool', function () {
                         let stakedBalanceBefore = await lendingPool.balanceStaked();
 
                         expect(await loanDesk.canDefault(loanId)).to.equal(true);
-                        await loanDesk.connect(manager).defaultLoan(loanId);
+                        await loanDesk.connect(staker).defaultLoan(loanId);
 
                         loan = await loanDesk.loans(loanId);
                         let loanDetail = await loanDesk.loanDetails(loanId);
@@ -847,12 +847,12 @@ describe('Sapling Lending Pool', function () {
                             .and.to.lte(stakedBalanceBefore.sub(lossAmount).add(5));
                     });
 
-                    it('Manager can default a loan that has no payments made', async function () {
+                    it('Staker can default a loan that has no payments made', async function () {
                         let poolFundsBefore = (await lendingPool.balances()).poolFunds;
                         let stakedBalanceBefore = await lendingPool.balanceStaked();
 
                         expect(await loanDesk.canDefault(loanId)).to.equal(true);
-                        await loanDesk.connect(manager).defaultLoan(loanId);
+                        await loanDesk.connect(staker).defaultLoan(loanId);
 
                         loan = await loanDesk.loans(loanId);
                         let loanDetail = await loanDesk.loanDetails(loanId);
@@ -863,7 +863,7 @@ describe('Sapling Lending Pool', function () {
                         expect(await lendingPool.balanceStaked()).to.equal(stakedBalanceBefore.sub(lossAmount));
                     });
 
-                    it('Manager can default a loan with an loss amount equal to the managers stake', async function () {
+                    it('Staker can default a loan with an loss amount equal to the stakers stake', async function () {
                         let loanAmount = await lendingPool.balanceStaked();
                         let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
 
@@ -880,12 +880,12 @@ describe('Sapling Lending Pool', function () {
                         let installments = 1;
                         let apr = (await loanDesk.loanTemplate()).apr;
                         await loanDesk
-                            .connect(manager)
+                            .connect(staker)
                             .draftOffer(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                        await loanDesk.connect(manager).lockDraftOffer(otherApplicationId);
+                        await loanDesk.connect(staker).lockDraftOffer(otherApplicationId);
                         await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
                 await ethers.provider.send('evm_mine');
-                await loanDesk.connect(manager).offerLoan(otherApplicationId);
+                await loanDesk.connect(staker).offerLoan(otherApplicationId);
                         let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
                         let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
                             .args.loanId;
@@ -898,7 +898,7 @@ describe('Sapling Lending Pool', function () {
                         let poolFundsBefore = (await lendingPool.balances()).poolFunds;
 
                         expect(await loanDesk.canDefault(otherLoanId)).to.equal(true);
-                        await loanDesk.connect(manager).defaultLoan(otherLoanId);
+                        await loanDesk.connect(staker).defaultLoan(otherLoanId);
 
                         let loan = await loanDesk.loans(otherLoanId);
                         let loanDetail = await loanDesk.loanDetails(otherLoanId);
@@ -908,7 +908,7 @@ describe('Sapling Lending Pool', function () {
                         expect(await lendingPool.balanceStaked()).to.equal(0);
                     });
 
-                    it('Manager can default a loan with an loss amount greater than the managers stake', async function () {
+                    it('Staker can default a loan with an loss amount greater than the stakers stake', async function () {
                         let loanAmount = (await lendingPool.balanceStaked()).mul(2);
                         let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
 
@@ -925,12 +925,12 @@ describe('Sapling Lending Pool', function () {
                         let installments = 1;
                         let apr = (await loanDesk.loanTemplate()).apr;
                         await loanDesk
-                            .connect(manager)
+                            .connect(staker)
                             .draftOffer(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                        await loanDesk.connect(manager).lockDraftOffer(otherApplicationId);
+                        await loanDesk.connect(staker).lockDraftOffer(otherApplicationId);
                         await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
                 await ethers.provider.send('evm_mine');
-                await loanDesk.connect(manager).offerLoan(otherApplicationId);
+                await loanDesk.connect(staker).offerLoan(otherApplicationId);
                         let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
                         let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
                             .args.loanId;
@@ -943,7 +943,7 @@ describe('Sapling Lending Pool', function () {
                         let poolFundsBefore = (await lendingPool.balances()).poolFunds;
 
                         expect(await loanDesk.canDefault(otherLoanId)).to.equal(true);
-                        await loanDesk.connect(manager).defaultLoan(otherLoanId);
+                        await loanDesk.connect(staker).defaultLoan(otherLoanId);
 
                         let loan = await loanDesk.loans(otherLoanId);
                         let loanDetail = await loanDesk.loanDetails(otherLoanId);
@@ -953,7 +953,7 @@ describe('Sapling Lending Pool', function () {
                         expect(await lendingPool.balanceStaked()).to.equal(0);
                     });
 
-                    it('Manager can default a loan with a missed installment', async function () {
+                    it('Staker can default a loan with a missed installment', async function () {
                         await loanDesk
                             .connect(borrower2)
                             .requestLoan(
@@ -969,7 +969,7 @@ describe('Sapling Lending Pool', function () {
                         let installmentAmount = BigNumber.from(250).mul(TOKEN_MULTIPLIER);
                         let apr = (await loanDesk.loanTemplate()).apr;
                         await loanDesk
-                            .connect(manager)
+                            .connect(staker)
                             .draftOffer(
                                 applicationId2,
                                 loanAmount,
@@ -979,10 +979,10 @@ describe('Sapling Lending Pool', function () {
                                 installments,
                                 apr,
                             );
-                        await loanDesk.connect(manager).lockDraftOffer(applicationId2);
+                        await loanDesk.connect(staker).lockDraftOffer(applicationId2);
                         await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
                 await ethers.provider.send('evm_mine');
-                await loanDesk.connect(manager).offerLoan(applicationId2);
+                await loanDesk.connect(staker).offerLoan(applicationId2);
                         let tx = await loanDesk.connect(borrower2).borrow(applicationId2);
                         let loanId2 = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
@@ -990,7 +990,7 @@ describe('Sapling Lending Pool', function () {
                         await ethers.provider.send('evm_mine');
 
                         expect(await loanDesk.canDefault(loanId2)).to.equal(true);
-                        await expect(loanDesk.connect(manager).defaultLoan(loanId2)).to.be.not.reverted;
+                        await expect(loanDesk.connect(staker).defaultLoan(loanId2)).to.be.not.reverted;
                     });
 
                     describe('Rejection scenarios', function () {
@@ -1003,12 +1003,12 @@ describe('Sapling Lending Pool', function () {
                             assertHardhatInvariant(loan.status === LoanStatus.REPAID);
 
                             await expect(loanDesk.canDefault(loanId)).to.be.revertedWith("LoanDesk: invalid status");
-                            await expect(loanDesk.connect(manager).defaultLoan(loanId)).to.be.reverted;
+                            await expect(loanDesk.connect(staker).defaultLoan(loanId)).to.be.reverted;
                         });
 
                         it('Defaulting a nonexistent loan should fail', async function () {
                             await expect(loanDesk.canDefault(loanId.add(1))).to.be.revertedWith("LoanDesk: not found");
-                            await expect(loanDesk.connect(manager).defaultLoan(loanId.add(1))).to.be.reverted;
+                            await expect(loanDesk.connect(staker).defaultLoan(loanId.add(1))).to.be.reverted;
                         });
 
                         it('Defaulting a loan as the protocol should fail', async function () {
@@ -1064,12 +1064,12 @@ describe('Sapling Lending Pool', function () {
                     let installments = 1;
                     let apr = (await loanDesk.loanTemplate()).apr;
                     await loanDesk
-                        .connect(manager)
+                        .connect(staker)
                         .draftOffer(applicationId, newLoanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                    await loanDesk.connect(manager).lockDraftOffer(applicationId);
+                    await loanDesk.connect(staker).lockDraftOffer(applicationId);
                     await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
                 await ethers.provider.send('evm_mine');
-                await loanDesk.connect(manager).offerLoan(applicationId);
+                await loanDesk.connect(staker).offerLoan(applicationId);
                     let tx = await loanDesk.connect(borrower2).borrow(applicationId);
                     loanId2 = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
@@ -1080,7 +1080,7 @@ describe('Sapling Lending Pool', function () {
                     await ethers.provider.send('evm_mine');
                 });
 
-                it('Closing a loan with loss less than the managers revenue', async function () {
+                it('Closing a loan with loss less than the stakers revenue', async function () {
                     let paymentAmount = BigNumber.from(5350).mul(TOKEN_MULTIPLIER);
                     await liquidityToken.connect(deployer).mint(borrower2.address, paymentAmount);
                     await liquidityToken.connect(borrower2).approve(lendingPool.address, paymentAmount);
@@ -1093,20 +1093,20 @@ describe('Sapling Lending Pool', function () {
                     let poolFundsBefore = (await lendingPool.balances()).poolFunds;
                     let rawLiquidityBefore = (await lendingPool.balances()).rawLiquidity;
                     let stakedBalanceBefore = await lendingPool.balanceStaked();
-                    let managerRevenueBefore = (await lendingPool.balances()).managerRevenue;
+                    let stakerEarningsBefore = (await lendingPool.balances()).stakerEarnings;
 
-                    await loanDesk.connect(manager).closeLoan(loanId2);
+                    await loanDesk.connect(staker).closeLoan(loanId2);
 
                     loan = await loanDesk.loans(loanId2);
                     expect(loan.status).to.equal(LoanStatus.REPAID);
 
-                    expect((await lendingPool.balances()).managerRevenue).to.equal(managerRevenueBefore.sub(lossAmount));
+                    expect((await lendingPool.balances()).stakerEarnings).to.equal(stakerEarningsBefore.sub(lossAmount));
                     expect(await lendingPool.balanceStaked()).to.equal(stakedBalanceBefore);
                     expect((await lendingPool.balances()).rawLiquidity).to.equal(rawLiquidityBefore.add(lossAmount));
                     expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore);
                 });
 
-                it('Closing a loan with loss more than the managers revenue but coverable with stake', async function () {
+                it('Closing a loan with loss more than the stakers revenue but coverable with stake', async function () {
                     let paymentAmount = BigNumber.from(5200).mul(TOKEN_MULTIPLIER);
                     await liquidityToken.connect(deployer).mint(borrower2.address, paymentAmount);
                     await liquidityToken.connect(borrower2).approve(lendingPool.address, paymentAmount);
@@ -1119,21 +1119,21 @@ describe('Sapling Lending Pool', function () {
                     let poolFundsBefore = (await lendingPool.balances()).poolFunds;
                     let rawLiquidityBefore = (await lendingPool.balances()).rawLiquidity;
                     let stakedBalanceBefore = await lendingPool.balanceStaked();
-                    let managerRevenueBefore = (await lendingPool.balances()).managerRevenue;
+                    let stakerEarningsBefore = (await lendingPool.balances()).stakerEarnings;
 
-                    await loanDesk.connect(manager).closeLoan(loanId2);
+                    await loanDesk.connect(staker).closeLoan(loanId2);
 
                     loan = await loanDesk.loans(loanId2);
                     expect(loan.status).to.equal(LoanStatus.REPAID);
 
-                    expect((await lendingPool.balances()).managerRevenue).to.equal(0);
-                    expect(await lendingPool.balanceStaked() - stakedBalanceBefore.sub(lossAmount.sub(managerRevenueBefore)))
+                    expect((await lendingPool.balances()).stakerEarnings).to.equal(0);
+                    expect(await lendingPool.balanceStaked() - stakedBalanceBefore.sub(lossAmount.sub(stakerEarningsBefore)))
                         .to.lt(BigNumber.from(20).mul(TOKEN_MULTIPLIER)); //allow inconsistency due to double conversion using integer math
                     expect((await lendingPool.balances()).rawLiquidity).to.equal(rawLiquidityBefore.add(lossAmount));
                     expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore);
                 });
 
-                it('Closing a loan with loss more than the managers revenue and stake', async function () {
+                it('Closing a loan with loss more than the stakers revenue and stake', async function () {
                     let paymentAmount = BigNumber.from(3000).mul(TOKEN_MULTIPLIER);
                     await liquidityToken.connect(deployer).mint(borrower2.address, paymentAmount);
                     await liquidityToken.connect(borrower2).approve(lendingPool.address, paymentAmount);
@@ -1146,17 +1146,17 @@ describe('Sapling Lending Pool', function () {
                     let poolFundsBefore = (await lendingPool.balances()).poolFunds;
                     let rawLiquidityBefore = (await lendingPool.balances()).rawLiquidity;
                     let stakedBalanceBefore = await lendingPool.balanceStaked();
-                    let managerRevenueBefore = (await lendingPool.balances()).managerRevenue;
+                    let stakerEarningsBefore = (await lendingPool.balances()).stakerEarnings;
 
-                    await loanDesk.connect(manager).closeLoan(loanId2);
+                    await loanDesk.connect(staker).closeLoan(loanId2);
 
                     loan = await loanDesk.loans(loanId2);
                     expect(loan.status).to.equal(LoanStatus.REPAID);
 
-                    expect((await lendingPool.balances()).managerRevenue).to.equal(0);
+                    expect((await lendingPool.balances()).stakerEarnings).to.equal(0);
                     expect(await lendingPool.balanceStaked()).to.lte(10 ** (TOKEN_DECIMALS - 4)); // lte 0.01 cent
-                    expect((await lendingPool.balances()).rawLiquidity).to.equal(rawLiquidityBefore.add(managerRevenueBefore.add(stakedBalanceBefore)));
-                    expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount.sub(managerRevenueBefore.add(stakedBalanceBefore))));
+                    expect((await lendingPool.balances()).rawLiquidity).to.equal(rawLiquidityBefore.add(stakerEarningsBefore.add(stakedBalanceBefore)));
+                    expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount.sub(stakerEarningsBefore.add(stakedBalanceBefore))));
                 });
 
                 describe('Rejection scenarios', function () {
@@ -1168,11 +1168,11 @@ describe('Sapling Lending Pool', function () {
                         loan = await loanDesk.loans(loanId);
                         assertHardhatInvariant(loan.status === LoanStatus.REPAID);
 
-                        await expect(loanDesk.connect(manager).closeLoan(loanId)).to.be.reverted;
+                        await expect(loanDesk.connect(staker).closeLoan(loanId)).to.be.reverted;
                     });
 
                     it('Closing a nonexistent loan should fail', async function () {
-                        await expect(loanDesk.connect(manager).closeLoan(loanId.add(10))).to.be.reverted;
+                        await expect(loanDesk.connect(staker).closeLoan(loanId.add(10))).to.be.reverted;
                     });
 
                     it('Closing a loan as the protocol should fail', async function () {

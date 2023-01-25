@@ -62,7 +62,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
     }
 
     /**
-     * @notice Verify if an address has any non-user/management roles
+     * @notice Verify if an address has any non-user roles
      * @dev When overriding, return "contract local verification result" AND super.isNonUserAddress(party).
      * @param party Address to verify
      * @return True if the address has any roles, false otherwise

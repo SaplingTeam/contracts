@@ -21,7 +21,7 @@ describe('Sapling Math Context (via SaplingLendingPool)', function () {
     let deployer;
     let governance;
     let protocol;
-    let manager;
+    let staker;
     let addresses;
 
     beforeEach(async function () {
@@ -33,7 +33,7 @@ describe('Sapling Math Context (via SaplingLendingPool)', function () {
     });
 
     before(async function () {
-        [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
+        [deployer, governance, protocol, staker, ...addresses] = await ethers.getSigners();
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
     });

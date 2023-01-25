@@ -25,7 +25,7 @@ describe('CoreAccessControl', function () {
     let deployer;
     let governance;
     let protocol;
-    let manager;
+    let staker;
     let addresses;
 
     beforeEach(async function () {
@@ -37,7 +37,7 @@ describe('CoreAccessControl', function () {
     });
 
     before(async function () {
-        [deployer, governance, protocol, manager, ...addresses] = await ethers.getSigners();
+        [deployer, governance, protocol, staker, ...addresses] = await ethers.getSigners();
 
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
 

@@ -15,7 +15,7 @@ async function rollback() {
     await hre.network.provider.send('evm_revert', [id]);
 }
 
-describe('Sapling Manager Context (via SaplingLendingPool)', function () {
+describe('Sapling Staker Context (via SaplingLendingPool)', function () {
     const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
     const TOKEN_DECIMALS = 6;
 
@@ -23,13 +23,13 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
     const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+    const POOL_1_STAKER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_STAKER_ROLE"));
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
 
-    let SaplingManagerContextCF;
-    let saplingManagerContext;
+    let SaplingStakerContextCF;
+    let saplingStakerContext;
     let liquidityToken;
     let poolToken;
     let loanDesk;
@@ -38,7 +38,7 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
     let governance;    
     let lenderGovernance;
     let protocol;
-    let manager;
+    let staker;
     let addresses;
 
     beforeEach(async function () {
@@ -50,7 +50,7 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
     });
 
     before(async function () {
-        [deployer, governance, lenderGovernance, protocol, manager, ...addresses] = await ethers.getSigners();
+        [deployer, governance, lenderGovernance, protocol, staker, ...addresses] = await ethers.getSigners();
 
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
@@ -62,7 +62,7 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
         await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
-        await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_STAKER_ROLE, staker.address);
         await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
 
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
@@ -80,14 +80,14 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE
+            POOL_1_STAKER_ROLE
         ]);
         await lendingPool.deployed();
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE,
+            POOL_1_STAKER_ROLE,
             POOL_1_LENDER_GOVERNANCE_ROLE,
             TOKEN_DECIMALS,
         ]);
@@ -96,72 +96,72 @@ describe('Sapling Manager Context (via SaplingLendingPool)', function () {
         await poolToken.connect(deployer).transferOwnership(lendingPool.address);
         await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
 
-        SaplingManagerContextCF = SaplingLendingPoolCF;
-        saplingManagerContext = lendingPool;
+        SaplingStakerContextCF = SaplingLendingPoolCF;
+        saplingStakerContext = lendingPool;
 
-        await loanDesk.connect(manager).open();
+        await loanDesk.connect(staker).open();
     });
 
     describe('Deployment', function () {
         it('Can deploy', async function () {
             await expect(
-                upgrades.deployProxy(SaplingManagerContextCF, [
+                upgrades.deployProxy(SaplingStakerContextCF, [
                     poolToken.address,
                     liquidityToken.address,
                     coreAccessControl.address,
-                    POOL_1_MANAGER_ROLE
+                    POOL_1_STAKER_ROLE
                 ]),
             ).to.be.not.reverted;
         });
     });
 
     describe('Initial State', function () {
-        it('Pool manager address is correct', async function () {
-            expect(await coreAccessControl.getRoleMember(POOL_1_MANAGER_ROLE, 0)).to.equal(manager.address);
+        it('Staker address is correct', async function () {
+            expect(await coreAccessControl.getRoleMember(POOL_1_STAKER_ROLE, 0)).to.equal(staker.address);
         });
 
         it('Pool is closed', async function () {
-            expect(await saplingManagerContext.closed()).to.equal(true);
+            expect(await saplingStakerContext.closed()).to.equal(true);
         });
     });
 
     describe('Use Cases', function () {
         describe('Close', function () {
             beforeEach(async function () {
-                await saplingManagerContext.connect(manager).open();
+                await saplingStakerContext.connect(staker).open();
             });
 
-            it('Manager can close', async function () {
-                await saplingManagerContext.connect(manager).close();
-                expect(await saplingManagerContext.closed()).to.equal(true);
+            it('Staker can close', async function () {
+                await saplingStakerContext.connect(staker).close();
+                expect(await saplingStakerContext.closed()).to.equal(true);
             });
 
             describe('Rejection scenarios', function () {
                 it('Closing the pool when closed should fail', async function () {
-                    await saplingManagerContext.connect(manager).close();
-                    await expect(saplingManagerContext.connect(manager).close()).to.be.reverted;
+                    await saplingStakerContext.connect(staker).close();
+                    await expect(saplingStakerContext.connect(staker).close()).to.be.reverted;
                 });
 
-                it('Closing the pool as a non manager should fail', async function () {
-                    await expect(saplingManagerContext.connect(addresses[0]).close()).to.be.reverted;
+                it('Closing the pool as a non staker should fail', async function () {
+                    await expect(saplingStakerContext.connect(addresses[0]).close()).to.be.reverted;
                 });
             });
         });
 
         describe('Open', function () {
-            it('Manager can open', async function () {
-                await saplingManagerContext.connect(manager).open();
-                expect(await saplingManagerContext.closed()).to.equal(false);
+            it('Staker can open', async function () {
+                await saplingStakerContext.connect(staker).open();
+                expect(await saplingStakerContext.closed()).to.equal(false);
             });
 
             describe('Rejection scenarios', function () {
                 it('Opening when not closed should fail', async function () {
-                    await saplingManagerContext.connect(manager).open();
-                    await expect(saplingManagerContext.connect(manager).open()).to.be.reverted;
+                    await saplingStakerContext.connect(staker).open();
+                    await expect(saplingStakerContext.connect(staker).open()).to.be.reverted;
                 });
 
-                it('Opening as a non manager should fail', async function () {
-                    await expect(saplingManagerContext.connect(addresses[0]).open()).to.be.reverted;
+                it('Opening as a non staker should fail', async function () {
+                    await expect(saplingStakerContext.connect(addresses[0]).open()).to.be.reverted;
                 });
             });
         });

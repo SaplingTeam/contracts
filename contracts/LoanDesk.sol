@@ -4,7 +4,7 @@ pragma solidity ^0.8.15;
 
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
-import "./context/SaplingManagerContext.sol";
+import "./context/SaplingStakerContext.sol";
 import "./interfaces/ILoanDesk.sol";
 import "./interfaces/IPoolContext.sol";
 import "./interfaces/ILendingPool.sol";
@@ -13,9 +13,9 @@ import "./lib/SaplingMath.sol";
 
 /**
  * @title Loan Desk
- * @notice Provides loan application and offer management.
+ * @notice Provides loan application and offer flow.
  */
-contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeable {
+contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable {
 
     /**
      * Lender governance role
@@ -91,21 +91,21 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
      * @dev Addresses must not be 0.
      * @param _pool Lending pool address
      * @param _accessControl Access control contract
-     * @param _managerRole Manager role
+     * @param _stakerRole Staker role
      * @param _lenderGovernanceRole Role held by the timelock control that executed passed lender votes
      * @param _decimals Lending pool liquidity token decimals
      */
     function initialize(
         address _pool,
         address _accessControl,
-        bytes32 _managerRole,
+        bytes32 _stakerRole,
         bytes32 _lenderGovernanceRole,
         uint8 _decimals
     )
         public
         initializer
     {
-        __SaplingManagerContext_init(_accessControl, _managerRole);
+        __SaplingStakerContext_init(_accessControl, _stakerRole);
 
         /*
             Additional check for single init:
@@ -134,10 +134,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /**
      * @notice Set a minimum loan amount.
      * @dev minAmount must be greater than or equal to safeMinAmount.
-     *      Caller must be the manager.
+     *      Caller must be the staker.
      * @param minAmount Minimum loan amount to be enforced on new loan requests and offers
      */
-    function setMinLoanAmount(uint256 minAmount) external onlyRole(poolManagerRole) {
+    function setMinLoanAmount(uint256 minAmount) external onlyRole(poolStakerRole) {
         require(SaplingMath.SAFE_MIN_AMOUNT <= minAmount, "LoanDesk: new min loan amount is less than the safe limit");
 
         uint256 prevValue = loanTemplate.minAmount;
@@ -149,10 +149,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /**
      * @notice Set the minimum loan duration
      * @dev Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxDuration.
-     *      Caller must be the manager.
+     *      Caller must be the staker.
      * @param duration Minimum loan duration to be enforced on new loan requests and offers
      */
-    function setMinLoanDuration(uint256 duration) external onlyRole(poolManagerRole) {
+    function setMinLoanDuration(uint256 duration) external onlyRole(poolStakerRole) {
         require(
             SaplingMath.SAFE_MIN_DURATION <= duration && duration <= loanTemplate.maxDuration,
             "LoanDesk: new min duration is out of bounds"
@@ -167,10 +167,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /**
      * @notice Set the maximum loan duration.
      * @dev Duration must be in seconds and inclusively between minDuration and SAFE_MAX_DURATION.
-     *      Caller must be the manager.
+     *      Caller must be the staker.
      * @param duration Maximum loan duration to be enforced on new loan requests and offers
      */
-    function setMaxLoanDuration(uint256 duration) external onlyRole(poolManagerRole) {
+    function setMaxLoanDuration(uint256 duration) external onlyRole(poolStakerRole) {
         require(
             loanTemplate.minDuration <= duration && duration <= SaplingMath.SAFE_MAX_DURATION,
             "LoanDesk: new max duration is out of bounds"
@@ -185,10 +185,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /**
      * @notice Set the template loan payment grace period.
      * @dev Grace period must be in seconds and inclusively between MIN_LOAN_GRACE_PERIOD and MAX_LOAN_GRACE_PERIOD.
-     *      Caller must be the manager.
+     *      Caller must be the staker.
      * @param gracePeriod Loan payment grace period for new loan offers
      */
-    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyRole(poolManagerRole) {
+    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyRole(poolStakerRole) {
         require(
             SaplingMath.MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= SaplingMath.MAX_LOAN_GRACE_PERIOD,
             "LoanDesk: new grace period is out of bounds."
@@ -203,10 +203,10 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /**
      * @notice Set a template loan APR
      * @dev APR must be inclusively between SAFE_MIN_APR and 100%.
-     *      Caller must be the manager.
+     *      Caller must be the staker.
      * @param apr Loan APR to be enforced on the new loan offers.
      */
-    function setTemplateLoanAPR(uint16 apr) external onlyRole(poolManagerRole) {
+    function setTemplateLoanAPR(uint16 apr) external onlyRole(poolStakerRole) {
         require(
             SaplingMath.SAFE_MIN_APR <= apr && apr <= SaplingMath.HUNDRED_PERCENT,
             "LoanDesk: APR is out of bounds"
@@ -267,13 +267,13 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /**
      * @notice Deny a loan.
      * @dev Loan must be in APPLIED status.
-     *      Caller must be the manager.
+     *      Caller must be the staker.
      */
     function denyLoan(
         uint256 appId
     )
         external
-        onlyRole(poolManagerRole)
+        onlyRole(poolStakerRole)
         applicationInStatus(appId, LoanApplicationStatus.APPLIED)
         whenNotPaused
     {
@@ -286,7 +286,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /**
      * @notice Draft a loan offer for an application.
      * @dev Loan application must be in APPLIED status.
-     *      Caller must be the manager.
+     *      Caller must be the staker.
      *      Loan amount must not exceed available liquidity -
      *      canOffer(offeredFunds.add(_amount)) must be true on the lending pool.
      * @param appId Loan application id
@@ -307,7 +307,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint16 _apr
     )
         external
-        onlyRole(poolManagerRole)
+        onlyRole(poolStakerRole)
         applicationInStatus(appId, LoanApplicationStatus.APPLIED)
         whenNotClosed
         whenNotPaused
@@ -351,7 +351,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /**
      * @notice Update an existing draft loan offer.
      * @dev Loan application must be in OFFER_DRAFTED status.
-     *      Caller must be the manager.
+     *      Caller must be the staker.
      *      Loan amount must not exceed available liquidity -
      *      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool.
      * @param appId Loan application id
@@ -372,7 +372,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint16 _apr
     )
         external
-        onlyRole(poolManagerRole)
+        onlyRole(poolStakerRole)
         applicationInStatus(appId, LoanApplicationStatus.OFFER_DRAFTED)
         whenNotClosed
         whenNotPaused
@@ -413,7 +413,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /**
      * @notice Lock a draft loan offer.
      * @dev Loan application must be in OFFER_DRAFTED status.
-     *      Caller must be the manager.
+     *      Caller must be the staker.
      *      Loan amount must not exceed available liquidity -
      *      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool.
      * @param appId Loan application id
@@ -422,7 +422,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 appId
     )
         external
-        onlyRole(poolManagerRole)
+        onlyRole(poolStakerRole)
         applicationInStatus(appId, LoanApplicationStatus.OFFER_DRAFTED)
         whenNotClosed
         whenNotPaused
@@ -437,7 +437,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /**
      * @notice Make a loan offer.
      * @dev Loan application must be in OFFER_DRAFT_LOCKED status.
-     *      Caller must be the manager.
+     *      Caller must be the staker.
      *      Loan amount must not exceed available liquidity -
      *      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool.
      * @param appId Loan application id
@@ -446,7 +446,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 appId
     )
         external
-        onlyRole(poolManagerRole)
+        onlyRole(poolStakerRole)
         applicationInStatus(appId, LoanApplicationStatus.OFFER_DRAFT_LOCKED)
         whenNotClosed
         whenNotPaused
@@ -468,7 +468,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
     /**
      * @notice Cancel a loan.
-     * @dev Loan application must be in OFFER_MADE status. Caller must be the manager.
+     * @dev Loan application must be in OFFER_MADE status. Caller must be the staker.
      */
     function cancelLoan(
         uint256 appId
@@ -488,7 +488,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
         LoanOffer storage offer = loanOffers[appId];
 
-        if(!hasRole(poolManagerRole, msg.sender)) {
+        if(!hasRole(poolStakerRole, msg.sender)) {
             require(
                 hasRole(lenderGovernanceRole, msg.sender) && status == LoanApplicationStatus.OFFER_DRAFT_LOCKED
                 && block.timestamp < offer.lockedTime + SaplingMath.LOAN_LOCK_PERIOD,
@@ -601,17 +601,17 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     }
 
     /**
-     * @notice Closes a loan. Closing a loan will repay the outstanding principal using the pool manager's revenue
+     * @notice Closes a loan. Closing a loan will repay the outstanding principal using the staker's revenue
                             and/or staked funds. If these funds are not sufficient, the lenders will take the loss.
      * @dev Loan must be in OUTSTANDING status.
-     *      Caller must be the manager.
+     *      Caller must be the staker.
      * @param loanId ID of the loan to close
      */
     function closeLoan(
         uint256 loanId
     )
         external
-        onlyRole(poolManagerRole)
+        onlyRole(poolStakerRole)
         loanInStatus(loanId, LoanStatus.OUTSTANDING)
         whenNotPaused
         nonReentrant
@@ -656,7 +656,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
     /**
      * @notice Default a loan.
      * @dev Loan must be in OUTSTANDING status.
-     *      Caller must be the manager.
+     *      Caller must be the staker.
      *      canDefault(loanId) must return 'true'.
      * @param loanId ID of the loan to default
      */
@@ -664,7 +664,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
         uint256 loanId
     )
         external
-        onlyRole(poolManagerRole)
+        onlyRole(poolStakerRole)
         whenNotPaused
     {
         //// check
@@ -690,14 +690,14 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
             ? loan.amount - loanDetail.principalAmountRepaid
             : 0;
 
-        (uint256 managerLoss, uint256 lenderLoss) = ILendingPool(pool).onDefault(
+        (uint256 stakerLoss, uint256 lenderLoss) = ILendingPool(pool).onDefault(
             loanId, 
             loan.apr, 
             paymentCarry, 
             loss
         );
 
-        emit LoanDefaulted(loanId, loan.borrower, managerLoss, lenderLoss);
+        emit LoanDefaulted(loanId, loan.borrower, stakerLoss, lenderLoss);
     }
 
     /**
@@ -1004,7 +1004,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
     /**
      * @notice Indicates whether or not the contract can be closed in it's current state.
-     * @dev Overrides a hook in SaplingManagerContext.
+     * @dev Overrides a hook in SaplingStakerContext.
      * @return True if the contract is closed, false otherwise.
      */
     function canClose() internal view override returns (bool) {
@@ -1013,7 +1013,7 @@ contract LoanDesk is ILoanDesk, SaplingManagerContext, ReentrancyGuardUpgradeabl
 
     /**
      * @notice Indicates whether or not the contract can be opened in it's current state.
-     * @dev Overrides a hook in SaplingManagerContext.
+     * @dev Overrides a hook in SaplingStakerContext.
      * @return True if the conditions to open are met, false otherwise.
      */
     function canOpen() internal view override returns (bool) {

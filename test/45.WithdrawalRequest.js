@@ -23,7 +23,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
     const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+    const POOL_1_STAKER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_STAKER_ROLE"));
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
@@ -38,7 +38,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
     let governance;
     let lenderGovernance;
     let protocol;
-    let manager;
+    let staker;
     let addresses;
 
     beforeEach(async function () {
@@ -50,7 +50,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
     });
 
     before(async function () {
-        [deployer, governance, lenderGovernance, protocol, manager, ...addresses] = await ethers.getSigners();
+        [deployer, governance, lenderGovernance, protocol, staker, ...addresses] = await ethers.getSigners();
 
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
@@ -62,7 +62,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
         await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
-        await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_STAKER_ROLE, staker.address);
         await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
 
         SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
@@ -80,14 +80,14 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE
+            POOL_1_STAKER_ROLE
         ]);
         await lendingPool.deployed();
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE,
+            POOL_1_STAKER_ROLE,
             POOL_1_LENDER_GOVERNANCE_ROLE,
             TOKEN_DECIMALS,
         ]);
@@ -98,8 +98,8 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
 
-        await lendingPool.connect(manager).open();
-        await loanDesk.connect(manager).open();
+        await lendingPool.connect(staker).open();
+        await loanDesk.connect(staker).open();
     });
 
     describe('Use Cases', function () {
@@ -145,9 +145,9 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
             let loanAmount = BigNumber.from(3950).mul(TOKEN_MULTIPLIER);
             let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
 
-            await liquidityToken.connect(deployer).mint(manager.address, stakeAmount);
-            await liquidityToken.connect(manager).approve(lendingPool.address, stakeAmount);
-            await lendingPool.connect(manager).stake(stakeAmount);
+            await liquidityToken.connect(deployer).mint(staker.address, stakeAmount);
+            await liquidityToken.connect(staker).approve(lendingPool.address, stakeAmount);
+            await lendingPool.connect(staker).stake(stakeAmount);
 
             for (let i = 0; i < lenders.length; i++) {
                 await liquidityToken.connect(deployer).mint(lenders[i].address, depositAmounts[i]);
@@ -170,7 +170,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
             let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
             let application = await loanDesk.loanApplications(applicationId);
             await loanDesk
-                .connect(manager)
+                .connect(staker)
                 .draftOffer(
                     applicationId,
                     application.amount,
@@ -180,10 +180,10 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
                     installments,
                     apr,
                 );
-            await loanDesk.connect(manager).lockDraftOffer(applicationId);
+            await loanDesk.connect(staker).lockDraftOffer(applicationId);
             await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
                 await ethers.provider.send('evm_mine');
-                await loanDesk.connect(manager).offerLoan(applicationId);
+                await loanDesk.connect(staker).offerLoan(applicationId);
             let tx = await loanDesk.connect(borrower1).borrow(applicationId);
             loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
         });

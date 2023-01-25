@@ -9,7 +9,7 @@ async function main() {
 
     const timelockAddress = '0x0000000000000000000000000000000000000000'; //REPLACE before use
     const govenorAddress = '0x0000000000000000000000000000000000000000'; //REPLACE before use
-    const poolManagerAddress = '0x0000000000000000000000000000000000000000'; //REPLACE before use
+    const stakerAddress = '0x0000000000000000000000000000000000000000'; //REPLACE before use
 
     const TIMELOCK_ADMIN_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TIMELOCK_ADMIN_ROLE"));
     const PROPOSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PROPOSER_ROLE"));
@@ -30,10 +30,10 @@ async function main() {
     await timelock.connect(deployer).grantRole(CANCELLER_ROLE, govenorAddress);
 
     await sleep(15);
-    await timelock.connect(deployer).grantRole(EXECUTOR_ROLE, poolManagerAddress);
+    await timelock.connect(deployer).grantRole(EXECUTOR_ROLE, stakerAddress);
 
     await sleep(15);
-    await timelock.connect(deployer).grantRole(CANCELLER_ROLE, poolManagerAddress);
+    await timelock.connect(deployer).grantRole(CANCELLER_ROLE, stakerAddress);
 
     await sleep(15);
     console.log("\nRenouncing admin role...");

@@ -1,16 +1,16 @@
 const {ethers} = require("hardhat");
 
 async function main() {
-    [deployer, governance, manager, ...addrs] = await ethers.getSigners();
+    [deployer, ...addrs] = await ethers.getSigners();
 
     const arguments = require('./arguments.js');
     const poolAddress = arguments[0];
     const coreAccessControlAddress = arguments[1];
-    const managerRoleName = arguments[2];
+    const stakerRoleName = arguments[2];
     const lenderGovernanceRoleName = arguments[3];
     const DECIMALS = arguments[4];
 
-    const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(managerRoleName));
+    const POOL_1_STAKER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(stakerRoleName));
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(lenderGovernanceRoleName));
 
     console.log("Deployer address: \t\t", deployer.address);
@@ -21,7 +21,7 @@ async function main() {
     let loanDeskContract = await upgrades.deployProxy(LoanDeskCF, [
         poolAddress,
         coreAccessControlAddress,
-        POOL_1_MANAGER_ROLE,
+        POOL_1_STAKER_ROLE,
         POOL_1_LENDER_GOVERNANCE_ROLE,
         DECIMALS,
     ]);
