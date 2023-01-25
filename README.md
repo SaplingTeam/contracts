@@ -41,6 +41,10 @@ Then update the values accordingly in `.env`
 - Check contracts code style: `npm run check`
 - Autoformat all unit test code: `npm run pretty-tests`
 
+### Deployment
+
+See [DEPLOYMENT.md](DEPLOYMENT.md)
+
 ## Contributing
 
 If you would like to contribute, join 👥-contributors channel on [Sapling discord](https://discord.gg/BPjRn2wn5F) 
