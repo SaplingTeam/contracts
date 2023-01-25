@@ -68,6 +68,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         */
         assert(tokenConfig.poolToken == address(0) && tokenConfig.liquidityToken == address(0));
 
+        // validate parameters
         require(_poolToken != address(0), "SaplingPoolContext: pool token address is not set");
         require(_liquidityToken != address(0), "SaplingPoolContext: liquidity token address is not set");
 
@@ -79,7 +80,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         });
 
         assert(totalPoolTokenSupply() == 0);
-        
+
         uint16 _protocolFeePercent = uint16(
             MathUpgradeable.min(uint16(20 * 10 ** SaplingMath.PERCENT_DECIMALS), SaplingMath.MAX_PROTOCOL_FEE_PERCENT)
         );
@@ -198,7 +199,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an equivalent amount of pool
+     * @notice Deposit funds to the pool. Depositing funds will mint an equivalent amount of pool
      *         tokens and transfer it to the caller. Exact exchange rate depends on the current pool state.
      * @dev Deposit amount must be non zero and not exceed amountDepositable().
      *      An appropriate spend limit must be present at the token contract.
@@ -213,7 +214,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Withdraw liquidity tokens from the pool. Withdrawals redeem equivalent amount of the caller's pool tokens
+     * @notice Withdraw funds from the pool. Withdrawals redeem equivalent amount of the caller's pool tokens
      *         by burning the tokens in question.
      *         Exact exchange rate depends on the current pool state.
      * @dev Withdrawal amount must be non zero and not exceed amountWithdrawable().
@@ -226,13 +227,13 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /** 
-     * @notice Request funds for withdrawal by locking in pool tokens.
+     * @notice Request funds for withdrawal by locking in pool shares.
      * @param shares Amount of pool tokens to lock. 
      */
     function requestWithdrawal(uint256 shares) external onlyUser whenNotPaused {
 
-        uint256 amount = tokensToFunds(shares);
-        uint256 outstandingRequestsAmount = tokensToFunds(balances.withdrawalRequestedShares);
+        uint256 amount = sharesToFunds(shares);
+        uint256 outstandingRequestsAmount = sharesToFunds(balances.withdrawalRequestedShares);
 
         //// base case
         if (
@@ -257,8 +258,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
         //// effect
 
-        //TODO update if the last position belongs to the user, else queue
-
         uint256 requestId = withdrawalQueue.queue(msg.sender, shares);
 
         state.countOutstanding++;
@@ -279,7 +278,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
     /**
      * @notice Update a withdrawal request.
-     * @dev Existing request funds can only be decreseased. Minimum request amount rule must be maintained. 
+     * @dev Existing request funds can only be decreased. Minimum request amount rule must be maintained.
      *      Requested position must belong to the caller.
      * @param id ID of the withdrawal request to update.
      * @param newShareAmount New total pool token amount to be locked in the request.
@@ -289,7 +288,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         WithdrawalRequestQueue.Request memory request = withdrawalQueue.get(id);
         require(request.wallet == msg.sender, "SaplingPoolContext: unauthorized");
         require(
-            newShareAmount < request.sharesLocked && tokensToFunds(newShareAmount) >= config.minWithdrawalRequestAmount,
+            newShareAmount < request.sharesLocked && sharesToFunds(newShareAmount) >= config.minWithdrawalRequestAmount,
             "SaplingPoolContext: invalid share amount"
         );
 
@@ -338,7 +337,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         state.sharesLocked -= request.sharesLocked;
         balances.withdrawalRequestedShares -= request.sharesLocked;
 
-
         //// interactions
 
         // unlock shares
@@ -352,14 +350,14 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Fulfill withdrawal request in a batch if liquidity requirements are met.
+     * @notice Fulfill withdrawal requests in batch if liquidity requirements are met.
      * @dev Anyone can trigger fulfillment of a withdrawal request.
      *      
      *      It is in the interest of the pool to keep the withdrawal requests fulfilled as soon as there is
      *      liquidity, as unfulfilled requests will keep earning yield but lock liquidity once the liquidity comes in.
      *
      * @param count The number of positions to fulfill starting from the head of the queue. 
-     *        If the count is greater than queue length, then the entrire queue is processed.
+     *        If the count is greater than queue length, then the entire queue is processed.
      */
     function fulfillWithdrawalRequests(uint256 count) external whenNotPaused nonReentrant {
 
@@ -379,7 +377,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function fulfillWithdrawalRequestById(uint256 id) external whenNotPaused nonReentrant {
         require(
-            balances.rawLiquidity >= tokensToFunds(balances.withdrawalRequestedShares),
+            balances.rawLiquidity >= sharesToFunds(balances.withdrawalRequestedShares),
             "SaplingPoolContext: insufficient liquidity for arbitrary request fulfillment"
         );
 
@@ -403,14 +401,14 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
         WithdrawalRequestQueue.Request memory request = withdrawalQueue.get(id);
         
-        uint256 requestedAmount = tokensToFunds(request.sharesLocked);
+        uint256 requestedAmount = sharesToFunds(request.sharesLocked);
         uint256 transferAmount = requestedAmount - MathUpgradeable.mulDiv(
             requestedAmount, 
             config.exitFeePercent, 
             SaplingMath.HUNDRED_PERCENT
         );
 
-        require(balances.rawLiquidity >= transferAmount, "SaplingPolContext: insufficient liqudity");
+        require(balances.rawLiquidity >= transferAmount, "SaplingPolContext: insufficient liquidity");
 
         //// effect
 
@@ -437,7 +435,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Stake liquidity tokens into the pool. Staking liquidity tokens will mint an equivalent amount of pool
+     * @notice Stake funds into the pool. Staking funds will mint an equivalent amount of pool
      *         tokens and lock them in the pool. Exact exchange rate depends on the current pool state.
      * @dev Caller must be the staker.
      *      Stake amount must be non zero.
@@ -453,7 +451,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Unstake liquidity tokens from the pool. Unstaking redeems equivalent amount of the caller's pool tokens
+     * @notice Unstake funds from the pool. Unstaking redeems equivalent amount of the caller's pool tokens
      *         locked in the pool by burning the tokens in question.
      * @dev Caller must be the staker.
      *      Unstake amount must be non zero and not exceed amountUnstakable().
@@ -480,7 +478,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         require(amount > 0, "SaplingPoolContext: invalid amount");
         require(amount <= balances.protocolRevenue, "SaplingPoolContext: insufficient balance");
 
-
         //// effect
 
         balances.protocolRevenue -= amount;
@@ -504,7 +501,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         
         require(amount > 0, "SaplingPoolContext: invalid amount");
         require(amount <= balances.stakerEarnings, "SaplingPoolContext: insufficient balance");
-
 
         //// effect
 
@@ -536,7 +532,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @notice Check liquidity token amount withdrawable by the caller at this time.
      * @dev Return value depends on the callers balance, and is limited by pool liquidity.
      * @param wallet Address of the wallet to check the withdrawable balance of.
-     * @return Max amount of tokens withdrawable by the caller.
+     * @return Max amount of liquidity tokens withdrawable by the caller.
      */
     function amountWithdrawable(address wallet) external view returns (uint256) {
         return paused() ? 0 : MathUpgradeable.min(freeLenderLiquidity(), balanceOf(wallet));
@@ -569,11 +565,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Check the staker's staked liquidity token balance in the pool.
+     * @notice Check the staker's balance in the pool.
      * @return Liquidity token balance of the staker's stake.
      */
     function balanceStaked() external view returns (uint256) {
-        return tokensToFunds(balances.stakedShares);
+        return sharesToFunds(balances.stakedShares);
     }
 
     /**
@@ -592,7 +588,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         );
     }
 
-    //TODO decide if the funtion below is redundant
     /**
      * @notice Projected APY breakdown given the current pool state and a specific strategy rate and an average apr.
      * @dev Represent percentage parameter values in contract specific format.
@@ -617,21 +612,21 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired
+     * @notice Check wallet's funds balance in the pool. This balance includes deposited balance and acquired
      *         yield. This balance does not included staked balance, balance locked in withdrawal requests,
      *         leveraged earnings or protocol revenue.
      * @param wallet Address of the wallet to check the balance of.
      * @return Liquidity token balance of the wallet in this pool.
      */
     function balanceOf(address wallet) public view returns (uint256) {
-        return tokensToFunds(IPoolToken(tokenConfig.poolToken).balanceOf(wallet));
+        return sharesToFunds(IPoolToken(tokenConfig.poolToken).balanceOf(wallet));
     }
 
     /**
-     * @notice Check liquidity token amount unstakable by the staker at this time.
+     * @notice Check funds amount unstakable by the staker at this time.
      * @dev Return value depends on the staked balance and targetStakePercent, and is limited by pool
      *      liquidity.
-     * @return Max amount of tokens unstakable by the staker.
+     * @return Max amount of liquidity tokens unstakable by the staker.
      */
     function amountUnstakable() public view returns (uint256) {
         uint256 totalPoolShares = totalPoolTokenSupply();
@@ -643,7 +638,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         ) {
             return 0;
         } else if (closed() || totalPoolShares == balances.stakedShares) {
-            return MathUpgradeable.min(withdrawableLiquidity, tokensToFunds(balances.stakedShares)); 
+            return MathUpgradeable.min(withdrawableLiquidity, sharesToFunds(balances.stakedShares));
         }
 
         uint256 lenderShares = totalPoolShares - balances.stakedShares;
@@ -655,7 +650,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
         return MathUpgradeable.min(
             withdrawableLiquidity,
-            tokensToFunds(balances.stakedShares - lockedStakeShares)
+            sharesToFunds(balances.stakedShares - lockedStakeShares)
         );
     }
 
@@ -666,7 +661,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     function strategyLiquidity() public view returns (uint256) {
 
         uint256 lenderAllocatedLiquidity = MathUpgradeable.max(
-            tokensToFunds(balances.withdrawalRequestedShares),
+            sharesToFunds(balances.withdrawalRequestedShares),
             MathUpgradeable.mulDiv(
                 balances.poolFunds,
                 config.targetLiquidityPercent,
@@ -685,7 +680,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function freeLenderLiquidity() public view returns (uint256) {
 
-        uint256 withdrawalRequestedLiqudity = tokensToFunds(balances.withdrawalRequestedShares);
+        uint256 withdrawalRequestedLiqudity = sharesToFunds(balances.withdrawalRequestedShares);
 
         return balances.rawLiquidity > withdrawalRequestedLiqudity 
             ? balances.rawLiquidity - withdrawalRequestedLiqudity
@@ -697,7 +692,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @return MAX amount of liquidity tokens allowed in the pool based on staked assets
      */
     function poolFundsLimit() public view returns (uint256) {
-        return tokensToFunds(
+        return sharesToFunds(
             MathUpgradeable.mulDiv(balances.stakedShares, SaplingMath.HUNDRED_PERCENT, config.targetStakePercent)
         );
     }
@@ -729,7 +724,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         
         //// effect
 
-        uint256 shares = fundsToTokens(amount);
+        uint256 shares = fundsToShares(amount);
 
         balances.tokenBalance += amount;
         balances.rawLiquidity += amount;
@@ -743,7 +738,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
         //// interactions
 
-        // charge 'amount' tokens from msg.sender
+        // charge msg.sender
         SafeERC20Upgradeable.safeTransferFrom(
             IERC20Upgradeable(tokenConfig.liquidityToken),
             msg.sender,
@@ -758,7 +753,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @dev Internal method to exit the pool with a liquidity token amount.
+     * @dev Internal method to exit the pool with funds amount.
      *      Amount must not exceed amountWithdrawable() for non-stakers, and amountUnstakable() for the staker.
      *      If the caller is the staker, exited funds are considered unstaked.
      *      Pool tokens are burned in a way that will not influence the current share price.
@@ -771,7 +766,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         require(amount > 0, "SaplingPoolContext: pool withdrawal amount is 0");
         require(balances.rawLiquidity >= amount, "SaplingPoolContext: insufficient liquidity");
 
-        uint256 shares = fundsToTokens(amount);
+        uint256 shares = fundsToShares(amount);
 
         bool isStaker = hasRole(poolStakerRole, msg.sender);
 
@@ -803,7 +798,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         // burn shares
         IPoolToken(tokenConfig.poolToken).burn(isStaker ? address(this) : msg.sender, shares);
 
-        // transfer liqudity tokens
+        // transfer funds
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, transferAmount);
 
         return shares;
@@ -826,27 +821,29 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Get liquidity token value of shares.
-     * @param poolTokens Pool token amount
+     * @notice Get funds value of shares.
+     * @param shares Pool token amount
+     * @return Converted liquidity token value
      */
-    function tokensToFunds(uint256 poolTokens) public view override returns (uint256) {
-        if (poolTokens == 0 || balances.poolFunds == 0) {
+    function sharesToFunds(uint256 shares) public view returns (uint256) {
+        if (shares == 0 || balances.poolFunds == 0) {
              return 0;
         }
 
-        return MathUpgradeable.mulDiv(poolTokens, balances.poolFunds, totalPoolTokenSupply());
+        return MathUpgradeable.mulDiv(shares, balances.poolFunds, totalPoolTokenSupply());
     }
 
     /**
-     * @notice Get pool token value of liquidity tokens.
-     * @param liquidityTokens Amount of liquidity tokens.
+     * @notice Get share value of funds.
+     * @param funds Amount of liquidity tokens
+     * @return Converted pool token value
      */
-    function fundsToTokens(uint256 liquidityTokens) public view override returns (uint256) {
+    function fundsToShares(uint256 funds) public view returns (uint256) {
         uint256 totalPoolTokens = totalPoolTokenSupply();
 
         if (totalPoolTokens == 0) {
             // a pool with no positions
-            return liquidityTokens;
+            return funds;
         } else if (balances.poolFunds == 0) {
             /*
                 Handle failed pool case, where: poolFunds == 0, but totalPoolShares > 0
@@ -855,10 +852,10 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
                 Simplify (tokens * totalPoolShares) / 1 as tokens * totalPoolShares.
             */
-            return liquidityTokens * totalPoolTokens;
+            return funds * totalPoolTokens;
         }
 
-        return MathUpgradeable.mulDiv(liquidityTokens, totalPoolTokens, balances.poolFunds);
+        return MathUpgradeable.mulDiv(funds, totalPoolTokens, balances.poolFunds);
     }
 
     /**

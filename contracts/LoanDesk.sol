@@ -18,8 +18,8 @@ import "./lib/SaplingMath.sol";
 contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable {
 
     /**
-     * Lender governance role
-     * @notice Role given to the address of the timelock contract that executes a loan offer upon a passing vote
+     * Lender voting contract role
+     * @notice Role given to the address of the voting contract that can cancel a loan offer upon a passing vote
      * @dev The value of this role should be unique for each pool. Role must be created before the pool contract
      *      deployment, then passed during construction/initialization.
      */
@@ -37,7 +37,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
     /// Loan application id generator counter
     uint256 private nextApplicationId;
 
-    /// Total liquidity tokens allocated for loan offers and pending acceptance by the borrowers
+    /// Total funds allocated for loan offers, including both drafted and pending acceptance
     uint256 public offeredFunds;
 
     /// Loan applications by applicationId
@@ -72,6 +72,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         _;
     }
 
+    /// A modifier to limit access only to when the loan exists and has the specified status
     modifier loanInStatus(uint256 loanId, LoanStatus status) {
         require(loanId != 0, "LoanDesk: invalid id");
         require(loans[loanId].id == loanId, "LoanDesk: not found");
@@ -222,8 +223,8 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @notice Request a new loan.
      * @dev Requested amount must be greater or equal to minLoanAmount().
      *      Loan duration must be between minDuration() and maxDuration().
-     *      Multiple pending applications from the same address are not allowed -
-     *      most recent loan/application of the caller must not have APPLIED status.
+     *      Multiple pending applications from the same address are not allowed.
+     *      _profileId and _profileDigest are optional - provide nill values when not applicable.
      * @param _amount Liquidity token amount to be borrowed
      * @param _duration Loan duration in seconds
      * @param _profileId Borrower metadata profile id obtained from the borrower service
@@ -631,6 +632,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             loanDetail.paymentCarry = 0;
         }
 
+        // mark loan repaid and call lending pool hook to reimburse incomplete loan principal if applicable
         loan.status = LoanStatus.REPAID;
         outstandingLoansCount--;
 
@@ -800,7 +802,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         return loanDetails[loanId];
     }
 
-     /**
+    /**
      * @notice Loan balance due including interest if paid in full at this time.
      * @dev Loan must be in OUTSTANDING status.
      * @param loanId ID of the loan to check the balance of
@@ -824,7 +826,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             || recentAppStatus == LoanApplicationStatus.OFFER_MADE;
     }
 
-        /**
+    /**
      * @notice View indicating whether or not a given loan qualifies to be defaulted
      * @param loanId ID of the loan to check
      * @return True if the given loan can be defaulted, false otherwise
@@ -833,8 +835,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         Loan storage loan = loans[loanId];
 
-        uint256 fxBandPercent = 200; //20% //TODO: use confgurable parameter on v1.1
-
         uint256 paymentDueTime;
 
         if (loan.installments > 1) {
@@ -842,7 +842,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             uint256 pastInstallments = (block.timestamp - loan.borrowedTime) / installmentPeriod;
             uint256 minTotalPayment = MathUpgradeable.mulDiv(
                 loan.installmentAmount * pastInstallments,
-                SaplingMath.HUNDRED_PERCENT - fxBandPercent,
+                SaplingMath.HUNDRED_PERCENT - SaplingMath.FX_BAND_PERCENT,
                 SaplingMath.HUNDRED_PERCENT
             );
 
@@ -923,7 +923,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @notice Loan balances payable given a max payment amount.
      * @param loanId ID of the loan to check the balance of
      * @param maxPaymentAmount Maximum liquidity token amount user has agreed to pay towards the loan
-     * @return Total transfer camount, paymentAmount, interest payable, and the number of payable interest days,
+     * @return Total transfer amount, paymentAmount, interest payable, and the number of payable interest days,
      *         and the current loan balance
      */
     function payableLoanBalance(
@@ -970,7 +970,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
              Handle "small payment exploit" which unfairly reduces the principal amount by making payments smaller than
              1 day interest, while the interest on the remaining principal is outstanding.
 
-             Do not accept leftover payments towards the principal while any daily interest is outstandig.
+             Do not accept leftover payments towards the principal while any daily interest is outstanding.
              */
             if (payableInterestDays < interestDays) {
                 paymentAmount = interestPayable;

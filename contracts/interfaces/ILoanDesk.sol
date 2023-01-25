@@ -238,18 +238,4 @@ interface ILoanDesk {
 
     /// Setter event
     event TemplateLoanAPRSet(uint256 prevValue, uint256 newValue);
-
-    /**
-     * @notice Accessor for loan.
-     * @param loanId ID of the loan
-     * @return Loan struct instance for the specified loan ID.
-     */
-    function loanById(uint256 loanId) external view returns (Loan memory);
-
-    /**
-     * @notice Accessor for loan.
-     * @param loanId ID of the loan
-     * @return Loan struct instance for the specified loan ID.
-     */
-    function loanDetailById(uint256 loanId) external view returns (LoanDetail memory);
 }

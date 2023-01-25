@@ -234,7 +234,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
 
             it('Withdrawal request will immediately fulfill when liquidity is available', async function () {
                 let amount = BigNumber.from(10).mul(TOKEN_MULTIPLIER);
-                let poolTokens = await lendingPool.fundsToTokens(amount);
+                let poolTokens = await lendingPool.fundsToShares(amount);
 
                 assertHardhatInvariant(await lendingPool.amountWithdrawable(lenders[2].address) >= amount);
 

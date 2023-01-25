@@ -55,8 +55,8 @@ library WithdrawalRequestQueue {
     /**
      * @notice Queue a new withdrawal request
      * @param list storage reference to LinkedMap
-     * @param user requestor wallet address
-     * @param shares poolTokens locked in the withdrawal request
+     * @param user requester wallet address
+     * @param shares Pool tokens locked in the withdrawal request
      * @return id of the newly queued request
      */
     function queue(LinkedMap storage list, address user, uint256 shares) internal returns (uint256) {
@@ -90,7 +90,7 @@ library WithdrawalRequestQueue {
      * @notice Update an existing withdrawal request
      * @dev Locked token amount can only be decreased but must stay above 0. Use remove for a value of 0 instead.
      * @param list Storage reference to LinkedMap
-     * @param id Requestor wallet address
+     * @param id Requester wallet address
      * @param newShareAmount new amount of poolTokens locked in the withdrawal request
      * @return Difference in the locked pool tokens after the update
      */

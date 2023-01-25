@@ -57,6 +57,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /**
      * @notice Links a new loan desk for the pool to use. Intended for use upon initial pool deployment.
      * @dev Caller must be the governance.
+     *      This setter may also be used to switch loan desks.
+     *      If applicable: Outstanding loan operations must be concluded on the loan desk before the switch.
      * @param _loanDesk New LoanDesk address
      */
     function setLoanDesk(address _loanDesk) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
@@ -95,7 +97,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
     /**
      * @dev Hook for borrow. Releases the loan funds to the borrower. Caller must be the LoanDesk. 
-     * Loan metadata is passed along as call arguments to avoid reentry callbacks to the LoanDesk.
+     *      Loan metadata is passed along as call arguments to avoid reentry callbacks to the LoanDesk.
      * @param loanId ID of the loan which has just been borrowed
      * @param borrower Address of the borrower
      * @param amount Loan principal amount
@@ -142,7 +144,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      /**
      * @dev Hook for repayments. Caller must be the LoanDesk. 
      *      
-     *      Parameters besides the loanId exists simply to avoid rereading it from the caller via additinal inter 
+     *      Parameters besides the loanId exists simply to avoid rereading it from the caller via additional inter
      *      contract call. Avoiding loop call reduces gas, contract bytecode size, and reduces the risk of reentrancy.
      *
      * @param loanId ID of the loan which has just been borrowed
@@ -225,7 +227,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         //// interactions
 
-        // charge 'amount' tokens from msg.sender
+        // charge msg.sender
         SafeERC20Upgradeable.safeTransferFrom(
             IERC20Upgradeable(tokenConfig.liquidityToken),
             payer,
@@ -281,9 +283,9 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         // charge staker's stake
         uint256 stakeChargeable = 0;
         if (remainingDifference > 0 && balances.stakedShares > 0) {
-            uint256 stakedBalance = tokensToFunds(balances.stakedShares);
+            uint256 stakedBalance = sharesToFunds(balances.stakedShares);
             uint256 amountChargeable = MathUpgradeable.min(remainingDifference, stakedBalance);
-            stakeChargeable = fundsToTokens(amountChargeable);
+            stakeChargeable = fundsToShares(amountChargeable);
 
             balances.stakedShares = balances.stakedShares - stakeChargeable;
 
@@ -322,7 +324,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
     /**
      * @dev Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
-     * the staked funds. If these funds are not sufficient, the lenders will share the loss.
+     *      the staked funds. If these funds are not sufficient, the lenders will share the loss.
      * @param loanId ID of the loan to default
      * @param apr Loan apr
      * @param carryAmountUsed Amount of payment carry repaid 
@@ -358,7 +360,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         uint256 lenderLoss = 0;
 
         if (loss > 0) {
-            uint256 remainingLostShares = fundsToTokens(loss);
+            uint256 remainingLostShares = fundsToShares(loss);
 
             balances.poolFunds -= loss;
             balances.strategizedFunds -= loss;
@@ -380,7 +382,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             }
 
             if (remainingLostShares > 0) {
-                lenderLoss = tokensToFunds(remainingLostShares);
+                lenderLoss = sharesToFunds(remainingLostShares);
                 stakerLoss -= lenderLoss;
 
                 emit SharedLenderLoss(loanId, lenderLoss);

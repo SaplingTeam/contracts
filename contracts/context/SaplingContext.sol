@@ -37,6 +37,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
         */
         assert(accessControl == address(0));
 
+        // validate params
         require(_accessControl != address(0), "SaplingContext: access control contract address is not set");
         
         accessControl = _accessControl;

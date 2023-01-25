@@ -160,18 +160,4 @@ interface IPoolContext {
 
     /// Setter event
     event StakerEarnFactorSet(uint16 prevValue, uint16 newValue);
-
-    /**
-     * @notice Get liquidity token value of shares.
-     * @param poolTokens Pool token amount.
-     * @return Converted liqudity token value.
-     */
-    function tokensToFunds(uint256 poolTokens) external view returns (uint256);
-
-    /**
-     * @notice Get pool token value of liquidity tokens.
-     * @param liquidityTokens Amount of liquidity tokens.
-     * @return Converted pool token value.
-     */
-    function fundsToTokens(uint256 liquidityTokens) external view returns (uint256);
 }

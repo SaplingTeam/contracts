@@ -811,13 +811,6 @@ describe('Loan Desk', function () {
                         ).to.be.reverted;
                     });
 
-                    /*
-                    it ("Offering a loan when lending is paused should fail", async function () {
-                        await lendingPool.connect(staker).pauseLending();
-                        await expect(loanDesk.connect(staker).offerLoan(applicationId, application.amount, application.duration, gracePeriod, 0, installments, apr)).to.be.reverted;
-                    });
-                    */
-
                     it('Offering a loan when the pool is paused should fail', async function () {
                         await loanDesk.connect(governance).pause();
                         await expect(
