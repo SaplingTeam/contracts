@@ -7,7 +7,7 @@ _This interface has all LendingPool events, structs, and LoanDesk function hooks
 ### LoanDeskSet
 
 ```solidity
-event LoanDeskSet(address from, address to)
+event LoanDeskSet(address prevAddress, address newAddress)
 ```
 
 Event for when a new loan desk is set
@@ -23,7 +23,7 @@ Event whn loan funds are released after accepting a loan offer
 ### LoanClosed
 
 ```solidity
-event LoanClosed(uint256 loanId, address borrower, uint256 managerLossAmount, uint256 lenderLossAmount)
+event LoanClosed(uint256 loanId, address borrower, uint256 stakerLoss, uint256 lenderLoss)
 ```
 
 Event for when a loan is closed
@@ -31,7 +31,7 @@ Event for when a loan is closed
 ### LoanDefaulted
 
 ```solidity
-event LoanDefaulted(uint256 loanId, address borrower, uint256 managerLoss, uint256 lenderLoss)
+event LoanDefaulted(uint256 loanId, address borrower, uint256 stakerLoss, uint256 lenderLoss)
 ```
 
 Event for when a loan is defaulted
@@ -52,10 +52,10 @@ event OfferLiquidityUpdated(uint256 prevAmount, uint256 newAmount)
 
 Event for when the liquidity is adjusted for a loan offer
 
-### LoanRepaymentConfirmed
+### LoanRepaymentProcessed
 
 ```solidity
-event LoanRepaymentConfirmed(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount)
+event LoanRepaymentProcessed(uint256 loanId, address borrower, address payer, uint256 amount, uint256 interestAmount)
 ```
 
 Event for when a loan repayments are made
@@ -132,7 +132,7 @@ function onCloseLoan(uint256 loanId, uint16 apr, uint256 amountRepaid, uint256 r
 ```
 
 _Hook for closing a loan. Caller must be the LoanDesk. Closing a loan will repay the outstanding principal 
-     using the pool manager's revenue and/or staked funds. If these funds are not sufficient, the lenders will 
+     using the staker's revenue and/or staked funds. If these funds are not sufficient, the lenders will
      share the loss._
 
 | Name | Type | Description |
@@ -144,7 +144,7 @@ _Hook for closing a loan. Caller must be the LoanDesk. Closing a loan will repay
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Amount reimbursed by the pool manager funds |
+| [0] | uint256 | Amount reimbursed by the staker funds |
 
 ### onDefault
 
@@ -168,7 +168,7 @@ the staked funds. If these funds are not sufficient, the lenders will share the 
 function canOffer(uint256 totalOfferedAmount) external view returns (bool)
 ```
 
-View indicating whether or not a given loan can be offered by the manager.
+View indicating whether or not a given loan can be offered by the staker.
 
 _Hook for checking if the lending pool can provide liquidity for the total offered loans amount._
 

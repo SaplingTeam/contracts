@@ -37,6 +37,6 @@ bytes32 PAUSER_ROLE
 _Pauser can be governance or an entity/bot designated as a monitor that 
      enacts a pause on emergencies or anomalies.
      
-     PAUSER_ROLE is a protocol level role and should not be granted to pool managers or to users. Doing so would 
+     PAUSER_ROLE is a protocol level role and should not be granted to the stakers or users. Doing so would
      give the role holder the ability to pause not just their pool, but any contract within the protocol._
 

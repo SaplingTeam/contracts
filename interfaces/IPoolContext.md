@@ -19,8 +19,8 @@ struct PoolConfig {
   uint256 minWithdrawalRequestAmount;
   uint16 targetStakePercent;
   uint16 protocolFeePercent;
-  uint16 managerEarnFactorMax;
-  uint16 managerEarnFactor;
+  uint16 stakerEarnFactorMax;
+  uint16 stakerEarnFactor;
   uint16 targetLiquidityPercent;
   uint16 weightedAvgStrategyAPR;
   uint16 exitFeePercent;
@@ -38,7 +38,7 @@ struct PoolBalance {
   uint256 strategizedFunds;
   uint256 withdrawalRequestedShares;
   uint256 stakedShares;
-  uint256 managerRevenue;
+  uint256 stakerEarnings;
   uint256 protocolRevenue;
 }
 ```
@@ -58,31 +58,39 @@ struct WithdrawalRequestState {
 struct APYBreakdown {
   uint16 totalPoolAPY;
   uint16 protocolRevenueComponent;
-  uint16 managerRevenueComponent;
+  uint16 stakerEarningsComponent;
   uint16 lenderComponent;
 }
 ```
 
-### UnstakedLoss
+### SharedLenderLoss
 
 ```solidity
-event UnstakedLoss(uint256 amount)
+event SharedLenderLoss(uint256 fromLoanId, uint256 amount)
 ```
 
 Event for when the lender capital is lost due to defaults
 
-### StakedAssetsDepleted
+### StakerLoss
 
 ```solidity
-event StakedAssetsDepleted()
+event StakerLoss(uint256 fromLoanId, uint256 amount)
 ```
 
-Event for when the Manager's staked assets are depleted due to defaults
+Event for when the staker's funds are lost due to defaults or closures
+
+### StakedFundsDepleted
+
+```solidity
+event StakedFundsDepleted()
+```
+
+Event for when the staked assets are depleted due to defaults
 
 ### FundsDeposited
 
 ```solidity
-event FundsDeposited(address wallet, uint256 amount, uint256 tokensIssued)
+event FundsDeposited(address wallet, uint256 amount, uint256 sharesIssued)
 ```
 
 Event for when lender funds are deposited
@@ -90,7 +98,7 @@ Event for when lender funds are deposited
 ### FundsWithdrawn
 
 ```solidity
-event FundsWithdrawn(address wallet, uint256 amount, uint256 tokensRedeemed)
+event FundsWithdrawn(address wallet, uint256 amount, uint256 sharesRedeemed)
 ```
 
 Event for when lender funds are withdrawn
@@ -98,31 +106,39 @@ Event for when lender funds are withdrawn
 ### FundsStaked
 
 ```solidity
-event FundsStaked(address wallet, uint256 amount, uint256 tokensIssued)
+event FundsStaked(address wallet, uint256 amount, uint256 sharesIssued)
 ```
 
-Event for when pool manager funds are staked
+Event for when staker funds are staked
 
 ### FundsUnstaked
 
 ```solidity
-event FundsUnstaked(address wallet, uint256 amount, uint256 tokensRedeemed)
+event FundsUnstaked(address wallet, uint256 amount, uint256 sharesRedeemed)
 ```
 
-Event for when pool manager funds are unstaked
+Event for when staker funds are unstaked
 
-### RevenueWithdrawn
+### ProtocolRevenueCollected
 
 ```solidity
-event RevenueWithdrawn(address wallet, uint256 amount)
+event ProtocolRevenueCollected(address wallet, uint256 amount)
 ```
 
-Event for when a non user revenue is withdrawn
+Event for when the protocol revenue is collected
+
+### StakerEarningsCollected
+
+```solidity
+event StakerEarningsCollected(address wallet, uint256 amount)
+```
+
+Event for when the staker earnings are collected
 
 ### WithdrawalRequested
 
 ```solidity
-event WithdrawalRequested(uint256 id, address wallet, uint256 tokensLocked)
+event WithdrawalRequested(uint256 id, address wallet, uint256 sharesLocked)
 ```
 
 Event for when a new withdrawal request is made
@@ -130,7 +146,7 @@ Event for when a new withdrawal request is made
 ### WithdrawalRequestUpdated
 
 ```solidity
-event WithdrawalRequestUpdated(uint256 id, uint256 prevTokensLocked, uint256 tokensLocked)
+event WithdrawalRequestUpdated(uint256 id, address wallet, uint256 prevSharesLocked, uint256 sharesLocked)
 ```
 
 Event for when a withdrawal request amount is updated
@@ -138,7 +154,7 @@ Event for when a withdrawal request amount is updated
 ### WithdrawalRequestCancelled
 
 ```solidity
-event WithdrawalRequestCancelled(uint256 id)
+event WithdrawalRequestCancelled(uint256 id, address wallet)
 ```
 
 Event for when a withdrawal request is cancelled
@@ -146,7 +162,7 @@ Event for when a withdrawal request is cancelled
 ### WithdrawalRequestFulfilled
 
 ```solidity
-event WithdrawalRequestFulfilled(uint256 id, uint256 amount)
+event WithdrawalRequestFulfilled(uint256 id, address wallet, uint256 amount)
 ```
 
 Event for when a withdrawal request is fully fulfilled
@@ -159,10 +175,10 @@ event TargetStakePercentSet(uint16 prevValue, uint16 newValue)
 
 Setter event
 
-### TargetLiqudityPercentSet
+### TargetLiquidityPercentSet
 
 ```solidity
-event TargetLiqudityPercentSet(uint16 prevValue, uint16 newValue)
+event TargetLiquidityPercentSet(uint16 prevValue, uint16 newValue)
 ```
 
 Setter event
@@ -175,51 +191,19 @@ event ProtocolFeePercentSet(uint16 prevValue, uint16 newValue)
 
 Setter event
 
-### ManagerEarnFactorMaxSet
+### StakerEarnFactorMaxSet
 
 ```solidity
-event ManagerEarnFactorMaxSet(uint16 prevValue, uint16 newValue)
+event StakerEarnFactorMaxSet(uint16 prevValue, uint16 newValue)
 ```
 
 Setter event
 
-### ManagerEarnFactorSet
+### StakerEarnFactorSet
 
 ```solidity
-event ManagerEarnFactorSet(uint16 prevValue, uint16 newValue)
+event StakerEarnFactorSet(uint16 prevValue, uint16 newValue)
 ```
 
 Setter event
-
-### tokensToFunds
-
-```solidity
-function tokensToFunds(uint256 poolTokens) external view returns (uint256)
-```
-
-Get liquidity token value of shares.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| poolTokens | uint256 | Pool token amount. |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Converted liqudity token value. |
-
-### fundsToTokens
-
-```solidity
-function fundsToTokens(uint256 liquidityTokens) external view returns (uint256)
-```
-
-Get pool token value of liquidity tokens.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| liquidityTokens | uint256 | Amount of liquidity tokens. |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Converted pool token value. |
 

@@ -47,7 +47,7 @@ _Disable initializers_
 ### initialize
 
 ```solidity
-function initialize(address _poolToken, address _liquidityToken, address _accessControl, bytes32 _managerRole) public
+function initialize(address _poolToken, address _liquidityToken, address _accessControl, bytes32 _stakerRole) public
 ```
 
 Creates a Sapling pool.
@@ -59,7 +59,7 @@ _Addresses must not be 0._
 | _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
 | _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
 | _accessControl | address | Access control contract |
-| _managerRole | bytes32 | Manager role |
+| _stakerRole | bytes32 | Staker role |
 
 ### setLoanDesk
 
@@ -69,7 +69,9 @@ function setLoanDesk(address _loanDesk) external
 
 Links a new loan desk for the pool to use. Intended for use upon initial pool deployment.
 
-_Caller must be the governance._
+_Caller must be the governance.
+     This setter may also be used to switch loan desks.
+     If applicable: Outstanding loan operations must be concluded on the loan desk before the switch._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -108,7 +110,7 @@ function onBorrow(uint256 loanId, address borrower, uint256 amount, uint16 apr) 
 ```
 
 _Hook for borrow. Releases the loan funds to the borrower. Caller must be the LoanDesk. 
-Loan metadata is passed along as call arguments to avoid reentry callbacks to the LoanDesk._
+     Loan metadata is passed along as call arguments to avoid reentry callbacks to the LoanDesk._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -125,7 +127,7 @@ function onRepay(uint256 loanId, address borrower, address payer, uint16 apr, ui
 
 _Hook for repayments. Caller must be the LoanDesk. 
      
-     Parameters besides the loanId exists simply to avoid rereading it from the caller via additinal inter 
+     Parameters besides the loanId exists simply to avoid rereading it from the caller via additional inter
      contract call. Avoiding loop call reduces gas, contract bytecode size, and reduces the risk of reentrancy._
 
 | Name | Type | Description |
@@ -145,7 +147,7 @@ function onCloseLoan(uint256 loanId, uint16 apr, uint256 amountRepaid, uint256 r
 ```
 
 _Hook for closing a loan. Caller must be the LoanDesk. Closing a loan will repay the outstanding principal 
-using the pool manager's revenue and/or staked funds. If these funds are not sufficient, the lenders will 
+using the pool staker's earnings and/or staked funds. If these funds are not sufficient, the lenders will
 share the loss._
 
 | Name | Type | Description |
@@ -157,7 +159,7 @@ share the loss._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Amount reimbursed by the pool manager funds |
+| [0] | uint256 | Amount reimbursed by the pool staker funds |
 
 ### onDefault
 
@@ -166,7 +168,7 @@ function onDefault(uint256 loanId, uint16 apr, uint256 carryAmountUsed, uint256 
 ```
 
 _Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
-the staked funds. If these funds are not sufficient, the lenders will share the loss._
+     the staked funds. If these funds are not sufficient, the lenders will share the loss._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -181,7 +183,7 @@ the staked funds. If these funds are not sufficient, the lenders will share the 
 function canOffer(uint256 totalOfferedAmount) external view returns (bool)
 ```
 
-View indicating whether or not a given loan can be offered by the manager.
+View indicating whether or not a given loan amount can be offered.
 
 _Hook for checking if the lending pool can provide liquidity for the total offered loans amount._
 
@@ -201,7 +203,7 @@ function canOpen() internal view returns (bool)
 
 Indicates whether or not the contract can be opened in it's current state.
 
-_Overrides a hook in SaplingManagerContext._
+_Overrides a hook in SaplingStakerContext._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |

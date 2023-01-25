@@ -1,6 +1,6 @@
 # Solidity API
 
-## SaplingManagerContextTester
+## SaplingStakerContextTester
 
 _Exposes selected internal functions and/or modifiers for direct calling for testing purposes._
 
@@ -19,7 +19,7 @@ event ValueChanged(uint256 prevValue, uint256 newValue)
 ### initialize
 
 ```solidity
-function initialize(address _accessControl, bytes32 _managerRole) public
+function initialize(address _accessControl, bytes32 _stakerRole) public
 ```
 
 _Initializer_
@@ -27,7 +27,7 @@ _Initializer_
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _accessControl | address | Access control contract |
-| _managerRole | bytes32 | Manager role |
+| _stakerRole | bytes32 | Staker role |
 
 ### isNonUserAddressWrapper
 

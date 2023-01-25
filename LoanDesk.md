@@ -2,7 +2,7 @@
 
 ## LoanDesk
 
-Provides loan application and offer management.
+Provides loan application and offer flow.
 
 ### lenderGovernanceRole
 
@@ -10,8 +10,8 @@ Provides loan application and offer management.
 bytes32 lenderGovernanceRole
 ```
 
-Lender governance role
-Role given to the address of the timelock contract that executes a loan offer upon a passing vote
+Lender voting contract role
+Role given to the address of the voting contract that can cancel a loan offer upon a passing vote
 
 _The value of this role should be unique for each pool. Role must be created before the pool contract
      deployment, then passed during construction/initialization._
@@ -46,7 +46,7 @@ Loan application id generator counter
 uint256 offeredFunds
 ```
 
-Total liquidity tokens allocated for loan offers and pending acceptance by the borrowers
+Total funds allocated for loan offers, including both drafted and pending acceptance
 
 ### loanApplications
 
@@ -116,6 +116,8 @@ A modifier to limit access only to when the application exists and has the speci
 modifier loanInStatus(uint256 loanId, enum ILoanDesk.LoanStatus status)
 ```
 
+A modifier to limit access only to when the loan exists and has the specified status
+
 ### disableIntitializers
 
 ```solidity
@@ -127,7 +129,7 @@ _Disable initializers_
 ### initialize
 
 ```solidity
-function initialize(address _pool, address _accessControl, bytes32 _managerRole, bytes32 _lenderGovernanceRole, uint8 _decimals) public
+function initialize(address _pool, address _accessControl, bytes32 _stakerRole, bytes32 _lenderGovernanceRole, uint8 _decimals) public
 ```
 
 Initializer a new LoanDesk.
@@ -138,7 +140,7 @@ _Addresses must not be 0._
 | ---- | ---- | ----------- |
 | _pool | address | Lending pool address |
 | _accessControl | address | Access control contract |
-| _managerRole | bytes32 | Manager role |
+| _stakerRole | bytes32 | Staker role |
 | _lenderGovernanceRole | bytes32 | Role held by the timelock control that executed passed lender votes |
 | _decimals | uint8 | Lending pool liquidity token decimals |
 
@@ -151,7 +153,7 @@ function setMinLoanAmount(uint256 minAmount) external
 Set a minimum loan amount.
 
 _minAmount must be greater than or equal to safeMinAmount.
-     Caller must be the manager._
+     Caller must be the staker._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -166,7 +168,7 @@ function setMinLoanDuration(uint256 duration) external
 Set the minimum loan duration
 
 _Duration must be in seconds and inclusively between SAFE_MIN_DURATION and maxDuration.
-     Caller must be the manager._
+     Caller must be the staker._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -181,7 +183,7 @@ function setMaxLoanDuration(uint256 duration) external
 Set the maximum loan duration.
 
 _Duration must be in seconds and inclusively between minDuration and SAFE_MAX_DURATION.
-     Caller must be the manager._
+     Caller must be the staker._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -196,7 +198,7 @@ function setTemplateLoanGracePeriod(uint256 gracePeriod) external
 Set the template loan payment grace period.
 
 _Grace period must be in seconds and inclusively between MIN_LOAN_GRACE_PERIOD and MAX_LOAN_GRACE_PERIOD.
-     Caller must be the manager._
+     Caller must be the staker._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -211,7 +213,7 @@ function setTemplateLoanAPR(uint16 apr) external
 Set a template loan APR
 
 _APR must be inclusively between SAFE_MIN_APR and 100%.
-     Caller must be the manager._
+     Caller must be the staker._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -227,8 +229,8 @@ Request a new loan.
 
 _Requested amount must be greater or equal to minLoanAmount().
      Loan duration must be between minDuration() and maxDuration().
-     Multiple pending applications from the same address are not allowed -
-     most recent loan/application of the caller must not have APPLIED status._
+     Multiple pending applications from the same address are not allowed.
+     _profileId and _profileDigest are optional - provide nill values when not applicable._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -246,7 +248,7 @@ function denyLoan(uint256 appId) external
 Deny a loan.
 
 _Loan must be in APPLIED status.
-     Caller must be the manager._
+     Caller must be the staker._
 
 ### draftOffer
 
@@ -257,7 +259,7 @@ function draftOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _
 Draft a loan offer for an application.
 
 _Loan application must be in APPLIED status.
-     Caller must be the manager.
+     Caller must be the staker.
      Loan amount must not exceed available liquidity -
      canOffer(offeredFunds.add(_amount)) must be true on the lending pool._
 
@@ -280,7 +282,7 @@ function updateDraftOffer(uint256 appId, uint256 _amount, uint256 _duration, uin
 Update an existing draft loan offer.
 
 _Loan application must be in OFFER_DRAFTED status.
-     Caller must be the manager.
+     Caller must be the staker.
      Loan amount must not exceed available liquidity -
      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool._
 
@@ -303,7 +305,7 @@ function lockDraftOffer(uint256 appId) external
 Lock a draft loan offer.
 
 _Loan application must be in OFFER_DRAFTED status.
-     Caller must be the manager.
+     Caller must be the staker.
      Loan amount must not exceed available liquidity -
      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool._
 
@@ -320,7 +322,7 @@ function offerLoan(uint256 appId) external
 Make a loan offer.
 
 _Loan application must be in OFFER_DRAFT_LOCKED status.
-     Caller must be the manager.
+     Caller must be the staker.
      Loan amount must not exceed available liquidity -
      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool._
 
@@ -336,7 +338,7 @@ function cancelLoan(uint256 appId) external
 
 Cancel a loan.
 
-_Loan application must be in OFFER_MADE status. Caller must be the manager._
+_Loan application must be in OFFER_MADE status. Caller must be the staker._
 
 ### borrow
 
@@ -395,11 +397,11 @@ _Loan must be in OUTSTANDING status.
 function closeLoan(uint256 loanId) external
 ```
 
-Closes a loan. Closing a loan will repay the outstanding principal using the pool manager's revenue
+Closes a loan. Closing a loan will repay the outstanding principal using the staker's revenue
                             and/or staked funds. If these funds are not sufficient, the lenders will take the loss.
 
 _Loan must be in OUTSTANDING status.
-     Caller must be the manager._
+     Caller must be the staker._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -414,7 +416,7 @@ function defaultLoan(uint256 loanId) external
 Default a loan.
 
 _Loan must be in OUTSTANDING status.
-     Caller must be the manager.
+     Caller must be the staker.
      canDefault(loanId) must return 'true'._
 
 | Name | Type | Description |
@@ -586,7 +588,7 @@ Loan balances payable given a max payment amount.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Total transfer camount, paymentAmount, interest payable, and the number of payable interest days,         and the current loan balance |
+| [0] | uint256 | Total transfer amount, paymentAmount, interest payable, and the number of payable interest days,         and the current loan balance |
 | [1] | uint256 |  |
 | [2] | uint256 |  |
 | [3] | uint256 |  |
@@ -618,7 +620,7 @@ function canClose() internal view returns (bool)
 
 Indicates whether or not the contract can be closed in it's current state.
 
-_Overrides a hook in SaplingManagerContext._
+_Overrides a hook in SaplingStakerContext._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -632,7 +634,7 @@ function canOpen() internal view returns (bool)
 
 Indicates whether or not the contract can be opened in it's current state.
 
-_Overrides a hook in SaplingManagerContext._
+_Overrides a hook in SaplingStakerContext._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |

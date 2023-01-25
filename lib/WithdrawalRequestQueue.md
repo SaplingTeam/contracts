@@ -40,8 +40,8 @@ Queue a new withdrawal request
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | list | struct WithdrawalRequestQueue.LinkedMap | storage reference to LinkedMap |
-| user | address | requestor wallet address |
-| shares | uint256 | poolTokens locked in the withdrawal request |
+| user | address | requester wallet address |
+| shares | uint256 | Pool tokens locked in the withdrawal request |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -60,7 +60,7 @@ _Locked token amount can only be decreased but must stay above 0. Use remove for
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | list | struct WithdrawalRequestQueue.LinkedMap | Storage reference to LinkedMap |
-| id | uint256 | Requestor wallet address |
+| id | uint256 | Requester wallet address |
 | newShareAmount | uint256 | new amount of poolTokens locked in the withdrawal request |
 
 | Name | Type | Description |

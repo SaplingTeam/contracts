@@ -2,8 +2,7 @@
 
 ## SaplingPoolContext
 
-Provides common pool functionality with lender deposits, manager's first loss capital staking,
-        and reward distribution.
+Provides common pool functionality with lender deposits, first loss capital staking, and reward distribution.
 
 ### tokenConfig
 
@@ -54,7 +53,7 @@ modifier noWithdrawalRequests()
 ### __SaplingPoolContext_init
 
 ```solidity
-function __SaplingPoolContext_init(address _poolToken, address _liquidityToken, address _accessControl, bytes32 _managerRole) internal
+function __SaplingPoolContext_init(address _poolToken, address _liquidityToken, address _accessControl, bytes32 _stakerRole) internal
 ```
 
 Creates a SaplingPoolContext.
@@ -66,7 +65,7 @@ _Addresses must not be 0._
 | _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
 | _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
 | _accessControl | address | Access control contract |
-| _managerRole | bytes32 | Manager role |
+| _stakerRole | bytes32 | Staker role |
 
 ### setTargetStakePercent
 
@@ -92,7 +91,7 @@ function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external
 Set the target liquidity percent for the pool.
 
 __targetLiquidityPercent must be inclusively between 0 and SaplingMath.HUNDRED_PERCENT.
-     Caller must be the manager._
+     Caller must be the staker._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -113,36 +112,36 @@ __protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_FEE_PERC
 | ---- | ---- | ----------- |
 | _protocolEarningPercent | uint16 | new protocol earning percent. |
 
-### setManagerEarnFactorMax
+### setStakerEarnFactorMax
 
 ```solidity
-function setManagerEarnFactorMax(uint16 _managerEarnFactorMax) external
+function setStakerEarnFactorMax(uint16 _stakerEarnFactorMax) external
 ```
 
-Set an upper bound for the manager's earn factor percent.
+Set an upper bound for the staker earn factor percent.
 
-__managerEarnFactorMax must be greater than or equal to SaplingMath.HUNDRED_PERCENT. If the current 
+__stakerEarnFactorMax must be greater than or equal to SaplingMath.HUNDRED_PERCENT. If the current
      earn factor is greater than the new maximum, then the current earn factor is set to the new maximum.
      Caller must be the governance._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _managerEarnFactorMax | uint16 | new maximum for manager's earn factor. |
+| _stakerEarnFactorMax | uint16 | new maximum for staker earn factor. |
 
-### setManagerEarnFactor
+### setStakerEarnFactor
 
 ```solidity
-function setManagerEarnFactor(uint16 _managerEarnFactor) external
+function setStakerEarnFactor(uint16 _stakerEarnFactor) external
 ```
 
-Set the manager's earn factor percent.
+Set the staker earn factor percent.
 
-__managerEarnFactorMax must be inclusively between SaplingMath.HUNDRED_PERCENT and managerEarnFactorMax.
-     Caller must be the manager._
+__stakerEarnFactor must be inclusively between SaplingMath.HUNDRED_PERCENT and stakerEarnFactorMax.
+     Caller must be the staker._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _managerEarnFactor | uint16 | new manager's earn factor. |
+| _stakerEarnFactor | uint16 | new staker earn factor. |
 
 ### deposit
 
@@ -150,12 +149,12 @@ __managerEarnFactorMax must be inclusively between SaplingMath.HUNDRED_PERCENT a
 function deposit(uint256 amount) external
 ```
 
-Deposit liquidity tokens to the pool. Depositing liquidity tokens will mint an equivalent amount of pool
+Deposit funds to the pool. Depositing funds will mint an equivalent amount of pool
         tokens and transfer it to the caller. Exact exchange rate depends on the current pool state.
 
 _Deposit amount must be non zero and not exceed amountDepositable().
      An appropriate spend limit must be present at the token contract.
-     Caller must not be any of: manager, protocol, governance.
+     Caller must not be a user.
      Caller must not have any outstanding withdrawal requests._
 
 | Name | Type | Description |
@@ -168,7 +167,7 @@ _Deposit amount must be non zero and not exceed amountDepositable().
 function withdraw(uint256 amount) public
 ```
 
-Withdraw liquidity tokens from the pool. Withdrawals redeem equivalent amount of the caller's pool tokens
+Withdraw funds from the pool. Withdrawals redeem equivalent amount of the caller's pool tokens
         by burning the tokens in question.
         Exact exchange rate depends on the current pool state.
 
@@ -184,7 +183,7 @@ _Withdrawal amount must be non zero and not exceed amountWithdrawable()._
 function requestWithdrawal(uint256 shares) external
 ```
 
-Request funds for withdrawal by locking in pool tokens.
+Request funds for withdrawal by locking in pool shares.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -198,7 +197,7 @@ function updateWithdrawalRequest(uint256 id, uint256 newShareAmount) external
 
 Update a withdrawal request.
 
-_Existing request funds can only be decreseased. Minimum request amount rule must be maintained. 
+_Existing request funds can only be decreased. Minimum request amount rule must be maintained.
      Requested position must belong to the caller._
 
 | Name | Type | Description |
@@ -226,16 +225,16 @@ _Requested position must belong to the caller._
 function fulfillWithdrawalRequests(uint256 count) external
 ```
 
-Fulfill withdrawal request in a batch if liquidity requirements are met.
+Fulfill withdrawal requests in batch if liquidity requirements are met.
 
 _Anyone can trigger fulfillment of a withdrawal request.
      
-     It is in the interest of the pool manager to keep the withdrawal requests fulfilled as soon as there is 
+     It is in the interest of the pool to keep the withdrawal requests fulfilled as soon as there is
      liquidity, as unfulfilled requests will keep earning yield but lock liquidity once the liquidity comes in._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| count | uint256 | The number of positions to fulfill starting from the head of the queue.         If the count is greater than queue length, then the entrire queue is processed. |
+| count | uint256 | The number of positions to fulfill starting from the head of the queue.         If the count is greater than queue length, then the entire queue is processed. |
 
 ### fulfillWithdrawalRequestById
 
@@ -278,10 +277,10 @@ _Fulfill a single withdrawal request by id._
 function stake(uint256 amount) external
 ```
 
-Stake liquidity tokens into the pool. Staking liquidity tokens will mint an equivalent amount of pool
+Stake funds into the pool. Staking funds will mint an equivalent amount of pool
         tokens and lock them in the pool. Exact exchange rate depends on the current pool state.
 
-_Caller must be the manager.
+_Caller must be the staker.
      Stake amount must be non zero.
      An appropriate spend limit must be present at the token contract._
 
@@ -295,10 +294,10 @@ _Caller must be the manager.
 function unstake(uint256 amount) external
 ```
 
-Unstake liquidity tokens from the pool. Unstaking redeems equivalent amount of the caller's pool tokens
+Unstake funds from the pool. Unstaking redeems equivalent amount of the caller's pool tokens
         locked in the pool by burning the tokens in question.
 
-_Caller must be the manager.
+_Caller must be the staker.
      Unstake amount must be non zero and not exceed amountUnstakable()._
 
 | Name | Type | Description |
@@ -320,16 +319,16 @@ _Revenue is in liquidity tokens.
 | ---- | ---- | ----------- |
 | amount | uint256 | Liquidity token amount to withdraw. |
 
-### collectManagerRevenue
+### collectStakerEarnings
 
 ```solidity
-function collectManagerRevenue(uint256 amount) external
+function collectStakerEarnings(uint256 amount) external
 ```
 
-Withdraw manager's leveraged earnings.
+Withdraw staker's leveraged earnings.
 
 _Revenue is in liquidity tokens. 
-     Caller must have the pool manager role._
+     Caller must have the staker role._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -365,7 +364,7 @@ _Return value depends on the callers balance, and is limited by pool liquidity._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Max amount of tokens withdrawable by the caller. |
+| [0] | uint256 | Max amount of liquidity tokens withdrawable by the caller. |
 
 ### withdrawalRequestsLength
 
@@ -417,11 +416,11 @@ Accessor
 function balanceStaked() external view returns (uint256)
 ```
 
-Check the manager's staked liquidity token balance in the pool.
+Check the staker's balance in the pool.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Liquidity token balance of the manager's stake. |
+| [0] | uint256 | Liquidity token balance of the staker's stake. |
 
 ### currentAPY
 
@@ -460,8 +459,9 @@ _Represent percentage parameter values in contract specific format._
 function balanceOf(address wallet) public view returns (uint256)
 ```
 
-Check wallet's liquidity token balance in the pool. This balance includes deposited balance and acquired
-        yield. This balance does not included staked balance, leveraged revenue or protocol revenue.
+Check wallet's funds balance in the pool. This balance includes deposited balance and acquired
+        yield. This balance does not included staked balance, balance locked in withdrawal requests,
+        leveraged earnings or protocol revenue.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -477,14 +477,14 @@ Check wallet's liquidity token balance in the pool. This balance includes deposi
 function amountUnstakable() public view returns (uint256)
 ```
 
-Check liquidity token amount unstakable by the manager at this time.
+Check funds amount unstakable by the staker at this time.
 
-_Return value depends on the manager's stake balance and targetStakePercent, and is limited by pool
+_Return value depends on the staked balance and targetStakePercent, and is limited by pool
      liquidity._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Max amount of tokens unstakable by the manager. |
+| [0] | uint256 | Max amount of liquidity tokens unstakable by the staker. |
 
 ### strategyLiquidity
 
@@ -529,8 +529,8 @@ function enter(uint256 amount) internal returns (uint256)
 ```
 
 _Internal method to enter the pool with a liquidity token amount.
-     With the exception of the manager's call, amount must not exceed amountDepositable().
-     If the caller is the pool manager, entered funds are considered staked.
+     With the exception of the staker's call, amount must not exceed amountDepositable().
+     If the caller is the staker, entered funds are considered staked.
      New pool tokens are minted in a way that will not influence the current share price.
 Shares are equivalent to pool tokens and are represented by them._
 
@@ -548,9 +548,9 @@ Shares are equivalent to pool tokens and are represented by them._
 function exit(uint256 amount) internal returns (uint256)
 ```
 
-_Internal method to exit the pool with a liquidity token amount.
-     Amount must not exceed amountWithdrawable() for non managers, and amountUnstakable() for the manager.
-     If the caller is the pool manager, exited funds are considered unstaked.
+_Internal method to exit the pool with funds amount.
+     Amount must not exceed amountWithdrawable() for non-stakers, and amountUnstakable() for the staker.
+     If the caller is the staker, exited funds are considered unstaked.
      Pool tokens are burned in a way that will not influence the current share price.
 Shares are equivalent to pool tokens and are represented by them._
 
@@ -575,29 +575,37 @@ _Internal method to update the weighted average loan apr based on the amount red
 | amountReducedBy | uint256 | amount by which the funds committed into strategy were reduced, due to repayment or loss |
 | apr | uint16 | annual percentage rate of the strategy |
 
-### tokensToFunds
+### sharesToFunds
 
 ```solidity
-function tokensToFunds(uint256 poolTokens) public view returns (uint256)
+function sharesToFunds(uint256 shares) public view returns (uint256)
 ```
 
-Get liquidity token value of shares.
+Get funds value of shares.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| poolTokens | uint256 | Pool token amount |
-
-### fundsToTokens
-
-```solidity
-function fundsToTokens(uint256 liquidityTokens) public view returns (uint256)
-```
-
-Get pool token value of liquidity tokens.
+| shares | uint256 | Pool token amount |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| liquidityTokens | uint256 | Amount of liquidity tokens. |
+| [0] | uint256 | Converted liquidity token value |
+
+### fundsToShares
+
+```solidity
+function fundsToShares(uint256 funds) public view returns (uint256)
+```
+
+Get share value of funds.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| funds | uint256 | Amount of liquidity tokens |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Converted pool token value |
 
 ### maintainsStakeRatio
 
@@ -620,7 +628,7 @@ function totalPoolTokenSupply() internal view returns (uint256)
 ### projectedAPYBreakdown
 
 ```solidity
-function projectedAPYBreakdown(uint256 _totalPoolTokens, uint256 _stakedTokens, uint256 _poolFunds, uint256 _strategizedFunds, uint256 _avgStrategyAPR, uint16 _protocolFeePercent, uint16 _managerEarnFactor) public pure returns (struct IPoolContext.APYBreakdown)
+function projectedAPYBreakdown(uint256 _totalPoolTokens, uint256 _stakedTokens, uint256 _poolFunds, uint256 _strategizedFunds, uint256 _avgStrategyAPR, uint16 _protocolFeePercent, uint16 _stakerEarnFactor) public pure returns (struct IPoolContext.APYBreakdown)
 ```
 
 APY breakdown given a specified scenario.
@@ -635,11 +643,11 @@ _Represent percentage parameter values in contract specific format._
 | _strategizedFunds | uint256 | part of the pool funds that will remain in strategies. Must be less than or equal to                           _poolFunds. For current conditions use: balances.strategizedFunds |
 | _avgStrategyAPR | uint256 | Weighted average APR of the funds in strategies.                         For current conditions use: config.weightedAvgStrategyAPR |
 | _protocolFeePercent | uint16 | Protocol fee parameter. Must be less than 100%.                            For current conditions use: config.protocolFeePercent |
-| _managerEarnFactor | uint16 | Manager's earn factor. Must be greater than or equal to 1x (100%).                            For current conditions use: config.managerEarnFactor |
+| _stakerEarnFactor | uint16 | Staker's earn factor. Must be greater than or equal to 1x (100%).                           For current conditions use: config.stakerEarnFactor |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | struct IPoolContext.APYBreakdown | Pool apy with protocol, manager, and lender components broken down. |
+| [0] | struct IPoolContext.APYBreakdown | Pool apy with protocol, staker, and lender components broken down. |
 
 ### canClose
 

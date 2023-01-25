@@ -18,14 +18,14 @@
 
 [SaplingLendingPool](SaplingLendingPool)
 
-[LenderGovernance](LenderGovernance)
-
 [LoanDesk](LoanDesk)
 
-[test/SaplingManagerContextTester](test/SaplingManagerContextTester)
+[test/SaplingStakerContextTester](test/SaplingStakerContextTester)
+
+[LenderVotes](LenderVotes)
+
+[context/SaplingStakerContext](context/SaplingStakerContext)
 
 [context/SaplingPoolContext](context/SaplingPoolContext)
 
 [context/SaplingContext](context/SaplingContext)
-
-[context/SaplingManagerContext](context/SaplingManagerContext)

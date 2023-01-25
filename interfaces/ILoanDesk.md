@@ -109,7 +109,7 @@ struct LoanDetail {
 ### LoanRequested
 
 ```solidity
-event LoanRequested(uint256 applicationId, address borrower, uint256 amount)
+event LoanRequested(uint256 applicationId, address borrower, uint256 amount, uint256 duration)
 ```
 
 Event for when a new loan is requested, and an application is created
@@ -117,50 +117,42 @@ Event for when a new loan is requested, and an application is created
 ### LoanRequestDenied
 
 ```solidity
-event LoanRequestDenied(uint256 applicationId, address borrower, uint256 amount)
+event LoanRequestDenied(uint256 applicationId, address borrower)
 ```
 
 Event for when a loan request is denied
 
-### LoanOfferDrafted
+### LoanDrafted
 
 ```solidity
-event LoanOfferDrafted(uint256 applicationId, address borrower, uint256 amount)
+event LoanDrafted(uint256 applicationId, address borrower, uint256 amount)
 ```
 
 Event for when a loan offer is made
 
-### OfferDraftUpdated
+### LoanDraftUpdated
 
 ```solidity
-event OfferDraftUpdated(uint256 applicationId, address borrower, uint256 prevAmount, uint256 newAmount)
+event LoanDraftUpdated(uint256 applicationId, address borrower, uint256 prevAmount, uint256 newAmount)
 ```
 
 Event for when a loan offer is updated
 
-### LoanOfferDraftLocked
+### LoanDraftLocked
 
 ```solidity
-event LoanOfferDraftLocked(uint256 applicationId)
+event LoanDraftLocked(uint256 applicationId, address borrower)
 ```
 
 Event for when a loan offer draft is locked and is made available for voting
 
-### LoanOfferMade
+### LoanOffered
 
 ```solidity
-event LoanOfferMade(uint256 applicationId)
+event LoanOffered(uint256 applicationId, address borrower)
 ```
 
 Event for when a loan offer has passed voting and is now available to borrow
-
-### LoanOfferCancelled
-
-```solidity
-event LoanOfferCancelled(uint256 applicationId, address borrower, uint256 amount)
-```
-
-Event for when a loan offer is cancelled
 
 ### LoanOfferAccepted
 
@@ -170,10 +162,18 @@ event LoanOfferAccepted(uint256 applicationId, address borrower, uint256 amount)
 
 Event for when a loan offer is accepted
 
+### LoanOfferCancelled
+
+```solidity
+event LoanOfferCancelled(uint256 applicationId, address borrower, uint256 amount)
+```
+
+Event for when a loan offer is cancelled
+
 ### LoanBorrowed
 
 ```solidity
-event LoanBorrowed(uint256 loanId, address borrower, uint256 applicationId)
+event LoanBorrowed(uint256 loanId, uint256 applicationId, address borrower, uint256 amount)
 ```
 
 Event for when loan offer is accepted and the loan is borrowed
@@ -197,7 +197,7 @@ Event for when a loan is fully repaid
 ### LoanClosed
 
 ```solidity
-event LoanClosed(uint256 loanId, address borrower, uint256 managerLossAmount, uint256 lenderLossAmount)
+event LoanClosed(uint256 loanId, address borrower, uint256 stakerLoss, uint256 lenderLoss)
 ```
 
 Event for when a loan is closed
@@ -205,7 +205,7 @@ Event for when a loan is closed
 ### LoanDefaulted
 
 ```solidity
-event LoanDefaulted(uint256 loanId, address borrower, uint256 managerLoss, uint256 lenderLoss)
+event LoanDefaulted(uint256 loanId, address borrower, uint256 stakerLoss, uint256 lenderLoss)
 ```
 
 Event for when a loan is defaulted
@@ -249,36 +249,4 @@ event TemplateLoanAPRSet(uint256 prevValue, uint256 newValue)
 ```
 
 Setter event
-
-### loanById
-
-```solidity
-function loanById(uint256 loanId) external view returns (struct ILoanDesk.Loan)
-```
-
-Accessor for loan.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | struct ILoanDesk.Loan | Loan struct instance for the specified loan ID. |
-
-### loanDetailById
-
-```solidity
-function loanDetailById(uint256 loanId) external view returns (struct ILoanDesk.LoanDetail)
-```
-
-Accessor for loan.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | struct ILoanDesk.LoanDetail | Loan struct instance for the specified loan ID. |
 

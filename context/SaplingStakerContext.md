@@ -1,18 +1,18 @@
 # Solidity API
 
-## SaplingManagerContext
+## SaplingStakerContext
 
-Provides manager access control, and a basic close functionality.
+Provides staker access control, and a basic close functionality.
 
 _Close functionality is implemented in the same fashion as Openzeppelin's Pausable._
 
-### poolManagerRole
+### poolStakerRole
 
 ```solidity
-bytes32 poolManagerRole
+bytes32 poolStakerRole
 ```
 
-Pool manager role
+Staker role
 
 _The value of this role should be unique for each pool. Role must be created before the pool contract 
      deployment, then passed during construction/initialization._
@@ -47,7 +47,7 @@ Event for when the contract is reopened
 modifier onlyUser()
 ```
 
-A modifier to limit access only to non-management users
+A modifier to limit access only to users without roles
 
 ### whenNotClosed
 
@@ -65,20 +65,20 @@ modifier whenClosed()
 
 Modifier to limit function access to when the contract is closed
 
-### __SaplingManagerContext_init
+### __SaplingStakerContext_init
 
 ```solidity
-function __SaplingManagerContext_init(address _accessControl, bytes32 _managerRole) internal
+function __SaplingStakerContext_init(address _accessControl, bytes32 _stakerRole) internal
 ```
 
-Create a new SaplingManagedContext.
+Create a new SaplingStakerContext.
 
 _Addresses must not be 0._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _accessControl | address | Access control contract address |
-| _managerRole | bytes32 | Manager role |
+| _stakerRole | bytes32 | Staker role |
 
 ### close
 
@@ -89,9 +89,9 @@ function close() external
 Close the pool.
 
 _Only the functions using whenClosed and whenNotClosed modifiers will be affected by close.
-     Caller must have the pool manager role. Pool must be open.
+     Caller must have the staker role. Pool must be open.
 
-     Manager must have access to close function as the ability to unstake and withdraw all manager funds is 
+     Staker must have access to close function as the ability to unstake and withdraw all staked funds is
      only guaranteed when the pool is closed and all outstanding loans resolved._
 
 ### open
@@ -103,7 +103,7 @@ function open() external
 Open the pool for normal operations.
 
 _Only the functions using whenClosed and whenNotClosed modifiers will be affected by open.
-     Caller must have the pool manager role. Pool must be closed._
+     Caller must have the staker role. Pool must be closed._
 
 ### closed
 
