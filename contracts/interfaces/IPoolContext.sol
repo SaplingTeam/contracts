@@ -6,7 +6,7 @@ interface IPoolContext {
     /// Tokens configuration
     struct TokenConfig {
 
-        /// Address of an ERC20 token managed and issued by the pool
+        /// Address of an ERC20 token issued by the pool
         address poolToken;
 
         /// Address of an ERC20 liquidity token accepted by the pool
@@ -29,14 +29,14 @@ interface IPoolContext {
         /// Percentage of paid interest to be allocated as protocol fee
         uint16 protocolFeePercent;
 
-        /// Governance set upper bound for the manager's leveraged earn factor
-        uint16 managerEarnFactorMax;
+        /// Governance set upper bound for the staker's leveraged earn factor
+        uint16 stakerEarnFactorMax;
 
 
-        // Pool manager maintained parameters
+        // Staker maintained parameters
 
-        /// Manager's leveraged earn factor represented as a percentage
-        uint16 managerEarnFactor;
+        /// Staker's leveraged earn factor represented as a percentage
+        uint16 stakerEarnFactor;
 
         /// Target percentage of pool funds to keep liquid.
         uint16 targetLiquidityPercent;
@@ -75,11 +75,11 @@ interface IPoolContext {
 
         // Role specific balances
 
-        /// Manager's staked shares
+        /// Staker's shares
         uint256 stakedShares;
 
-        /// Accumulated manager revenue from leveraged earnings, withdrawable
-        uint256 managerRevenue;
+        /// Accumulated staker leveraged earnings, withdrawable
+        uint256 stakerEarnings;
 
         /// Accumulated protocol revenue, withdrawable
         uint256 protocolRevenue;
@@ -100,72 +100,64 @@ interface IPoolContext {
         /// part of the pool APY allocated as protool revenue
         uint16 protocolRevenueComponent;
 
-        /// part of the pool APY allocated as manager revenue
-        uint16 managerRevenueComponent;
+        /// part of the pool APY allocated as staker earnings
+        uint16 stakerEarningsComponent;
 
-        /// part of the pool APY allocated as lender APY. Lender APY also applies manager's non-revenue yield on stake.
+        /// part of the pool APY allocated as lender APY. Lender APY also includes stakers's non-leveraged yield
         uint16 lenderComponent;
     }
 
     /// Event for when the lender capital is lost due to defaults
-    event UnstakedLoss(uint256 amount);
+    event SharedLenderLoss(uint256 fromLoanId, uint256 amount);
 
-    /// Event for when the Manager's staked assets are depleted due to defaults
-    event StakedAssetsDepleted();
+    /// Event for when the staker's funds are lost due to defaults or closures
+    event StakerLoss(uint256 fromLoanId, uint256 amount);
+
+    /// Event for when the staked assets are depleted due to defaults
+    event StakedFundsDepleted();
 
     /// Event for when lender funds are deposited
-    event FundsDeposited(address wallet, uint256 amount, uint256 tokensIssued);
+    event FundsDeposited(address wallet, uint256 amount, uint256 sharesIssued);
 
     /// Event for when lender funds are withdrawn
-    event FundsWithdrawn(address wallet, uint256 amount, uint256 tokensRedeemed);
+    event FundsWithdrawn(address wallet, uint256 amount, uint256 sharesRedeemed);
 
-    /// Event for when pool manager funds are staked
-    event FundsStaked(address wallet, uint256 amount, uint256 tokensIssued);
+    /// Event for when staker funds are staked
+    event FundsStaked(address wallet, uint256 amount, uint256 sharesIssued);
 
-    /// Event for when pool manager funds are unstaked
-    event FundsUnstaked(address wallet, uint256 amount, uint256 tokensRedeemed);
+    /// Event for when staker funds are unstaked
+    event FundsUnstaked(address wallet, uint256 amount, uint256 sharesRedeemed);
 
-    /// Event for when a non user revenue is withdrawn
-    event RevenueWithdrawn(address wallet, uint256 amount);
+    /// Event for when the protocol revenue is collected
+    event ProtocolRevenueCollected(address wallet, uint256 amount);
+
+    /// Event for when the staker earnings are collected
+    event StakerEarningsCollected(address wallet, uint256 amount);
 
     /// Event for when a new withdrawal request is made
-    event WithdrawalRequested(uint256 id, address wallet, uint256 tokensLocked);
+    event WithdrawalRequested(uint256 id, address wallet, uint256 sharesLocked);
 
     /// Event for when a withdrawal request amount is updated
-    event WithdrawalRequestUpdated(uint256 id,  uint256 prevTokensLocked, uint256 tokensLocked);
+    event WithdrawalRequestUpdated(uint256 id, address wallet, uint256 prevSharesLocked, uint256 sharesLocked);
 
     /// Event for when a withdrawal request is cancelled
-    event WithdrawalRequestCancelled(uint256 id);
+    event WithdrawalRequestCancelled(uint256 id, address wallet);
 
-    /// Event for when a withdrawal request is fully fulfilled 
-    event WithdrawalRequestFulfilled(uint256 id, uint256 amount);
+    /// Event for when a withdrawal request is fully fulfilled
+    event WithdrawalRequestFulfilled(uint256 id, address wallet, uint256 amount);
 
     /// Setter event
     event TargetStakePercentSet(uint16 prevValue, uint16 newValue);
 
     /// Setter event
-    event TargetLiqudityPercentSet(uint16 prevValue, uint16 newValue);
+    event TargetLiquidityPercentSet(uint16 prevValue, uint16 newValue);
 
     /// Setter event
     event ProtocolFeePercentSet(uint16 prevValue, uint16 newValue);
 
     /// Setter event
-    event ManagerEarnFactorMaxSet(uint16 prevValue, uint16 newValue);
+    event StakerEarnFactorMaxSet(uint16 prevValue, uint16 newValue);
 
     /// Setter event
-    event ManagerEarnFactorSet(uint16 prevValue, uint16 newValue);
-
-    /**
-     * @notice Get liquidity token value of shares.
-     * @param poolTokens Pool token amount.
-     * @return Converted liqudity token value.
-     */
-    function tokensToFunds(uint256 poolTokens) external view returns (uint256);
-
-    /**
-     * @notice Get pool token value of liquidity tokens.
-     * @param liquidityTokens Amount of liquidity tokens.
-     * @return Converted pool token value.
-     */
-    function fundsToTokens(uint256 liquidityTokens) external view returns (uint256);
+    event StakerEarnFactorSet(uint16 prevValue, uint16 newValue);
 }

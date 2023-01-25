@@ -2,16 +2,16 @@ const { BigNumber } = require('ethers');
 const {ethers} = require("hardhat");
 
 async function main() {
-    [deployer, governance, manager, ...addrs] = await ethers.getSigners();
+    [deployer, ...addrs] = await ethers.getSigners();
 
     const governanceAddress = '0x70f3637e717323b59A4C20977DB92652e584628b';
-    const managerAddress = '0x457aBC13c93D34FEc541C78aF91f64531eEe2516';
+    const stakerAddress = '0x457aBC13c93D34FEc541C78aF91f64531eEe2516';
 
     const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
     const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+    const POOL_1_STAKER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_STAKER_ROLE"));
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     console.log("Deployer address: \t\t", deployer.address);
@@ -35,16 +35,16 @@ async function main() {
     await coreAccessControl.connect(deployer).grantRole(TREASURY_ROLE, governanceAddress);
     await coreAccessControl.connect(deployer).grantRole(PAUSER_ROLE, governanceAddress);
 
-    await coreAccessControl.connect(deployer).grantRole(POOL_1_MANAGER_ROLE, managerAddress);
+    await coreAccessControl.connect(deployer).grantRole(POOL_1_STAKER_ROLE, stakerAddress);
 
     console.log("GOVERNANCE_ROLE: ", GOVERNANCE_ROLE);
     console.log("TREASURY_ROLE: ", TREASURY_ROLE);
     console.log("PAUSER_ROLE: ", PAUSER_ROLE);
-    console.log("POOL_1_MANAGER_ROLE: ", POOL_1_MANAGER_ROLE);
+    console.log("POOL_1_STAKER_ROLE: ", POOL_1_STAKER_ROLE);
 
     console.log("deployer: ", deployer.address);
     console.log("governance: ", governanceAddress);
-    console.log("manager: ", managerAddress);
+    console.log("staker: ", stakerAddress);
 
     console.log("\nDeploying pool token contract ...");
     PoolToken = await ethers.getContractFactory("PoolToken");
@@ -57,7 +57,7 @@ async function main() {
         poolTokenContract.address,
         liquidityTokenAddress,
         coreAccessControl.address,
-        POOL_1_MANAGER_ROLE,
+        POOL_1_STAKER_ROLE,
     ]);
     await saplingPoolContract.deployed();
     console.log("LendingPool address: \t\t", saplingPoolContract.address);
@@ -67,7 +67,7 @@ async function main() {
     loanDeskContract = await upgrades.deployProxy(LoanDesk, [
         saplingPoolContract.address,
         coreAccessControl.address,
-        POOL_1_MANAGER_ROLE,
+        POOL_1_STAKER_ROLE,
         POOL_1_LENDER_GOVERNANCE_ROLE,
         DECIMALS,
     ]);
@@ -86,9 +86,9 @@ async function main() {
 
     console.log("\nMinting liquidity tokens for testing ...");
     let mintAmount = BigNumber.from(100000).mul(BigNumber.from(10).pow(DECIMALS));
-    await liquidityTokenContract.connect(deployer).mint(managerAddress, mintAmount);
+    await liquidityTokenContract.connect(deployer).mint(stakerAddress, mintAmount);
     await deployer.sendTransaction({
-      to: managerAddress,
+      to: stakerAddress,
       value: ethers.utils.parseEther("1000.0"),
     });
     for (let i = 0; i++; i < 10) {

@@ -15,7 +15,7 @@ async function rollback() {
     await hre.network.provider.send('evm_revert', [id]);
 }
 
-describe('Sapling Manager Context (internals)', function () {
+describe('Sapling Staker Context (internals)', function () {
     const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
     const TOKEN_DECIMALS = 6;
 
@@ -23,7 +23,7 @@ describe('Sapling Manager Context (internals)', function () {
     const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_MANAGER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_MANAGER_ROLE"));
+    const POOL_1_STAKER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_STAKER_ROLE"));
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
@@ -34,7 +34,7 @@ describe('Sapling Manager Context (internals)', function () {
     let lenderGovernance;
     let pauser;
     let protocol;
-    let manager;
+    let staker;
     let addresses;
 
     beforeEach(async function () {
@@ -46,7 +46,7 @@ describe('Sapling Manager Context (internals)', function () {
     });
 
     before(async function () {
-        [deployer, governance, lenderGovernance, pauser, protocol, manager, ...addresses] = await ethers.getSigners();
+        [deployer, governance, lenderGovernance, pauser, protocol, staker, ...addresses] = await ethers.getSigners();
 
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
@@ -58,22 +58,22 @@ describe('Sapling Manager Context (internals)', function () {
         await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, pauser.address);
 
-        await coreAccessControl.connect(governance).grantRole(POOL_1_MANAGER_ROLE, manager.address);
+        await coreAccessControl.connect(governance).grantRole(POOL_1_STAKER_ROLE, staker.address);
         await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
 
-        let ContractCF = await ethers.getContractFactory('SaplingManagerContextTester');
+        let ContractCF = await ethers.getContractFactory('SaplingStakerContextTester');
 
         contract = await upgrades.deployProxy(ContractCF, [
             coreAccessControl.address,
-            POOL_1_MANAGER_ROLE
+            POOL_1_STAKER_ROLE
         ]);
         await contract.deployed();
     });
 
     describe('Use Cases', function () {
         describe('Non user address check', function () {
-            it('Manager is a non-user', async function () {
-                expect(await contract.isNonUserAddressWrapper(manager.address)).to.equal(true);
+            it('Staker is a non-user', async function () {
+                expect(await contract.isNonUserAddressWrapper(staker.address)).to.equal(true);
             });
 
             it('Governance is a non-user', async function () {
@@ -101,24 +101,24 @@ describe('Sapling Manager Context (internals)', function () {
         });
 
         describe('onlyUser modifier', function () {
-            it('Manager cannot transact', async function () {
-                await expect(contract.connect(manager).someOnlyUserFunction(42))
-                    .to.be.revertedWith("SaplingManagerContext: caller is not a user");
+            it('Staker cannot transact', async function () {
+                await expect(contract.connect(staker).someOnlyUserFunction(42))
+                    .to.be.revertedWith("SaplingStakerContext: caller is not a user");
             });
 
             it('Governance cannot transact', async function () {
                 await expect(contract.connect(governance).someOnlyUserFunction(42))
-                    .to.be.revertedWith("SaplingManagerContext: caller is not a user");
+                    .to.be.revertedWith("SaplingStakerContext: caller is not a user");
             });
 
             it('Protocol treasury cannot transact', async function () {
                 await expect(contract.connect(protocol).someOnlyUserFunction(42))
-                    .to.be.revertedWith("SaplingManagerContext: caller is not a user");
+                    .to.be.revertedWith("SaplingStakerContext: caller is not a user");
             });
 
             it('Pauser cannot transact', async function () {
                 await expect(contract.connect(pauser).someOnlyUserFunction(42))
-                    .to.be.revertedWith("SaplingManagerContext: caller is not a user");
+                    .to.be.revertedWith("SaplingStakerContext: caller is not a user");
             });
 
             it('An address without a role can transact', async function () {
@@ -133,7 +133,7 @@ describe('Sapling Manager Context (internals)', function () {
                 await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, addresses[0].address);
 
                 await expect(contract.connect(addresses[0]).someOnlyUserFunction(42))
-                    .to.be.revertedWith("SaplingManagerContext: caller is not a user");
+                    .to.be.revertedWith("SaplingStakerContext: caller is not a user");
             });
         });
     });

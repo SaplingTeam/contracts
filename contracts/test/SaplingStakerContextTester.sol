@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.15;
 
-import "../context/SaplingManagerContext.sol";
+import "../context/SaplingStakerContext.sol";
 
 /**
  * @dev Exposes selected internal functions and/or modifiers for direct calling for testing purposes.
  */
-contract SaplingManagerContextTester is SaplingManagerContext {
+contract SaplingStakerContextTester is SaplingStakerContext {
 
     uint256 public value;
 
@@ -17,16 +17,16 @@ contract SaplingManagerContextTester is SaplingManagerContext {
     /**
      * @dev Initializer
      * @param _accessControl Access control contract
-     * @param _managerRole Manager role
+     * @param _stakerRole Staker role
      */
     function initialize(
         address _accessControl,
-        bytes32 _managerRole
+        bytes32 _stakerRole
     )
         public
         initializer
     {
-         __SaplingManagerContext_init(_accessControl, _managerRole);
+         __SaplingStakerContext_init(_accessControl, _stakerRole);
     }
 
     /**

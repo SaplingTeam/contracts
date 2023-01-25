@@ -40,23 +40,25 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
      * @param _accessControl Access control contract
-     * @param _managerRole Manager role
+     * @param _stakerRole Staker role
      */
     function initialize(
         address _poolToken,
         address _liquidityToken,
         address _accessControl,
-        bytes32 _managerRole
+        bytes32 _stakerRole
     )
         public
         initializer
     {
-        __SaplingPoolContext_init(_poolToken, _liquidityToken, _accessControl, _managerRole);
+        __SaplingPoolContext_init(_poolToken, _liquidityToken, _accessControl, _stakerRole);
     }
 
     /**
      * @notice Links a new loan desk for the pool to use. Intended for use upon initial pool deployment.
      * @dev Caller must be the governance.
+     *      This setter may also be used to switch loan desks.
+     *      If applicable: Outstanding loan operations must be concluded on the loan desk before the switch.
      * @param _loanDesk New LoanDesk address
      */
     function setLoanDesk(address _loanDesk) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
@@ -95,7 +97,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
     /**
      * @dev Hook for borrow. Releases the loan funds to the borrower. Caller must be the LoanDesk. 
-     * Loan metadata is passed along as call arguments to avoid reentry callbacks to the LoanDesk.
+     *      Loan metadata is passed along as call arguments to avoid reentry callbacks to the LoanDesk.
      * @param loanId ID of the loan which has just been borrowed
      * @param borrower Address of the borrower
      * @param amount Loan principal amount
@@ -142,7 +144,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      /**
      * @dev Hook for repayments. Caller must be the LoanDesk. 
      *      
-     *      Parameters besides the loanId exists simply to avoid rereading it from the caller via additinal inter 
+     *      Parameters besides the loanId exists simply to avoid rereading it from the caller via additional inter
      *      contract call. Avoiding loop call reduces gas, contract bytecode size, and reduces the risk of reentrancy.
      *
      * @param loanId ID of the loan which has just been borrowed
@@ -194,29 +196,29 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
             balances.protocolRevenue += protocolEarnedInterest;
 
-            //share revenue to manager
+            //share earnings to staker
             uint256 currentStakePercent = MathUpgradeable.mulDiv(
                 balances.stakedShares,
                 SaplingMath.HUNDRED_PERCENT,
                 totalPoolTokenSupply()
             );
 
-            uint256 managerEarningsPercent = MathUpgradeable.mulDiv(
+            uint256 stakerEarningsPercent = MathUpgradeable.mulDiv(
                 currentStakePercent,
-                config.managerEarnFactor - SaplingMath.HUNDRED_PERCENT,
+                config.stakerEarnFactor - SaplingMath.HUNDRED_PERCENT,
                 SaplingMath.HUNDRED_PERCENT
             );
 
-            uint256 managerEarnedInterest = MathUpgradeable.mulDiv(
+            uint256 stakerEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable - protocolEarnedInterest,
-                managerEarningsPercent,
-                managerEarningsPercent + SaplingMath.HUNDRED_PERCENT
+                stakerEarningsPercent,
+                stakerEarningsPercent + SaplingMath.HUNDRED_PERCENT
             );
 
-            balances.managerRevenue += managerEarnedInterest;
+            balances.stakerEarnings += stakerEarnedInterest;
 
-            balances.rawLiquidity += paymentAmount - (protocolEarnedInterest + managerEarnedInterest);
-            balances.poolFunds += interestPayable - (protocolEarnedInterest + managerEarnedInterest);
+            balances.rawLiquidity += paymentAmount - (protocolEarnedInterest + stakerEarnedInterest);
+            balances.poolFunds += interestPayable - (protocolEarnedInterest + stakerEarnedInterest);
         }
 
         balances.strategizedFunds -= principalPaid;
@@ -225,7 +227,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         //// interactions
 
-        // charge 'amount' tokens from msg.sender
+        // charge msg.sender
         SafeERC20Upgradeable.safeTransferFrom(
             IERC20Upgradeable(tokenConfig.liquidityToken),
             payer,
@@ -233,18 +235,18 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             transferAmount
         );
 
-        emit LoanRepaymentConfirmed(loanId, borrower, payer, transferAmount, interestPayable);
+        emit LoanRepaymentProcessed(loanId, borrower, payer, transferAmount, interestPayable);
     }
 
     /**
      * @dev Hook for closing a loan. Caller must be the LoanDesk. Closing a loan will repay the outstanding principal 
-     * using the pool manager's revenue and/or staked funds. If these funds are not sufficient, the lenders will 
+     * using the pool staker's earnings and/or staked funds. If these funds are not sufficient, the lenders will
      * share the loss.
      * @param loanId ID of the loan to close
      * @param apr Loan apr
      * @param amountRepaid Amount repaid based on outstanding payment carry
      * @param remainingDifference Principal amount remaining to be resolved to close the loan
-     * @return Amount reimbursed by the pool manager funds
+     * @return Amount reimbursed by the pool staker funds
      */
     function onCloseLoan(
         uint256 loanId,
@@ -268,27 +270,29 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         loanClosed[loanDesk][loanId] == true;
 
-        // charge manager's revenue
-        if (remainingDifference > 0 && balances.managerRevenue > 0) {
-            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, balances.managerRevenue);
+        // charge staker's earnings
+        if (remainingDifference > 0 && balances.stakerEarnings > 0) {
+            uint256 amountChargeable = MathUpgradeable.min(remainingDifference, balances.stakerEarnings);
 
-            balances.managerRevenue -= amountChargeable;
+            balances.stakerEarnings -= amountChargeable;
 
             remainingDifference -= amountChargeable;
             amountRepaid += amountChargeable;
         }
 
-        // charge manager's stake
+        // charge staker's stake
         uint256 stakeChargeable = 0;
         if (remainingDifference > 0 && balances.stakedShares > 0) {
-            uint256 stakedBalance = tokensToFunds(balances.stakedShares);
+            uint256 stakedBalance = sharesToFunds(balances.stakedShares);
             uint256 amountChargeable = MathUpgradeable.min(remainingDifference, stakedBalance);
-            stakeChargeable = fundsToTokens(amountChargeable);
+            stakeChargeable = fundsToShares(amountChargeable);
 
             balances.stakedShares = balances.stakedShares - stakeChargeable;
 
+            emit StakerLoss(loanId, amountChargeable);
+
             if (balances.stakedShares == 0) {
-                emit StakedAssetsDepleted();
+                emit StakedFundsDepleted();
             }
 
             remainingDifference -= amountChargeable;
@@ -305,7 +309,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             balances.strategizedFunds -= remainingDifference;
             balances.poolFunds -= remainingDifference;
 
-            emit UnstakedLoss(remainingDifference);
+            emit SharedLenderLoss(loanId, remainingDifference);
         }
 
         updateAvgStrategyApr(amountRepaid + remainingDifference, apr);
@@ -320,7 +324,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
     /**
      * @dev Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
-     * the staked funds. If these funds are not sufficient, the lenders will share the loss.
+     *      the staked funds. If these funds are not sufficient, the lenders will share the loss.
      * @param loanId ID of the loan to default
      * @param apr Loan apr
      * @param carryAmountUsed Amount of payment carry repaid 
@@ -352,11 +356,11 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             balances.rawLiquidity += carryAmountUsed;
         }
 
-        uint256 managerLoss = loss;
+        uint256 stakerLoss = loss;
         uint256 lenderLoss = 0;
 
         if (loss > 0) {
-            uint256 remainingLostShares = fundsToTokens(loss);
+            uint256 remainingLostShares = fundsToShares(loss);
 
             balances.poolFunds -= loss;
             balances.strategizedFunds -= loss;
@@ -368,28 +372,28 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 balances.stakedShares -= stakedShareLoss;
 
                 if (balances.stakedShares == 0) {
-                    emit StakedAssetsDepleted();
+                    emit StakedFundsDepleted();
                 }
 
                 //// interactions
 
-                //burn manager's shares; this external interaction must happen before calculating lender loss
+                //burn staked shares; this external interaction must happen before calculating lender loss
                 IPoolToken(tokenConfig.poolToken).burn(address(this), stakedShareLoss);
             }
 
             if (remainingLostShares > 0) {
-                lenderLoss = tokensToFunds(remainingLostShares);
-                managerLoss -= lenderLoss;
+                lenderLoss = sharesToFunds(remainingLostShares);
+                stakerLoss -= lenderLoss;
 
-                emit UnstakedLoss(lenderLoss);
+                emit SharedLenderLoss(loanId, lenderLoss);
             }
         }
 
-        return (managerLoss, lenderLoss);
+        return (stakerLoss, lenderLoss);
     }
 
     /**
-     * @notice View indicating whether or not a given loan can be offered by the manager.
+     * @notice View indicating whether or not a given loan amount can be offered.
      * @dev Hook for checking if the lending pool can provide liquidity for the total offered loans amount.
      * @param totalOfferedAmount Total sum of offered loan amount including outstanding offers
      * @return True if the pool has sufficient lending liquidity, false otherwise
@@ -403,7 +407,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
     /**
      * @notice Indicates whether or not the contract can be opened in it's current state.
-     * @dev Overrides a hook in SaplingManagerContext.
+     * @dev Overrides a hook in SaplingStakerContext.
      * @return True if the conditions to open are met, false otherwise.
      */
     function canOpen() internal view override returns (bool) {

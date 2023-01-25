@@ -37,6 +37,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
         */
         assert(accessControl == address(0));
 
+        // validate params
         require(_accessControl != address(0), "SaplingContext: access control contract address is not set");
         
         accessControl = _accessControl;
@@ -62,7 +63,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
     }
 
     /**
-     * @notice Verify if an address has any non-user/management roles
+     * @notice Verify if an address has any non-user roles
      * @dev When overriding, return "contract local verification result" AND super.isNonUserAddress(party).
      * @param party Address to verify
      * @return True if the address has any roles, false otherwise
