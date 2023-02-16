@@ -38,9 +38,6 @@ library SaplingMath {
     /// Math safe minimum loan amount, raw value
     uint256 public constant SAFE_MIN_AMOUNT = 10 ** 6;
 
-    /// FX band allowance before loan can qualify as a default
-    uint16 public constant FX_BAND_PERCENT = HUNDRED_PERCENT / 5; //20%
-
     /// Minimum loan offer lock period for lenders to be able to vite against
     uint256 public constant LOAN_LOCK_PERIOD = 2 days;
 }

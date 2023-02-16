@@ -786,11 +786,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         if (loan.installments > 1) {
             uint256 installmentPeriod = loan.duration / loan.installments;
             uint256 pastInstallments = (block.timestamp - loan.borrowedTime) / installmentPeriod;
-            uint256 minTotalPayment = MathUpgradeable.mulDiv(
-                loan.installmentAmount * pastInstallments,
-                SaplingMath.HUNDRED_PERCENT - SaplingMath.FX_BAND_PERCENT,
-                SaplingMath.HUNDRED_PERCENT
-            );
+            uint256 minTotalPayment = loan.installmentAmount * pastInstallments;
 
             LoanDetail storage detail = loanDetails[loanId];
             uint256 totalRepaid = detail.principalAmountRepaid + detail.interestPaid;
