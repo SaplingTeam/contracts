@@ -602,60 +602,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
     }
 
     /**
-     * @notice Closes a loan. Closing a loan will repay the outstanding principal using the staker's revenue
-                            and/or staked funds. If these funds are not sufficient, the lenders will take the loss.
-     * @dev Loan must be in OUTSTANDING status.
-     *      Caller must be the staker.
-     * @param loanId ID of the loan to close
-     */
-    function closeLoan(
-        uint256 loanId
-    )
-        external
-        onlyRole(poolStakerRole)
-        loanInStatus(loanId, LoanStatus.OUTSTANDING)
-        whenNotPaused
-        nonReentrant
-    {
-        //// effect
-
-        Loan storage loan = loans[loanId];
-        LoanDetail storage loanDetail = loanDetails[loanId];
-
-        uint256 amountCarryUsed = 0;
-
-        // use loan payment carry
-        if (loanDetail.paymentCarry > 0) {
-            loanDetail.principalAmountRepaid += loanDetail.paymentCarry;
-
-            amountCarryUsed = loanDetail.paymentCarry;
-            loanDetail.paymentCarry = 0;
-        }
-
-        // mark loan repaid and call lending pool hook to reimburse incomplete loan principal if applicable
-        loan.status = LoanStatus.REPAID;
-        outstandingLoansCount--;
-
-        uint256 remainingDifference = loanDetail.principalAmountRepaid < loan.amount
-            ? loan.amount - loanDetail.principalAmountRepaid
-            : 0;
-
-        uint256 amountRepaid = ILendingPool(pool).onCloseLoan(loan.id, loan.apr, amountCarryUsed, remainingDifference);
-
-        // external interaction based state update (intentional)
-        if (amountRepaid > 0) {
-            loanDetail.totalAmountRepaid += amountRepaid - amountCarryUsed;
-            loanDetail.principalAmountRepaid += amountRepaid;
-        }
-
-        remainingDifference = loanDetail.principalAmountRepaid < loan.amount
-            ? loan.amount - loanDetail.principalAmountRepaid
-            : 0;
-
-        emit LoanClosed(loanId, loan.borrower, amountRepaid, remainingDifference);
-    }
-
-    /**
      * @notice Default a loan.
      * @dev Loan must be in OUTSTANDING status.
      *      Caller must be the staker.

@@ -13,9 +13,6 @@ interface ILendingPool {
     /// Event whn loan funds are released after accepting a loan offer
     event LoanFundsReleased(uint256 loanId, address indexed borrower, uint256 amount);
 
-    /// Event for when a loan is closed
-    event LoanClosed(uint256 loanId, address indexed borrower, uint256 stakerLoss, uint256 lenderLoss);
-
     /// Event for when a loan is defaulted
     event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 stakerLoss, uint256 lenderLoss);
 
@@ -84,25 +81,6 @@ interface ILendingPool {
         uint256 paymentAmount, 
         uint256 interestPayable
     ) external;
-
-    /**
-     * @dev Hook for closing a loan. Caller must be the LoanDesk. Closing a loan will repay the outstanding principal 
-     *      using the staker's revenue and/or staked funds. If these funds are not sufficient, the lenders will
-     *      share the loss.
-     * @param loanId ID of the loan to close
-     * @param apr Loan apr
-     * @param amountRepaid Amount repaid based on outstanding payment carry
-     * @param remainingDifference Principal amount remaining to be resolved to close the loan
-     * @return Amount reimbursed by the staker funds
-     */
-    function onCloseLoan(
-        uint256 loanId,
-        uint16 apr,
-        uint256 amountRepaid, 
-        uint256 remainingDifference
-    )
-     external
-     returns (uint256);
 
     /**
      * @dev Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
