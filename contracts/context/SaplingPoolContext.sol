@@ -114,7 +114,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         uint16 prevValue = config.targetStakePercent;
         config.targetStakePercent = _targetStakePercent;
 
-        emit TargetStakePercentSet(prevValue, config.targetStakePercent);
+        emit TargetStakePercentSet(prevValue, _targetStakePercent);
     }
 
     /**
@@ -132,7 +132,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         uint16 prevValue = config.targetLiquidityPercent;
         config.targetLiquidityPercent = _targetLiquidityPercent;
 
-        emit TargetLiquidityPercentSet(prevValue, config.targetLiquidityPercent);
+        emit TargetLiquidityPercentSet(prevValue, _targetLiquidityPercent);
     }
 
     /**
@@ -150,7 +150,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         uint16 prevValue = config.protocolFeePercent;
         config.protocolFeePercent = _protocolEarningPercent;
 
-        emit ProtocolFeePercentSet(prevValue, config.protocolFeePercent);
+        emit ProtocolFeePercentSet(prevValue, _protocolEarningPercent);
     }
 
     /**
@@ -169,14 +169,14 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         uint16 prevValue = config.stakerEarnFactorMax;
         config.stakerEarnFactorMax = _stakerEarnFactorMax;
 
-        if (config.stakerEarnFactor > config.stakerEarnFactorMax) {
+        if (config.stakerEarnFactor > _stakerEarnFactorMax) {
             uint16 prevEarnFactor = config.stakerEarnFactor;
-            config.stakerEarnFactor = config.stakerEarnFactorMax;
+            config.stakerEarnFactor = _stakerEarnFactorMax;
 
-            emit StakerEarnFactorSet(prevEarnFactor, config.stakerEarnFactor);
+            emit StakerEarnFactorSet(prevEarnFactor, _stakerEarnFactorMax);
         }
 
-        emit StakerEarnFactorMaxSet(prevValue, config.stakerEarnFactorMax);
+        emit StakerEarnFactorMaxSet(prevValue, _stakerEarnFactorMax);
     }
 
     /**
@@ -194,7 +194,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         uint16 prevValue = config.stakerEarnFactor;
         config.stakerEarnFactor = _stakerEarnFactor;
 
-        emit StakerEarnFactorSet(prevValue, config.stakerEarnFactor);
+        emit StakerEarnFactorSet(prevValue, _stakerEarnFactor);
     }
 
     /**

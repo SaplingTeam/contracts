@@ -144,7 +144,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 prevValue = loanTemplate.minAmount;
         loanTemplate.minAmount = minAmount;
 
-        emit MinLoanAmountSet(prevValue, loanTemplate.minAmount);
+        emit MinLoanAmountSet(prevValue, minAmount);
     }
 
     /**
@@ -162,7 +162,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 prevValue = loanTemplate.minDuration;
         loanTemplate.minDuration = duration;
 
-        emit MinLoanDurationSet(prevValue, loanTemplate.minDuration);
+        emit MinLoanDurationSet(prevValue, duration);
     }
 
     /**
@@ -180,7 +180,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 prevValue = loanTemplate.maxDuration;
         loanTemplate.maxDuration = duration;
 
-        emit MaxLoanDurationSet(prevValue, loanTemplate.maxDuration);
+        emit MaxLoanDurationSet(prevValue, duration);
     }
 
     /**
@@ -198,7 +198,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 prevValue = loanTemplate.gracePeriod;
         loanTemplate.gracePeriod = gracePeriod;
 
-        emit TemplateLoanGracePeriodSet(prevValue, loanTemplate.gracePeriod);
+        emit TemplateLoanGracePeriodSet(prevValue, gracePeriod);
     }
 
     /**
@@ -216,7 +216,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 prevValue = loanTemplate.apr;
         loanTemplate.apr = apr;
 
-        emit TemplateLoanAPRSet(prevValue, loanTemplate.apr);
+        emit TemplateLoanAPRSet(prevValue, apr);
     }
 
     /**
