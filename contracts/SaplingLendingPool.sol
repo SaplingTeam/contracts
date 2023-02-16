@@ -64,7 +64,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     function setLoanDesk(address _loanDesk) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
         address prevLoanDesk = loanDesk;
         loanDesk = _loanDesk;
-        emit LoanDeskSet(prevLoanDesk, loanDesk);
+        emit LoanDeskSet(prevLoanDesk, _loanDesk);
     }
 
     /**
