@@ -20,14 +20,6 @@ event LoanFundsReleased(uint256 loanId, address borrower, uint256 amount)
 
 Event whn loan funds are released after accepting a loan offer
 
-### LoanClosed
-
-```solidity
-event LoanClosed(uint256 loanId, address borrower, uint256 stakerLoss, uint256 lenderLoss)
-```
-
-Event for when a loan is closed
-
 ### LoanDefaulted
 
 ```solidity
@@ -124,27 +116,6 @@ _Hook for repayments. Caller must be the LoanDesk.
 | transferAmount | uint256 | Amount chargeable |
 | paymentAmount | uint256 | Logical payment amount, may be different to the transfer amount due to a payment carry |
 | interestPayable | uint256 | Amount of interest paid, this value is already included in the payment amount |
-
-### onCloseLoan
-
-```solidity
-function onCloseLoan(uint256 loanId, uint16 apr, uint256 amountRepaid, uint256 remainingDifference) external returns (uint256)
-```
-
-_Hook for closing a loan. Caller must be the LoanDesk. Closing a loan will repay the outstanding principal 
-     using the staker's revenue and/or staked funds. If these funds are not sufficient, the lenders will
-     share the loss._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan to close |
-| apr | uint16 | Loan apr |
-| amountRepaid | uint256 | Amount repaid based on outstanding payment carry |
-| remainingDifference | uint256 | Principal amount remaining to be resolved to close the loan |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Amount reimbursed by the staker funds |
 
 ### onDefault
 

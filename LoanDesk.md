@@ -391,22 +391,6 @@ _Loan must be in OUTSTANDING status.
 | amount | uint256 | Payment amount |
 | borrower | address | address of the borrower to make a payment on behalf of. |
 
-### closeLoan
-
-```solidity
-function closeLoan(uint256 loanId) external
-```
-
-Closes a loan. Closing a loan will repay the outstanding principal using the staker's revenue
-                            and/or staked funds. If these funds are not sufficient, the lenders will take the loss.
-
-_Loan must be in OUTSTANDING status.
-     Caller must be the staker._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan to close |
-
 ### defaultLoan
 
 ```solidity
