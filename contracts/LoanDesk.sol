@@ -117,7 +117,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         require(_pool != address(0), "LoanDesk: invalid pool address");
 
         loanTemplate = LoanTemplate({
-            minAmount: 100 * 10 ** uint256(_decimals),
+            minAmount: 100 * 10 ** uint256(_decimals), // 100 asset tokens
             minDuration: SaplingMath.SAFE_MIN_DURATION,
             maxDuration: SaplingMath.SAFE_MAX_DURATION,
             gracePeriod: 60 days,
