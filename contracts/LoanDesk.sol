@@ -919,14 +919,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             return 0;
         }
 
-        uint256 countSeconds = timeTo - timeFrom;
-        uint256 dayCount = countSeconds / 86400;
-
-        if (countSeconds % 86400 > 0) {
-            dayCount++;
-        }
-
-        return dayCount;
+        return MathUpgradeable.ceilDiv(timeTo - timeFrom, 86400);
     }
 
     /**
