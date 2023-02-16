@@ -69,7 +69,6 @@ interface ILendingPool {
      * @param payer Actual payer address
      * @param apr Loan apr
      * @param transferAmount Amount chargeable
-     * @param paymentAmount Logical payment amount, may be different to the transfer amount due to a payment carry
      * @param interestPayable Amount of interest paid, this value is already included in the payment amount
      */
     function onRepay(
@@ -77,8 +76,7 @@ interface ILendingPool {
         address borrower,
         address payer, 
         uint16 apr,
-        uint256 transferAmount, 
-        uint256 paymentAmount, 
+        uint256 transferAmount,
         uint256 interestPayable
     ) external;
 
@@ -87,13 +85,11 @@ interface ILendingPool {
      * the staked funds. If these funds are not sufficient, the lenders will share the loss.
      * @param loanId ID of the loan to default
      * @param apr Loan apr
-     * @param carryAmountUsed Amount of payment carry repaid 
      * @param loss Loss amount to resolve
      */
     function onDefault(
         uint256 loanId,
         uint16 apr,
-        uint256 carryAmountUsed,
         uint256 loss
     )
      external 

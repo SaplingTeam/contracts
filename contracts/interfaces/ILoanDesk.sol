@@ -162,7 +162,7 @@ interface ILoanDesk {
 
         /** 
          * Total amount repaid in liquidity tokens.
-         * Total amount repaid must always equal to the sum of (principalAmountRepaid, interestPaid, paymentCarry)
+         * Total amount repaid must always equal to the sum of (principalAmountRepaid, interestPaid)
          */
         uint256 totalAmountRepaid;
 
@@ -171,9 +171,6 @@ interface ILoanDesk {
 
         /// Interest paid in liquidity tokens
         uint256 interestPaid;
-
-        /// Payment carry 
-        uint256 paymentCarry;
 
         /// timestamp to calculate the interest from, on the outstanding principal
         uint256 interestPaidTillTime;
