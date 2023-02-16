@@ -81,19 +81,18 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
         assert(totalPoolTokenSupply() == 0);
 
-        uint16 _protocolFeePercent = uint16(
-            MathUpgradeable.min(uint16(20 * 10 ** SaplingMath.PERCENT_DECIMALS), SaplingMath.MAX_PROTOCOL_FEE_PERCENT)
-        );
-        uint16 _maxEarnFactor = uint16(1000 * 10 ** SaplingMath.PERCENT_DECIMALS);
-
         config = PoolConfig({
-            minWithdrawalRequestAmount: 10 * 10 ** tokenConfig.decimals,
-            targetStakePercent: uint16(10 * 10 ** SaplingMath.PERCENT_DECIMALS),
-            protocolFeePercent: _protocolFeePercent,
-            stakerEarnFactorMax: _maxEarnFactor,
+            minWithdrawalRequestAmount: 10 * 10 ** tokenConfig.decimals, // 10 asset tokens
+            targetStakePercent: uint16(10 * 10 ** SaplingMath.PERCENT_DECIMALS), // 10%
+
+            // must be valid: protocolFeePercent <= SaplingMath.MAX_PROTOCOL_FEE_PERCENT
+            protocolFeePercent: uint16(20 * 10 ** SaplingMath.PERCENT_DECIMALS), // 20%
+            stakerEarnFactorMax: uint16(1000 * 10 ** SaplingMath.PERCENT_DECIMALS), // 1000% or 10x
 
             targetLiquidityPercent: 0,
-            stakerEarnFactor: uint16(MathUpgradeable.min(150 * 10 ** SaplingMath.PERCENT_DECIMALS, _maxEarnFactor)),
+
+            // must be valid: stakerEarnFactor <= stakerEarnFactorMax
+            stakerEarnFactor: uint16(150 * 10 ** SaplingMath.PERCENT_DECIMALS), // 150%
 
             weightedAvgStrategyAPR: 0,
             exitFeePercent: SaplingMath.HUNDRED_PERCENT / 200 // 0.5%
