@@ -152,7 +152,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @param payer Actual payer address
      * @param apr Loan apr
      * @param transferAmount Amount chargeable
-     * @param paymentAmount Logical payment amount, may be different to the transfer amount due to a payment carry
      * @param interestPayable Amount of interest paid, this value is already included in the payment amount
      */
     function onRepay(
@@ -160,8 +159,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         address borrower,
         address payer,
         uint16 apr,
-        uint256 transferAmount, 
-        uint256 paymentAmount, 
+        uint256 transferAmount,
         uint256 interestPayable
     ) 
         external 
@@ -182,10 +180,10 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         uint256 principalPaid;
         if (interestPayable == 0) {
-            principalPaid = paymentAmount;
-            balances.rawLiquidity += paymentAmount;
+            principalPaid = transferAmount;
+            balances.rawLiquidity += transferAmount;
         } else {
-            principalPaid = paymentAmount - interestPayable;
+            principalPaid = transferAmount - interestPayable;
 
             //share revenue to treasury
             uint256 protocolEarnedInterest = MathUpgradeable.mulDiv(
@@ -217,7 +215,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
             balances.stakerEarnings += stakerEarnedInterest;
 
-            balances.rawLiquidity += paymentAmount - (protocolEarnedInterest + stakerEarnedInterest);
+            balances.rawLiquidity += transferAmount - (protocolEarnedInterest + stakerEarnedInterest);
             balances.poolFunds += interestPayable - (protocolEarnedInterest + stakerEarnedInterest);
         }
 
@@ -243,13 +241,11 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      *      the staked funds. If these funds are not sufficient, the lenders will share the loss.
      * @param loanId ID of the loan to default
      * @param apr Loan apr
-     * @param carryAmountUsed Amount of payment carry repaid 
      * @param loss Loss amount to resolve
      */
     function onDefault(
         uint256 loanId,
         uint16 apr,
-        uint256 carryAmountUsed,
         uint256 loss
     )
         external
@@ -266,11 +262,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         //// effect
         loanClosed[loanDesk][loanId] = true;
-
-        if (carryAmountUsed > 0) {
-            balances.strategizedFunds -= carryAmountUsed;
-            balances.rawLiquidity += carryAmountUsed;
-        }
 
         uint256 stakerLoss = loss;
         uint256 lenderLoss = 0;

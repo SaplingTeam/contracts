@@ -552,148 +552,6 @@ describe('Sapling Lending Pool', function () {
                     expect(loan.status).to.equal(LoanStatus.REPAID);
                 });
 
-                describe('Carry', function () {
-                    let loanId;
-
-                    after(async function () {
-                        await rollback();
-                    });
-
-                    before(async function () {
-                        await snapshot();
-
-                        let loanAmount = BigNumber.from(5000).mul(TOKEN_MULTIPLIER);
-
-                        await liquidityToken.connect(deployer).mint(borrower2.address, loanAmount.mul(2));
-                        await liquidityToken
-                            .connect(borrower2)
-                            .approve(lendingPool.address, loanAmount.mul(2));
-
-                        await loanDesk
-                        .connect(borrower2)
-                        .requestLoan(
-                            loanAmount,
-                            loanDuration,
-                            'a937074e-85a7-42a9-b858-9795d9471759',
-                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
-                        );
-                        let applicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
-                        let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
-                        let installments = 1;
-                        let apr = 600;
-                        await loanDesk
-                            .connect(staker)
-                            .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                        await loanDesk.connect(staker).lockDraftOffer(applicationId);
-                        await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
-                await ethers.provider.send('evm_mine');
-                await loanDesk.connect(staker).offerLoan(applicationId);
-                        let tx = await loanDesk.connect(borrower2).borrow(applicationId);
-                        loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
-
-                        await ethers.provider.send('evm_increaseTime', [BigNumber.from(30).mul(24 * 60 * 60).toNumber() + 1]);
-                        await ethers.provider.send('evm_mine');
-                    });
-
-                    it('Borrower can make precise payments where sub-day interest amount is carried over to next payments', async function() {
-                        let loan = await loanDesk.loans(loanId);
-
-                        let balanceDue = await loanDesk.loanBalanceDue(loanId);
-                        expect((await loanDesk.loanDetails(loanId)).paymentCarry).to.equal(0);
-
-                        let paymentAmount = balanceDue.sub(loan.amount).sub(BigNumber.from(1).mul(TOKEN_MULTIPLIER));
-                        await loanDesk.connect(borrower2).repay(loanId, paymentAmount);
-
-                        let detail = await loanDesk.loanDetails(loanId);
-
-                        expect(detail.paymentCarry).to.equal(detail.totalAmountRepaid.sub(detail.interestPaid));
-                    });
-
-                    it('Payment carry is used on follow-up payments', async function() {
-
-                        // setup
-                        let loan = await loanDesk.loans(loanId);
-
-                        let balanceDue = await loanDesk.loanBalanceDue(loanId);
-                        expect((await loanDesk.loanDetails(loanId)).paymentCarry).to.equal(0);
-
-                        let paymentAmount = balanceDue.sub(loan.amount).sub(BigNumber.from(1).mul(TOKEN_MULTIPLIER));
-                        await loanDesk.connect(borrower2).repay(loanId, paymentAmount);
-
-                        // test
-
-                        let prevDetail = await loanDesk.loanDetails(loanId);
-
-                        paymentAmount = BigNumber.from(101).mul(TOKEN_MULTIPLIER).add(prevDetail.paymentCarry);
-                        await loanDesk.connect(borrower2).repay(loanId, paymentAmount);
-
-                        let detail = await loanDesk.loanDetails(loanId);
-
-                        expect(detail.paymentCarry).to.equal(0);
-                        expect(detail.totalAmountRepaid).eq(prevDetail.totalAmountRepaid.add(paymentAmount));
-                        expect(
-                            detail.interestPaid.sub(prevDetail.interestPaid)
-                                .add(detail.principalAmountRepaid.sub(prevDetail.principalAmountRepaid))
-                        ).to.equal(paymentAmount.add(prevDetail.paymentCarry));
-
-                    });
-
-                    it('Followup payments update the carry correctly', async function() {
-                        // setup
-                        let loan = await loanDesk.loans(loanId);
-
-                        let balanceDue = await loanDesk.loanBalanceDue(loanId);
-                        expect((await loanDesk.loanDetails(loanId)).paymentCarry).to.equal(0);
-
-                        let paymentAmount = balanceDue.sub(loan.amount).sub(BigNumber.from(1).mul(TOKEN_MULTIPLIER));
-                        await loanDesk.connect(borrower2).repay(loanId, paymentAmount);
-
-                        // test
-
-                        let prevDetail = await loanDesk.loanDetails(loanId);
-
-                        await ethers.provider.send('evm_increaseTime', [BigNumber.from(30).mul(24 * 60 * 60).toNumber()]);
-                        await ethers.provider.send('evm_mine');
-
-                        paymentAmount = BigNumber.from(2).mul(TOKEN_MULTIPLIER);
-                        await loanDesk.connect(borrower2).repay(loanId, paymentAmount);
-
-                        let detail = await loanDesk.loanDetails(loanId);
-
-                        expect(detail.paymentCarry).to.equal(
-                            paymentAmount.add(prevDetail.paymentCarry).sub(
-                                detail.principalAmountRepaid.add(detail.interestPaid)
-                                    .sub(prevDetail.principalAmountRepaid.add(prevDetail.interestPaid))
-                            )
-                        );
-                        expect(detail.totalAmountRepaid).eq(prevDetail.totalAmountRepaid.add(paymentAmount));
-                    });
-
-                    it('Loan default uses all payment carry', async function() {
-                        // setup
-
-                        let loan = await loanDesk.loans(loanId);
-
-                        let balanceDue = await loanDesk.loanBalanceDue(loanId);
-                        expect((await loanDesk.loanDetails(loanId)).paymentCarry).to.equal(0);
-
-                        let paymentAmount = balanceDue.sub(loan.amount).sub(BigNumber.from(1).mul(TOKEN_MULTIPLIER));
-                        await loanDesk.connect(borrower2).repay(loanId, paymentAmount);
-
-                        await ethers.provider.send('evm_increaseTime', [BigNumber.from(700).mul(24 * 60 * 60).toNumber()]);
-                        await ethers.provider.send('evm_mine');
-
-                        // test
-
-                        let prevCarry = (await loanDesk.loanDetails(loanId)).paymentCarry;
-                        await loanDesk.connect(staker).defaultLoan(loanId);
-                        let carry = (await loanDesk.loanDetails(loanId)).paymentCarry;
-
-                        expect(prevCarry).to.not.equal(0);
-                        expect(carry).to.equal(0);
-                    });
-                });
-
                 describe('Rejection scenarios', function () {
                     it('Repaying a less than minimum payment amount on a loan with a greater outstanding balance should fail', async function () {
                         let paymentAmount = TOKEN_MULTIPLIER.mul(1).sub(1);
@@ -705,29 +563,6 @@ describe('Sapling Lending Pool', function () {
                         await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
                         await expect(loanDesk.connect(protocol).repay(loanId, paymentAmount)).to.be.reverted;
                     });
-                    
-                    /// min payment amount requirement is not necessary with the loan payment carry feature
-
-                    // it('Repaying less than the outstanding balance on a loan with balance less than the minimum required should fail', async function () {
-                    //     let loan = await loanDesk.loans(loanId);
-
-                    //     await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
-                    //     await ethers.provider.send('evm_mine');
-
-                    //     let paymentAmount2 = TOKEN_MULTIPLIER.mul(1).sub(1);
-                    //     let paymentAmount1 = (await loanDesk.loanBalanceDue(loanId)).sub(paymentAmount2);
-
-                    //     await liquidityToken
-                    //         .connect(deployer)
-                    //         .mint(borrower1.address, paymentAmount1.add(paymentAmount2));
-                    //     await liquidityToken
-                    //         .connect(borrower1)
-                    //         .approve(lendingPool.address, paymentAmount1.add(paymentAmount2));
-                    //     await loanDesk.connect(borrower1).repay(loanId, paymentAmount1);
-
-                    //     await expect(loanDesk.connect(borrower1).repay(loanId, paymentAmount2.sub(1))).to.be
-                    //         .reverted;
-                    // });
 
                     it('Repaying a loan that is not in OUTSTANDING status should fail', async function () {
                         await ethers.provider.send('evm_increaseTime', [60]);
@@ -818,7 +653,7 @@ describe('Sapling Lending Pool', function () {
 
                         loan = await loanDesk.loans(loanId);
                         let loanDetail = await loanDesk.loanDetails(loanId);
-                        let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid.add(loanDetail.paymentCarry));
+                        let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
 
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
                         expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount));
@@ -835,7 +670,7 @@ describe('Sapling Lending Pool', function () {
 
                         loan = await loanDesk.loans(loanId);
                         let loanDetail = await loanDesk.loanDetails(loanId);
-                        let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid.add(loanDetail.paymentCarry));
+                        let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
 
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
                         expect((await lendingPool.balances()).poolFunds).to.equal(poolFundsBefore.sub(lossAmount));

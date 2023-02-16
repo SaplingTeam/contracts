@@ -555,7 +555,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             totalAmountRepaid: 0,
             principalAmountRepaid: 0,
             interestPaid: 0,
-            paymentCarry: 0,
             interestPaidTillTime: block.timestamp
         });
 
@@ -627,13 +626,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         loan.status = LoanStatus.DEFAULTED;
         outstandingLoansCount--;
 
-        uint256 paymentCarry = loanDetail.paymentCarry;
-
-        if (loanDetail.paymentCarry > 0) {
-            loanDetail.principalAmountRepaid += loanDetail.paymentCarry;
-            loanDetail.paymentCarry = 0;
-        }
-
         uint256 loss = loan.amount > loanDetail.principalAmountRepaid
             ? loan.amount - loanDetail.principalAmountRepaid
             : 0;
@@ -641,7 +633,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         (uint256 stakerLoss, uint256 lenderLoss) = ILendingPool(pool).onDefault(
             loanId, 
             loan.apr, 
-            paymentCarry, 
             loss
         );
 
@@ -666,27 +657,25 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             "SaplingLendingPool: not found or invalid loan status"
         );
 
-        //// effect
+        require(amount > 0, "SaplingLendingPool: invalid amount");
 
         (
             uint256 transferAmount,
-            uint256 paymentAmount,
             uint256 interestPayable,
             uint256 payableInterestDays
         ) = payableLoanBalance(loanId, amount);
 
-        uint256 principalPaid = paymentAmount - interestPayable;
+        // check transferable amount, zero transferable amount means the payment 'amount' was less than 1 day interest
+        require(transferAmount > 0, "SaplingLendingPool: invalid amount - increase to daily interest");
+
+        //// effect
+
+        uint256 principalPaid = transferAmount - interestPayable;
 
         LoanDetail storage loanDetail = loanDetails[loanId];
         loanDetail.totalAmountRepaid += transferAmount;
         loanDetail.principalAmountRepaid += principalPaid;
         loanDetail.interestPaidTillTime += payableInterestDays * 86400;
-
-        if (paymentAmount > transferAmount) {
-            loanDetail.paymentCarry -= paymentAmount - transferAmount;
-        } else if (paymentAmount < transferAmount) {
-            loanDetail.paymentCarry += transferAmount - paymentAmount;
-        }
         
         if (interestPayable != 0) {
             loanDetail.interestPaid += interestPayable;
@@ -708,8 +697,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             loan.borrower, 
             msg.sender, 
             loan.apr, 
-            transferAmount, 
-            paymentAmount, 
+            transferAmount,
             interestPayable
         );
     }
@@ -761,7 +749,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         returns(uint256)
     {
         (uint256 principalOutstanding, uint256 interestOutstanding, ) = loanBalanceDueWithInterest(loanId);
-        return principalOutstanding + interestOutstanding - loanDetails[loanId].paymentCarry;
+        return principalOutstanding + interestOutstanding;
     }
 
     function hasOpenApplication(address account) public view returns (bool) {
@@ -865,7 +853,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @notice Loan balances payable given a max payment amount.
      * @param loanId ID of the loan to check the balance of
      * @param maxPaymentAmount Maximum liquidity token amount user has agreed to pay towards the loan
-     * @return Total transfer amount, paymentAmount, interest payable, and the number of payable interest days,
+     * @return Total transfer amount, interest payable, and the number of payable interest days,
      *         and the current loan balance
      */
     function payableLoanBalance(
@@ -874,7 +862,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
     )
         private
         view
-        returns (uint256, uint256, uint256, uint256)
+        returns (uint256, uint256, uint256)
     {
         (
             uint256 principalOutstanding,
@@ -882,16 +870,13 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             uint256 interestDays
         ) = loanBalanceDueWithInterest(loanId);
 
-        uint256 useCarryAmount = loanDetails[loanId].paymentCarry;
-        uint256 balanceDue = principalOutstanding + interestOutstanding - useCarryAmount;
-
+        uint256 balanceDue = principalOutstanding + interestOutstanding;
         uint256 transferAmount = MathUpgradeable.min(balanceDue, maxPaymentAmount);
-        uint256 paymentAmount = transferAmount + useCarryAmount;
 
         uint256 interestPayable;
         uint256 payableInterestDays;
 
-        if (paymentAmount >= interestOutstanding) {
+        if (transferAmount >= interestOutstanding) {
             payableInterestDays = interestDays;
             interestPayable = interestOutstanding;
         } else {
@@ -905,7 +890,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
              Equations above are transformed into (a * b) / c format for best mulDiv() compatibility.
              */
-            payableInterestDays = MathUpgradeable.mulDiv(paymentAmount, interestDays, interestOutstanding);
+            payableInterestDays = MathUpgradeable.mulDiv(transferAmount, interestDays, interestOutstanding);
             interestPayable = MathUpgradeable.mulDiv(interestOutstanding, payableInterestDays, interestDays);
 
             /*
@@ -915,11 +900,11 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
              Do not accept leftover payments towards the principal while any daily interest is outstanding.
              */
             if (payableInterestDays < interestDays) {
-                paymentAmount = interestPayable;
+                transferAmount = interestPayable;
             }
         }
 
-        return (transferAmount, paymentAmount, interestPayable, payableInterestDays);
+        return (transferAmount, interestPayable, payableInterestDays);
     }
 
     /**
