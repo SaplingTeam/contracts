@@ -122,7 +122,7 @@ _Hook for borrow. Releases the loan funds to the borrower. Caller must be the Lo
 ### onRepay
 
 ```solidity
-function onRepay(uint256 loanId, address borrower, address payer, uint16 apr, uint256 transferAmount, uint256 paymentAmount, uint256 interestPayable) external
+function onRepay(uint256 loanId, address borrower, address payer, uint16 apr, uint256 transferAmount, uint256 interestPayable) external
 ```
 
 _Hook for repayments. Caller must be the LoanDesk. 
@@ -137,13 +137,12 @@ _Hook for repayments. Caller must be the LoanDesk.
 | payer | address | Actual payer address |
 | apr | uint16 | Loan apr |
 | transferAmount | uint256 | Amount chargeable |
-| paymentAmount | uint256 | Logical payment amount, may be different to the transfer amount due to a payment carry |
 | interestPayable | uint256 | Amount of interest paid, this value is already included in the payment amount |
 
 ### onDefault
 
 ```solidity
-function onDefault(uint256 loanId, uint16 apr, uint256 carryAmountUsed, uint256 loss) external returns (uint256, uint256)
+function onDefault(uint256 loanId, uint16 apr, uint256 loss) external returns (uint256, uint256)
 ```
 
 _Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
@@ -153,7 +152,6 @@ _Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will
 | ---- | ---- | ----------- |
 | loanId | uint256 | ID of the loan to default |
 | apr | uint16 | Loan apr |
-| carryAmountUsed | uint256 | Amount of payment carry repaid |
 | loss | uint256 | Loss amount to resolve |
 
 ### canOffer

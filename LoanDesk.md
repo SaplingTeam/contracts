@@ -560,7 +560,7 @@ Loan balances due if paid in full at this time.
 ### payableLoanBalance
 
 ```solidity
-function payableLoanBalance(uint256 loanId, uint256 maxPaymentAmount) private view returns (uint256, uint256, uint256, uint256)
+function payableLoanBalance(uint256 loanId, uint256 maxPaymentAmount) private view returns (uint256, uint256, uint256)
 ```
 
 Loan balances payable given a max payment amount.
@@ -572,10 +572,9 @@ Loan balances payable given a max payment amount.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Total transfer amount, paymentAmount, interest payable, and the number of payable interest days,         and the current loan balance |
+| [0] | uint256 | Total transfer amount, interest payable, and the number of payable interest days,         and the current loan balance |
 | [1] | uint256 |  |
 | [2] | uint256 |  |
-| [3] | uint256 |  |
 
 ### countInterestDays
 
