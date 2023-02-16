@@ -76,14 +76,6 @@ uint256 SAFE_MIN_AMOUNT
 
 Math safe minimum loan amount, raw value
 
-### FX_BAND_PERCENT
-
-```solidity
-uint16 FX_BAND_PERCENT
-```
-
-FX band allowance before loan can qualify as a default
-
 ### LOAN_LOCK_PERIOD
 
 ```solidity
