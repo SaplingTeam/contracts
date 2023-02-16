@@ -268,7 +268,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         //// effect
 
-        loanClosed[loanDesk][loanId] == true;
+        loanClosed[loanDesk][loanId] = true;
 
         // charge staker's earnings
         if (remainingDifference > 0 && balances.stakerEarnings > 0) {
@@ -349,7 +349,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
 
         //// effect
-        loanClosed[loanDesk][loanId] == true;
+        loanClosed[loanDesk][loanId] = true;
 
         if (carryAmountUsed > 0) {
             balances.strategizedFunds -= carryAmountUsed;
