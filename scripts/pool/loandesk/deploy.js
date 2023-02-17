@@ -6,11 +6,10 @@ async function main() {
     const arguments = require('./arguments.js');
     const poolAddress = arguments[0];
     const coreAccessControlAddress = arguments[1];
-    const stakerRoleName = arguments[2];
+    const stakerAddress = arguments[2];
     const lenderGovernanceRoleName = arguments[3];
     const DECIMALS = arguments[4];
 
-    const POOL_1_STAKER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(stakerRoleName));
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(lenderGovernanceRoleName));
 
     console.log("Deployer address: \t\t", deployer.address);
@@ -21,7 +20,7 @@ async function main() {
     let loanDeskContract = await upgrades.deployProxy(LoanDeskCF, [
         poolAddress,
         coreAccessControlAddress,
-        POOL_1_STAKER_ROLE,
+        stakerAddress,
         POOL_1_LENDER_GOVERNANCE_ROLE,
         DECIMALS,
     ]);

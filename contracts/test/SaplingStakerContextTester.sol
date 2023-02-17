@@ -17,16 +17,16 @@ contract SaplingStakerContextTester is SaplingStakerContext {
     /**
      * @dev Initializer
      * @param _accessControl Access control contract
-     * @param _stakerRole Staker role
+     * @param _stakerAddress Staker address
      */
     function initialize(
         address _accessControl,
-        bytes32 _stakerRole
+        address _stakerAddress
     )
         public
         initializer
     {
-         __SaplingStakerContext_init(_accessControl, _stakerRole);
+         __SaplingStakerContext_init(_accessControl, _stakerAddress);
     }
 
     /**

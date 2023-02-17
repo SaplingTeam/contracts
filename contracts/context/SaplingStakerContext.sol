@@ -11,13 +11,8 @@ import "./SaplingContext.sol";
  */
 abstract contract SaplingStakerContext is SaplingContext {
 
-    /**
-     * Staker role
-     * 
-     * @dev The value of this role should be unique for each pool. Role must be created before the pool contract 
-     *      deployment, then passed during construction/initialization.
-     */
-    bytes32 public poolStakerRole;
+    /// Staker address
+    address public staker;
 
     /// Flag indicating whether or not the pool is closed
     bool private _closed;
@@ -27,6 +22,15 @@ abstract contract SaplingStakerContext is SaplingContext {
 
     /// Event for when the contract is reopened
     event Opened(address account);
+
+    /// Event for when a new staker is set
+    event StakerSet(address prevAddress, address newAddress);
+
+    /// A modifier to limit access only to the staker
+    modifier onlyStaker() {
+        require(msg.sender == staker, "SaplingStakerContext: caller is the staker");
+        _;
+    }
 
     /// A modifier to limit access only to users without roles
     modifier onlyUser() {
@@ -50,11 +54,11 @@ abstract contract SaplingStakerContext is SaplingContext {
      * @notice Create a new SaplingStakerContext.
      * @dev Addresses must not be 0.
      * @param _accessControl Access control contract address
-     * @param _stakerRole Staker role
+     * @param _stakerAddress Staker address
      */
     function __SaplingStakerContext_init(
         address _accessControl,
-        bytes32 _stakerRole
+        address _stakerAddress
     )
         internal
         onlyInitializing
@@ -65,10 +69,22 @@ abstract contract SaplingStakerContext is SaplingContext {
             Additional check for single init:
                 do not init again if a non-zero value is present in the values yet to be initialized.
         */
-        assert(_closed == false && poolStakerRole == 0x00);
+        assert(_closed == false && staker == address(0));
 
-        poolStakerRole = _stakerRole;
+        staker = _stakerAddress;
         _closed = true;
+    }
+
+    /**
+     * @notice Designates a new staker for the pool.
+     * @dev Caller must be the governance. There can only be one staker in the pool.
+     *      Staked funds remain staked in the pool and will be owned by the new staker.
+     * @param _staker New staker address
+     */
+    function setStaker(address _staker) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
+        address prevStaker = staker;
+        staker = _staker;
+        emit StakerSet(prevStaker, _staker);
     }
 
     /**
@@ -79,7 +95,7 @@ abstract contract SaplingStakerContext is SaplingContext {
      *      Staker must have access to close function as the ability to unstake and withdraw all staked funds is
      *      only guaranteed when the pool is closed and all outstanding loans resolved. 
      */
-    function close() external onlyRole(poolStakerRole) whenNotClosed {
+    function close() external onlyStaker whenNotClosed {
         require(canClose(), "SaplingStakerContext: cannot close the pool under current conditions");
 
         _closed = true;
@@ -92,7 +108,7 @@ abstract contract SaplingStakerContext is SaplingContext {
      * @dev Only the functions using whenClosed and whenNotClosed modifiers will be affected by open.
      *      Caller must have the staker role. Pool must be closed.
      */
-    function open() external onlyRole(poolStakerRole) whenClosed {
+    function open() external onlyStaker whenClosed {
         require(canOpen(), "SaplingStakerContext: cannot open the pool under current conditions");
         _closed = false;
 
@@ -114,7 +130,7 @@ abstract contract SaplingStakerContext is SaplingContext {
      * @return True if the address has any roles, false otherwise
      */
     function isNonUserAddress(address party) internal view override returns (bool) {
-        return hasRole(poolStakerRole, party) || super.isNonUserAddress(party);
+        return party == staker || super.isNonUserAddress(party);
     }
 
     /**
@@ -138,5 +154,5 @@ abstract contract SaplingStakerContext is SaplingContext {
     /**
      * @dev Slots reserved for future state variables
      */
-    uint256[48] private __gap;
+    uint256[49] private __gap;
 }

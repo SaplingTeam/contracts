@@ -23,7 +23,6 @@ describe('Sapling Lending Pool', function () {
     const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_STAKER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_STAKER_ROLE"));
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
@@ -62,7 +61,6 @@ describe('Sapling Lending Pool', function () {
         await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
-        await coreAccessControl.connect(governance).grantRole(POOL_1_STAKER_ROLE, staker.address);
         await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
 
         SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
@@ -80,14 +78,14 @@ describe('Sapling Lending Pool', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
-            POOL_1_STAKER_ROLE
+            staker.address
         ]);
         await lendingPool.deployed();
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
             coreAccessControl.address,
-            POOL_1_STAKER_ROLE,
+            staker.address,
             POOL_1_LENDER_GOVERNANCE_ROLE,
             TOKEN_DECIMALS,
         ]);
@@ -109,7 +107,7 @@ describe('Sapling Lending Pool', function () {
                     poolToken.address,
                     liquidityToken.address,
                     coreAccessControl.address,
-                    POOL_1_STAKER_ROLE
+                    staker.address
                 ]),
             ).to.be.not.reverted;
         });
@@ -210,8 +208,8 @@ describe('Sapling Lending Pool', function () {
                         .requestLoan(
                             loanAmount,
                             loanDuration,
-                            'a937074e-85a7-42a9-b858-9795d9471759',
-                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                            '0xa937074e-85a7-42a9-b858-9795d9471759',
+                            '0x6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                         );
                     let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                     let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
@@ -362,10 +360,10 @@ describe('Sapling Lending Pool', function () {
 
                     await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
                     await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                    await expect(loanDesk.connect(borrower1).repay(loanId, paymentAmount)).to.changeTokenBalances(
+                    await expect(loanDesk.connect(borrower1).repay(loanId, paymentAmount)).to.changeTokenBalance(
                         liquidityToken,
-                        [borrower1.address, lendingPool.address],
-                        [-paymentAmount, paymentAmount],
+                        borrower1.address,
+                        -paymentAmount,
                     );
 
                     let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
@@ -387,10 +385,10 @@ describe('Sapling Lending Pool', function () {
 
                     await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
                     await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                    await expect(loanDesk.connect(borrower1).repay(loanId, paymentAmount)).to.changeTokenBalances(
+                    await expect(loanDesk.connect(borrower1).repay(loanId, paymentAmount)).to.changeTokenBalance(
                         liquidityToken,
-                        [borrower1.address, lendingPool.address],
-                        [-paymentAmount, paymentAmount],
+                        borrower1.address,
+                        -paymentAmount,
                     );
                     let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
 
@@ -411,10 +409,10 @@ describe('Sapling Lending Pool', function () {
                     await liquidityToken.connect(lender3).approve(lendingPool.address, paymentAmount);
                     await expect(
                         loanDesk.connect(lender3).repayOnBehalf(loanId, paymentAmount, borrower1.address),
-                    ).to.changeTokenBalances(
+                    ).to.changeTokenBalance(
                         liquidityToken,
-                        [lender3.address, lendingPool.address],
-                        [-paymentAmount, paymentAmount],
+                        lender3.address,
+                        -paymentAmount,
                     );
                     let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
 
@@ -436,10 +434,10 @@ describe('Sapling Lending Pool', function () {
                     await liquidityToken.connect(lender3).approve(lendingPool.address, paymentAmount);
                     await expect(
                         loanDesk.connect(lender3).repayOnBehalf(loanId, paymentAmount, borrower1.address),
-                    ).to.changeTokenBalances(
+                    ).to.changeTokenBalance(
                         liquidityToken,
-                        [lender3.address, lendingPool.address],
-                        [-paymentAmount, paymentAmount],
+                        lender3.address,
+                        -paymentAmount,
                     );
                     let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
 
@@ -472,8 +470,8 @@ describe('Sapling Lending Pool', function () {
                     );
                 });
 
-                it('Repaying a loan will allocate protocol fees to the staker', async function () {
-                    let balanceBefore = (await lendingPool.balances()).stakerEarnings;
+                it('Repaying a loan will transfer earnings to the staker', async function () {
+                    let balanceBefore = (await liquidityToken.balanceOf(staker.address));
                     let loan = await loanDesk.loans(loanId);
 
                     await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
@@ -508,7 +506,7 @@ describe('Sapling Lending Pool', function () {
                         .mul(stakerEarningsPercent)
                         .div(stakerEarningsPercent.add(ONE_HUNDRED_PERCENT));
 
-                    expect((await lendingPool.balances()).stakerEarnings).to.equal(
+                    expect(await liquidityToken.balanceOf(staker.address)).to.equal(
                         balanceBefore.add(stakerEarnedInterest),
                     );
                 });
@@ -522,10 +520,10 @@ describe('Sapling Lending Pool', function () {
 
                     await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
                     await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                    await expect(loanDesk.connect(borrower1).repay(loanId, paymentAmount)).to.changeTokenBalances(
+                    await expect(loanDesk.connect(borrower1).repay(loanId, paymentAmount)).to.changeTokenBalance(
                         liquidityToken,
-                        [borrower1.address, lendingPool.address],
-                        [-loanBalanceDue, loanBalanceDue],
+                        borrower1.address,
+                        -loanBalanceDue
                     );
                 });
 

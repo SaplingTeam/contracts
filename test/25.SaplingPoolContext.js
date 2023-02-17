@@ -23,7 +23,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
     const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_STAKER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_STAKER_ROLE"));
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
@@ -63,7 +62,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
         await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
-        await coreAccessControl.connect(governance).grantRole(POOL_1_STAKER_ROLE, staker.address);
         await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
 
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
@@ -81,14 +79,14 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
-            POOL_1_STAKER_ROLE
+            staker.address
         ]);
         await lendingPool.deployed();
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
             coreAccessControl.address,
-            POOL_1_STAKER_ROLE,
+            staker.address,
             POOL_1_LENDER_GOVERNANCE_ROLE,
             TOKEN_DECIMALS,
         ]);
@@ -113,7 +111,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     poolToken.address,
                     liquidityToken.address,
                     coreAccessControl.address,
-                    POOL_1_STAKER_ROLE
+                    staker.address
                 ]),
             ).to.be.not.reverted;
         });
@@ -125,7 +123,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         poolToken.address,
                         NULL_ADDRESS,
                         coreAccessControl.address,
-                        POOL_1_STAKER_ROLE
+                        staker.address
                     ]),
                 ).to.be.reverted;
             });
@@ -136,7 +134,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         NULL_ADDRESS,
                         liquidityToken.address,
                         coreAccessControl.address,
-                        POOL_1_STAKER_ROLE
+                        staker.address
                     ]),
                 ).to.be.reverted;
             });
@@ -153,7 +151,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         badPoolToken.address,
                         liquidityToken.address,
                         coreAccessControl.address,
-                        POOL_1_STAKER_ROLE
+                        staker.address
                     ]),
                 ).to.be.reverted;
             });
@@ -283,7 +281,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 expect((await saplingPoolContext.balances()).rawLiquidity).to.equal(0);
                 expect((await saplingPoolContext.balances()).strategizedFunds).to.equal(0);
                 expect((await saplingPoolContext.balances()).allocatedFunds).to.equal(0);
-                expect((await saplingPoolContext.balances()).stakerEarnings).to.equal(0);
                 expect((await saplingPoolContext.balances()).protocolRevenue).to.equal(0);
             });
         });
@@ -525,8 +522,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .requestLoan(
                             loanAmount,
                             loanDuration,
-                            'a937074e-85a7-42a9-b858-9795d9471759',
-                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                            '0xa937074e-85a7-42a9-b858-9795d9471759',
+                            '0x6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
                         );
                     let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                     let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
@@ -1184,18 +1181,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     expect((await saplingPoolContext.balances()).protocolRevenue).to.equal(0);
                 });
 
-                it('Staker can withdraw earned protocol fees', async function () {
-                    let tokenBalanceBefore = await liquidityToken.balanceOf(staker.address);
-                    let poolBalanceBefore = (await saplingPoolContext.balances()).stakerEarnings;
-
-                    await saplingPoolContext.connect(staker).collectStakerEarnings(poolBalanceBefore);
-
-                    expect(await liquidityToken.balanceOf(staker.address)).to.equal(
-                        tokenBalanceBefore.add(poolBalanceBefore),
-                    );
-                    expect((await saplingPoolContext.balances()).stakerEarnings).to.equal(0);
-                });
-
                 it('Protocol fee withdrawal is reflected on the pool contract balance', async function () {
                     let prevBalance = await liquidityToken.balanceOf(saplingPoolContext.address);
 
@@ -1222,7 +1207,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 it('Protocol fee withdrawal is not reflected on pool funds', async function () {
                     let prevPoolFunds = (await saplingPoolContext.balances()).poolFunds;
 
-                    let withdrawAmount = (await saplingPoolContext.balances()).stakerEarnings;
+                    let withdrawAmount = (await saplingPoolContext.balances()).protocolRevenue;
                     await saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount);
 
                     let poolFunds = (await saplingPoolContext.balances()).poolFunds;

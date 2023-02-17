@@ -11,7 +11,6 @@ async function main() {
     const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
     const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_STAKER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_STAKER_ROLE"));
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     console.log("Deployer address: \t\t", deployer.address);
@@ -35,12 +34,9 @@ async function main() {
     await coreAccessControl.connect(deployer).grantRole(TREASURY_ROLE, governanceAddress);
     await coreAccessControl.connect(deployer).grantRole(PAUSER_ROLE, governanceAddress);
 
-    await coreAccessControl.connect(deployer).grantRole(POOL_1_STAKER_ROLE, stakerAddress);
-
     console.log("GOVERNANCE_ROLE: ", GOVERNANCE_ROLE);
     console.log("TREASURY_ROLE: ", TREASURY_ROLE);
     console.log("PAUSER_ROLE: ", PAUSER_ROLE);
-    console.log("POOL_1_STAKER_ROLE: ", POOL_1_STAKER_ROLE);
 
     console.log("deployer: ", deployer.address);
     console.log("governance: ", governanceAddress);
@@ -57,7 +53,7 @@ async function main() {
         poolTokenContract.address,
         liquidityTokenAddress,
         coreAccessControl.address,
-        POOL_1_STAKER_ROLE,
+        stakerAddress,
     ]);
     await saplingPoolContract.deployed();
     console.log("LendingPool address: \t\t", saplingPoolContract.address);
@@ -67,7 +63,7 @@ async function main() {
     loanDeskContract = await upgrades.deployProxy(LoanDesk, [
         saplingPoolContract.address,
         coreAccessControl.address,
-        POOL_1_STAKER_ROLE,
+        stakerAddress,
         POOL_1_LENDER_GOVERNANCE_ROLE,
         DECIMALS,
     ]);

@@ -92,21 +92,21 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @dev Addresses must not be 0.
      * @param _pool Lending pool address
      * @param _accessControl Access control contract
-     * @param _stakerRole Staker role
+     * @param _stakerAddress Staker address
      * @param _lenderGovernanceRole Role held by the timelock control that executed passed lender votes
      * @param _decimals Lending pool liquidity token decimals
      */
     function initialize(
         address _pool,
         address _accessControl,
-        bytes32 _stakerRole,
+        address _stakerAddress,
         bytes32 _lenderGovernanceRole,
         uint8 _decimals
     )
         public
         initializer
     {
-        __SaplingStakerContext_init(_accessControl, _stakerRole);
+        __SaplingStakerContext_init(_accessControl, _stakerAddress);
 
         /*
             Additional check for single init:
@@ -138,7 +138,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      *      Caller must be the staker.
      * @param minAmount Minimum loan amount to be enforced on new loan requests and offers
      */
-    function setMinLoanAmount(uint256 minAmount) external onlyRole(poolStakerRole) {
+    function setMinLoanAmount(uint256 minAmount) external onlyStaker {
         require(SaplingMath.SAFE_MIN_AMOUNT <= minAmount, "LoanDesk: new min loan amount is less than the safe limit");
 
         uint256 prevValue = loanTemplate.minAmount;
@@ -153,7 +153,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      *      Caller must be the staker.
      * @param duration Minimum loan duration to be enforced on new loan requests and offers
      */
-    function setMinLoanDuration(uint256 duration) external onlyRole(poolStakerRole) {
+    function setMinLoanDuration(uint256 duration) external onlyStaker {
         require(
             SaplingMath.SAFE_MIN_DURATION <= duration && duration <= loanTemplate.maxDuration,
             "LoanDesk: new min duration is out of bounds"
@@ -171,7 +171,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      *      Caller must be the staker.
      * @param duration Maximum loan duration to be enforced on new loan requests and offers
      */
-    function setMaxLoanDuration(uint256 duration) external onlyRole(poolStakerRole) {
+    function setMaxLoanDuration(uint256 duration) external onlyStaker {
         require(
             loanTemplate.minDuration <= duration && duration <= SaplingMath.SAFE_MAX_DURATION,
             "LoanDesk: new max duration is out of bounds"
@@ -189,7 +189,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      *      Caller must be the staker.
      * @param gracePeriod Loan payment grace period for new loan offers
      */
-    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyRole(poolStakerRole) {
+    function setTemplateLoanGracePeriod(uint256 gracePeriod) external onlyStaker {
         require(
             SaplingMath.MIN_LOAN_GRACE_PERIOD <= gracePeriod && gracePeriod <= SaplingMath.MAX_LOAN_GRACE_PERIOD,
             "LoanDesk: new grace period is out of bounds."
@@ -207,7 +207,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      *      Caller must be the staker.
      * @param apr Loan APR to be enforced on the new loan offers.
      */
-    function setTemplateLoanAPR(uint16 apr) external onlyRole(poolStakerRole) {
+    function setTemplateLoanAPR(uint16 apr) external onlyStaker {
         require(
             SaplingMath.SAFE_MIN_APR <= apr && apr <= SaplingMath.HUNDRED_PERCENT,
             "LoanDesk: APR is out of bounds"
@@ -274,7 +274,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 appId
     )
         external
-        onlyRole(poolStakerRole)
+        onlyStaker
         applicationInStatus(appId, LoanApplicationStatus.APPLIED)
         whenNotPaused
     {
@@ -308,7 +308,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint16 _apr
     )
         external
-        onlyRole(poolStakerRole)
+        onlyStaker
         applicationInStatus(appId, LoanApplicationStatus.APPLIED)
         whenNotClosed
         whenNotPaused
@@ -373,7 +373,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint16 _apr
     )
         external
-        onlyRole(poolStakerRole)
+        onlyStaker
         applicationInStatus(appId, LoanApplicationStatus.OFFER_DRAFTED)
         whenNotClosed
         whenNotPaused
@@ -423,7 +423,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 appId
     )
         external
-        onlyRole(poolStakerRole)
+        onlyStaker
         applicationInStatus(appId, LoanApplicationStatus.OFFER_DRAFTED)
         whenNotClosed
         whenNotPaused
@@ -447,7 +447,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 appId
     )
         external
-        onlyRole(poolStakerRole)
+        onlyStaker
         applicationInStatus(appId, LoanApplicationStatus.OFFER_DRAFT_LOCKED)
         whenNotClosed
         whenNotPaused
@@ -489,7 +489,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         LoanOffer storage offer = loanOffers[appId];
 
-        if(!hasRole(poolStakerRole, msg.sender)) {
+        if(msg.sender != staker) {
             require(
                 hasRole(lenderGovernanceRole, msg.sender) && status == LoanApplicationStatus.OFFER_DRAFT_LOCKED
                 && block.timestamp < offer.lockedTime + SaplingMath.LOAN_LOCK_PERIOD,
@@ -611,7 +611,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 loanId
     )
         external
-        onlyRole(poolStakerRole)
+        onlyStaker
         whenNotPaused
     {
         //// check

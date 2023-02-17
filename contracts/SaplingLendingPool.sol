@@ -40,18 +40,18 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
      * @param _accessControl Access control contract
-     * @param _stakerRole Staker role
+     * @param _stakerAddress Staker address
      */
     function initialize(
         address _poolToken,
         address _liquidityToken,
         address _accessControl,
-        bytes32 _stakerRole
+        address _stakerAddress
     )
         public
         initializer
     {
-        __SaplingPoolContext_init(_poolToken, _liquidityToken, _accessControl, _stakerRole);
+        __SaplingPoolContext_init(_poolToken, _liquidityToken, _accessControl, _stakerAddress);
     }
 
     /**
@@ -176,12 +176,12 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         //// effect
 
-        balances.tokenBalance += transferAmount;
-
         uint256 principalPaid;
+        uint256 stakerEarnedInterest;
         if (interestPayable == 0) {
             principalPaid = transferAmount;
             balances.rawLiquidity += transferAmount;
+            stakerEarnedInterest = 0;
         } else {
             principalPaid = transferAmount - interestPayable;
 
@@ -207,19 +207,18 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 SaplingMath.HUNDRED_PERCENT
             );
 
-            uint256 stakerEarnedInterest = MathUpgradeable.mulDiv(
+            stakerEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable - protocolEarnedInterest,
                 stakerEarningsPercent,
                 stakerEarningsPercent + SaplingMath.HUNDRED_PERCENT
             );
-
-            balances.stakerEarnings += stakerEarnedInterest;
 
             balances.rawLiquidity += transferAmount - (protocolEarnedInterest + stakerEarnedInterest);
             balances.poolFunds += interestPayable - (protocolEarnedInterest + stakerEarnedInterest);
         }
 
         balances.strategizedFunds -= principalPaid;
+        balances.tokenBalance += (transferAmount - stakerEarnedInterest);
 
         updateAvgStrategyApr(principalPaid, apr);
 
@@ -232,6 +231,17 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             address(this),
             transferAmount
         );
+
+        // send staker earnings
+        if (stakerEarnedInterest > 0) {
+            SafeERC20Upgradeable.safeTransfer(
+                IERC20Upgradeable(tokenConfig.liquidityToken),
+                staker,
+                stakerEarnedInterest
+            );
+
+            emit StakerEarnings(staker, stakerEarnedInterest);
+        }
 
         emit LoanRepaymentProcessed(loanId, borrower, payer, transferAmount, interestPayable);
     }
