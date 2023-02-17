@@ -78,9 +78,6 @@ interface IPoolContext {
         /// Staker's shares
         uint256 stakedShares;
 
-        /// Accumulated staker leveraged earnings, withdrawable
-        uint256 stakerEarnings;
-
         /// Accumulated protocol revenue, withdrawable
         uint256 protocolRevenue;
     }
@@ -131,8 +128,8 @@ interface IPoolContext {
     /// Event for when the protocol revenue is collected
     event ProtocolRevenueCollected(address wallet, uint256 amount);
 
-    /// Event for when the staker earnings are collected
-    event StakerEarningsCollected(address wallet, uint256 amount);
+    /// Event for when the staker earnings are transferred
+    event StakerEarnings(address wallet, uint256 amount);
 
     /// Event for when a new withdrawal request is made
     event WithdrawalRequested(uint256 id, address wallet, uint256 sharesLocked);

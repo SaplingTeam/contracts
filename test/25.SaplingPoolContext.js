@@ -281,7 +281,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 expect((await saplingPoolContext.balances()).rawLiquidity).to.equal(0);
                 expect((await saplingPoolContext.balances()).strategizedFunds).to.equal(0);
                 expect((await saplingPoolContext.balances()).allocatedFunds).to.equal(0);
-                expect((await saplingPoolContext.balances()).stakerEarnings).to.equal(0);
                 expect((await saplingPoolContext.balances()).protocolRevenue).to.equal(0);
             });
         });
@@ -1182,18 +1181,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     expect((await saplingPoolContext.balances()).protocolRevenue).to.equal(0);
                 });
 
-                it('Staker can withdraw earned protocol fees', async function () {
-                    let tokenBalanceBefore = await liquidityToken.balanceOf(staker.address);
-                    let poolBalanceBefore = (await saplingPoolContext.balances()).stakerEarnings;
-
-                    await saplingPoolContext.connect(staker).collectStakerEarnings(poolBalanceBefore);
-
-                    expect(await liquidityToken.balanceOf(staker.address)).to.equal(
-                        tokenBalanceBefore.add(poolBalanceBefore),
-                    );
-                    expect((await saplingPoolContext.balances()).stakerEarnings).to.equal(0);
-                });
-
                 it('Protocol fee withdrawal is reflected on the pool contract balance', async function () {
                     let prevBalance = await liquidityToken.balanceOf(saplingPoolContext.address);
 
@@ -1220,7 +1207,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 it('Protocol fee withdrawal is not reflected on pool funds', async function () {
                     let prevPoolFunds = (await saplingPoolContext.balances()).poolFunds;
 
-                    let withdrawAmount = (await saplingPoolContext.balances()).stakerEarnings;
+                    let withdrawAmount = (await saplingPoolContext.balances()).protocolRevenue;
                     await saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount);
 
                     let poolFunds = (await saplingPoolContext.balances()).poolFunds;

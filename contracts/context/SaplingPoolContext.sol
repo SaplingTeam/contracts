@@ -490,30 +490,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Withdraw staker's leveraged earnings.
-     * @dev Revenue is in liquidity tokens. 
-     *      Caller must have the staker role.
-     * @param amount Liquidity token amount to withdraw.
-     */
-    function collectStakerEarnings(uint256 amount) external onlyStaker whenNotPaused {
-        //// check
-        
-        require(amount > 0, "SaplingPoolContext: invalid amount");
-        require(amount <= balances.stakerEarnings, "SaplingPoolContext: insufficient balance");
-
-        //// effect
-
-        balances.stakerEarnings -= amount;
-        balances.tokenBalance -= amount;
-
-        //// interactions
-
-        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, amount);
-
-        emit StakerEarningsCollected(msg.sender, amount);
-    }
-
-    /**
      * @notice Check liquidity token amount depositable by lenders at this time.
      * @dev Return value depends on the pool state rather than caller's balance.
      * @return Max amount of tokens depositable to the pool.
