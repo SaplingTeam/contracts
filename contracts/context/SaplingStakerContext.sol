@@ -154,5 +154,5 @@ abstract contract SaplingStakerContext is SaplingContext {
     /**
      * @dev Slots reserved for future state variables
      */
-    uint256[48] private __gap;
+    uint256[49] private __gap;
 }
