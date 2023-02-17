@@ -6,16 +6,13 @@ Provides staker access control, and a basic close functionality.
 
 _Close functionality is implemented in the same fashion as Openzeppelin's Pausable._
 
-### poolStakerRole
+### staker
 
 ```solidity
-bytes32 poolStakerRole
+address staker
 ```
 
-Staker role
-
-_The value of this role should be unique for each pool. Role must be created before the pool contract 
-     deployment, then passed during construction/initialization._
+Staker address
 
 ### _closed
 
@@ -40,6 +37,22 @@ event Opened(address account)
 ```
 
 Event for when the contract is reopened
+
+### StakerSet
+
+```solidity
+event StakerSet(address prevAddress, address newAddress)
+```
+
+Event for when a new staker is set
+
+### onlyStaker
+
+```solidity
+modifier onlyStaker()
+```
+
+A modifier to limit access only to the staker
 
 ### onlyUser
 
@@ -68,7 +81,7 @@ Modifier to limit function access to when the contract is closed
 ### __SaplingStakerContext_init
 
 ```solidity
-function __SaplingStakerContext_init(address _accessControl, bytes32 _stakerRole) internal
+function __SaplingStakerContext_init(address _accessControl, address _stakerAddress) internal
 ```
 
 Create a new SaplingStakerContext.
@@ -78,7 +91,22 @@ _Addresses must not be 0._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _accessControl | address | Access control contract address |
-| _stakerRole | bytes32 | Staker role |
+| _stakerAddress | address | Staker address |
+
+### setStaker
+
+```solidity
+function setStaker(address _staker) external
+```
+
+Designates a new staker for the pool.
+
+_Caller must be the governance. There can only be one staker in the pool.
+     Staked funds remain staked in the pool and will be owned by the new staker._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _staker | address | New staker address |
 
 ### close
 
@@ -166,7 +194,7 @@ _A hook for the extending contract to implement._
 ### __gap
 
 ```solidity
-uint256[48] __gap
+uint256[49] __gap
 ```
 
 _Slots reserved for future state variables_

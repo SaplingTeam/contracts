@@ -47,7 +47,7 @@ _Disable initializers_
 ### initialize
 
 ```solidity
-function initialize(address _poolToken, address _liquidityToken, address _accessControl, bytes32 _stakerRole) public
+function initialize(address _poolToken, address _liquidityToken, address _accessControl, address _stakerAddress) public
 ```
 
 Creates a Sapling pool.
@@ -59,7 +59,7 @@ _Addresses must not be 0._
 | _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
 | _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
 | _accessControl | address | Access control contract |
-| _stakerRole | bytes32 | Staker role |
+| _stakerAddress | address | Staker address |
 
 ### setLoanDesk
 

@@ -53,7 +53,7 @@ modifier noWithdrawalRequests()
 ### __SaplingPoolContext_init
 
 ```solidity
-function __SaplingPoolContext_init(address _poolToken, address _liquidityToken, address _accessControl, bytes32 _stakerRole) internal
+function __SaplingPoolContext_init(address _poolToken, address _liquidityToken, address _accessControl, address _stakerAddress) internal
 ```
 
 Creates a SaplingPoolContext.
@@ -65,7 +65,7 @@ _Addresses must not be 0._
 | _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
 | _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
 | _accessControl | address | Access control contract |
-| _stakerRole | bytes32 | Staker role |
+| _stakerAddress | address | Staker address |
 
 ### setTargetStakePercent
 
@@ -314,21 +314,6 @@ Withdraw protocol revenue.
 
 _Revenue is in liquidity tokens.
      Caller must have the treasury role._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| amount | uint256 | Liquidity token amount to withdraw. |
-
-### collectStakerEarnings
-
-```solidity
-function collectStakerEarnings(uint256 amount) external
-```
-
-Withdraw staker's leveraged earnings.
-
-_Revenue is in liquidity tokens. 
-     Caller must have the staker role._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |

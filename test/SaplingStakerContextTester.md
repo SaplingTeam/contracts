@@ -19,7 +19,7 @@ event ValueChanged(uint256 prevValue, uint256 newValue)
 ### initialize
 
 ```solidity
-function initialize(address _accessControl, bytes32 _stakerRole) public
+function initialize(address _accessControl, address _stakerAddress) public
 ```
 
 _Initializer_
@@ -27,7 +27,7 @@ _Initializer_
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _accessControl | address | Access control contract |
-| _stakerRole | bytes32 | Staker role |
+| _stakerAddress | address | Staker address |
 
 ### isNonUserAddressWrapper
 

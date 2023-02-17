@@ -38,7 +38,6 @@ struct PoolBalance {
   uint256 strategizedFunds;
   uint256 withdrawalRequestedShares;
   uint256 stakedShares;
-  uint256 stakerEarnings;
   uint256 protocolRevenue;
 }
 ```
@@ -127,13 +126,13 @@ event ProtocolRevenueCollected(address wallet, uint256 amount)
 
 Event for when the protocol revenue is collected
 
-### StakerEarningsCollected
+### StakerEarnings
 
 ```solidity
-event StakerEarningsCollected(address wallet, uint256 amount)
+event StakerEarnings(address wallet, uint256 amount)
 ```
 
-Event for when the staker earnings are collected
+Event for when the staker earnings are transferred
 
 ### WithdrawalRequested
 

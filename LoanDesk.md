@@ -129,7 +129,7 @@ _Disable initializers_
 ### initialize
 
 ```solidity
-function initialize(address _pool, address _accessControl, bytes32 _stakerRole, bytes32 _lenderGovernanceRole, uint8 _decimals) public
+function initialize(address _pool, address _accessControl, address _stakerAddress, bytes32 _lenderGovernanceRole, uint8 _decimals) public
 ```
 
 Initializer a new LoanDesk.
@@ -140,7 +140,7 @@ _Addresses must not be 0._
 | ---- | ---- | ----------- |
 | _pool | address | Lending pool address |
 | _accessControl | address | Access control contract |
-| _stakerRole | bytes32 | Staker role |
+| _stakerAddress | address | Staker address |
 | _lenderGovernanceRole | bytes32 | Role held by the timelock control that executed passed lender votes |
 | _decimals | uint8 | Lending pool liquidity token decimals |
 
