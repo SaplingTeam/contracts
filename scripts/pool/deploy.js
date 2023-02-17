@@ -7,10 +7,7 @@ async function main() {
     const poolTokenAddress = arguments[0];
     const liquidityTokenAddress = arguments[1];
     const coreAccessControlAddress = arguments[2];
-    const stakerRoleName = arguments[3];
-
-    //REPLACE with a unique name which in turn creates a unique role value
-    const POOL_1_STAKER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(stakerRoleName));
+    const stakerAddress = arguments[3];
 
     console.log("Deployer address: \t\t", deployer.address);
     console.log("Balance before: \t\t", (await deployer.getBalance()).toString());
@@ -21,7 +18,7 @@ async function main() {
         poolTokenAddress,
         liquidityTokenAddress,
         coreAccessControlAddress,
-        POOL_1_STAKER_ROLE,
+        stakerAddress,
     ]);
     await saplingPoolContract.deployed();
     console.log("LendingPool address: \t\t", saplingPoolContract.address);

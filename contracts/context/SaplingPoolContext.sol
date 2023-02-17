@@ -49,18 +49,18 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
      * @param _accessControl Access control contract
-     * @param _stakerRole Staker role
+     * @param _stakerAddress Staker address
      */
     function __SaplingPoolContext_init(
         address _poolToken,
         address _liquidityToken,
         address _accessControl,
-        bytes32 _stakerRole
+        address _stakerAddress
     )
         internal
         onlyInitializing
     {
-        __SaplingStakerContext_init(_accessControl, _stakerRole);
+        __SaplingStakerContext_init(_accessControl, _stakerAddress);
 
         /*
             Additional check for single init:
@@ -123,7 +123,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Caller must be the staker.
      * @param _targetLiquidityPercent new target liquidity percent.
      */
-    function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external onlyRole(poolStakerRole) {
+    function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external onlyStaker {
         require(
             0 <= _targetLiquidityPercent && _targetLiquidityPercent <= SaplingMath.HUNDRED_PERCENT,
             "SaplingPoolContext: target liquidity percent is out of bounds"
@@ -185,7 +185,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Caller must be the staker.
      * @param _stakerEarnFactor new staker earn factor.
      */
-    function setStakerEarnFactor(uint16 _stakerEarnFactor) external onlyRole(poolStakerRole) {
+    function setStakerEarnFactor(uint16 _stakerEarnFactor) external onlyStaker {
         require(
             SaplingMath.HUNDRED_PERCENT <= _stakerEarnFactor && _stakerEarnFactor <= config.stakerEarnFactorMax,
             "SaplingPoolContext: _stakerEarnFactor is out of bounds"
@@ -441,7 +441,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      An appropriate spend limit must be present at the token contract.
      * @param amount Liquidity token amount to stake.
      */
-    function stake(uint256 amount) external onlyRole(poolStakerRole) whenNotPaused whenNotClosed {
+    function stake(uint256 amount) external onlyStaker whenNotPaused whenNotClosed {
         require(amount > 0, "SaplingPoolContext: stake amount is 0");
 
         uint256 sharesMinted = enter(amount);
@@ -456,7 +456,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Unstake amount must be non zero and not exceed amountUnstakable().
      * @param amount Liquidity token amount to unstake.
      */
-    function unstake(uint256 amount) external onlyRole(poolStakerRole) whenNotPaused {
+    function unstake(uint256 amount) external onlyStaker whenNotPaused {
         require(amount > 0, "SaplingPoolContext: unstake amount is 0");
         require(amount <= amountUnstakable(), "SaplingPoolContext: requested amount is not available for unstaking");
 
@@ -495,7 +495,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Caller must have the staker role.
      * @param amount Liquidity token amount to withdraw.
      */
-    function collectStakerEarnings(uint256 amount) external onlyRole(poolStakerRole) whenNotPaused {
+    function collectStakerEarnings(uint256 amount) external onlyStaker whenNotPaused {
         //// check
         
         require(amount > 0, "SaplingPoolContext: invalid amount");
@@ -710,7 +710,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
         require(amount > 0, "SaplingPoolContext: pool deposit amount is 0");
 
-        bool isStaker = hasRole(poolStakerRole, msg.sender);
+        bool isStaker = msg.sender == staker;
 
         // non-stakers must follow pool size limit
         if (!isStaker) {
@@ -767,7 +767,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
         uint256 shares = fundsToShares(amount);
 
-        bool isStaker = hasRole(poolStakerRole, msg.sender);
+        bool isStaker = msg.sender == staker;
 
         require(
             isStaker

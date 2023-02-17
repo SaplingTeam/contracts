@@ -40,18 +40,18 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
      * @param _accessControl Access control contract
-     * @param _stakerRole Staker role
+     * @param _stakerAddress Staker address
      */
     function initialize(
         address _poolToken,
         address _liquidityToken,
         address _accessControl,
-        bytes32 _stakerRole
+        address _stakerAddress
     )
         public
         initializer
     {
-        __SaplingPoolContext_init(_poolToken, _liquidityToken, _accessControl, _stakerRole);
+        __SaplingPoolContext_init(_poolToken, _liquidityToken, _accessControl, _stakerAddress);
     }
 
     /**
