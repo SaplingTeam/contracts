@@ -207,6 +207,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to deposit.
      */
     function deposit(uint256 amount) external onlyUser noWithdrawalRequests whenNotPaused whenNotClosed {
+        require(amount > 0 && amount <= amountDepositable(), "SaplingPoolContext: invalid deposit amount");
+
         uint256 sharesMinted = enter(amount);
 
         emit FundsDeposited(msg.sender, amount, sharesMinted);
@@ -220,6 +222,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to withdraw.
      */
     function withdraw(uint256 amount) public onlyUser whenNotPaused {
+        require(
+            amount > 0 && amount <= amountWithdrawable(msg.sender),
+            "SaplingPoolContext: invalid withdrawal amount"
+        );
+
         uint256 sharesBurned = exit(amount);
 
         emit FundsWithdrawn(msg.sender, amount, sharesBurned);
@@ -494,7 +501,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @dev Return value depends on the pool state rather than caller's balance.
      * @return Max amount of tokens depositable to the pool.
      */
-    function amountDepositable() external view returns (uint256) {
+    function amountDepositable() public view returns (uint256) {
         uint256 poolLimit = poolFundsLimit();
         if (poolLimit <= balances.poolFunds || closed() || paused()) {
             return 0;
@@ -509,7 +516,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param wallet Address of the wallet to check the withdrawable balance of.
      * @return Max amount of liquidity tokens withdrawable by the caller.
      */
-    function amountWithdrawable(address wallet) external view returns (uint256) {
+    function amountWithdrawable(address wallet) public view returns (uint256) {
         return paused() ? 0 : MathUpgradeable.min(freeLenderLiquidity(), balanceOf(wallet));
     }
 
@@ -739,7 +746,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     function exit(uint256 amount) internal nonReentrant returns (uint256) {
         //// check
         require(amount > 0, "SaplingPoolContext: pool withdrawal amount is 0");
-        require(balances.rawLiquidity >= amount, "SaplingPoolContext: insufficient liquidity");
+        require(amount <= freeLenderLiquidity(), "SaplingPoolContext: insufficient liquidity");
 
         uint256 shares = fundsToShares(amount);
 
