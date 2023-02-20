@@ -322,7 +322,7 @@ _Revenue is in liquidity tokens.
 ### amountDepositable
 
 ```solidity
-function amountDepositable() external view returns (uint256)
+function amountDepositable() public view returns (uint256)
 ```
 
 Check liquidity token amount depositable by lenders at this time.
@@ -336,7 +336,7 @@ _Return value depends on the pool state rather than caller's balance._
 ### amountWithdrawable
 
 ```solidity
-function amountWithdrawable(address wallet) external view returns (uint256)
+function amountWithdrawable(address wallet) public view returns (uint256)
 ```
 
 Check liquidity token amount withdrawable by the caller at this time.
