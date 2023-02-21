@@ -96,6 +96,11 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
 
+        let initialMintAmount = 10 ** TOKEN_DECIMALS;
+        await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
+        await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+        await lendingPool.connect(staker).initialMint();
+
         await lendingPool.connect(staker).open();
         await loanDesk.connect(staker).open();
     });

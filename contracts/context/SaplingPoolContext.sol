@@ -206,7 +206,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to deposit.
      */
     function deposit(uint256 amount) external onlyUser noWithdrawalRequests whenNotPaused whenNotClosed {
-        require(amount > 0 && amount <= amountDepositable(), "SaplingPoolContext: invalid deposit amount");
+        require(amount <= amountDepositable(), "SaplingPoolContext: invalid deposit amount");
 
         uint256 sharesMinted = enter(amount);
 
@@ -448,8 +448,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to stake.
      */
     function stake(uint256 amount) external onlyStaker whenNotPaused whenNotClosed {
-        require(amount > 0, "SaplingPoolContext: stake amount is 0");
-
         uint256 sharesMinted = enter(amount);
 
         emit FundsStaked(msg.sender, amount, sharesMinted);
@@ -469,6 +467,29 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         uint256 sharesBurned = exit(amount);
 
         emit FundsUnstaked(msg.sender, amount, sharesBurned);
+    }
+
+    /**
+     * @notice Mint initial minimum amount of pool tokens and lock them into the access control contract,
+     *      which is non upgradable - locking them forever.
+     * @dev Caller must be the staker.
+     *      An appropriate spend limit must be present at the asset token contract.
+     *      This function can only be called when the total pool token supply is zero.
+     */
+    function initialMint() external onlyStaker whenNotPaused whenClosed {
+        require(
+            totalPoolTokenSupply() == 0 && balances.poolFunds == 0,
+            "Sapling Pool Context: invalid initial conditions"
+        );
+
+        uint256 sharesMinted = enter(10 ** tokenConfig.decimals);
+        balances.stakedShares -= sharesMinted;
+
+        SafeERC20Upgradeable.safeTransfer(
+            IERC20Upgradeable(tokenConfig.poolToken),
+            accessControl,
+            sharesMinted
+        );
     }
 
     /**
@@ -673,7 +694,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     function enter(uint256 amount) internal nonReentrant returns (uint256) {
         //// check
 
-        require(amount > 0, "SaplingPoolContext: pool deposit amount is 0");
+        require(amount >= 10 ** tokenConfig.decimals, "SaplingPoolContext: entry amount too low");
 
         bool isStaker = msg.sender == staker;
 

@@ -100,15 +100,24 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
 
+        let initialMintAmount = 10 ** TOKEN_DECIMALS;
+        await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
+        await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+        await lendingPool.connect(staker).initialMint();
+
         await lendingPool.connect(staker).open();
         await loanDesk.connect(staker).open();
     });
 
     describe('Deployment', function () {
         it('Can deploy', async function () {
+            let poolToken2 = await (
+                await ethers.getContractFactory('PoolToken')
+            ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
+
             await expect(
                 upgrades.deployProxy(SaplingPoolContextCF, [
-                    poolToken.address,
+                    poolToken2.address,
                     liquidityToken.address,
                     coreAccessControl.address,
                     staker.address
@@ -118,9 +127,13 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
         describe('Rejection Scenarios', function () {
             it('Deploying with null liquidity token address should fail', async function () {
+                let poolToken2 = await (
+                    await ethers.getContractFactory('PoolToken')
+                ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
+
                 await expect(
                     upgrades.deployProxy(SaplingPoolContextCF, [
-                        poolToken.address,
+                        poolToken2.address,
                         NULL_ADDRESS,
                         coreAccessControl.address,
                         staker.address
@@ -273,11 +286,11 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             });
 
             it('Initial balances are correct', async function () {
-                expect(await poolToken.totalSupply()).to.equal(0);
+                expect(await poolToken.balanceOf(coreAccessControl.address)).to.equal(10 ** TOKEN_DECIMALS);
                 expect((await saplingPoolContext.balances()).stakedShares).to.equal(0);
                 expect(await saplingPoolContext.poolFundsLimit()).to.equal(0);
-                expect((await saplingPoolContext.balances()).poolFunds).to.equal(0);
-                expect((await saplingPoolContext.balances()).rawLiquidity).to.equal(0);
+                expect((await saplingPoolContext.balances()).poolFunds).to.equal(10 ** TOKEN_DECIMALS);
+                expect((await saplingPoolContext.balances()).rawLiquidity).to.equal(10 ** TOKEN_DECIMALS);
                 expect((await saplingPoolContext.balances()).protocolRevenue).to.equal(0);
             });
         });
@@ -698,7 +711,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             before(async function () {
                 await snapshot();
                 await saplingPoolContext.connect(staker).stake(stakeAmount);
-                await saplingPoolContext.connect(lender1).deposit(depositAmount);
+                await saplingPoolContext.connect(lender1).deposit(depositAmount.sub(10 ** TOKEN_DECIMALS));
             });
 
             it('Staker can unstake', async function () {
@@ -735,7 +748,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             it('Staker can unstake full unstakable amount', async function () {
 
-                await saplingPoolContext.connect(lender1).withdraw(depositAmount);
+                await saplingPoolContext.connect(lender1).withdraw(depositAmount.sub(10 ** TOKEN_DECIMALS));
 
                 let amount = await saplingPoolContext.amountUnstakable();
                 let exitFee = amount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
@@ -891,7 +904,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     let calculatedDepositable = stakeAmount
                         .mul(ONE_HUNDRED_PERCENT)
                         .div(targetStakePercent)
-                        .sub(stakeAmount);
+                        .sub(stakeAmount)
+                        .sub(10 ** TOKEN_DECIMALS);
 
                     expect(await saplingPoolContext.amountDepositable()).to.equal(calculatedDepositable);
                 });
@@ -912,7 +926,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     let calculatedDepositable = stakeAmount
                         .mul(ONE_HUNDRED_PERCENT)
                         .div(targetStakePercent)
-                        .sub(stakeAmount);
+                        .sub(stakeAmount)
+                        .sub(10 ** TOKEN_DECIMALS);
 
                     await liquidityToken.connect(deployer).mint(lender1.address, calculatedDepositable);
                     await liquidityToken.connect(lender1).approve(saplingPoolContext.address, calculatedDepositable);
@@ -984,7 +999,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 let exitFee = withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
                 let exitFeeGain = exitFee
                     .mul(depositAmount.sub(withdrawAmount))
-                    .div(stakeAmount.add(depositAmount.sub(withdrawAmount)));
+                    .div(stakeAmount.add(depositAmount.sub(withdrawAmount)).add(10 ** TOKEN_DECIMALS));
 
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
                 expect(await saplingPoolContext.balanceOf(lender1.address)).to.equal(
@@ -1234,7 +1249,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             before(async function () {
                 await snapshot();
 
-                depositAmount = BigNumber.from(18000).mul(TOKEN_MULTIPLIER);
+                depositAmount = BigNumber.from(18000).mul(TOKEN_MULTIPLIER).sub(10 ** TOKEN_DECIMALS);
                 loanAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
 
                 await saplingPoolContext.connect(staker).stake(stakeAmount);
@@ -1243,7 +1258,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
                 await saplingPoolContext.connect(lender1).deposit(depositAmount);
 
-                poolFunds = stakeAmount.add(depositAmount);
+                poolFunds = stakeAmount.add(depositAmount).add(10 ** TOKEN_DECIMALS);
 
                 await loanDesk
                     .connect(borrower1)

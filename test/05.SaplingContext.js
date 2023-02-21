@@ -97,10 +97,13 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
 
     describe('Deployment', function () {
         it('Can deploy', async function () {
+            let poolToken2 = await (
+                await ethers.getContractFactory('PoolToken')
+            ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
 
             await expect(
                 upgrades.deployProxy(SaplingContextCF, [
-                    poolToken.address,
+                    poolToken2.address,
                     liquidityToken.address,
                     coreAccessControl.address,
                     staker.address

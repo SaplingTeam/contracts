@@ -126,6 +126,11 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
     describe('Use Cases', function () {
         describe('Close', function () {
             beforeEach(async function () {
+                let initialMintAmount = 10 ** TOKEN_DECIMALS;
+                await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
+                await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+                await lendingPool.connect(staker).initialMint();
+
                 await saplingStakerContext.connect(staker).open();
             });
 
@@ -148,17 +153,36 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
 
         describe('Open', function () {
             it('Staker can open', async function () {
+                let initialMintAmount = 10 ** TOKEN_DECIMALS;
+                await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
+                await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+                await lendingPool.connect(staker).initialMint();
+
                 await saplingStakerContext.connect(staker).open();
                 expect(await saplingStakerContext.closed()).to.equal(false);
             });
 
             describe('Rejection scenarios', function () {
+                it('Opening without initial mint should fail', async function () {
+                    await expect(saplingStakerContext.connect(staker).open()).to.be.reverted;
+                });
+
                 it('Opening when not closed should fail', async function () {
+                    let initialMintAmount = 10 ** TOKEN_DECIMALS;
+                    await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
+                    await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+                    await lendingPool.connect(staker).initialMint();
+
                     await saplingStakerContext.connect(staker).open();
                     await expect(saplingStakerContext.connect(staker).open()).to.be.reverted;
                 });
 
                 it('Opening as a non staker should fail', async function () {
+                    let initialMintAmount = 10 ** TOKEN_DECIMALS;
+                    await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
+                    await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+                    await lendingPool.connect(staker).initialMint();
+
                     await expect(saplingStakerContext.connect(addresses[0]).open()).to.be.reverted;
                 });
             });

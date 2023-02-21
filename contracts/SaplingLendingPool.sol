@@ -275,7 +275,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @return True if the conditions to open are met, false otherwise.
      */
     function canOpen() internal view override returns (bool) {
-        return loanDesk != address(0);
+        return loanDesk != address(0)
+            && IPoolToken(tokenConfig.poolToken).balanceOf(accessControl) >= 10 ** tokenConfig.decimals;
     }
 
     /**
