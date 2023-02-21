@@ -15,9 +15,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /// Address of the loan desk contract
     address public loanDesk;
 
-    /// Mark loan funds released flags to guards against double withdrawals due to future bugs or compromised LoanDesk
-    mapping(address => mapping(uint256 => bool)) private loanFundsReleased;
-
     /// Mark the loans closed to guards against double actions due to future bugs or compromised LoanDesk
     mapping(address => mapping(uint256 => bool)) private loanClosed;
 
@@ -69,13 +66,15 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
     /**
      * @dev Hook for a new loan offer. Caller must be the LoanDesk.
-     * @param amount Loan offer amount.
+     * @param amount Amount to be allocated for loan offers.
      */
-    function onOffer(uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed {
+    function onOfferAllocate(uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed {
+        require(amount > 0, "SaplingLendingPool: invalid amount");
         require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
 
         balances.rawLiquidity -= amount;
-        balances.allocatedFunds += amount;
+
+        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), loanDesk, amount);
 
         emit OfferLiquidityAllocated(amount);
     }
@@ -83,62 +82,21 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /**
      * @dev Hook for a loan offer amount update. Amount update can be due to offer update or
      *      cancellation. Caller must be the LoanDesk.
-     * @param prevAmount The original, now previous, offer amount.
-     * @param amount New offer amount. Cancelled offer must register an amount of 0 (zero).
+     * @param amount Previously allocated amount being returned.
      */
-    function onOfferUpdate(uint256 prevAmount, uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed {
-        require(strategyLiquidity() + prevAmount >= amount, "SaplingLendingPool: insufficient liquidity");
+    function onOfferDeallocate(uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed {
+        require(amount > 0, "SaplingLendingPool: invalid amount");
 
-        balances.rawLiquidity = balances.rawLiquidity + prevAmount - amount;
-        balances.allocatedFunds = balances.allocatedFunds - prevAmount + amount;
+        balances.rawLiquidity += amount;
 
-        emit OfferLiquidityUpdated(prevAmount, amount);
-    }
-
-    /**
-     * @dev Hook for borrow. Releases the loan funds to the borrower. Caller must be the LoanDesk. 
-     *      Loan metadata is passed along as call arguments to avoid reentry callbacks to the LoanDesk.
-     * @param loanId ID of the loan which has just been borrowed
-     * @param borrower Address of the borrower
-     * @param amount Loan principal amount
-     * @param apr Loan apr
-     */
-    function onBorrow(
-        uint256 loanId, 
-        address borrower, 
-        uint256 amount, 
-        uint16 apr
-    ) 
-        external 
-        onlyLoanDesk
-        nonReentrant
-        whenNotPaused
-        whenNotClosed
-    {
-        // check
-        require(loanFundsReleased[loanDesk][loanId] == false, "SaplingLendingPool: loan funds already released");
-
-        // @dev trust the loan validity via LoanDesk checks as the only authorized caller is LoanDesk
-
-        //// effect
-
-        loanFundsReleased[loanDesk][loanId] = true;
-        
-        uint256 prevStrategizedFunds = balances.strategizedFunds;
-        
-        balances.tokenBalance -= amount;
-        balances.allocatedFunds -= amount;
-        balances.strategizedFunds += amount;
-
-        config.weightedAvgStrategyAPR = uint16(
-            (prevStrategizedFunds * config.weightedAvgStrategyAPR + amount * apr) / balances.strategizedFunds
+        SafeERC20Upgradeable.safeTransferFrom(
+            IERC20Upgradeable(tokenConfig.liquidityToken),
+            loanDesk,
+            address(this),
+            amount
         );
 
-        //// interactions
-
-        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), borrower, amount);
-
-        emit LoanFundsReleased(loanId, borrower, amount);
+        emit OfferLiquidityDeallocated(amount);
     }
 
      /**
@@ -150,7 +108,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @param loanId ID of the loan which has just been borrowed
      * @param borrower Borrower address
      * @param payer Actual payer address
-     * @param apr Loan apr
      * @param transferAmount Amount chargeable
      * @param interestPayable Amount of interest paid, this value is already included in the payment amount
      */
@@ -158,7 +115,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         uint256 loanId, 
         address borrower,
         address payer,
-        uint16 apr,
         uint256 transferAmount,
         uint256 interestPayable
     ) 
@@ -169,7 +125,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         whenNotClosed
     {
         //// check
-        require(loanFundsReleased[loanDesk][loanId] == true, "SaplingLendingPool: loan is not borrowed");
         require(loanClosed[loanDesk][loanId] == false, "SaplingLendingPool: loan is closed");
 
         // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
@@ -217,10 +172,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             balances.poolFunds += interestPayable - (protocolEarnedInterest + stakerEarnedInterest);
         }
 
-        balances.strategizedFunds -= principalPaid;
-        balances.tokenBalance += (transferAmount - stakerEarnedInterest);
-
-        updateAvgStrategyApr(principalPaid, apr);
 
         //// interactions
 
@@ -250,12 +201,10 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @dev Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
      *      the staked funds. If these funds are not sufficient, the lenders will share the loss.
      * @param loanId ID of the loan to default
-     * @param apr Loan apr
      * @param loss Loss amount to resolve
      */
     function onDefault(
         uint256 loanId,
-        uint16 apr,
         uint256 loss
     )
         external
@@ -280,8 +229,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             uint256 remainingLostShares = fundsToShares(loss);
 
             balances.poolFunds -= loss;
-            balances.strategizedFunds -= loss;
-            updateAvgStrategyApr(loss, apr);
 
             if (balances.stakedShares > 0) {
                 uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, balances.stakedShares);
@@ -312,14 +259,14 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /**
      * @notice View indicating whether or not a given loan amount can be offered.
      * @dev Hook for checking if the lending pool can provide liquidity for the total offered loans amount.
-     * @param totalOfferedAmount Total sum of offered loan amount including outstanding offers
+     * @param amount Amount to check for new loan allocation
      * @return True if the pool has sufficient lending liquidity, false otherwise
      */
-    function canOffer(uint256 totalOfferedAmount) external view returns (bool) {
+    function canOffer(uint256 amount) external view returns (bool) {
         return !paused() 
             && !closed() 
             && maintainsStakeRatio()
-            && totalOfferedAmount <= strategyLiquidity() + balances.allocatedFunds;
+            && amount <= strategyLiquidity();
     }
 
     /**
@@ -329,5 +276,30 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      */
     function canOpen() internal view override returns (bool) {
         return loanDesk != address(0);
+    }
+
+    /**
+     * @dev Implementation of the abstract hook in SaplingManagedContext.
+     *      Pool can be close when no funds remain committed to strategies.
+     */
+    function canClose() internal view override returns (bool) {
+        return ILoanDesk(loanDesk).allocatedFunds() == 0
+            && ILoanDesk(loanDesk).lentFunds() == 0;
+    }
+
+    /**
+     * @notice Estimate APY breakdown given the current pool state.
+     * @return Current APY breakdown
+     */
+    function currentAPY() external view returns (APYBreakdown memory) {
+        return projectedAPYBreakdown(
+            totalPoolTokenSupply(),
+            balances.stakedShares,
+            balances.poolFunds,
+            ILoanDesk(loanDesk).lentFunds(),
+            ILoanDesk(loanDesk).weightedAvgAPR(),
+            config.protocolFeePercent,
+            config.stakerEarnFactor
+        );
     }
 }

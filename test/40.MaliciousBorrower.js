@@ -84,10 +84,10 @@ describe('Attack Sapling Lending Pool', function () {
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
+            liquidityToken.address,
             coreAccessControl.address,
             staker.address,
             POOL_1_LENDER_GOVERNANCE_ROLE,
-            TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
 

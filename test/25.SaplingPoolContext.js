@@ -85,10 +85,10 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
+            liquidityToken.address,
             coreAccessControl.address,
             staker.address,
             POOL_1_LENDER_GOVERNANCE_ROLE,
-            TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
 
@@ -273,14 +273,11 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             });
 
             it('Initial balances are correct', async function () {
-                expect((await saplingPoolContext.balances()).tokenBalance).to.equal(0);
                 expect(await poolToken.totalSupply()).to.equal(0);
                 expect((await saplingPoolContext.balances()).stakedShares).to.equal(0);
                 expect(await saplingPoolContext.poolFundsLimit()).to.equal(0);
                 expect((await saplingPoolContext.balances()).poolFunds).to.equal(0);
                 expect((await saplingPoolContext.balances()).rawLiquidity).to.equal(0);
-                expect((await saplingPoolContext.balances()).strategizedFunds).to.equal(0);
-                expect((await saplingPoolContext.balances()).allocatedFunds).to.equal(0);
                 expect((await saplingPoolContext.balances()).protocolRevenue).to.equal(0);
             });
         });
@@ -762,7 +759,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     .to.equal(
                         prevBalance.sub(unstakeAmount).add(unstakeAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)),
                     )
-                    .and.equal((await saplingPoolContext.balances()).tokenBalance);
             });
 
             it('Unstaking is reflected on pool liquidity', async function () {
@@ -863,9 +859,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 await saplingPoolContext.connect(lender1).deposit(depositAmount);
 
                 let balance = await liquidityToken.balanceOf(saplingPoolContext.address);
-                expect(balance)
-                    .to.equal(prevBalance.add(depositAmount))
-                    .and.equal((await saplingPoolContext.balances()).tokenBalance);
+                expect(balance).to.equal(prevBalance.add(depositAmount))
             });
 
             it('Deposit is reflected on pool liquidity', async function () {
@@ -1014,7 +1008,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                             .sub(withdrawAmount)
                             .add(withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT)),
                     )
-                    .and.equal((await saplingPoolContext.balances()).tokenBalance);
             });
 
             it('Withdraw is reflected on pool liquidity', async function () {
@@ -1188,9 +1181,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     await saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount);
 
                     let balance = await liquidityToken.balanceOf(saplingPoolContext.address);
-                    expect(balance)
-                        .to.equal(prevBalance.sub(withdrawAmount))
-                        .and.equal((await saplingPoolContext.balances()).tokenBalance);
+                    expect(balance).to.equal(prevBalance.sub(withdrawAmount))
                 });
 
                 it('Protocol fee withdrawal is not reflected on pool liquidity', async function () {

@@ -83,10 +83,10 @@ describe('Loan Desk', function () {
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
+            liquidityToken.address,
             coreAccessControl.address,
             staker.address,
             POOL_1_LENDER_GOVERNANCE_ROLE,
-            TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
 
@@ -104,10 +104,10 @@ describe('Loan Desk', function () {
             await expect(
                 upgrades.deployProxy(LoanDeskCF, [
                     lendingPool.address,
+                    liquidityToken.address,
                     coreAccessControl.address,
                     staker.address,
                     POOL_1_LENDER_GOVERNANCE_ROLE,
-                    TOKEN_DECIMALS,
                 ]),
             ).to.be.not.reverted;
         });
@@ -152,6 +152,11 @@ describe('Loan Desk', function () {
         });
 
         describe('Initial State', function () {
+            it('Initial balances are correct', async function () {
+                expect(await loanDesk.lentFunds()).to.equal(0);
+                expect(await loanDesk.allocatedFunds()).to.equal(0);
+            });
+
             it('Loan APR is correct', async function () {
                 let minValue = 0 * 10 ** PERCENT_DECIMALS;
                 let maxValue = 100 * 10 ** PERCENT_DECIMALS;
@@ -635,7 +640,7 @@ describe('Loan Desk', function () {
 
             describe('Offer', function () {
                 it('Staker make loan offer drafts', async function () {
-                    let offeredFunds = await loanDesk.offeredFunds();
+                    let offeredFunds = await loanDesk.allocatedFunds();
                     expect(await lendingPool.canOffer(offeredFunds.add(application.amount))).to.equal(true);
 
                     await loanDesk
@@ -964,7 +969,7 @@ describe('Loan Desk', function () {
 
                 describe('Update', function () {
                     it('Staker can update loan offers', async function () {
-                        let offeredFunds = await loanDesk.offeredFunds();
+                        let offeredFunds = await loanDesk.allocatedFunds();
                         let offer = await loanDesk.loanOffers(applicationId);
 
                         let newOfferedAmount = offer.amount.div(2);

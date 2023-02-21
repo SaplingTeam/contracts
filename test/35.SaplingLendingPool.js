@@ -84,10 +84,10 @@ describe('Sapling Lending Pool', function () {
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
+            liquidityToken.address,
             coreAccessControl.address,
             staker.address,
             POOL_1_LENDER_GOVERNANCE_ROLE,
-            TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
 
@@ -185,10 +185,6 @@ describe('Sapling Lending Pool', function () {
         });
 
         describe('Initial state', function () {
-            it('Initial balances are correct', async function () {
-                let borrowedFunds = (await lendingPool.balances()).strategizedFunds;
-                expect(borrowedFunds).to.equal(0);
-            });
         });
 
         describe('Setting pool parameters', function () {
