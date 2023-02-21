@@ -12,14 +12,6 @@ address loanDesk
 
 Address of the loan desk contract
 
-### loanFundsReleased
-
-```solidity
-mapping(address => mapping(uint256 => bool)) loanFundsReleased
-```
-
-Mark loan funds released flags to guards against double withdrawals due to future bugs or compromised LoanDesk
-
 ### loanClosed
 
 ```solidity
@@ -77,22 +69,22 @@ _Caller must be the governance.
 | ---- | ---- | ----------- |
 | _loanDesk | address | New LoanDesk address |
 
-### onOffer
+### onOfferAllocate
 
 ```solidity
-function onOffer(uint256 amount) external
+function onOfferAllocate(uint256 amount) external
 ```
 
 _Hook for a new loan offer. Caller must be the LoanDesk._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| amount | uint256 | Loan offer amount. |
+| amount | uint256 | Amount to be allocated for loan offers. |
 
-### onOfferUpdate
+### onOfferDeallocate
 
 ```solidity
-function onOfferUpdate(uint256 prevAmount, uint256 amount) external
+function onOfferDeallocate(uint256 amount) external
 ```
 
 _Hook for a loan offer amount update. Amount update can be due to offer update or
@@ -100,29 +92,12 @@ _Hook for a loan offer amount update. Amount update can be due to offer update o
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| prevAmount | uint256 | The original, now previous, offer amount. |
-| amount | uint256 | New offer amount. Cancelled offer must register an amount of 0 (zero). |
-
-### onBorrow
-
-```solidity
-function onBorrow(uint256 loanId, address borrower, uint256 amount, uint16 apr) external
-```
-
-_Hook for borrow. Releases the loan funds to the borrower. Caller must be the LoanDesk. 
-     Loan metadata is passed along as call arguments to avoid reentry callbacks to the LoanDesk._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan which has just been borrowed |
-| borrower | address | Address of the borrower |
-| amount | uint256 | Loan principal amount |
-| apr | uint16 | Loan apr |
+| amount | uint256 | Previously allocated amount being returned. |
 
 ### onRepay
 
 ```solidity
-function onRepay(uint256 loanId, address borrower, address payer, uint16 apr, uint256 transferAmount, uint256 interestPayable) external
+function onRepay(uint256 loanId, address borrower, address payer, uint256 transferAmount, uint256 interestPayable) external
 ```
 
 _Hook for repayments. Caller must be the LoanDesk. 
@@ -135,14 +110,13 @@ _Hook for repayments. Caller must be the LoanDesk.
 | loanId | uint256 | ID of the loan which has just been borrowed |
 | borrower | address | Borrower address |
 | payer | address | Actual payer address |
-| apr | uint16 | Loan apr |
 | transferAmount | uint256 | Amount chargeable |
 | interestPayable | uint256 | Amount of interest paid, this value is already included in the payment amount |
 
 ### onDefault
 
 ```solidity
-function onDefault(uint256 loanId, uint16 apr, uint256 loss) external returns (uint256, uint256)
+function onDefault(uint256 loanId, uint256 loss) external returns (uint256, uint256)
 ```
 
 _Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
@@ -151,13 +125,12 @@ _Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | loanId | uint256 | ID of the loan to default |
-| apr | uint16 | Loan apr |
 | loss | uint256 | Loss amount to resolve |
 
 ### canOffer
 
 ```solidity
-function canOffer(uint256 totalOfferedAmount) external view returns (bool)
+function canOffer(uint256 amount) external view returns (bool)
 ```
 
 View indicating whether or not a given loan amount can be offered.
@@ -166,7 +139,7 @@ _Hook for checking if the lending pool can provide liquidity for the total offer
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| totalOfferedAmount | uint256 | Total sum of offered loan amount including outstanding offers |
+| amount | uint256 | Amount to check for new loan allocation |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -185,4 +158,25 @@ _Overrides a hook in SaplingStakerContext._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | bool | True if the conditions to open are met, false otherwise. |
+
+### canClose
+
+```solidity
+function canClose() internal view returns (bool)
+```
+
+_Implementation of the abstract hook in SaplingManagedContext.
+     Pool can be close when no funds remain committed to strategies._
+
+### currentAPY
+
+```solidity
+function currentAPY() external view returns (struct IPoolContext.APYBreakdown)
+```
+
+Estimate APY breakdown given the current pool state.
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | struct IPoolContext.APYBreakdown | Current APY breakdown |
 

@@ -407,18 +407,6 @@ Check the staker's balance in the pool.
 | ---- | ---- | ----------- |
 | [0] | uint256 | Liquidity token balance of the staker's stake. |
 
-### currentAPY
-
-```solidity
-function currentAPY() external view returns (struct IPoolContext.APYBreakdown)
-```
-
-Estimate APY breakdown given the current pool state.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | struct IPoolContext.APYBreakdown | Current APY breakdown |
-
 ### simpleProjectedAPY
 
 ```solidity
@@ -547,19 +535,6 @@ Shares are equivalent to pool tokens and are represented by them._
 | ---- | ---- | ----------- |
 | [0] | uint256 | Amount of pool tokens burned and taken from the caller. |
 
-### updateAvgStrategyApr
-
-```solidity
-function updateAvgStrategyApr(uint256 amountReducedBy, uint16 apr) internal
-```
-
-_Internal method to update the weighted average loan apr based on the amount reduced by and an apr._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| amountReducedBy | uint256 | amount by which the funds committed into strategy were reduced, due to repayment or loss |
-| apr | uint16 | annual percentage rate of the strategy |
-
 ### sharesToFunds
 
 ```solidity
@@ -634,19 +609,10 @@ _Represent percentage parameter values in contract specific format._
 | ---- | ---- | ----------- |
 | [0] | struct IPoolContext.APYBreakdown | Pool apy with protocol, staker, and lender components broken down. |
 
-### canClose
-
-```solidity
-function canClose() internal view returns (bool)
-```
-
-_Implementation of the abstract hook in SaplingManagedContext.
-     Pool can be close when no funds remain committed to strategies._
-
 ### __gap
 
 ```solidity
-uint256[30] __gap
+uint256[34] __gap
 ```
 
 _Slots reserved for future state variables_

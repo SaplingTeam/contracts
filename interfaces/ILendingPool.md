@@ -12,14 +12,6 @@ event LoanDeskSet(address prevAddress, address newAddress)
 
 Event for when a new loan desk is set
 
-### LoanFundsReleased
-
-```solidity
-event LoanFundsReleased(uint256 loanId, address borrower, uint256 amount)
-```
-
-Event whn loan funds are released after accepting a loan offer
-
 ### LoanDefaulted
 
 ```solidity
@@ -36,13 +28,13 @@ event OfferLiquidityAllocated(uint256 amount)
 
 Event for when a liquidity is allocated for a loan offer
 
-### OfferLiquidityUpdated
+### OfferLiquidityDeallocated
 
 ```solidity
-event OfferLiquidityUpdated(uint256 prevAmount, uint256 newAmount)
+event OfferLiquidityDeallocated(uint256 amount)
 ```
 
-Event for when the liquidity is adjusted for a loan offer
+Event for when the liquidity is removed from a loan offer
 
 ### LoanRepaymentProcessed
 
@@ -52,10 +44,10 @@ event LoanRepaymentProcessed(uint256 loanId, address borrower, address payer, ui
 
 Event for when a loan repayments are made
 
-### onOffer
+### onOfferAllocate
 
 ```solidity
-function onOffer(uint256 amount) external
+function onOfferAllocate(uint256 amount) external
 ```
 
 _Hook for a new loan offer.
@@ -63,43 +55,24 @@ _Hook for a new loan offer.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| amount | uint256 | Loan offer amount. |
+| amount | uint256 | Amount to be allocated for loan offers. |
 
-### onOfferUpdate
+### onOfferDeallocate
 
 ```solidity
-function onOfferUpdate(uint256 prevAmount, uint256 amount) external
+function onOfferDeallocate(uint256 amount) external
 ```
 
-_Hook for a loan offfer amount update._
+_Hook for a loan offer amount update._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| prevAmount | uint256 | The original, now previous, offer amount. |
-| amount | uint256 | New offer amount. Cancelled offer must register an amount of 0 (zero). |
-
-### onBorrow
-
-```solidity
-function onBorrow(uint256 loanId, address borrower, uint256 amount, uint16 apr) external
-```
-
-_Hook for borrowing a loan. Caller must be the loan desk.
-
-     Parameters besides the loanId exists simply to avoid rereading it from the caller via additinal inter 
-     contract call. Avoiding loop call reduces gas, contract bytecode size, and reduces the risk of reentrancy._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan being borrowed |
-| borrower | address | Wallet address of the borrower, same as loan.borrower |
-| amount | uint256 | Loan principal amount, same as loan.amount |
-| apr | uint16 | Loan annual percentage rate, same as loan.apr |
+| amount | uint256 | Previously allocated amount being returned. |
 
 ### onRepay
 
 ```solidity
-function onRepay(uint256 loanId, address borrower, address payer, uint16 apr, uint256 transferAmount, uint256 interestPayable) external
+function onRepay(uint256 loanId, address borrower, address payer, uint256 transferAmount, uint256 interestPayable) external
 ```
 
 _Hook for repayments. Caller must be the LoanDesk. 
@@ -112,14 +85,13 @@ _Hook for repayments. Caller must be the LoanDesk.
 | loanId | uint256 | ID of the loan which has just been borrowed |
 | borrower | address | Borrower address |
 | payer | address | Actual payer address |
-| apr | uint16 | Loan apr |
 | transferAmount | uint256 | Amount chargeable |
 | interestPayable | uint256 | Amount of interest paid, this value is already included in the payment amount |
 
 ### onDefault
 
 ```solidity
-function onDefault(uint256 loanId, uint16 apr, uint256 loss) external returns (uint256, uint256)
+function onDefault(uint256 loanId, uint256 loss) external returns (uint256, uint256)
 ```
 
 _Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
@@ -128,13 +100,12 @@ the staked funds. If these funds are not sufficient, the lenders will share the 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | loanId | uint256 | ID of the loan to default |
-| apr | uint16 | Loan apr |
 | loss | uint256 | Loss amount to resolve |
 
 ### canOffer
 
 ```solidity
-function canOffer(uint256 totalOfferedAmount) external view returns (bool)
+function canOffer(uint256 amount) external view returns (bool)
 ```
 
 View indicating whether or not a given loan can be offered by the staker.
@@ -143,7 +114,7 @@ _Hook for checking if the lending pool can provide liquidity for the total offer
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| totalOfferedAmount | uint256 | Total sum of offered loan amount including outstanding offers |
+| amount | uint256 | Amount to check for new loan allocation |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |

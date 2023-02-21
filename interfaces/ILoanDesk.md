@@ -4,6 +4,26 @@
 
 _LoanDesk interface defining common structures and hooks for the lending pools._
 
+### LoanDeskConfig
+
+```solidity
+struct LoanDeskConfig {
+  bytes32 lenderGovernanceRole;
+  address pool;
+  address liquidityToken;
+}
+```
+
+### LoanDeskBalances
+
+```solidity
+struct LoanDeskBalances {
+  uint256 allocatedFunds;
+  uint256 lentFunds;
+  uint16 weightedAvgAPR;
+}
+```
+
 ### LoanApplicationStatus
 
 ```solidity
@@ -248,4 +268,34 @@ event TemplateLoanAPRSet(uint256 prevValue, uint256 newValue)
 ```
 
 Setter event
+
+### allocatedFunds
+
+```solidity
+function allocatedFunds() external view returns (uint256)
+```
+
+Accessor
+
+_Total funds allocated for loan offers, including both drafted and pending acceptance_
+
+### lentFunds
+
+```solidity
+function lentFunds() external view returns (uint256)
+```
+
+Accessor
+
+_Total funds lent at this time, accounts only for loan principals_
+
+### weightedAvgAPR
+
+```solidity
+function weightedAvgAPR() external view returns (uint16)
+```
+
+Accessor
+
+_Weighted average loan APR on the borrowed funds_
 

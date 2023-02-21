@@ -4,25 +4,21 @@
 
 Provides loan application and offer flow.
 
-### lenderGovernanceRole
+### config
 
 ```solidity
-bytes32 lenderGovernanceRole
+struct ILoanDesk.LoanDeskConfig config
 ```
 
-Lender voting contract role
-Role given to the address of the voting contract that can cancel a loan offer upon a passing vote
+LoanDesk configuration parameters
 
-_The value of this role should be unique for each pool. Role must be created before the pool contract
-     deployment, then passed during construction/initialization._
-
-### pool
+### balances
 
 ```solidity
-address pool
+struct ILoanDesk.LoanDeskBalances balances
 ```
 
-Address of the lending pool contract
+Tracked contract balances and parameters
 
 ### loanTemplate
 
@@ -39,14 +35,6 @@ uint256 nextApplicationId
 ```
 
 Loan application id generator counter
-
-### offeredFunds
-
-```solidity
-uint256 offeredFunds
-```
-
-Total funds allocated for loan offers, including both drafted and pending acceptance
 
 ### loanApplications
 
@@ -79,12 +67,6 @@ uint256 nextLoanId
 ```
 
 Loan id generator counter
-
-### outstandingLoansCount
-
-```solidity
-uint256 outstandingLoansCount
-```
 
 ### loans
 
@@ -129,7 +111,7 @@ _Disable initializers_
 ### initialize
 
 ```solidity
-function initialize(address _pool, address _accessControl, address _stakerAddress, bytes32 _lenderGovernanceRole, uint8 _decimals) public
+function initialize(address _pool, address _liquidityToken, address _accessControl, address _stakerAddress, bytes32 _lenderGovernanceRole) public
 ```
 
 Initializer a new LoanDesk.
@@ -139,10 +121,10 @@ _Addresses must not be 0._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _pool | address | Lending pool address |
+| _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
 | _accessControl | address | Access control contract |
 | _stakerAddress | address | Staker address |
 | _lenderGovernanceRole | bytes32 | Role held by the timelock control that executed passed lender votes |
-| _decimals | uint8 | Lending pool liquidity token decimals |
 
 ### setMinLoanAmount
 
@@ -260,8 +242,7 @@ Draft a loan offer for an application.
 
 _Loan application must be in APPLIED status.
      Caller must be the staker.
-     Loan amount must not exceed available liquidity -
-     canOffer(offeredFunds.add(_amount)) must be true on the lending pool._
+     Loan amount must not exceed available liquidity._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -283,8 +264,7 @@ Update an existing draft loan offer.
 
 _Loan application must be in OFFER_DRAFTED status.
      Caller must be the staker.
-     Loan amount must not exceed available liquidity -
-     canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool._
+     Loan amount must not exceed available liquidity._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -305,9 +285,7 @@ function lockDraftOffer(uint256 appId) external
 Lock a draft loan offer.
 
 _Loan application must be in OFFER_DRAFTED status.
-     Caller must be the staker.
-     Loan amount must not exceed available liquidity -
-     canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool._
+     Caller must be the staker._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -322,9 +300,7 @@ function offerLoan(uint256 appId) external
 Make a loan offer.
 
 _Loan application must be in OFFER_DRAFT_LOCKED status.
-     Caller must be the staker.
-     Loan amount must not exceed available liquidity -
-     canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool._
+     Caller must be the staker._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -338,7 +314,8 @@ function cancelLoan(uint256 appId) external
 
 Cancel a loan.
 
-_Loan application must be in OFFER_MADE status. Caller must be the staker._
+_Loan application must be in one of OFFER_MADE, OFFER_DRAFT_LOCKED, OFFER_MADE statuses.
+     Caller must be the staker or the lender governance within the voting window._
 
 ### borrow
 
@@ -423,6 +400,19 @@ _Loan must be in OUTSTANDING status.
 | ---- | ---- | ----------- |
 | loanId | uint256 | ID of the loan to make a payment towards |
 | amount | uint256 | Payment amount in tokens |
+
+### updateAvgApr
+
+```solidity
+function updateAvgApr(uint256 amountReducedBy, uint16 apr) internal
+```
+
+_Internal method to update the weighted average loan apr based on the amount reduced by and an apr._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| amountReducedBy | uint256 | amount by which the funds committed into strategy were reduced, due to repayment or loss |
+| apr | uint16 | annual percentage rate of the strategy |
 
 ### applicationsCount
 
@@ -622,4 +612,34 @@ _Overrides a hook in SaplingStakerContext._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | bool | True if the conditions to open are met, false otherwise. |
+
+### allocatedFunds
+
+```solidity
+function allocatedFunds() external view returns (uint256)
+```
+
+Accessor
+
+_Total funds allocated for loan offers, including both drafted and pending acceptance_
+
+### lentFunds
+
+```solidity
+function lentFunds() external view returns (uint256)
+```
+
+Accessor
+
+_Total funds lent at this time, accounts only for loan principals_
+
+### weightedAvgAPR
+
+```solidity
+function weightedAvgAPR() external view returns (uint16)
+```
+
+Accessor
+
+_Weighted average loan APR on the borrowed funds_
 

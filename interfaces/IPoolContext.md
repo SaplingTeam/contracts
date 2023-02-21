@@ -22,7 +22,6 @@ struct PoolConfig {
   uint16 stakerEarnFactorMax;
   uint16 stakerEarnFactor;
   uint16 targetLiquidityPercent;
-  uint16 weightedAvgStrategyAPR;
   uint16 exitFeePercent;
 }
 ```
@@ -31,11 +30,8 @@ struct PoolConfig {
 
 ```solidity
 struct PoolBalance {
-  uint256 tokenBalance;
   uint256 rawLiquidity;
   uint256 poolFunds;
-  uint256 allocatedFunds;
-  uint256 strategizedFunds;
   uint256 withdrawalRequestedShares;
   uint256 stakedShares;
   uint256 protocolRevenue;
