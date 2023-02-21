@@ -292,8 +292,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @notice Draft a loan offer for an application.
      * @dev Loan application must be in APPLIED status.
      *      Caller must be the staker.
-     *      Loan amount must not exceed available liquidity -
-     *      canOffer(offeredFunds.add(_amount)) must be true on the lending pool.
+     *      Loan amount must not exceed available liquidity.
      * @param appId Loan application id
      * @param _amount Loan amount in liquidity tokens
      * @param _duration Loan term in seconds
@@ -357,8 +356,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @notice Update an existing draft loan offer.
      * @dev Loan application must be in OFFER_DRAFTED status.
      *      Caller must be the staker.
-     *      Loan amount must not exceed available liquidity -
-     *      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool.
+     *      Loan amount must not exceed available liquidity.
      * @param appId Loan application id
      * @param _amount Loan amount in liquidity tokens
      * @param _duration Loan term in seconds
@@ -420,8 +418,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @notice Lock a draft loan offer.
      * @dev Loan application must be in OFFER_DRAFTED status.
      *      Caller must be the staker.
-     *      Loan amount must not exceed available liquidity -
-     *      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool.
      * @param appId Loan application id
      */
     function lockDraftOffer(
@@ -444,8 +440,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @notice Make a loan offer.
      * @dev Loan application must be in OFFER_DRAFT_LOCKED status.
      *      Caller must be the staker.
-     *      Loan amount must not exceed available liquidity -
-     *      canOffer(offeredFunds.add(offeredFunds.sub(offer.amount).add(_amount))) must be true on the lending pool.
      * @param appId Loan application id
      */
     function offerLoan(
@@ -474,7 +468,8 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
     /**
      * @notice Cancel a loan.
-     * @dev Loan application must be in OFFER_MADE status. Caller must be the staker.
+     * @dev Loan application must be in one of OFFER_MADE, OFFER_DRAFT_LOCKED, OFFER_MADE statuses.
+     *      Caller must be the staker or the lender governance within the voting window.
      */
     function cancelLoan(
         uint256 appId
