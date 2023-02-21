@@ -470,6 +470,29 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
+     * @notice Mint initial minimum amount of pool tokens and lock them into the access control contract,
+     *      which is non upgradable - locking them forever.
+     * @dev Caller must be the staker.
+     *      An appropriate spend limit must be present at the asset token contract.
+     *      This function can only be called when the total pool token supply is zero.
+     */
+    function initialMint() external onlyStaker whenNotPaused whenClosed {
+        require(
+            totalPoolTokenSupply() == 0 && balances.poolFunds == 0,
+            "Sapling Pool Context: invalid initial conditions"
+        );
+
+        uint256 sharesMinted = enter(10 ** tokenConfig.decimals);
+        balances.stakedShares -= sharesMinted;
+
+        SafeERC20Upgradeable.safeTransfer(
+            IERC20Upgradeable(tokenConfig.poolToken),
+            accessControl,
+            sharesMinted
+        );
+    }
+
+    /**
      * @notice Withdraw protocol revenue.
      * @dev Revenue is in liquidity tokens.
      *      Caller must have the treasury role.

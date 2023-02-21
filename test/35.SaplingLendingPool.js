@@ -96,15 +96,24 @@ describe('Sapling Lending Pool', function () {
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
 
+        let initialMintAmount = 10 ** TOKEN_DECIMALS;
+        await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
+        await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+        await lendingPool.connect(staker).initialMint();
+
         await lendingPool.connect(staker).open();
         await loanDesk.connect(staker).open();
     });
 
     describe('Deployment', function () {
         it('Can deploy', async function () {
+            let poolToken2 = await (
+                await ethers.getContractFactory('PoolToken')
+            ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
+
             await expect(
                 upgrades.deployProxy(SaplingLendingPoolCF, [
-                    poolToken.address,
+                    poolToken2.address,
                     liquidityToken.address,
                     coreAccessControl.address,
                     staker.address
@@ -118,10 +127,6 @@ describe('Sapling Lending Pool', function () {
     describe('Initial state', function () {
         it('Loan count is correct', async function () {
             expect(await loanDesk.loansCount()).to.equal(0);
-        });
-
-        it('Empty pool to stake ratio is good', async function () {
-            expect(await lendingPool.maintainsStakeRatio()).to.equal(true);
         });
 
         it('Empty pool cannot offer any nonzero loan amount', async function () {
