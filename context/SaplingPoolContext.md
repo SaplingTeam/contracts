@@ -304,6 +304,19 @@ _Caller must be the staker.
 | ---- | ---- | ----------- |
 | amount | uint256 | Liquidity token amount to unstake. |
 
+### initialMint
+
+```solidity
+function initialMint() external
+```
+
+Mint initial minimum amount of pool tokens and lock them into the access control contract,
+     which is non upgradable - locking them forever.
+
+_Caller must be the staker.
+     An appropriate spend limit must be present at the asset token contract.
+     This function can only be called when the total pool token supply is zero._
+
 ### collectProtocolRevenue
 
 ```solidity
