@@ -94,7 +94,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
             // must be valid: stakerEarnFactor <= stakerEarnFactorMax
             stakerEarnFactor: uint16(150 * 10 ** SaplingMath.PERCENT_DECIMALS), // 150%
 
-            weightedAvgStrategyAPR: 0,
             exitFeePercent: SaplingMath.HUNDRED_PERCENT / 200 // 0.5%
         });
     }
@@ -487,7 +486,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         //// effect
 
         balances.protocolRevenue -= amount;
-        balances.tokenBalance -= amount;
 
         //// interactions
 
@@ -552,22 +550,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function balanceStaked() external view returns (uint256) {
         return sharesToFunds(balances.stakedShares);
-    }
-
-    /**
-     * @notice Estimate APY breakdown given the current pool state.
-     * @return Current APY breakdown
-     */
-    function currentAPY() external view returns (APYBreakdown memory) {
-        return projectedAPYBreakdown(
-            totalPoolTokenSupply(),
-            balances.stakedShares,
-            balances.poolFunds,
-            balances.strategizedFunds, 
-            config.weightedAvgStrategyAPR,
-            config.protocolFeePercent,
-            config.stakerEarnFactor
-        );
     }
 
     /**
@@ -708,7 +690,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
         uint256 shares = fundsToShares(amount);
 
-        balances.tokenBalance += amount;
         balances.rawLiquidity += amount;
         balances.poolFunds += amount;
 
@@ -773,7 +754,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
         balances.poolFunds -= transferAmount;
         balances.rawLiquidity -= transferAmount;
-        balances.tokenBalance -= transferAmount;
 
         //// interactions
 
@@ -784,22 +764,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, transferAmount);
 
         return shares;
-    }
-
-    /**
-     * @dev Internal method to update the weighted average loan apr based on the amount reduced by and an apr.
-     * @param amountReducedBy amount by which the funds committed into strategy were reduced, due to repayment or loss
-     * @param apr annual percentage rate of the strategy
-     */
-    function updateAvgStrategyApr(uint256 amountReducedBy, uint16 apr) internal {
-        if (balances.strategizedFunds > 0) {
-            config.weightedAvgStrategyAPR = uint16(
-                ((balances.strategizedFunds + amountReducedBy) * config.weightedAvgStrategyAPR - amountReducedBy * apr)
-                / balances.strategizedFunds
-            );
-        } else {
-            config.weightedAvgStrategyAPR = 0;
-        }
     }
 
     /**
@@ -938,15 +902,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @dev Implementation of the abstract hook in SaplingManagedContext.
-     *      Pool can be close when no funds remain committed to strategies.
-     */
-    function canClose() internal view override returns (bool) {
-        return balances.strategizedFunds == 0;
-    }
-
-    /**
      * @dev Slots reserved for future state variables
      */
-    uint256[30] private __gap;
+    uint256[34] private __gap;
 }

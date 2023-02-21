@@ -235,4 +235,13 @@ interface ILoanDesk {
 
     /// Setter event
     event TemplateLoanAPRSet(uint256 prevValue, uint256 newValue);
+
+    /// Total funds allocated for loan offers, including both drafted and pending acceptance
+    function offeredFunds() external view returns (uint256);
+
+    // Total funds borrowed at this time, accounts only for loan principal
+    function borrowedFunds() external view returns (uint256);
+
+    /// Weighted average loan APR on the borrowed funds
+    function weightedAvgAPR() external view returns (uint16);
 }

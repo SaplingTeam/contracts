@@ -62,6 +62,7 @@ async function main() {
     LoanDesk = await ethers.getContractFactory("LoanDesk");
     loanDeskContract = await upgrades.deployProxy(LoanDesk, [
         saplingPoolContract.address,
+        liquidityTokenAddress,
         coreAccessControl.address,
         stakerAddress,
         POOL_1_LENDER_GOVERNANCE_ROLE,

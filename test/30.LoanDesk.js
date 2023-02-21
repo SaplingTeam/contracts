@@ -83,6 +83,7 @@ describe('Loan Desk', function () {
 
         loanDesk = await upgrades.deployProxy(LoanDeskCF, [
             lendingPool.address,
+            liquidityToken.address,
             coreAccessControl.address,
             staker.address,
             POOL_1_LENDER_GOVERNANCE_ROLE,
@@ -104,6 +105,7 @@ describe('Loan Desk', function () {
             await expect(
                 upgrades.deployProxy(LoanDeskCF, [
                     lendingPool.address,
+                    liquidityToken.address,
                     coreAccessControl.address,
                     staker.address,
                     POOL_1_LENDER_GOVERNANCE_ROLE,
@@ -152,6 +154,11 @@ describe('Loan Desk', function () {
         });
 
         describe('Initial State', function () {
+            it('Initial balances are correct', async function () {
+                expect(await loanDesk.borrowedFunds()).to.equal(0);
+                expect(await loanDesk.offeredFunds()).to.equal(0);
+            });
+
             it('Loan APR is correct', async function () {
                 let minValue = 0 * 10 ** PERCENT_DECIMALS;
                 let maxValue = 100 * 10 ** PERCENT_DECIMALS;

@@ -44,9 +44,6 @@ interface IPoolContext {
 
         // Auto or pseudo-constant parameters
 
-        /// Weighted average loan APR on the borrowed funds
-        uint16 weightedAvgStrategyAPR;
-
         /// exit fee percentage
         uint16 exitFeePercent;
     }
@@ -54,20 +51,11 @@ interface IPoolContext {
     /// Key pool balances
     struct PoolBalance {
 
-        /// Total liquidity tokens currently held by this contract
-        uint256 tokenBalance;
-
         /// Current amount of liquid tokens, available to for pool strategies, withdrawals, withdrawal requests
         uint256 rawLiquidity;
 
         /// Current amount of liquidity tokens in the pool, including both liquid and allocated funds
         uint256 poolFunds;
-
-        /// Current funds allocated for pool strategies
-        uint256 allocatedFunds;
-
-        /// Current funds committed to strategies such as borrowing or investing
-        uint256 strategizedFunds;
 
         /// Withdrawal request
         uint256 withdrawalRequestedShares; 

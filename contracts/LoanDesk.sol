@@ -4,6 +4,7 @@ pragma solidity ^0.8.15;
 
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "./context/SaplingStakerContext.sol";
 import "./interfaces/ILoanDesk.sol";
 import "./interfaces/IPoolContext.sol";
@@ -28,6 +29,9 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
     /// Address of the lending pool contract
     address public pool;
 
+    /// Address of an ERC20 liquidity token accepted by the pool
+    address liquidityToken;
+
     /// Default loan parameter values
     LoanTemplate public loanTemplate;
 
@@ -39,6 +43,12 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
     /// Total funds allocated for loan offers, including both drafted and pending acceptance
     uint256 public offeredFunds;
+
+    // Total funds borrowed at this time, accounts only for loan principal
+    uint256 public borrowedFunds;
+
+    /// Weighted average loan APR on the borrowed funds
+    uint16 public weightedAvgAPR;
 
     /// Loan applications by applicationId
     mapping(uint256 => LoanApplication) public loanApplications;
@@ -54,8 +64,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
     /// Loan id generator counter
     uint256 private nextLoanId;
-
-    uint256 public outstandingLoansCount;
 
     /// Loans by loan ID
     mapping(uint256 => Loan) public loans;
@@ -91,13 +99,14 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @notice Initializer a new LoanDesk.
      * @dev Addresses must not be 0.
      * @param _pool Lending pool address
+     * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
      * @param _accessControl Access control contract
      * @param _stakerAddress Staker address
      * @param _lenderGovernanceRole Role held by the timelock control that executed passed lender votes
-     * @param _decimals Lending pool liquidity token decimals
      */
     function initialize(
         address _pool,
+        address _liquidityToken,
         address _accessControl,
         address _stakerAddress,
         bytes32 _lenderGovernanceRole,
@@ -116,6 +125,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         require(_pool != address(0), "LoanDesk: invalid pool address");
 
+
         loanTemplate = LoanTemplate({
             minAmount: 100 * 10 ** uint256(_decimals), // 100 asset tokens
             minDuration: SaplingMath.SAFE_MIN_DURATION,
@@ -126,8 +136,10 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         lenderGovernanceRole = _lenderGovernanceRole;
         pool = _pool;
+        liquidityToken = _liquidityToken;
         offeredFunds = 0;
-        outstandingLoansCount = 0;
+        borrowedFunds = 0;
+        weightedAvgAPR = 0;
         nextApplicationId = 1;
         nextLoanId = 1;
     }
@@ -320,7 +332,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         LoanApplication storage app = loanApplications[appId];
 
         require(
-            ILendingPool(pool).canOffer(offeredFunds + _amount),
+            ILendingPool(pool).canOffer(_amount),
             "LoanDesk: lending pool cannot offer this loan at this time"
         );
 
@@ -344,7 +356,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         //// interactions
 
-        ILendingPool(pool).onOffer(_amount);
+        ILendingPool(pool).onOfferAllocate(_amount);
 
         emit LoanDrafted(appId, app.borrower, _amount);
     }
@@ -385,14 +397,11 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         LoanOffer storage offer = loanOffers[appId];
 
         uint256 prevAmount = offer.amount;
-
-        if (prevAmount != _amount) {
-            uint256 nextOfferedFunds = offeredFunds - prevAmount + _amount;
-            require(ILendingPool(pool).canOffer(nextOfferedFunds),
-                "LoanDesk: lending pool cannot offer this loan at this time");
-
-            //// effect
-            offeredFunds = nextOfferedFunds;
+        if (_amount > prevAmount) {
+            require(
+                ILendingPool(config.pool).canOffer(_amount - prevAmount),
+                "LoanDesk: lending pool cannot offer this loan at this time"
+            );
         }
 
         //// effect
@@ -406,8 +415,12 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         emit LoanDraftUpdated(appId, offer.borrower, prevAmount, offer.amount);
 
         //// interactions
-        if (prevAmount != offer.amount) {
-            ILendingPool(pool).onOfferUpdate(prevAmount, offer.amount);
+        if (offer.amount > prevAmount) {
+            ILendingPool(pool).onOfferAllocate(offer.amount - prevAmount);
+        } else if (offer.amount < prevAmount) {
+            uint256 returnAmount = prevAmount - offer.amount;
+            SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(liquidityToken), pool, returnAmount);
+            ILendingPool(pool).onOfferDeallocate(returnAmount);
         }
     }
 
@@ -504,7 +517,8 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         emit LoanOfferCancelled(appId, offer.borrower, offer.amount);
 
         //// interactions
-        ILendingPool(pool).onOfferUpdate(offer.amount, 0);
+        SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(liquidityToken), pool, offer.amount);
+        ILendingPool(pool).onOfferDeallocate(offer.amount);
     }
 
     /**
@@ -527,8 +541,11 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         app.status = LoanApplicationStatus.OFFER_ACCEPTED;
 
-        uint256 offerAmount = loanOffers[appId].amount;
+        uint256 offerAmount = offer.amount;
         offeredFunds -= offerAmount;
+
+        uint256 prevBorrowedFunds = borrowedFunds;
+        borrowedFunds += offerAmount;
 
         emit LoanOfferAccepted(appId, app.borrower, offerAmount);
 
@@ -558,12 +575,11 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             interestPaidTillTime: block.timestamp
         });
 
-        outstandingLoansCount++;
+        weightedAvgAPR = uint16((prevBorrowedFunds * weightedAvgAPR + offerAmount * offer.apr) / borrowedFunds);
 
         //// interactions
 
-        // on pool
-        ILendingPool(pool).onBorrow(loanId, offer.borrower, offer.amount, offer.apr);
+        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(liquidityToken), offer.borrower, offer.amount);
 
         emit LoanBorrowed(loanId, appId, offer.borrower, offer.amount);
     }
@@ -624,15 +640,16 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         LoanDetail storage loanDetail = loanDetails[loanId];
 
         loan.status = LoanStatus.DEFAULTED;
-        outstandingLoansCount--;
 
         uint256 loss = loan.amount > loanDetail.principalAmountRepaid
             ? loan.amount - loanDetail.principalAmountRepaid
             : 0;
 
+        borrowedFunds -= loss;
+        updateAvgApr(loss, loan.apr);
+
         (uint256 stakerLoss, uint256 lenderLoss) = ILendingPool(pool).onDefault(
-            loanId, 
-            loan.apr, 
+            loanId,
             loss
         );
 
@@ -683,23 +700,40 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         if (loanDetail.principalAmountRepaid >= loan.amount) {
             loan.status = LoanStatus.REPAID;
-            outstandingLoansCount--;
 
             emit LoanFullyRepaid(loanId, loan.borrower);
         }
 
         emit LoanRepaymentInitiated(loanId, loan.borrower, msg.sender, transferAmount, interestPayable);
 
+        borrowedFunds -= principalPaid;
+        updateAvgApr(principalPaid, loan.apr);
+
         //// interactions
 
         ILendingPool(pool).onRepay(
             loanId, 
             loan.borrower, 
-            msg.sender, 
-            loan.apr, 
+            msg.sender,
             transferAmount,
             interestPayable
         );
+    }
+
+    /**
+     * @dev Internal method to update the weighted average loan apr based on the amount reduced by and an apr.
+     * @param amountReducedBy amount by which the funds committed into strategy were reduced, due to repayment or loss
+     * @param apr annual percentage rate of the strategy
+     */
+    function updateAvgApr(uint256 amountReducedBy, uint16 apr) internal {
+        if (borrowedFunds > 0) {
+            weightedAvgAPR = uint16(
+                ((borrowedFunds + amountReducedBy) * weightedAvgAPR - amountReducedBy * apr)
+                / borrowedFunds
+            );
+        } else {
+            weightedAvgAPR = 0;
+        }
     }
 
     /**
@@ -928,7 +962,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @return True if the contract is closed, false otherwise.
      */
     function canClose() internal view override returns (bool) {
-        return offeredFunds == 0 && outstandingLoansCount == 0;
+        return offeredFunds == 0 && borrowedFunds == 0;
     }
 
     /**

@@ -5,10 +5,11 @@ async function main() {
 
     const arguments = require('./arguments.js');
     const poolAddress = arguments[0];
-    const coreAccessControlAddress = arguments[1];
-    const stakerAddress = arguments[2];
-    const lenderGovernanceRoleName = arguments[3];
-    const DECIMALS = arguments[4];
+    const liquidityTokenAddress = arguments[1];
+    const coreAccessControlAddress = arguments[2];
+    const stakerAddress = arguments[3];
+    const lenderGovernanceRoleName = arguments[4];
+    const DECIMALS = arguments[5];
 
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(lenderGovernanceRoleName));
 
@@ -19,6 +20,7 @@ async function main() {
     let LoanDeskCF = await ethers.getContractFactory("LoanDesk");
     let loanDeskContract = await upgrades.deployProxy(LoanDeskCF, [
         poolAddress,
+        liquidityTokenAddress,
         coreAccessControlAddress,
         stakerAddress,
         POOL_1_LENDER_GOVERNANCE_ROLE,
