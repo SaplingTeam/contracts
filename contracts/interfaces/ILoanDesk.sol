@@ -7,6 +7,37 @@ pragma solidity ^0.8.15;
  */
 interface ILoanDesk {
 
+    /// LoanDesk configuration parameters
+    struct LoanDeskConfig {
+
+        /**
+         * Lender voting contract role
+         * @notice Role given to the address of the voting contract that can cancel a loan offer upon a passing vote
+         * @dev The value of this role should be unique for each pool. Role must be created before the pool contract
+         *      deployment, then passed during construction/initialization.
+         */
+        bytes32 lenderGovernanceRole;
+
+        /// Address of the lending pool contract
+        address pool;
+
+        /// Address of an ERC20 liquidity token accepted by the pool
+        address liquidityToken;
+    }
+
+    /// Tracked contract balances and parameters
+    struct LoanDeskBalances {
+
+        /// Total funds allocated for loan offers, including both drafted and pending acceptance
+        uint256 allocatedFunds;
+
+        // Total funds lent at this time, accounts only for loan principals
+        uint256 lentFunds;
+
+        /// Weighted average loan APR on the borrowed funds
+        uint16 weightedAvgAPR;
+    }
+
     /**
      * Loan application statuses. Initial value is defines as 'NULL' to differentiate the unintitialized state from
      * the logical initial states.
@@ -236,12 +267,21 @@ interface ILoanDesk {
     /// Setter event
     event TemplateLoanAPRSet(uint256 prevValue, uint256 newValue);
 
-    /// Total funds allocated for loan offers, including both drafted and pending acceptance
-    function offeredFunds() external view returns (uint256);
+    /**
+     * @notice Accessor
+     * @dev Total funds allocated for loan offers, including both drafted and pending acceptance
+     */
+    function allocatedFunds() external view returns (uint256);
 
-    // Total funds borrowed at this time, accounts only for loan principal
-    function borrowedFunds() external view returns (uint256);
+    /**
+     * @notice Accessor
+     * @dev Total funds lent at this time, accounts only for loan principals
+     */
+    function lentFunds() external view returns (uint256);
 
-    /// Weighted average loan APR on the borrowed funds
+    /**
+     * @notice Accessor
+     * @dev Weighted average loan APR on the borrowed funds
+     */
     function weightedAvgAPR() external view returns (uint16);
 }

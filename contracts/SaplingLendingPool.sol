@@ -283,8 +283,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      *      Pool can be close when no funds remain committed to strategies.
      */
     function canClose() internal view override returns (bool) {
-        return ILoanDesk(loanDesk).offeredFunds() == 0
-            && ILoanDesk(loanDesk).borrowedFunds() == 0;
+        return ILoanDesk(loanDesk).allocatedFunds() == 0
+            && ILoanDesk(loanDesk).lentFunds() == 0;
     }
 
     /**
@@ -296,7 +296,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             totalPoolTokenSupply(),
             balances.stakedShares,
             balances.poolFunds,
-            ILoanDesk(loanDesk).borrowedFunds(),
+            ILoanDesk(loanDesk).lentFunds(),
             ILoanDesk(loanDesk).weightedAvgAPR(),
             config.protocolFeePercent,
             config.stakerEarnFactor

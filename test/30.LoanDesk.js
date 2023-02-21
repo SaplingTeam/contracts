@@ -155,8 +155,8 @@ describe('Loan Desk', function () {
 
         describe('Initial State', function () {
             it('Initial balances are correct', async function () {
-                expect(await loanDesk.borrowedFunds()).to.equal(0);
-                expect(await loanDesk.offeredFunds()).to.equal(0);
+                expect(await loanDesk.lentFunds()).to.equal(0);
+                expect(await loanDesk.allocatedFunds()).to.equal(0);
             });
 
             it('Loan APR is correct', async function () {
@@ -642,7 +642,7 @@ describe('Loan Desk', function () {
 
             describe('Offer', function () {
                 it('Staker make loan offer drafts', async function () {
-                    let offeredFunds = await loanDesk.offeredFunds();
+                    let offeredFunds = await loanDesk.allocatedFunds();
                     expect(await lendingPool.canOffer(offeredFunds.add(application.amount))).to.equal(true);
 
                     await loanDesk
@@ -971,7 +971,7 @@ describe('Loan Desk', function () {
 
                 describe('Update', function () {
                     it('Staker can update loan offers', async function () {
-                        let offeredFunds = await loanDesk.offeredFunds();
+                        let offeredFunds = await loanDesk.allocatedFunds();
                         let offer = await loanDesk.loanOffers(applicationId);
 
                         let newOfferedAmount = offer.amount.div(2);
