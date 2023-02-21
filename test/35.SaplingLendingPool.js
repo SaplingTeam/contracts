@@ -88,7 +88,6 @@ describe('Sapling Lending Pool', function () {
             coreAccessControl.address,
             staker.address,
             POOL_1_LENDER_GOVERNANCE_ROLE,
-            TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
 

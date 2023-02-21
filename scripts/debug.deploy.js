@@ -66,7 +66,6 @@ async function main() {
         coreAccessControl.address,
         stakerAddress,
         POOL_1_LENDER_GOVERNANCE_ROLE,
-        DECIMALS,
     ]);
     await loanDeskContract.deployed();
     console.log("LoanDesk address: \t\t", loanDeskContract.address);

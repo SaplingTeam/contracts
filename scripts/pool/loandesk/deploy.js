@@ -9,7 +9,6 @@ async function main() {
     const coreAccessControlAddress = arguments[2];
     const stakerAddress = arguments[3];
     const lenderGovernanceRoleName = arguments[4];
-    const DECIMALS = arguments[5];
 
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(lenderGovernanceRoleName));
 
@@ -24,7 +23,6 @@ async function main() {
         coreAccessControlAddress,
         stakerAddress,
         POOL_1_LENDER_GOVERNANCE_ROLE,
-        DECIMALS,
     ]);
     await loanDeskContract.deployed();
     console.log("LoanDesk address: \t\t", loanDeskContract.address);

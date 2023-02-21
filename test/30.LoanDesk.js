@@ -87,7 +87,6 @@ describe('Loan Desk', function () {
             coreAccessControl.address,
             staker.address,
             POOL_1_LENDER_GOVERNANCE_ROLE,
-            TOKEN_DECIMALS,
         ]);
         await loanDesk.deployed();
 
@@ -109,7 +108,6 @@ describe('Loan Desk', function () {
                     coreAccessControl.address,
                     staker.address,
                     POOL_1_LENDER_GOVERNANCE_ROLE,
-                    TOKEN_DECIMALS,
                 ]),
             ).to.be.not.reverted;
         });

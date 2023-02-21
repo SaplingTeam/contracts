@@ -5,6 +5,7 @@ pragma solidity ^0.8.15;
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./context/SaplingStakerContext.sol";
 import "./interfaces/ILoanDesk.sol";
 import "./interfaces/IPoolContext.sol";
@@ -92,8 +93,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         address _liquidityToken,
         address _accessControl,
         address _stakerAddress,
-        bytes32 _lenderGovernanceRole,
-        uint8 _decimals
+        bytes32 _lenderGovernanceRole
     )
         public
         initializer
@@ -107,7 +107,10 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         assert(config.pool == address(0) && nextApplicationId == 0);
 
         require(_pool != address(0), "LoanDesk: invalid pool address");
+        require(_liquidityToken != address(0), "LoanDesk: invalid liquidity token address");
+        require(_lenderGovernanceRole != 0x00, "LoanDesk: invalid lender governance role");
 
+        uint8 _decimals = IERC20Metadata(_liquidityToken).decimals();
 
         loanTemplate = LoanTemplate({
             minAmount: 100 * 10 ** uint256(_decimals), // 100 asset tokens
