@@ -206,7 +206,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to deposit.
      */
     function deposit(uint256 amount) external onlyUser noWithdrawalRequests whenNotPaused whenNotClosed {
-        require(amount > 0 && amount <= amountDepositable(), "SaplingPoolContext: invalid deposit amount");
+        require(amount <= amountDepositable(), "SaplingPoolContext: invalid deposit amount");
 
         uint256 sharesMinted = enter(amount);
 
@@ -448,8 +448,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to stake.
      */
     function stake(uint256 amount) external onlyStaker whenNotPaused whenNotClosed {
-        require(amount > 0, "SaplingPoolContext: stake amount is 0");
-
         uint256 sharesMinted = enter(amount);
 
         emit FundsStaked(msg.sender, amount, sharesMinted);
@@ -673,7 +671,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     function enter(uint256 amount) internal nonReentrant returns (uint256) {
         //// check
 
-        require(amount > 0, "SaplingPoolContext: pool deposit amount is 0");
+        require(amount >= 10 ** tokenConfig.decimals, "SaplingPoolContext: entry amount too low");
 
         bool isStaker = msg.sender == staker;
 
