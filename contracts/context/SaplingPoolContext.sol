@@ -26,13 +26,14 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     /// Key pool balances
     PoolBalance public balances;
 
-    /// Per user withdrawal request states
-    mapping (address => WithdrawalRequestState) public withdrawalRequestStates;
+    /// Per user withdrawal allowances with time windows
+    mapping (address => WithdrawalAllowance) public withdrawalAllowances;
 
     modifier noWithdrawalRequests() {
+        WithdrawalAllowance storage allowance = withdrawalAllowances[msg.sender];
         require(
-            withdrawalRequestStates[msg.sender].countOutstanding == 0,
-            "SaplingPoolContext: deposit not allowed while having withdrawal requests"
+            allowance.amount == 0 || block.timestamp >= allowance.timeTo,
+            "SaplingPoolContext: deposit not allowed. Active withdrawal allowance found."
         );
         _;
     }
@@ -207,6 +208,21 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         emit FundsDeposited(msg.sender, amount, sharesMinted);
     }
 
+    function requestWithdrawalAllowance(uint256 _amount) external onlyUser whenNotPaused {
+        require(_amount <= balanceOf(msg.sender), "SaplingPoolContext: amount exceeds account balance");
+
+        uint256 _timeFrom = block.timestamp + 1 minutes;
+        uint256 _timeTo = _timeFrom + 10 minutes;
+
+        withdrawalAllowances[msg.sender] = WithdrawalAllowance({
+            amount: _amount,
+            timeFrom: _timeFrom,
+            timeTo: _timeTo
+        });
+
+        emit WithdrawalAllowanceRequested(msg.sender, _amount, _timeFrom, _timeTo);
+    }
+
     /**
      * @notice Withdraw funds from the pool. Withdrawals redeem equivalent amount of the caller's pool tokens
      *         by burning the tokens in question.
@@ -215,10 +231,19 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to withdraw.
      */
     function withdraw(uint256 amount) public onlyUser whenNotPaused {
+        WithdrawalAllowance storage allowance = withdrawalAllowances[msg.sender];
+
+        require(amount <= allowance.amount, "SaplingPoolContext: insufficient withdrawal allowance amount");
+        require(block.timestamp >= allowance.timeFrom, "SaplingPoolContext: request is too early");
+        require(block.timestamp < allowance.timeTo, "SaplingPoolContext: withdrawal allowance has expired");
+
         require(
-            amount > 0 && amount <= amountWithdrawable(msg.sender),
-            "SaplingPoolContext: invalid withdrawal amount"
+            amount <= amountWithdrawable(msg.sender),
+            "SaplingPoolContext: requested amount is unavailable at this time"
         );
+
+        // set allowance amount to zero, disabling the allowance and making it single use
+        allowance.amount = 0;
 
         uint256 sharesBurned = exit(amount);
 
@@ -654,5 +679,5 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     /**
      * @dev Slots reserved for future state variables
      */
-    uint256[35] private __gap;
+    uint256[42] private __gap;
 }

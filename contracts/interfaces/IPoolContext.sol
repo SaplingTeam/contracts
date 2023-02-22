@@ -63,10 +63,11 @@ interface IPoolContext {
         uint256 stakedShares;
     }
 
-    /// Per user state for all of the user's withdrawal requests
-    struct WithdrawalRequestState {
-        uint256 sharesLocked;
-        uint8 countOutstanding;
+    /// Per user withdrawal allowance with a time window
+    struct WithdrawalAllowance {
+        uint256 amount;
+        uint256 timeFrom;
+        uint256 timeTo;
     }
 
     /// Helper struct for APY views
@@ -109,17 +110,8 @@ interface IPoolContext {
     /// Event for when the staker earnings are transferred
     event StakerEarnings(address wallet, uint256 amount);
 
-    /// Event for when a new withdrawal request is made
-    event WithdrawalRequested(uint256 id, address wallet, uint256 sharesLocked);
-
-    /// Event for when a withdrawal request amount is updated
-    event WithdrawalRequestUpdated(uint256 id, address wallet, uint256 prevSharesLocked, uint256 sharesLocked);
-
-    /// Event for when a withdrawal request is cancelled
-    event WithdrawalRequestCancelled(uint256 id, address wallet);
-
-    /// Event for when a withdrawal request is fully fulfilled
-    event WithdrawalRequestFulfilled(uint256 id, address wallet, uint256 amount);
+    /// Event for when a withdrawal allowance request is made
+    event WithdrawalAllowanceRequested(address indexed wallet, uint256 amount, uint256 timeFrom, uint256 timeTo);
 
     /// Setter event
     event TargetStakePercentSet(uint16 prevValue, uint16 newValue);
