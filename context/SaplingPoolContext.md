@@ -28,21 +28,13 @@ struct IPoolContext.PoolBalance balances
 
 Key pool balances
 
-### withdrawalRequestStates
+### withdrawalAllowances
 
 ```solidity
-mapping(address => struct IPoolContext.WithdrawalRequestState) withdrawalRequestStates
+mapping(address => struct IPoolContext.WithdrawalAllowance) withdrawalAllowances
 ```
 
-Per user withdrawal request states
-
-### withdrawalQueue
-
-```solidity
-struct WithdrawalRequestQueue.LinkedMap withdrawalQueue
-```
-
-Withdrawal request queue
+Per user withdrawal allowances with time windows
 
 ### noWithdrawalRequests
 
@@ -161,6 +153,12 @@ _Deposit amount must be non zero and not exceed amountDepositable().
 | ---- | ---- | ----------- |
 | amount | uint256 | Liquidity token amount to deposit. |
 
+### requestWithdrawalAllowance
+
+```solidity
+function requestWithdrawalAllowance(uint256 _amount) external
+```
+
 ### withdraw
 
 ```solidity
@@ -176,100 +174,6 @@ _Withdrawal amount must be non zero and not exceed amountWithdrawable()._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | amount | uint256 | Liquidity token amount to withdraw. |
-
-### requestWithdrawal
-
-```solidity
-function requestWithdrawal(uint256 shares) external
-```
-
-Request funds for withdrawal by locking in pool shares.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| shares | uint256 | Amount of pool tokens to lock. |
-
-### updateWithdrawalRequest
-
-```solidity
-function updateWithdrawalRequest(uint256 id, uint256 newShareAmount) external
-```
-
-Update a withdrawal request.
-
-_Existing request funds can only be decreased. Minimum request amount rule must be maintained.
-     Requested position must belong to the caller._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| id | uint256 | ID of the withdrawal request to update. |
-| newShareAmount | uint256 | New total pool token amount to be locked in the request. |
-
-### cancelWithdrawalRequest
-
-```solidity
-function cancelWithdrawalRequest(uint256 id) external
-```
-
-Cancel a withdrawal request.
-
-_Requested position must belong to the caller._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| id | uint256 | ID of the withdrawal request to update. |
-
-### fulfillWithdrawalRequests
-
-```solidity
-function fulfillWithdrawalRequests(uint256 count) external
-```
-
-Fulfill withdrawal requests in batch if liquidity requirements are met.
-
-_Anyone can trigger fulfillment of a withdrawal request.
-     
-     It is in the interest of the pool to keep the withdrawal requests fulfilled as soon as there is
-     liquidity, as unfulfilled requests will keep earning yield but lock liquidity once the liquidity comes in._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| count | uint256 | The number of positions to fulfill starting from the head of the queue.         If the count is greater than queue length, then the entire queue is processed. |
-
-### fulfillWithdrawalRequestById
-
-```solidity
-function fulfillWithdrawalRequestById(uint256 id) external
-```
-
-Fulfill a single arbitrary withdrawal request.
-
-_Anyone can trigger fulfillment of a withdrawal request. Fulfillment is on demand, and other requests 
-     in the queue are not processed but their liquidity requirements have to be met._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| id | uint256 | ID of the withdrawal request to fulfill |
-
-### fulfillNextWithdrawalRequest
-
-```solidity
-function fulfillNextWithdrawalRequest() private
-```
-
-_Fulfill a single withdrawal request at the top of the queue._
-
-### fulfillWithdrawalRequest
-
-```solidity
-function fulfillWithdrawalRequest(uint256 id) private
-```
-
-_Fulfill a single withdrawal request by id._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| id | uint256 | ID of the withdrawal request to fulfill |
 
 ### stake
 
@@ -348,50 +252,6 @@ _Return value depends on the callers balance, and is limited by pool liquidity._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | uint256 | Max amount of liquidity tokens withdrawable by the caller. |
-
-### withdrawalRequestsLength
-
-```solidity
-function withdrawalRequestsLength() external view returns (uint256)
-```
-
-Accessor
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Current length of the withdrawal queue |
-
-### getWithdrawalRequestAt
-
-```solidity
-function getWithdrawalRequestAt(uint256 i) external view returns (struct WithdrawalRequestQueue.Request)
-```
-
-Accessor
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| i | uint256 | Index of the withdrawal request in the queue |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | struct WithdrawalRequestQueue.Request | WithdrawalRequestQueue object |
-
-### getWithdrawalRequestById
-
-```solidity
-function getWithdrawalRequestById(uint256 id) external view returns (struct WithdrawalRequestQueue.Request)
-```
-
-Accessor
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| id | uint256 | ID of the withdrawal request |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | struct WithdrawalRequestQueue.Request | WithdrawalRequestQueue object |
 
 ### balanceStaked
 
@@ -610,7 +470,7 @@ _Represent percentage parameter values in contract specific format._
 ### __gap
 
 ```solidity
-uint256[35] __gap
+uint256[42] __gap
 ```
 
 _Slots reserved for future state variables_

@@ -20,8 +20,6 @@
 
 [PoolToken](PoolToken)
 
-[lib/WithdrawalRequestQueue](lib/WithdrawalRequestQueue)
-
 [lib/SaplingMath](lib/SaplingMath)
 
 [lib/SaplingRoles](lib/SaplingRoles)

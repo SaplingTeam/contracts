@@ -32,17 +32,17 @@ struct PoolConfig {
 struct PoolBalance {
   uint256 rawLiquidity;
   uint256 poolFunds;
-  uint256 withdrawalRequestedShares;
   uint256 stakedShares;
 }
 ```
 
-### WithdrawalRequestState
+### WithdrawalAllowance
 
 ```solidity
-struct WithdrawalRequestState {
-  uint256 sharesLocked;
-  uint8 countOutstanding;
+struct WithdrawalAllowance {
+  uint256 amount;
+  uint256 timeFrom;
+  uint256 timeTo;
 }
 ```
 
@@ -121,37 +121,13 @@ event StakerEarnings(address wallet, uint256 amount)
 
 Event for when the staker earnings are transferred
 
-### WithdrawalRequested
+### WithdrawalAllowanceRequested
 
 ```solidity
-event WithdrawalRequested(uint256 id, address wallet, uint256 sharesLocked)
+event WithdrawalAllowanceRequested(address wallet, uint256 amount, uint256 timeFrom, uint256 timeTo)
 ```
 
-Event for when a new withdrawal request is made
-
-### WithdrawalRequestUpdated
-
-```solidity
-event WithdrawalRequestUpdated(uint256 id, address wallet, uint256 prevSharesLocked, uint256 sharesLocked)
-```
-
-Event for when a withdrawal request amount is updated
-
-### WithdrawalRequestCancelled
-
-```solidity
-event WithdrawalRequestCancelled(uint256 id, address wallet)
-```
-
-Event for when a withdrawal request is cancelled
-
-### WithdrawalRequestFulfilled
-
-```solidity
-event WithdrawalRequestFulfilled(uint256 id, address wallet, uint256 amount)
-```
-
-Event for when a withdrawal request is fully fulfilled
+Event for when a withdrawal allowance request is made
 
 ### TargetStakePercentSet
 
