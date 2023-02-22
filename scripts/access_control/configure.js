@@ -12,7 +12,6 @@ async function main() {
 
     const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
     const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
-    const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
 
     console.log("START Configure. Deployer: \t\t", deployer.address);
@@ -24,7 +23,6 @@ async function main() {
 
 
     console.log("GOVERNANCE_ROLE: ", GOVERNANCE_ROLE);
-    console.log("TREASURY_ROLE: ", TREASURY_ROLE);
     console.log("PAUSER_ROLE: ", PAUSER_ROLE);
 
     console.log("deployer: ", deployer.address);
@@ -33,9 +31,6 @@ async function main() {
     console.log("\nAssigning ownership and linking contracts ...");
     await sleep(15);
     await coreAccessControl.connect(deployer).grantRole(GOVERNANCE_ROLE, governanceAddress);
-
-    await sleep(15);
-    await coreAccessControl.connect(deployer).grantRole(TREASURY_ROLE, governanceAddress);
 
     await sleep(15);
     await coreAccessControl.connect(deployer).grantRole(PAUSER_ROLE, governanceAddress);
