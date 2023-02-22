@@ -1,4 +1,5 @@
 const {ethers} = require("hardhat");
+const arguments = require("./arguments");
 
 async function main() {
     [deployer, ...addrs] = await ethers.getSigners();
@@ -8,6 +9,7 @@ async function main() {
     const liquidityTokenAddress = arguments[1];
     const coreAccessControlAddress = arguments[2];
     const stakerAddress = arguments[3];
+    const treasuryAddress = arguments[4];
 
     console.log("Deployer address: \t\t", deployer.address);
     console.log("Balance before: \t\t", (await deployer.getBalance()).toString());
@@ -18,6 +20,7 @@ async function main() {
         poolTokenAddress,
         liquidityTokenAddress,
         coreAccessControlAddress,
+        treasuryAddress,
         stakerAddress,
     ]);
     await saplingPoolContract.deployed();
