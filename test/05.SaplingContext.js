@@ -21,7 +21,6 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
 
     const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
     const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
-    const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
     const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
     const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
@@ -58,7 +57,6 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
         await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
 
         await coreAccessControl.connect(governance).grantRole(GOVERNANCE_ROLE, governance.address);
-        await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
         await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
 
         await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
@@ -75,6 +73,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
+            protocol.address,
             staker.address
         ]);
         await lendingPool.deployed();
@@ -106,6 +105,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                     poolToken2.address,
                     liquidityToken.address,
                     coreAccessControl.address,
+                    protocol.address,
                     staker.address
                 ]),
             ).to.be.not.reverted;
@@ -118,6 +118,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                         poolToken.address,
                         liquidityToken.address,
                         NULL_ADDRESS,
+                        protocol.address,
                         staker.address
                     ]),
                 ).to.be.reverted;
@@ -132,7 +133,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             });
 
             it('Protocol wallet address is correct', async function () {
-                expect(await coreAccessControl.getRoleMember(TREASURY_ROLE, 0)).to.equal(protocol.address);
+                expect(await saplingContext.treasury()).to.equal(protocol.address);
             });
 
             it('Context is not paused', async function () {

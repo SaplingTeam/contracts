@@ -78,6 +78,7 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
+            protocol.address,
             staker.address
         ]);
         await lendingPool.deployed();
@@ -107,6 +108,7 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
                     poolToken.address,
                     liquidityToken.address,
                     coreAccessControl.address,
+                    protocol.address,
                     staker.address
                 ]),
             ).to.be.not.reverted;

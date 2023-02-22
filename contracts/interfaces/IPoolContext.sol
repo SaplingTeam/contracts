@@ -65,9 +65,6 @@ interface IPoolContext {
 
         /// Staker's shares
         uint256 stakedShares;
-
-        /// Accumulated protocol revenue, withdrawable
-        uint256 protocolRevenue;
     }
 
     /// Per user state for all of the user's withdrawal requests
@@ -112,9 +109,6 @@ interface IPoolContext {
 
     /// Event for when staker funds are unstaked
     event FundsUnstaked(address wallet, uint256 amount, uint256 sharesRedeemed);
-
-    /// Event for when the protocol revenue is collected
-    event ProtocolRevenueCollected(address wallet, uint256 amount);
 
     /// Event for when the staker earnings are transferred
     event StakerEarnings(address wallet, uint256 amount);

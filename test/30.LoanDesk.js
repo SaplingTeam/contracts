@@ -77,6 +77,7 @@ describe('Loan Desk', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
+            protocol.address,
             staker.address
         ]);
         await lendingPool.deployed();
@@ -565,19 +566,6 @@ describe('Loan Desk', function () {
                     await expect(
                         loanDesk
                             .connect(staker)
-                            .requestLoan(
-                                loanAmount,
-                                loanDuration,
-                                'a937074e-85a7-42a9-b858-9795d9471759',
-                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
-                            ),
-                    ).to.be.reverted;
-                });
-
-                it('Requesting a loan as the protocol should fail', async function () {
-                    await expect(
-                        loanDesk
-                            .connect(protocol)
                             .requestLoan(
                                 loanAmount,
                                 loanDuration,

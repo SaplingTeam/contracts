@@ -79,6 +79,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
+            protocol.address,
             staker.address
         ]);
         await lendingPool.deployed();
@@ -120,6 +121,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     poolToken2.address,
                     liquidityToken.address,
                     coreAccessControl.address,
+                    protocol.address,
                     staker.address
                 ]),
             ).to.be.not.reverted;
@@ -136,6 +138,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         poolToken2.address,
                         NULL_ADDRESS,
                         coreAccessControl.address,
+                        protocol.address,
                         staker.address
                     ]),
                 ).to.be.reverted;
@@ -147,6 +150,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         NULL_ADDRESS,
                         liquidityToken.address,
                         coreAccessControl.address,
+                        protocol.address,
                         staker.address
                     ]),
                 ).to.be.reverted;
@@ -164,6 +168,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         badPoolToken.address,
                         liquidityToken.address,
                         coreAccessControl.address,
+                        protocol.address,
                         staker.address
                     ]),
                 ).to.be.reverted;
@@ -291,7 +296,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 expect(await saplingPoolContext.poolFundsLimit()).to.equal(0);
                 expect((await saplingPoolContext.balances()).poolFunds).to.equal(10 ** TOKEN_DECIMALS);
                 expect((await saplingPoolContext.balances()).rawLiquidity).to.equal(10 ** TOKEN_DECIMALS);
-                expect((await saplingPoolContext.balances()).protocolRevenue).to.equal(0);
             });
         });
 
@@ -966,12 +970,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     await expect(saplingPoolContext.connect(staker).deposit(depositAmount)).to.be.reverted;
                 });
 
-                it('Depositing as the protocol should fail', async function () {
-                    await liquidityToken.connect(lender1).transfer(protocol.address, depositAmount);
-                    await liquidityToken.connect(protocol).approve(saplingPoolContext.address, depositAmount);
-                    await expect(saplingPoolContext.connect(protocol).deposit(depositAmount)).to.be.reverted;
-                });
-
                 it('Depositing as the governance should fail', async function () {
                     await liquidityToken.connect(lender1).transfer(governance.address, depositAmount);
                     await liquidityToken.connect(governance).approve(saplingPoolContext.address, depositAmount);
@@ -1167,74 +1165,22 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                     let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
-                    await ethers.provider.send('evm_increaseTime', [loanDuration.toNumber()]);
+                    await ethers.provider.send('evm_increaseTime', [loanDuration.toNumber() - 3]);
                     await ethers.provider.send('evm_mine');
+                });
 
-                    let paymentAmount = await loanDesk.loanBalanceDue(loanId);
+                it('Treasury earns protocol fee on paid interest', async function () {
+                    let paymentAmount = await loanDesk.loanBalanceDue(1);
+                    paymentAmount = paymentAmount.sub(loanAmount);
 
                     await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
                     await liquidityToken.connect(borrower1).approve(saplingPoolContext.address, paymentAmount);
-                    await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
-                });
 
-                it('Protocol can withdraw earned protocol fees', async function () {
-                    let tokenBalanceBefore = await liquidityToken.balanceOf(protocol.address);
-                    let poolBalanceBefore = (await saplingPoolContext.balances()).protocolRevenue;
-
-                    await saplingPoolContext.connect(protocol).collectProtocolRevenue(poolBalanceBefore);
-
-                    expect(await liquidityToken.balanceOf(protocol.address)).to.equal(
-                        tokenBalanceBefore.add(poolBalanceBefore),
+                    await expect(loanDesk.connect(borrower1).repay(1, paymentAmount)).to.changeTokenBalance(
+                        liquidityToken,
+                        protocol.address,
+                        paymentAmount.div(5),
                     );
-                    expect((await saplingPoolContext.balances()).protocolRevenue).to.equal(0);
-                });
-
-                it('Protocol fee withdrawal is reflected on the pool contract balance', async function () {
-                    let prevBalance = await liquidityToken.balanceOf(saplingPoolContext.address);
-
-                    let withdrawAmount = (await saplingPoolContext.balances()).protocolRevenue;
-                    await saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount);
-
-                    let balance = await liquidityToken.balanceOf(saplingPoolContext.address);
-                    expect(balance).to.equal(prevBalance.sub(withdrawAmount))
-                });
-
-                it('Protocol fee withdrawal is not reflected on pool liquidity', async function () {
-                    let prevLiquidity = (await saplingPoolContext.balances()).rawLiquidity;
-                    let balanceBefore = (await saplingPoolContext.balances()).protocolRevenue;
-
-                    await saplingPoolContext.connect(protocol).collectProtocolRevenue(balanceBefore);
-
-                    let liquidity = (await saplingPoolContext.balances()).rawLiquidity;
-
-                    expect(liquidity).to.equal(prevLiquidity);
-                });
-
-                it('Protocol fee withdrawal is not reflected on pool funds', async function () {
-                    let prevPoolFunds = (await saplingPoolContext.balances()).poolFunds;
-
-                    let withdrawAmount = (await saplingPoolContext.balances()).protocolRevenue;
-                    await saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount);
-
-                    let poolFunds = (await saplingPoolContext.balances()).poolFunds;
-
-                    expect(poolFunds).to.equal(prevPoolFunds);
-                });
-
-                describe('Rejection scenarios', function () {
-                    it('Protocol fees cannot be withdrawn while the pool is paused', async function () {
-                        await saplingPoolContext.connect(governance).pause();
-                        let withdrawAmount = (await saplingPoolContext.balances()).protocolRevenue;
-                        await expect(saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount)).to.be.reverted;
-                    });
-
-                    it('Protocol withdrawal should fail when balance is zero', async function () {
-                        let withdrawAmount = (await saplingPoolContext.balances()).protocolRevenue;
-                        await saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount);
-
-                        expect((await saplingPoolContext.balances()).protocolRevenue).to.equal(0);
-                        await expect(saplingPoolContext.connect(protocol).collectProtocolRevenue(withdrawAmount)).to.be.reverted;
-                    });
                 });
             });
         });
