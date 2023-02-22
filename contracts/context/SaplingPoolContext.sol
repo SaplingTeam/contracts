@@ -10,15 +10,12 @@ import "../interfaces/IPoolContext.sol";
 import "../interfaces/IPoolToken.sol";
 import "./SaplingStakerContext.sol";
 import "../lib/SaplingMath.sol";
-import "../lib/WithdrawalRequestQueue.sol";
 
 /**
  * @title Sapling Pool Context
  * @notice Provides common pool functionality with lender deposits, first loss capital staking, and reward distribution.
  */
 abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, ReentrancyGuardUpgradeable {
-
-    using WithdrawalRequestQueue for WithdrawalRequestQueue.LinkedMap;
 
     /// Tokens configuration
     TokenConfig public tokenConfig;
@@ -31,9 +28,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
     /// Per user withdrawal request states
     mapping (address => WithdrawalRequestState) public withdrawalRequestStates;
-
-    /// Withdrawal request queue
-    WithdrawalRequestQueue.LinkedMap private withdrawalQueue;
 
     modifier noWithdrawalRequests() {
         require(
@@ -231,214 +225,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         emit FundsWithdrawn(msg.sender, amount, sharesBurned);
     }
 
-    /** 
-     * @notice Request funds for withdrawal by locking in pool shares.
-     * @param shares Amount of pool tokens to lock. 
-     */
-    function requestWithdrawal(uint256 shares) external onlyUser whenNotPaused {
-
-        uint256 amount = sharesToFunds(shares);
-        uint256 outstandingRequestsAmount = sharesToFunds(balances.withdrawalRequestedShares);
-
-        //// base case
-        if (
-            balances.rawLiquidity >= outstandingRequestsAmount 
-            && amount <= balances.rawLiquidity - outstandingRequestsAmount
-        )
-        {
-            withdraw(amount);
-            return;
-        }
-
-        //// check
-        require(
-            shares <= IERC20(tokenConfig.poolToken).balanceOf(msg.sender), 
-            "SaplingPoolContext: insufficient balance"
-        );
-
-        require(amount >= config.minWithdrawalRequestAmount, "SaplingPoolContext: amount is less than the minimum");
-
-        WithdrawalRequestState storage state = withdrawalRequestStates[msg.sender];
-        require(state.countOutstanding <= 3, "SaplingPoolContext: too many outstanding withdrawal requests");
-
-        //// effect
-
-        uint256 requestId = withdrawalQueue.queue(msg.sender, shares);
-
-        state.countOutstanding++;
-        state.sharesLocked += shares;
-        balances.withdrawalRequestedShares += shares;
-
-        //// interactions
-
-        SafeERC20Upgradeable.safeTransferFrom(
-            IERC20Upgradeable(tokenConfig.poolToken),
-            msg.sender,
-            address(this),
-            shares
-        );
-
-        emit WithdrawalRequested(requestId, msg.sender, shares);
-    }
-
-    /**
-     * @notice Update a withdrawal request.
-     * @dev Existing request funds can only be decreased. Minimum request amount rule must be maintained.
-     *      Requested position must belong to the caller.
-     * @param id ID of the withdrawal request to update.
-     * @param newShareAmount New total pool token amount to be locked in the request.
-     */
-    function updateWithdrawalRequest(uint256 id, uint256 newShareAmount) external whenNotPaused {
-        //// check        
-        WithdrawalRequestQueue.Request memory request = withdrawalQueue.get(id);
-        require(request.wallet == msg.sender, "SaplingPoolContext: unauthorized");
-        require(
-            newShareAmount < request.sharesLocked && sharesToFunds(newShareAmount) >= config.minWithdrawalRequestAmount,
-            "SaplingPoolContext: invalid share amount"
-        );
-
-        //// effect
-        
-        uint256 shareDifference = withdrawalQueue.update(id, newShareAmount);
-        uint256 prevLockedShares = withdrawalRequestStates[request.wallet].sharesLocked;
-
-        withdrawalRequestStates[request.wallet].sharesLocked -= shareDifference;
-        balances.withdrawalRequestedShares -= shareDifference;
-
-
-        //// interactions
-
-        // unlock shares
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20Upgradeable(tokenConfig.poolToken),
-            request.wallet,
-            shareDifference
-        );
-
-        emit WithdrawalRequestUpdated(
-            id,
-            request.wallet,
-            prevLockedShares,
-            withdrawalRequestStates[request.wallet].sharesLocked
-        );
-    }
-
-    /**
-     * @notice Cancel a withdrawal request.
-     * @dev Requested position must belong to the caller.
-     * @param id ID of the withdrawal request to update.
-     */
-    function cancelWithdrawalRequest(uint256 id) external whenNotPaused {
-
-        //// check
-        WithdrawalRequestQueue.Request memory request = withdrawalQueue.get(id);
-        require(request.wallet == msg.sender, "SaplingPoolContext: unauthorized");
-
-        //// effect
-        withdrawalQueue.remove(id);
-        
-        WithdrawalRequestState storage state = withdrawalRequestStates[request.wallet];
-        state.countOutstanding--;
-        state.sharesLocked -= request.sharesLocked;
-        balances.withdrawalRequestedShares -= request.sharesLocked;
-
-        //// interactions
-
-        // unlock shares
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20Upgradeable(tokenConfig.poolToken),
-            request.wallet,
-            request.sharesLocked
-        );
-
-        emit WithdrawalRequestCancelled(id, request.wallet);
-    }
-
-    /**
-     * @notice Fulfill withdrawal requests in batch if liquidity requirements are met.
-     * @dev Anyone can trigger fulfillment of a withdrawal request.
-     *      
-     *      It is in the interest of the pool to keep the withdrawal requests fulfilled as soon as there is
-     *      liquidity, as unfulfilled requests will keep earning yield but lock liquidity once the liquidity comes in.
-     *
-     * @param count The number of positions to fulfill starting from the head of the queue. 
-     *        If the count is greater than queue length, then the entire queue is processed.
-     */
-    function fulfillWithdrawalRequests(uint256 count) external whenNotPaused nonReentrant {
-
-        uint256 remaining = MathUpgradeable.min(count, withdrawalQueue.length());
-        while (remaining > 0) {
-            fulfillNextWithdrawalRequest();
-            remaining--;
-        }
-    }
-
-    /**
-     * @notice Fulfill a single arbitrary withdrawal request.
-     * @dev Anyone can trigger fulfillment of a withdrawal request. Fulfillment is on demand, and other requests 
-     *      in the queue are not processed but their liquidity requirements have to be met.
-     *
-     * @param id ID of the withdrawal request to fulfill
-     */
-    function fulfillWithdrawalRequestById(uint256 id) external whenNotPaused nonReentrant {
-        require(
-            balances.rawLiquidity >= sharesToFunds(balances.withdrawalRequestedShares),
-            "SaplingPoolContext: insufficient liquidity for arbitrary request fulfillment"
-        );
-
-        fulfillWithdrawalRequest(id);
-    }
-
-    /**
-     * @dev Fulfill a single withdrawal request at the top of the queue.
-     */
-    function fulfillNextWithdrawalRequest() private {
-        fulfillWithdrawalRequest(withdrawalQueue.headID());
-    }
-
-    /**
-     * @dev Fulfill a single withdrawal request by id.
-     * @param id ID of the withdrawal request to fulfill
-     */
-    function fulfillWithdrawalRequest(uint256 id) private {
-
-        //// check
-
-        WithdrawalRequestQueue.Request memory request = withdrawalQueue.get(id);
-        
-        uint256 requestedAmount = sharesToFunds(request.sharesLocked);
-        uint256 transferAmount = requestedAmount - MathUpgradeable.mulDiv(
-            requestedAmount, 
-            config.exitFeePercent, 
-            SaplingMath.HUNDRED_PERCENT
-        );
-
-        require(balances.rawLiquidity >= transferAmount, "SaplingPolContext: insufficient liquidity");
-
-        //// effect
-
-        withdrawalQueue.remove(request.id);
-
-        WithdrawalRequestState storage state = withdrawalRequestStates[request.wallet];
-        state.countOutstanding--;
-        state.sharesLocked -= request.sharesLocked;
-
-        balances.rawLiquidity -= transferAmount;
-
-        //// interactions
-
-        // burn shares
-        IPoolToken(tokenConfig.poolToken).burn(address(this), request.sharesLocked);
-
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20Upgradeable(tokenConfig.liquidityToken),
-            request.wallet,
-            transferAmount
-        );
-
-        emit WithdrawalRequestFulfilled(request.id, request.wallet, transferAmount);
-    }
-
     /**
      * @notice Stake funds into the pool. Staking funds will mint an equivalent amount of pool
      *         tokens and lock them in the pool. Exact exchange rate depends on the current pool state.
@@ -514,32 +300,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function amountWithdrawable(address wallet) public view returns (uint256) {
         return paused() ? 0 : MathUpgradeable.min(freeLenderLiquidity(), balanceOf(wallet));
-    }
-
-    /**
-     * @notice Accessor
-     * @return Current length of the withdrawal queue
-     */
-    function withdrawalRequestsLength() external view returns (uint256) {
-        return withdrawalQueue.length();
-    }
-
-    /**
-     * @notice Accessor
-     * @param i Index of the withdrawal request in the queue
-     * @return WithdrawalRequestQueue object
-     */
-    function getWithdrawalRequestAt(uint256 i) external view returns (WithdrawalRequestQueue.Request memory) {
-        return withdrawalQueue.at(i);
-    }
-
-    /**
-     * @notice Accessor
-     * @param id ID of the withdrawal request
-     * @return WithdrawalRequestQueue object
-     */
-    function getWithdrawalRequestById(uint256 id) external view returns (WithdrawalRequestQueue.Request memory) {
-        return withdrawalQueue.get(id);
     }
 
     /**
@@ -622,13 +382,10 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function strategyLiquidity() public view returns (uint256) {
 
-        uint256 lenderAllocatedLiquidity = MathUpgradeable.max(
-            sharesToFunds(balances.withdrawalRequestedShares),
-            MathUpgradeable.mulDiv(
+        uint256 lenderAllocatedLiquidity = MathUpgradeable.mulDiv(
                 balances.poolFunds,
                 config.targetLiquidityPercent,
                 SaplingMath.HUNDRED_PERCENT
-            )
         );
 
         return balances.rawLiquidity > lenderAllocatedLiquidity 
@@ -641,12 +398,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @return Shared liquidity available for all lenders to withdraw immediately without queuing withdrawal requests.
      */
     function freeLenderLiquidity() public view returns (uint256) {
-
-        uint256 withdrawalRequestedLiqudity = sharesToFunds(balances.withdrawalRequestedShares);
-
-        return balances.rawLiquidity > withdrawalRequestedLiqudity 
-            ? balances.rawLiquidity - withdrawalRequestedLiqudity
-            : 0;
+        return balances.rawLiquidity;
     }
 
     /**
