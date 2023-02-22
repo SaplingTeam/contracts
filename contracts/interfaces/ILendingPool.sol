@@ -10,6 +10,12 @@ interface ILendingPool {
     /// Event for when a new loan desk is set
     event LoanDeskSet(address prevAddress, address newAddress);
 
+    /// Setter event
+    event TreasurySet(address prevAddress, address newAddress);
+
+    /// Event for when the protocol revenue is collected
+    event ProtocolRevenue(address treasury, uint256 amount);
+
     /// Event for when a loan is defaulted
     event LoanDefaulted(uint256 loanId, address indexed borrower, uint256 stakerLoss, uint256 lenderLoss);
 

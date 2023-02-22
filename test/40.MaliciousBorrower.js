@@ -78,6 +78,7 @@ describe('Attack Sapling Lending Pool', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
+            protocol.address,
             staker.address
         ]);
         await lendingPool.deployed();
@@ -116,6 +117,7 @@ describe('Attack Sapling Lending Pool', function () {
                     poolToken2.address,
                     liquidityToken.address,
                     coreAccessControl.address,
+                    protocol.address,
                     staker.address
                 ]),
             ).to.be.not.reverted;

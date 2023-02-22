@@ -78,10 +78,6 @@ describe('Sapling Staker Context (internals)', function () {
                 expect(await contract.isNonUserAddressWrapper(governance.address)).to.equal(true);
             });
 
-            it('Protocol treasury is a non-user', async function () {
-                expect(await contract.isNonUserAddressWrapper(protocol.address)).to.equal(true);
-            });
-
             it('Pauser is a non-user', async function () {
                 expect(await contract.isNonUserAddressWrapper(pauser.address)).to.equal(true);            });
 
@@ -106,11 +102,6 @@ describe('Sapling Staker Context (internals)', function () {
 
             it('Governance cannot transact', async function () {
                 await expect(contract.connect(governance).someOnlyUserFunction(42))
-                    .to.be.revertedWith("SaplingStakerContext: caller is not a user");
-            });
-
-            it('Protocol treasury cannot transact', async function () {
-                await expect(contract.connect(protocol).someOnlyUserFunction(42))
                     .to.be.revertedWith("SaplingStakerContext: caller is not a user");
             });
 

@@ -78,6 +78,7 @@ describe('Sapling Lending Pool', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
+            protocol.address,
             staker.address
         ]);
         await lendingPool.deployed();
@@ -116,6 +117,7 @@ describe('Sapling Lending Pool', function () {
                     poolToken2.address,
                     liquidityToken.address,
                     coreAccessControl.address,
+                    protocol.address,
                     staker.address
                 ]),
             ).to.be.not.reverted;
@@ -445,30 +447,6 @@ describe('Sapling Lending Pool', function () {
                     let loanDetail = await loanDesk.loanDetails(loanId);
                     expect(loanDetail.totalAmountRepaid).to.equal(paymentAmount);
                     expect((await loanDesk.loans(loanId)).status).to.equal(LoanStatus.REPAID);
-                });
-
-                it('Repaying a loan will allocate protocol fees to the protocol', async function () {
-                    let balanceBefore = (await lendingPool.balances()).protocolRevenue;
-                    let loan = await loanDesk.loans(loanId);
-
-                    await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
-                    await ethers.provider.send('evm_mine');
-
-                    let paymentAmount = await loanDesk.loanBalanceDue(loanId);
-                    await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
-                    await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                    await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
-
-                    let loanDetail = await loanDesk.loanDetails(loanId);
-                    let protocolEarningPercent = (await lendingPool.config()).protocolFeePercent;
-                    let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
-
-                    let expectedProtocolFee = loanDetail.interestPaid
-                        .mul(protocolEarningPercent)
-                        .div(ONE_HUNDRED_PERCENT);
-                    expect((await lendingPool.balances()).protocolRevenue).to.equal(
-                        balanceBefore.add(expectedProtocolFee),
-                    );
                 });
 
                 it('Repaying a loan will transfer earnings to the staker', async function () {

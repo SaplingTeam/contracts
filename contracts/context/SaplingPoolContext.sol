@@ -493,29 +493,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Withdraw protocol revenue.
-     * @dev Revenue is in liquidity tokens.
-     *      Caller must have the treasury role.
-     * @param amount Liquidity token amount to withdraw.
-     */
-    function collectProtocolRevenue(uint256 amount) external onlyRole(SaplingRoles.TREASURY_ROLE) whenNotPaused {
-        //// check
-
-        require(amount > 0, "SaplingPoolContext: invalid amount");
-        require(amount <= balances.protocolRevenue, "SaplingPoolContext: insufficient balance");
-
-        //// effect
-
-        balances.protocolRevenue -= amount;
-
-        //// interactions
-
-        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), msg.sender, amount);
-
-        emit ProtocolRevenueCollected(msg.sender, amount);
-    }
-
-    /**
      * @notice Check liquidity token amount depositable by lenders at this time.
      * @dev Return value depends on the pool state rather than caller's balance.
      * @return Max amount of tokens depositable to the pool.
@@ -925,5 +902,5 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     /**
      * @dev Slots reserved for future state variables
      */
-    uint256[34] private __gap;
+    uint256[35] private __gap;
 }

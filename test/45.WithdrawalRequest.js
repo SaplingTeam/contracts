@@ -78,6 +78,7 @@ describe('Sapling Lending Pool - Withdrawal Requests', function () {
             poolToken.address,
             liquidityToken.address,
             coreAccessControl.address,
+            protocol.address,
             staker.address
         ]);
         await lendingPool.deployed();

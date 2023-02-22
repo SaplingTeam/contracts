@@ -69,8 +69,7 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
      * @return True if the address has any roles, false otherwise
      */
     function isNonUserAddress(address party) internal view virtual returns (bool) {
-        return hasRole(SaplingRoles.GOVERNANCE_ROLE, party) 
-            || hasRole(SaplingRoles.TREASURY_ROLE, party)
+        return hasRole(SaplingRoles.GOVERNANCE_ROLE, party)
             || hasRole(SaplingRoles.PAUSER_ROLE, party);
     }
 

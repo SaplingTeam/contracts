@@ -15,6 +15,9 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /// Address of the loan desk contract
     address public loanDesk;
 
+    /// Address where the protocol fees are sent to
+    address public treasury;
+
     /// Mark the loans closed to guards against double actions due to future bugs or compromised LoanDesk
     mapping(address => mapping(uint256 => bool)) private loanClosed;
 
@@ -37,18 +40,24 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @param _poolToken ERC20 token contract address to be used as the pool issued token.
      * @param _liquidityToken ERC20 token contract address to be used as pool liquidity currency.
      * @param _accessControl Access control contract
+     * @param _treasury Address where the protocol fees are sent to
      * @param _stakerAddress Staker address
      */
     function initialize(
         address _poolToken,
         address _liquidityToken,
         address _accessControl,
+        address _treasury,
         address _stakerAddress
     )
         public
         initializer
     {
         __SaplingPoolContext_init(_poolToken, _liquidityToken, _accessControl, _stakerAddress);
+
+        require(_treasury != address(0), "SaplingPoolContext: treasury address is not set");
+
+        treasury = _treasury;
     }
 
     /**
@@ -62,6 +71,17 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         address prevLoanDesk = loanDesk;
         loanDesk = _loanDesk;
         emit LoanDeskSet(prevLoanDesk, _loanDesk);
+    }
+
+    /**
+     * @notice Designates a new treasury address for the pool.
+     * @dev Protocol fees will be sent to this address on every interest payment.
+     * @param _treasury New treasury address
+     */
+    function setTreasury(address _treasury) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
+        address prevTreasury = treasury;
+        treasury = _treasury;
+        emit TreasurySet(prevTreasury, _treasury);
     }
 
     /**
@@ -133,21 +153,21 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         uint256 principalPaid;
         uint256 stakerEarnedInterest;
+        uint256 protocolEarnedInterest;
         if (interestPayable == 0) {
             principalPaid = transferAmount;
             balances.rawLiquidity += transferAmount;
             stakerEarnedInterest = 0;
+            protocolEarnedInterest = 0;
         } else {
             principalPaid = transferAmount - interestPayable;
 
             //share revenue to treasury
-            uint256 protocolEarnedInterest = MathUpgradeable.mulDiv(
+            protocolEarnedInterest = MathUpgradeable.mulDiv(
                 interestPayable,
                 config.protocolFeePercent,
                 SaplingMath.HUNDRED_PERCENT
             );
-
-            balances.protocolRevenue += protocolEarnedInterest;
 
             //share earnings to staker
             uint256 currentStakePercent = MathUpgradeable.mulDiv(
@@ -182,6 +202,17 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             address(this),
             transferAmount
         );
+
+        // send protocol fees to treasury
+        if (protocolEarnedInterest > 0) {
+            SafeERC20Upgradeable.safeTransfer(
+                IERC20Upgradeable(tokenConfig.liquidityToken),
+                treasury,
+                protocolEarnedInterest
+            );
+
+            emit ProtocolRevenue(treasury, protocolEarnedInterest);
+        }
 
         // send staker earnings
         if (stakerEarnedInterest > 0) {

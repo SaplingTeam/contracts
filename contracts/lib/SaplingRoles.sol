@@ -13,9 +13,6 @@ library SaplingRoles {
     /// Protocol governance role
     bytes32 public constant GOVERNANCE_ROLE = keccak256("GOVERNANCE_ROLE");
 
-    /// Protocol treasury role
-    bytes32 public constant TREASURY_ROLE = keccak256("TREASURY_ROLE");
-
     /**
      * @dev Pauser can be governance or an entity/bot designated as a monitor that 
      *      enacts a pause on emergencies or anomalies.
