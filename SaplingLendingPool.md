@@ -12,6 +12,14 @@ address loanDesk
 
 Address of the loan desk contract
 
+### treasury
+
+```solidity
+address treasury
+```
+
+Address where the protocol fees are sent to
+
 ### loanClosed
 
 ```solidity
@@ -39,7 +47,7 @@ _Disable initializers_
 ### initialize
 
 ```solidity
-function initialize(address _poolToken, address _liquidityToken, address _accessControl, address _stakerAddress) public
+function initialize(address _poolToken, address _liquidityToken, address _accessControl, address _treasury, address _stakerAddress) public
 ```
 
 Creates a Sapling pool.
@@ -51,6 +59,7 @@ _Addresses must not be 0._
 | _poolToken | address | ERC20 token contract address to be used as the pool issued token. |
 | _liquidityToken | address | ERC20 token contract address to be used as pool liquidity currency. |
 | _accessControl | address | Access control contract |
+| _treasury | address | Address where the protocol fees are sent to |
 | _stakerAddress | address | Staker address |
 
 ### setLoanDesk
@@ -68,6 +77,20 @@ _Caller must be the governance.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | _loanDesk | address | New LoanDesk address |
+
+### setTreasury
+
+```solidity
+function setTreasury(address _treasury) external
+```
+
+Designates a new treasury address for the pool.
+
+_Protocol fees will be sent to this address on every interest payment._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _treasury | address | New treasury address |
 
 ### onOfferAllocate
 

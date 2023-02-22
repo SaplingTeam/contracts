@@ -317,21 +317,6 @@ _Caller must be the staker.
      An appropriate spend limit must be present at the asset token contract.
      This function can only be called when the total pool token supply is zero._
 
-### collectProtocolRevenue
-
-```solidity
-function collectProtocolRevenue(uint256 amount) external
-```
-
-Withdraw protocol revenue.
-
-_Revenue is in liquidity tokens.
-     Caller must have the treasury role._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| amount | uint256 | Liquidity token amount to withdraw. |
-
 ### amountDepositable
 
 ```solidity
@@ -625,7 +610,7 @@ _Represent percentage parameter values in contract specific format._
 ### __gap
 
 ```solidity
-uint256[34] __gap
+uint256[35] __gap
 ```
 
 _Slots reserved for future state variables_

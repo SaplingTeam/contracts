@@ -12,6 +12,22 @@ event LoanDeskSet(address prevAddress, address newAddress)
 
 Event for when a new loan desk is set
 
+### TreasurySet
+
+```solidity
+event TreasurySet(address prevAddress, address newAddress)
+```
+
+Setter event
+
+### ProtocolRevenue
+
+```solidity
+event ProtocolRevenue(address treasury, uint256 amount)
+```
+
+Event for when the protocol revenue is collected
+
 ### LoanDefaulted
 
 ```solidity

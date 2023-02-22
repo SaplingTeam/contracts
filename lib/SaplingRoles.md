@@ -20,14 +20,6 @@ bytes32 GOVERNANCE_ROLE
 
 Protocol governance role
 
-### TREASURY_ROLE
-
-```solidity
-bytes32 TREASURY_ROLE
-```
-
-Protocol treasury role
-
 ### PAUSER_ROLE
 
 ```solidity
