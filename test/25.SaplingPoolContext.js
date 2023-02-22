@@ -752,7 +752,12 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             it('Staker can unstake full unstakable amount', async function () {
 
-                await saplingPoolContext.connect(lender1).withdraw(depositAmount.sub(10 ** TOKEN_DECIMALS));
+                let requestAmount = depositAmount.sub(10 ** TOKEN_DECIMALS);
+                await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(requestAmount);
+                await ethers.provider.send('evm_increaseTime', [61]);
+                await ethers.provider.send('evm_mine');
+
+                await saplingPoolContext.connect(lender1).withdraw(requestAmount);
 
                 let amount = await saplingPoolContext.amountUnstakable();
                 let exitFee = amount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
@@ -999,6 +1004,10 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     .mul(depositAmount.sub(withdrawAmount))
                     .div(stakeAmount.add(depositAmount.sub(withdrawAmount)).add(10 ** TOKEN_DECIMALS));
 
+                await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
+                await ethers.provider.send('evm_increaseTime', [61]);
+                await ethers.provider.send('evm_mine');
+
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
                 expect(await saplingPoolContext.balanceOf(lender1.address)).to.equal(
                     poolBalanceBefore.sub(withdrawAmount).add(exitFeeGain),
@@ -1011,6 +1020,10 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             it('Withdraw is reflected on the pool contract balance', async function () {
                 let prevBalance = await liquidityToken.balanceOf(saplingPoolContext.address);
+
+                await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
+                await ethers.provider.send('evm_increaseTime', [61]);
+                await ethers.provider.send('evm_mine');
 
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
 
@@ -1026,6 +1039,10 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             it('Withdraw is reflected on pool liquidity', async function () {
                 let prevLiquidity = (await saplingPoolContext.balances()).rawLiquidity;
 
+                await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
+                await ethers.provider.send('evm_increaseTime', [61]);
+                await ethers.provider.send('evm_mine');
+
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
 
                 let liquidity = (await saplingPoolContext.balances()).rawLiquidity;
@@ -1038,6 +1055,10 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             it('Withdraw is reflected on pool funds', async function () {
                 let prevPoolFunds = (await saplingPoolContext.balances()).poolFunds;
 
+                await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
+                await ethers.provider.send('evm_increaseTime', [61]);
+                await ethers.provider.send('evm_mine');
+
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
 
                 let poolFunds = (await saplingPoolContext.balances()).poolFunds;
@@ -1047,10 +1068,14 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 );
             });
 
-            it('Early Withdraw should charge an exit fee', async function () {
+            it('Withdrawal should charge an exit fee', async function () {
                 let tokenBalanceBefore = await liquidityToken.balanceOf(lender1.address);
 
                 let expectedWithdrawalFee = withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
+
+                await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
+                await ethers.provider.send('evm_increaseTime', [61]);
+                await ethers.provider.send('evm_mine');
 
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
 
@@ -1061,6 +1086,10 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             describe('Rejection scenarios', function () {
                 it('Withdrawing a zero amount should fail', async function () {
+                    await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
+                    await ethers.provider.send('evm_increaseTime', [61]);
+                    await ethers.provider.send('evm_mine');
+
                     await expect(saplingPoolContext.connect(lender1).withdraw(0)).to.be.reverted;
                 });
 
@@ -1096,18 +1125,29 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                     let amountWithdrawable = await saplingPoolContext.amountWithdrawable(lender1.address);
 
+                    await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(amountWithdrawable.add(1));
+                    await ethers.provider.send('evm_increaseTime', [61]);
+                    await ethers.provider.send('evm_mine');
+
                     await expect(saplingPoolContext.connect(lender1).withdraw(amountWithdrawable.add(1))).to.be
                         .reverted;
                 });
 
                 it('Withdrawing when the pool is paused should fail', async function () {
+                    await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
+                    await ethers.provider.send('evm_increaseTime', [61]);
+                    await ethers.provider.send('evm_mine');
+
                     await saplingPoolContext.connect(governance).pause();
+
                     await expect(saplingPoolContext.connect(lender1).withdraw(withdrawAmount)).to.be.reverted;
                 });
 
                 it('Withdrawing as the staker should fail', async function () {
                     let balance = await saplingPoolContext.balanceStaked();
-                    await expect(saplingPoolContext.connect(staker).withdraw(balance.div(10))).to.be.reverted;
+
+                    await expect(saplingPoolContext.connect(staker).requestWithdrawalAllowance(balance.div(10)))
+                        .to.be.reverted;
                 });
 
                 it('Withdrawing as a borrower should fail', async function () {
@@ -1127,6 +1167,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     await loanDesk
                         .connect(staker)
                         .draftOffer(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
+
+                    await expect(saplingPoolContext.connect(borrower2).requestWithdrawalAllowance(loanAmount))
+                        .to.be.reverted;
 
                     await expect(saplingPoolContext.connect(borrower2).withdraw(loanAmount)).to.be.reverted;
                 });
