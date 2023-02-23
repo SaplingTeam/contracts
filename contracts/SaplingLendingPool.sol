@@ -189,7 +189,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             );
 
             balances.rawLiquidity += transferAmount - (protocolEarnedInterest + stakerEarnedInterest);
-            balances.poolFunds += interestPayable - (protocolEarnedInterest + stakerEarnedInterest);
         }
 
 
@@ -257,9 +256,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         uint256 lenderLoss = 0;
 
         if (loss > 0) {
-            uint256 remainingLostShares = fundsToShares(loss);
-
-            balances.poolFunds -= loss;
+            uint256 remainingLostShares = fundsToSharesDefaultAware(loss, loss);
 
             if (balances.stakedShares > 0) {
                 uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, balances.stakedShares);
@@ -320,6 +317,15 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     }
 
     /**
+     * @notice Current amount of liquidity tokens in strategies, including both allocated and committed
+     *         but excluding pending yield.
+     * @dev Overrides the same method in the base contract.
+     */
+    function strategizedFunds() internal view override returns (uint256) {
+        return ILoanDesk(loanDesk).allocatedFunds() + ILoanDesk(loanDesk).lentFunds();
+    }
+
+    /**
      * @notice Estimate APY breakdown given the current pool state.
      * @return Current APY breakdown
      */
@@ -327,7 +333,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         return projectedAPYBreakdown(
             totalPoolTokenSupply(),
             balances.stakedShares,
-            balances.poolFunds,
+            poolFunds(),
             ILoanDesk(loanDesk).lentFunds(),
             ILoanDesk(loanDesk).weightedAvgAPR(),
             config.protocolFeePercent,

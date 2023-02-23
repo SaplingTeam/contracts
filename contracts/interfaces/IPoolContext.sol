@@ -54,9 +54,6 @@ interface IPoolContext {
         /// Current amount of liquid tokens, available to for pool strategies, withdrawals, withdrawal requests
         uint256 rawLiquidity;
 
-        /// Current amount of liquidity tokens in the pool, including both liquid and allocated funds
-        uint256 poolFunds;
-
         // Role specific balances
 
         /// Staker's shares
