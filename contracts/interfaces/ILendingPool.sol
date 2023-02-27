@@ -71,11 +71,13 @@ interface ILendingPool {
      * @dev Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
      * the staked funds. If these funds are not sufficient, the lenders will share the loss.
      * @param loanId ID of the loan to default
-     * @param loss Loss amount to resolve
+     * @param principalLoss Unpaid principal amount to resolve
+     * @param yieldLoss Unpaid yield amount to resolve
      */
     function onDefault(
         uint256 loanId,
-        uint256 loss
+        uint256 principalLoss,
+        uint256 yieldLoss
     )
      external 
      returns (uint256, uint256);
