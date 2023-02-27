@@ -31,7 +31,7 @@ struct PoolConfig {
 ```solidity
 struct PoolBalance {
   uint256 rawLiquidity;
-  uint256 poolFunds;
+  uint256 preSettledYield;
   uint256 stakedShares;
 }
 ```
@@ -168,4 +168,12 @@ event StakerEarnFactorSet(uint16 prevValue, uint16 newValue)
 ```
 
 Setter event
+
+### settleYield
+
+```solidity
+function settleYield() external
+```
+
+Settle pending yield.
 

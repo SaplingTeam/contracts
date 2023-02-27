@@ -20,6 +20,14 @@ address treasury
 
 Address where the protocol fees are sent to
 
+### yieldSettledTime
+
+```solidity
+uint256 yieldSettledTime
+```
+
+timestamp up to which the yield has been settled.
+
 ### loanClosed
 
 ```solidity
@@ -92,6 +100,17 @@ _Protocol fees will be sent to this address on every interest payment._
 | ---- | ---- | ----------- |
 | _treasury | address | New treasury address |
 
+### settleYield
+
+```solidity
+function settleYield() public
+```
+
+Settle pending yield.
+
+_Calculates interest due since last update and increases preSettledYield,
+     taking into account the protocol fee and the staker earnings._
+
 ### onOfferAllocate
 
 ```solidity
@@ -139,7 +158,7 @@ _Hook for repayments. Caller must be the LoanDesk.
 ### onDefault
 
 ```solidity
-function onDefault(uint256 loanId, uint256 loss) external returns (uint256, uint256)
+function onDefault(uint256 loanId, uint256 principalLoss, uint256 yieldLoss) external returns (uint256, uint256)
 ```
 
 _Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
@@ -148,7 +167,8 @@ _Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | loanId | uint256 | ID of the loan to default |
-| loss | uint256 | Loss amount to resolve |
+| principalLoss | uint256 | Unpaid principal amount to resolve |
+| yieldLoss | uint256 | Unpaid yield amount to resolve |
 
 ### canOffer
 
@@ -191,6 +211,17 @@ function canClose() internal view returns (bool)
 _Implementation of the abstract hook in SaplingManagedContext.
      Pool can be close when no funds remain committed to strategies._
 
+### strategizedFunds
+
+```solidity
+function strategizedFunds() internal view returns (uint256)
+```
+
+Current amount of liquidity tokens in strategies, including both allocated and committed
+        but excluding pending yield.
+
+_Overrides the same method in the base contract._
+
 ### currentAPY
 
 ```solidity
@@ -202,4 +233,22 @@ Estimate APY breakdown given the current pool state.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | struct IPoolContext.APYBreakdown | Current APY breakdown |
+
+### breakdownEarnings
+
+```solidity
+function breakdownEarnings(uint256 interestAmount) public view returns (uint256, uint256, uint256)
+```
+
+_Breaks down an interest amount to shareholder yield, protocol fee and staker earnings._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| interestAmount | uint256 | Interest amount paid by the borrower |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Amounts for (shareholderYield, protocolFee, stakerEarnings) |
+| [1] | uint256 |  |
+| [2] | uint256 |  |
 

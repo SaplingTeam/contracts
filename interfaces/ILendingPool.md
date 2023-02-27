@@ -107,7 +107,7 @@ _Hook for repayments. Caller must be the LoanDesk.
 ### onDefault
 
 ```solidity
-function onDefault(uint256 loanId, uint256 loss) external returns (uint256, uint256)
+function onDefault(uint256 loanId, uint256 principalLoss, uint256 yieldLoss) external returns (uint256, uint256)
 ```
 
 _Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
@@ -116,7 +116,8 @@ the staked funds. If these funds are not sufficient, the lenders will share the 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | loanId | uint256 | ID of the loan to default |
-| loss | uint256 | Loss amount to resolve |
+| principalLoss | uint256 | Unpaid principal amount to resolve |
+| yieldLoss | uint256 | Unpaid yield amount to resolve |
 
 ### canOffer
 

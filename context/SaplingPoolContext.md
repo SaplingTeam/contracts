@@ -329,18 +329,6 @@ Current liquidity available for pool strategies such as lending or investing.
 | ---- | ---- | ----------- |
 | [0] | uint256 | Strategy liquidity amount. |
 
-### freeLenderLiquidity
-
-```solidity
-function freeLenderLiquidity() public view returns (uint256)
-```
-
-Accessor
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Shared liquidity available for all lenders to withdraw immediately without queuing withdrawal requests. |
-
 ### poolFundsLimit
 
 ```solidity
@@ -417,6 +405,8 @@ function fundsToShares(uint256 funds) public view returns (uint256)
 
 Get share value of funds.
 
+_override for the_
+
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | funds | uint256 | Amount of liquidity tokens |
@@ -442,6 +432,36 @@ Check if the pool has sufficient stake
 ```solidity
 function totalPoolTokenSupply() internal view returns (uint256)
 ```
+
+### poolFunds
+
+```solidity
+function poolFunds() public view returns (uint256)
+```
+
+Current amount of liquidity tokens in the pool, including both liquid and in strategies.
+
+### strategizedFunds
+
+```solidity
+function strategizedFunds() internal view virtual returns (uint256)
+```
+
+Current amount of liquidity tokens in strategies, including both allocated and committed
+        but excluding pending yield.
+
+_Implement in the extending contract that handles the strategy, i.e. Lending pool._
+
+### settleYield
+
+```solidity
+function settleYield() public virtual
+```
+
+Settle pending yield.
+
+_Calculates interest due since last update and increases preSettledYield,
+     taking into account the protocol fee and the staker earnings._
 
 ### projectedAPYBreakdown
 
