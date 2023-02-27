@@ -514,7 +514,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      *      The loan must be in OFFER_MADE status.
      * @param appId ID of the loan application to accept the offer of
      */
-    function borrow(uint256 appId) external whenNotClosed whenNotPaused {
+    function borrow(uint256 appId) external whenNotClosed whenNotPaused nonReentrant {
 
         //// check
 
@@ -525,6 +525,8 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         require(offer.borrower == msg.sender, "LoanDesk: msg.sender is not the borrower on this loan");
 
         //// effect
+
+        IPoolContext(config.pool).settleYield();
 
         app.status = LoanApplicationStatus.OFFER_ACCEPTED;
 
@@ -619,6 +621,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         external
         onlyStaker
         whenNotPaused
+        nonReentrant
     {
         //// check
 
@@ -626,22 +629,24 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         //// effect
 
+        IPoolContext(config.pool).settleYield();
+
         Loan storage loan = loans[loanId];
-        LoanDetail storage loanDetail = loanDetails[loanId];
 
         loan.status = LoanStatus.DEFAULTED;
 
-        uint256 loss = loan.amount > loanDetail.principalAmountRepaid
-            ? loan.amount - loanDetail.principalAmountRepaid
-            : 0;
-
-        balances.lentFunds -= loss;
-        updateAvgApr(loss, loan.apr);
+        (uint256 principalLoss, uint256 yieldLoss, ) = loanBalanceDueWithInterest(loanId);
 
         (uint256 stakerLoss, uint256 lenderLoss) = ILendingPool(config.pool).onDefault(
             loanId,
-            loss
+            principalLoss,
+            yieldLoss
         );
+
+        // update lent funds and avg apr after the call to onDefault(),
+        // to have pre-default price per share when burning the correct amount of stake
+        balances.lentFunds -= principalLoss;
+        updateAvgApr(principalLoss, loan.apr);
 
         emit LoanDefaulted(loanId, loan.borrower, stakerLoss, lenderLoss);
     }
@@ -676,6 +681,8 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         require(transferAmount > 0, "SaplingLendingPool: invalid amount - increase to daily interest");
 
         //// effect
+
+        IPoolContext(config.pool).settleYield();
 
         uint256 principalPaid = transferAmount - interestPayable;
 

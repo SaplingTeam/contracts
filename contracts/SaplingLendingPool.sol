@@ -18,6 +18,9 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /// Address where the protocol fees are sent to
     address public treasury;
 
+    /// timestamp up to which the yield has been settled.
+    uint256 public yieldSettledTime;
+
     /// Mark the loans closed to guards against double actions due to future bugs or compromised LoanDesk
     mapping(address => mapping(uint256 => bool)) private loanClosed;
 
@@ -58,6 +61,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         require(_treasury != address(0), "SaplingPoolContext: treasury address is not set");
 
         treasury = _treasury;
+        yieldSettledTime = block.timestamp;
     }
 
     /**
@@ -82,6 +86,41 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         address prevTreasury = treasury;
         treasury = _treasury;
         emit TreasurySet(prevTreasury, _treasury);
+    }
+
+    /**
+     * @notice Settle pending yield.
+     * @dev Calculates interest due since last update and increases preSettledYield,
+     *      taking into account the protocol fee and the staker earnings.
+     */
+    function settleYield() public override {
+        if (block.timestamp < yieldSettledTime + 86400) {
+            // re-settlement is too soon, do nothing
+            return;
+        }
+
+        uint256 principalOutstanding = ILoanDesk(loanDesk).lentFunds();
+        uint16 avgApr = ILoanDesk(loanDesk).weightedAvgAPR();
+
+        if (principalOutstanding == 0 || avgApr == 0) {
+            // new yield will be zero, update settled time and do nothing
+            yieldSettledTime = block.timestamp;
+            return;
+        }
+
+        uint256 interestDays = MathUpgradeable.ceilDiv(block.timestamp - yieldSettledTime, 86400);
+        uint256 interestPercent = MathUpgradeable.mulDiv(uint256(avgApr) * 1e18, interestDays, 365);
+        uint256 interestDue = MathUpgradeable.mulDiv(
+            principalOutstanding,
+            interestPercent,
+            SaplingMath.HUNDRED_PERCENT
+        ) / 1e18;
+
+        // account for protocol fee and staker earnings
+        (uint256 shareholderYield, /* ignored */, /* ignored */) = breakdownEarnings(interestDue);
+
+        balances.preSettledYield += shareholderYield;
+        yieldSettledTime += interestDays * 86400;
     }
 
     /**
@@ -150,6 +189,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
 
         //// effect
+        settleYield();
 
         uint256 principalPaid;
         uint256 stakerEarnedInterest;
@@ -161,37 +201,17 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             protocolEarnedInterest = 0;
         } else {
             principalPaid = transferAmount - interestPayable;
-
-            //share revenue to treasury
-            protocolEarnedInterest = MathUpgradeable.mulDiv(
-                interestPayable,
-                config.protocolFeePercent,
-                SaplingMath.HUNDRED_PERCENT
-            );
-
-            //share earnings to staker
-            uint256 currentStakePercent = MathUpgradeable.mulDiv(
-                balances.stakedShares,
-                SaplingMath.HUNDRED_PERCENT,
-                totalPoolTokenSupply()
-            );
-
-            uint256 stakerEarningsPercent = MathUpgradeable.mulDiv(
-                currentStakePercent,
-                config.stakerEarnFactor - SaplingMath.HUNDRED_PERCENT,
-                SaplingMath.HUNDRED_PERCENT
-            );
-
-            stakerEarnedInterest = MathUpgradeable.mulDiv(
-                interestPayable - protocolEarnedInterest,
-                stakerEarningsPercent,
-                stakerEarningsPercent + SaplingMath.HUNDRED_PERCENT
-            );
+            uint256 shareholderYield;
+            (shareholderYield, protocolEarnedInterest, stakerEarnedInterest) = breakdownEarnings(interestPayable);
 
             balances.rawLiquidity += transferAmount - (protocolEarnedInterest + stakerEarnedInterest);
-            balances.poolFunds += interestPayable - (protocolEarnedInterest + stakerEarnedInterest);
-        }
 
+            if (balances.preSettledYield > shareholderYield) {
+                balances.preSettledYield -= shareholderYield;
+            } else {
+                balances.preSettledYield = 0;
+            }
+        }
 
         //// interactions
 
@@ -232,11 +252,13 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @dev Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
      *      the staked funds. If these funds are not sufficient, the lenders will share the loss.
      * @param loanId ID of the loan to default
-     * @param loss Loss amount to resolve
+     * @param principalLoss Unpaid principal amount to resolve
+     * @param yieldLoss Unpaid yield amount to resolve
      */
     function onDefault(
         uint256 loanId,
-        uint256 loss
+        uint256 principalLoss,
+        uint256 yieldLoss
     )
         external
         onlyLoanDesk
@@ -253,16 +275,26 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         //// effect
         loanClosed[loanDesk][loanId] = true;
 
-        uint256 stakerLoss = loss;
+        settleYield();
+
+        //remove protocol and staker earnings from yield loss
+        if (yieldLoss > 0) {
+            (/* ignored */, uint256 protocolFee, uint256 stakerEarnings) = breakdownEarnings(yieldLoss);
+
+            yieldLoss -= (protocolFee + stakerEarnings);
+        }
+
+        uint256 totalLoss = principalLoss + yieldLoss;
+        uint256 stakerLoss = 0;
         uint256 lenderLoss = 0;
 
-        if (loss > 0) {
-            uint256 remainingLostShares = fundsToShares(loss);
-
-            balances.poolFunds -= loss;
+        if (totalLoss > 0) {
+            uint256 remainingLostShares = fundsToShares(totalLoss);
 
             if (balances.stakedShares > 0) {
                 uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, balances.stakedShares);
+                stakerLoss = sharesToFunds(stakedShareLoss);
+
                 remainingLostShares -= stakedShareLoss;
                 balances.stakedShares -= stakedShareLoss;
 
@@ -277,11 +309,16 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             }
 
             if (remainingLostShares > 0) {
-                lenderLoss = sharesToFunds(remainingLostShares);
-                stakerLoss -= lenderLoss;
+                lenderLoss = totalLoss - stakerLoss;
 
                 emit SharedLenderLoss(loanId, lenderLoss);
             }
+        }
+
+        if (balances.preSettledYield > 0 && balances.preSettledYield > yieldLoss) {
+            balances.preSettledYield -= yieldLoss;
+        } else {
+            balances.preSettledYield = 0;
         }
 
         return (stakerLoss, lenderLoss);
@@ -320,6 +357,15 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     }
 
     /**
+     * @notice Current amount of liquidity tokens in strategies, including both allocated and committed
+     *         but excluding pending yield.
+     * @dev Overrides the same method in the base contract.
+     */
+    function strategizedFunds() internal view override returns (uint256) {
+        return ILoanDesk(loanDesk).allocatedFunds() + ILoanDesk(loanDesk).lentFunds();
+    }
+
+    /**
      * @notice Estimate APY breakdown given the current pool state.
      * @return Current APY breakdown
      */
@@ -327,11 +373,46 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         return projectedAPYBreakdown(
             totalPoolTokenSupply(),
             balances.stakedShares,
-            balances.poolFunds,
+            poolFunds(),
             ILoanDesk(loanDesk).lentFunds(),
             ILoanDesk(loanDesk).weightedAvgAPR(),
             config.protocolFeePercent,
             config.stakerEarnFactor
         );
+    }
+
+    /**
+     * @dev Breaks down an interest amount to shareholder yield, protocol fee and staker earnings.
+     * @param interestAmount Interest amount paid by the borrower
+     * @return Amounts for (shareholderYield, protocolFee, stakerEarnings)
+     */
+    function breakdownEarnings(uint256 interestAmount) public view returns (uint256, uint256, uint256) {
+        uint256 protocolFee = MathUpgradeable.mulDiv(
+            interestAmount,
+            config.protocolFeePercent,
+            SaplingMath.HUNDRED_PERCENT
+        );
+
+        uint256 currentStakePercent = MathUpgradeable.mulDiv(
+            balances.stakedShares,
+            SaplingMath.HUNDRED_PERCENT,
+            totalPoolTokenSupply()
+        );
+
+        uint256 stakerEarningsPercent = MathUpgradeable.mulDiv(
+            currentStakePercent,
+            config.stakerEarnFactor - SaplingMath.HUNDRED_PERCENT,
+            SaplingMath.HUNDRED_PERCENT
+        );
+
+        uint256 stakerEarnings = MathUpgradeable.mulDiv(
+            interestAmount - protocolFee,
+            stakerEarningsPercent,
+            stakerEarningsPercent + SaplingMath.HUNDRED_PERCENT
+        );
+
+        uint256 shareholderYield = interestAmount - (protocolFee + stakerEarnings);
+
+        return (shareholderYield, protocolFee, stakerEarnings);
     }
 }

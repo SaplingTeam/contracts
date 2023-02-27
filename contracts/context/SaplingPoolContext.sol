@@ -141,6 +141,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
             "SaplingPoolContext: protocol earning percent is out of bounds"
         );
 
+        settleYield(); // capture pending yield as increasing protocol fee will reduce lender yield
+
         uint16 prevValue = config.protocolFeePercent;
         config.protocolFeePercent = _protocolEarningPercent;
 
@@ -159,6 +161,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
             SaplingMath.HUNDRED_PERCENT <= _stakerEarnFactorMax,
             "SaplingPoolContext: _stakerEarnFactorMax is out of bounds"
         );
+
+        settleYield();
 
         uint16 prevValue = config.stakerEarnFactorMax;
         config.stakerEarnFactorMax = _stakerEarnFactorMax;
@@ -185,6 +189,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
             "SaplingPoolContext: _stakerEarnFactor is out of bounds"
         );
 
+        settleYield();
+
         uint16 prevValue = config.stakerEarnFactor;
         config.stakerEarnFactor = _stakerEarnFactor;
 
@@ -209,6 +215,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     function requestWithdrawalAllowance(uint256 _amount) external onlyUser whenNotPaused {
+        settleYield(); //settle any unsettled yield when applicable, to have an up to date balance of the account
+
         require(_amount <= balanceOf(msg.sender), "SaplingPoolContext: amount exceeds account balance");
 
         uint256 _timeFrom = block.timestamp + 1 minutes;
@@ -289,7 +297,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function initialMint() external onlyStaker whenNotPaused whenClosed {
         require(
-            totalPoolTokenSupply() == 0 && balances.poolFunds == 0,
+            totalPoolTokenSupply() == 0 && poolFunds() == 0,
             "Sapling Pool Context: invalid initial conditions"
         );
 
@@ -310,11 +318,12 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function amountDepositable() public view returns (uint256) {
         uint256 poolLimit = poolFundsLimit();
-        if (poolLimit <= balances.poolFunds || closed() || paused()) {
+        uint256 _poolFunds = poolFunds();
+        if (poolLimit <= _poolFunds || closed() || paused()) {
             return 0;
         }
 
-        return poolLimit - balances.poolFunds;
+        return poolLimit - _poolFunds;
     }
 
     /**
@@ -324,7 +333,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @return Max amount of liquidity tokens withdrawable by the caller.
      */
     function amountWithdrawable(address wallet) public view returns (uint256) {
-        return paused() ? 0 : MathUpgradeable.min(freeLenderLiquidity(), balanceOf(wallet));
+        return paused() ? 0 : MathUpgradeable.min(balances.rawLiquidity, balanceOf(wallet));
     }
 
     /**
@@ -347,11 +356,12 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         uint256 _avgStrategyAPR) external view returns (APYBreakdown memory) {
         require(strategyRate <= SaplingMath.HUNDRED_PERCENT, "SaplingPoolContext: invalid borrow rate");
 
+        uint256 _poolFunds = poolFunds();
         return projectedAPYBreakdown(
             totalPoolTokenSupply(),
             balances.stakedShares,
-            balances.poolFunds,
-            MathUpgradeable.mulDiv(balances.poolFunds, strategyRate, SaplingMath.HUNDRED_PERCENT), 
+            _poolFunds,
+            MathUpgradeable.mulDiv(_poolFunds, strategyRate, SaplingMath.HUNDRED_PERCENT),
             _avgStrategyAPR,
             config.protocolFeePercent,
             config.stakerEarnFactor
@@ -377,7 +387,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function amountUnstakable() public view returns (uint256) {
         uint256 totalPoolShares = totalPoolTokenSupply();
-        uint256 withdrawableLiquidity = freeLenderLiquidity();
 
         if (
             paused() ||
@@ -385,7 +394,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         ) {
             return 0;
         } else if (closed() || totalPoolShares == balances.stakedShares) {
-            return MathUpgradeable.min(withdrawableLiquidity, sharesToFunds(balances.stakedShares));
+            return MathUpgradeable.min(balances.rawLiquidity, sharesToFunds(balances.stakedShares));
         }
 
         uint256 lenderShares = totalPoolShares - balances.stakedShares;
@@ -396,7 +405,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         );
 
         return MathUpgradeable.min(
-            withdrawableLiquidity,
+            balances.rawLiquidity,
             sharesToFunds(balances.stakedShares - lockedStakeShares)
         );
     }
@@ -408,7 +417,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     function strategyLiquidity() public view returns (uint256) {
 
         uint256 lenderAllocatedLiquidity = MathUpgradeable.mulDiv(
-                balances.poolFunds,
+                poolFunds(),
                 config.targetLiquidityPercent,
                 SaplingMath.HUNDRED_PERCENT
         );
@@ -416,14 +425,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         return balances.rawLiquidity > lenderAllocatedLiquidity 
             ? balances.rawLiquidity - lenderAllocatedLiquidity 
             : 0;
-    }
-
-    /**
-     * @notice Accessor
-     * @return Shared liquidity available for all lenders to withdraw immediately without queuing withdrawal requests.
-     */
-    function freeLenderLiquidity() public view returns (uint256) {
-        return balances.rawLiquidity;
     }
 
     /**
@@ -450,13 +451,16 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
         require(amount >= 10 ** tokenConfig.decimals, "SaplingPoolContext: entry amount too low");
 
+        settleYield();
+
         bool isStaker = msg.sender == staker;
 
         // non-stakers must follow pool size limit
         if (!isStaker) {
             uint256 poolLimit = poolFundsLimit();
+            uint256 _poolFunds = poolFunds();
             require(
-                poolLimit > balances.poolFunds && amount <= poolLimit - balances.poolFunds,
+                poolLimit > _poolFunds && amount <= poolLimit - _poolFunds,
                 "SaplingPoolContext: deposit amount is over the remaining pool limit"
             );
         }
@@ -466,7 +470,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         uint256 shares = fundsToShares(amount);
 
         balances.rawLiquidity += amount;
-        balances.poolFunds += amount;
 
         if (isStaker) {
             // this is a staking entry
@@ -502,7 +505,9 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     function exit(uint256 amount) internal nonReentrant returns (uint256) {
         //// check
         require(amount > 0, "SaplingPoolContext: pool withdrawal amount is 0");
-        require(amount <= freeLenderLiquidity(), "SaplingPoolContext: insufficient liquidity");
+        require(amount <= balances.rawLiquidity, "SaplingPoolContext: insufficient liquidity");
+
+        settleYield();
 
         uint256 shares = fundsToShares(amount);
 
@@ -527,7 +532,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
             SaplingMath.HUNDRED_PERCENT
         );
 
-        balances.poolFunds -= transferAmount;
         balances.rawLiquidity -= transferAmount;
 
         //// interactions
@@ -547,25 +551,28 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @return Converted liquidity token value
      */
     function sharesToFunds(uint256 shares) public view returns (uint256) {
-        if (shares == 0 || balances.poolFunds == 0) {
+        uint256 _poolFunds = poolFunds();
+        if (shares == 0 || _poolFunds == 0) {
              return 0;
         }
 
-        return MathUpgradeable.mulDiv(shares, balances.poolFunds, totalPoolTokenSupply());
+        return MathUpgradeable.mulDiv(shares, _poolFunds, totalPoolTokenSupply());
     }
 
     /**
      * @notice Get share value of funds.
+     * @dev override for the
      * @param funds Amount of liquidity tokens
      * @return Converted pool token value
      */
     function fundsToShares(uint256 funds) public view returns (uint256) {
         uint256 totalPoolTokens = totalPoolTokenSupply();
+        uint256 _poolFunds = poolFunds();
 
         if (totalPoolTokens == 0) {
             // a pool with no positions
             return funds;
-        } else if (balances.poolFunds == 0) {
+        } else if (_poolFunds == 0) {
             /*
                 Handle failed pool case, where: poolFunds == 0, but totalPoolShares > 0
                 To minimize loss for the new depositor, assume the total value of existing shares is the minimum
@@ -576,7 +583,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
             return funds * totalPoolTokens;
         }
 
-        return MathUpgradeable.mulDiv(funds, totalPoolTokens, balances.poolFunds);
+        return MathUpgradeable.mulDiv(funds, totalPoolTokens, _poolFunds);
     }
 
     /**
@@ -595,6 +602,27 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     function totalPoolTokenSupply() internal view returns (uint256) {
         return IERC20(tokenConfig.poolToken).totalSupply();
     }
+
+    /**
+     * @notice Current amount of liquidity tokens in the pool, including both liquid and in strategies.
+     */
+    function poolFunds() public view returns (uint256) {
+        return balances.rawLiquidity + strategizedFunds() + balances.preSettledYield;
+    }
+
+    /**
+     * @notice Current amount of liquidity tokens in strategies, including both allocated and committed
+     *         but excluding pending yield.
+     * @dev Implement in the extending contract that handles the strategy, i.e. Lending pool.
+     */
+    function strategizedFunds() internal virtual view returns (uint256);
+
+    /**
+     * @notice Settle pending yield.
+     * @dev Calculates interest due since last update and increases preSettledYield,
+     *      taking into account the protocol fee and the staker earnings.
+     */
+    function settleYield() public virtual;
 
     /**
      * @notice APY breakdown given a specified scenario.

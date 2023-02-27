@@ -54,8 +54,8 @@ interface IPoolContext {
         /// Current amount of liquid tokens, available to for pool strategies, withdrawals, withdrawal requests
         uint256 rawLiquidity;
 
-        /// Current amount of liquidity tokens in the pool, including both liquid and allocated funds
-        uint256 poolFunds;
+        // The interest yield to be paid to the pool token holders and is included in dynamic poolFunds()
+        uint256 preSettledYield;
 
         // Role specific balances
 
@@ -127,4 +127,9 @@ interface IPoolContext {
 
     /// Setter event
     event StakerEarnFactorSet(uint16 prevValue, uint16 newValue);
+
+    /**
+     * @notice Settle pending yield.
+     */
+    function settleYield() external;
 }
