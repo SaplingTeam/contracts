@@ -561,7 +561,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
     /**
      * @notice Get share value of funds.
-     * @dev override for the
      * @param funds Amount of liquidity tokens
      * @return Converted pool token value
      */
@@ -604,7 +603,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Current amount of liquidity tokens in the pool, including both liquid and in strategies.
+     * @notice Current amount of liquidity tokens in the pool, including liquid, in strategies, and settled yield
      */
     function poolFunds() public view returns (uint256) {
         return balances.rawLiquidity + strategizedFunds() + balances.preSettledYield;
@@ -621,6 +620,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @notice Settle pending yield.
      * @dev Calculates interest due since last update and increases preSettledYield,
      *      taking into account the protocol fee and the staker earnings.
+     *      Implement in the Lending Pool.
      */
     function settleYield() public virtual;
 

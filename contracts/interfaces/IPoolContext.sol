@@ -51,7 +51,7 @@ interface IPoolContext {
     /// Key pool balances
     struct PoolBalance {
 
-        /// Current amount of liquid tokens, available to for pool strategies, withdrawals, withdrawal requests
+        /// Current amount of liquid funds immediately available, not including the funds allocated for strategies
         uint256 rawLiquidity;
 
         // The interest yield to be paid to the pool token holders and is included in dynamic poolFunds()
