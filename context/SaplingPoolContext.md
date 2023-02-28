@@ -405,8 +405,6 @@ function fundsToShares(uint256 funds) public view returns (uint256)
 
 Get share value of funds.
 
-_override for the_
-
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | funds | uint256 | Amount of liquidity tokens |
@@ -439,7 +437,7 @@ function totalPoolTokenSupply() internal view returns (uint256)
 function poolFunds() public view returns (uint256)
 ```
 
-Current amount of liquidity tokens in the pool, including both liquid and in strategies.
+Current amount of liquidity tokens in the pool, including liquid, in strategies, and settled yield
 
 ### strategizedFunds
 
@@ -461,7 +459,8 @@ function settleYield() public virtual
 Settle pending yield.
 
 _Calculates interest due since last update and increases preSettledYield,
-     taking into account the protocol fee and the staker earnings._
+     taking into account the protocol fee and the staker earnings.
+     Implement in the Lending Pool._
 
 ### projectedAPYBreakdown
 

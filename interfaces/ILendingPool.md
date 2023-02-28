@@ -10,7 +10,7 @@ _This interface has all LendingPool events, structs, and LoanDesk function hooks
 event LoanDeskSet(address prevAddress, address newAddress)
 ```
 
-Event for when a new loan desk is set
+Setter event
 
 ### TreasurySet
 
