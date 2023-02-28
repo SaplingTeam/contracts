@@ -7,7 +7,7 @@ pragma solidity ^0.8.15;
  */
 interface ILendingPool {
 
-    /// Event for when a new loan desk is set
+    /// Setter event
     event LoanDeskSet(address prevAddress, address newAddress);
 
     /// Setter event
