@@ -406,9 +406,14 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         //// interactions
         if (offer.amount > prevAmount) {
-            ILendingPool(config.pool).onOfferAllocate(offer.amount - prevAmount);
+            uint256 amountDelta = offer.amount - prevAmount;
+            balances.allocatedFunds += amountDelta;
+
+            ILendingPool(config.pool).onOfferAllocate(amountDelta);
         } else if (offer.amount < prevAmount) {
             uint256 returnAmount = prevAmount - offer.amount;
+            balances.allocatedFunds -= returnAmount;
+
             SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(config.liquidityToken), config.pool, returnAmount);
             ILendingPool(config.pool).onOfferDeallocate(returnAmount);
         }
