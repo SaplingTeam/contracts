@@ -128,6 +128,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @param amount Amount to be allocated for loan offers.
      */
     function onOfferAllocate(uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed {
+        settleYield();
+
         require(amount > 0, "SaplingLendingPool: invalid amount");
         require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
 

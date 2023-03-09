@@ -207,6 +207,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to deposit.
      */
     function deposit(uint256 amount) external onlyUser noWithdrawalRequests whenNotPaused whenNotClosed {
+        settleYield();
+
         require(amount <= amountDepositable(), "SaplingPoolContext: invalid deposit amount");
 
         uint256 sharesMinted = enter(amount);
