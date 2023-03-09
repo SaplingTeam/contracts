@@ -30,10 +30,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         _;
     }
 
-    /**
-     * @dev Disable initializers
-     */
-    function disableIntitializers() external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
         _disableInitializers();
     }
 
