@@ -282,7 +282,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to unstake.
      */
     function unstake(uint256 amount) external onlyStaker whenNotPaused {
-        require(amount > 0, "SaplingPoolContext: unstake amount is 0");
         require(amount <= amountUnstakable(), "SaplingPoolContext: requested amount is not available for unstaking");
 
         uint256 sharesBurned = exit(amount);
@@ -507,7 +506,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     function exit(uint256 amount) internal nonReentrant returns (uint256) {
         //// check
         require(amount > 0, "SaplingPoolContext: pool withdrawal amount is 0");
-        require(amount <= balances.rawLiquidity, "SaplingPoolContext: insufficient liquidity");
 
         settleYield();
 
