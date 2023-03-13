@@ -160,7 +160,7 @@ describe('Loan Desk', function () {
         describe('Initial State', function () {
             it('Initial balances are correct', async function () {
                 expect(await loanDesk.lentFunds()).to.equal(0);
-                expect(await loanDesk.allocatedFunds()).to.equal(0);
+                expect(await liquidityToken.balanceOf(loanDesk.address)).to.equal(0);
             });
 
             it('Loan APR is correct', async function () {
@@ -633,7 +633,7 @@ describe('Loan Desk', function () {
 
             describe('Offer', function () {
                 it('Staker make loan offer drafts', async function () {
-                    let offeredFunds = await loanDesk.allocatedFunds();
+                    let offeredFunds = await liquidityToken.balanceOf(loanDesk.address);
                     expect(await lendingPool.canOffer(offeredFunds.add(application.amount))).to.equal(true);
 
                     await loanDesk
@@ -711,7 +711,7 @@ describe('Loan Desk', function () {
                     });
 
                     it('Offering a loan with an amount greater than available liquidity should fail', async function () {
-                        let rawLiquidity = (await lendingPool.balances()).rawLiquidity;
+                        let rawLiquidity = await liquidityToken.balanceOf(lendingPool.address);
                         let poolFunds = (await lendingPool.poolFunds());
                         let targetLiquidityPercent = (await lendingPool.config()).targetLiquidityPercent;
                         let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
@@ -962,7 +962,7 @@ describe('Loan Desk', function () {
 
                 describe('Update', function () {
                     it('Staker can update loan offers', async function () {
-                        let offeredFunds = await loanDesk.allocatedFunds();
+                        let offeredFunds = await liquidityToken.balanceOf(loanDesk.address);
                         let offer = await loanDesk.loanOffers(applicationId);
 
                         let newOfferedAmount = offer.amount.div(2);

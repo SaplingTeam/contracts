@@ -38,6 +38,12 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         _;
     }
 
+    /// Modifier to update pool accounting state before function execution
+    modifier updatedState() {
+        settleYield();
+        _;
+    }
+
     /**
      * @notice Creates a SaplingPoolContext.
      * @dev Addresses must not be 0.
@@ -135,13 +141,15 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Caller must be the governance.
      * @param _protocolEarningPercent new protocol earning percent.
      */
-    function setProtocolEarningPercent(uint16 _protocolEarningPercent) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
+    function setProtocolEarningPercent(uint16 _protocolEarningPercent)
+        external
+        onlyRole(SaplingRoles.GOVERNANCE_ROLE)
+        updatedState
+    {
         require(
             0 <= _protocolEarningPercent && _protocolEarningPercent <= SaplingMath.MAX_PROTOCOL_FEE_PERCENT,
             "SaplingPoolContext: protocol earning percent is out of bounds"
         );
-
-        settleYield(); // capture pending yield as increasing protocol fee will reduce lender yield
 
         uint16 prevValue = config.protocolFeePercent;
         config.protocolFeePercent = _protocolEarningPercent;
@@ -156,13 +164,15 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Caller must be the governance.
      * @param _stakerEarnFactorMax new maximum for staker earn factor.
      */
-    function setStakerEarnFactorMax(uint16 _stakerEarnFactorMax) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
+    function setStakerEarnFactorMax(uint16 _stakerEarnFactorMax)
+        external
+        onlyRole(SaplingRoles.GOVERNANCE_ROLE)
+        updatedState
+    {
         require(
             SaplingMath.HUNDRED_PERCENT <= _stakerEarnFactorMax,
             "SaplingPoolContext: _stakerEarnFactorMax is out of bounds"
         );
-
-        settleYield();
 
         uint16 prevValue = config.stakerEarnFactorMax;
         config.stakerEarnFactorMax = _stakerEarnFactorMax;
@@ -183,13 +193,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Caller must be the staker.
      * @param _stakerEarnFactor new staker earn factor.
      */
-    function setStakerEarnFactor(uint16 _stakerEarnFactor) external onlyStaker {
+    function setStakerEarnFactor(uint16 _stakerEarnFactor) external onlyStaker updatedState {
         require(
             SaplingMath.HUNDRED_PERCENT <= _stakerEarnFactor && _stakerEarnFactor <= config.stakerEarnFactorMax,
             "SaplingPoolContext: _stakerEarnFactor is out of bounds"
         );
-
-        settleYield();
 
         uint16 prevValue = config.stakerEarnFactor;
         config.stakerEarnFactor = _stakerEarnFactor;
@@ -206,7 +214,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Caller must not have any outstanding withdrawal requests.
      * @param amount Liquidity token amount to deposit.
      */
-    function deposit(uint256 amount) external onlyUser noWithdrawalRequests whenNotPaused whenNotClosed {
+    function deposit(uint256 amount) external onlyUser noWithdrawalRequests whenNotPaused whenNotClosed updatedState {
         require(amount <= amountDepositable(), "SaplingPoolContext: invalid deposit amount");
 
         uint256 sharesMinted = enter(amount);
@@ -214,9 +222,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         emit FundsDeposited(msg.sender, amount, sharesMinted);
     }
 
-    function requestWithdrawalAllowance(uint256 _amount) external onlyUser whenNotPaused {
-        settleYield(); //settle any unsettled yield when applicable, to have an up to date balance of the account
-
+    function requestWithdrawalAllowance(uint256 _amount) external onlyUser whenNotPaused updatedState {
         require(_amount <= balanceOf(msg.sender), "SaplingPoolContext: amount exceeds account balance");
 
         uint256 _timeFrom = block.timestamp + 1 minutes;
@@ -238,7 +244,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @dev Withdrawal amount must be non zero and not exceed amountWithdrawable().
      * @param amount Liquidity token amount to withdraw.
      */
-    function withdraw(uint256 amount) public onlyUser whenNotPaused {
+    function withdraw(uint256 amount) public onlyUser whenNotPaused updatedState {
         WithdrawalAllowance storage allowance = withdrawalAllowances[msg.sender];
 
         require(amount <= allowance.amount, "SaplingPoolContext: insufficient withdrawal allowance amount");
@@ -279,8 +285,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Unstake amount must be non zero and not exceed amountUnstakable().
      * @param amount Liquidity token amount to unstake.
      */
-    function unstake(uint256 amount) external onlyStaker whenNotPaused {
-        require(amount > 0, "SaplingPoolContext: unstake amount is 0");
+    function unstake(uint256 amount) external onlyStaker whenNotPaused updatedState {
         require(amount <= amountUnstakable(), "SaplingPoolContext: requested amount is not available for unstaking");
 
         uint256 sharesBurned = exit(amount);
@@ -295,7 +300,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      An appropriate spend limit must be present at the asset token contract.
      *      This function can only be called when the total pool token supply is zero.
      */
-    function initialMint() external onlyStaker whenNotPaused whenClosed {
+    function initialMint() external onlyStaker whenNotPaused whenClosed updatedState {
         require(
             totalPoolTokenSupply() == 0 && poolFunds() == 0,
             "Sapling Pool Context: invalid initial conditions"
@@ -333,7 +338,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @return Max amount of liquidity tokens withdrawable by the caller.
      */
     function amountWithdrawable(address wallet) public view returns (uint256) {
-        return paused() ? 0 : MathUpgradeable.min(balances.rawLiquidity, balanceOf(wallet));
+        return paused() ? 0 : MathUpgradeable.min(liquidity(), balanceOf(wallet));
     }
 
     /**
@@ -394,7 +399,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         ) {
             return 0;
         } else if (closed() || totalPoolShares == balances.stakedShares) {
-            return MathUpgradeable.min(balances.rawLiquidity, sharesToFunds(balances.stakedShares));
+            return MathUpgradeable.min(liquidity(), sharesToFunds(balances.stakedShares));
         }
 
         uint256 lenderShares = totalPoolShares - balances.stakedShares;
@@ -405,7 +410,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         );
 
         return MathUpgradeable.min(
-            balances.rawLiquidity,
+            liquidity(),
             sharesToFunds(balances.stakedShares - lockedStakeShares)
         );
     }
@@ -422,8 +427,10 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
                 SaplingMath.HUNDRED_PERCENT
         );
 
-        return balances.rawLiquidity > lenderAllocatedLiquidity 
-            ? balances.rawLiquidity - lenderAllocatedLiquidity 
+        uint256 rawLiquidity = liquidity();
+
+        return rawLiquidity > lenderAllocatedLiquidity
+            ? rawLiquidity - lenderAllocatedLiquidity
             : 0;
     }
 
@@ -446,12 +453,10 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to add to the pool on behalf of the caller.
      * @return Amount of pool tokens minted and allocated to the caller.
      */
-    function enter(uint256 amount) internal nonReentrant returns (uint256) {
+    function enter(uint256 amount) private nonReentrant returns (uint256) {
         //// check
 
         require(amount >= 10 ** tokenConfig.decimals, "SaplingPoolContext: entry amount too low");
-
-        settleYield();
 
         bool isStaker = msg.sender == staker;
 
@@ -468,8 +473,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         //// effect
 
         uint256 shares = fundsToShares(amount);
-
-        balances.rawLiquidity += amount;
 
         if (isStaker) {
             // this is a staking entry
@@ -502,12 +505,9 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to withdraw from the pool on behalf of the caller.
      * @return Amount of pool tokens burned and taken from the caller.
      */
-    function exit(uint256 amount) internal nonReentrant returns (uint256) {
+    function exit(uint256 amount) private nonReentrant returns (uint256) {
         //// check
         require(amount > 0, "SaplingPoolContext: pool withdrawal amount is 0");
-        require(amount <= balances.rawLiquidity, "SaplingPoolContext: insufficient liquidity");
-
-        settleYield();
 
         uint256 shares = fundsToShares(amount);
 
@@ -531,8 +531,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
             config.exitFeePercent, 
             SaplingMath.HUNDRED_PERCENT
         );
-
-        balances.rawLiquidity -= transferAmount;
 
         //// interactions
 
@@ -606,7 +604,15 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @notice Current amount of liquidity tokens in the pool, including liquid, in strategies, and settled yield
      */
     function poolFunds() public view returns (uint256) {
-        return balances.rawLiquidity + strategizedFunds() + balances.preSettledYield;
+        return liquidity() + strategizedFunds() + balances.preSettledYield;
+    }
+
+    /**
+     * @notice Lending pool raw liquidity, same as the liquidity token balance.
+     * @dev Encapsulated in to a function to reduce compiled contract size.
+     */
+    function liquidity() public view returns (uint256) {
+        return IERC20(tokenConfig.liquidityToken).balanceOf(address(this));
     }
 
     /**
@@ -707,5 +713,5 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     /**
      * @dev Slots reserved for future state variables
      */
-    uint256[42] private __gap;
+    uint256[43] private __gap;
 }

@@ -127,11 +127,9 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @dev Hook for a new loan offer. Caller must be the LoanDesk.
      * @param amount Amount to be allocated for loan offers.
      */
-    function onOfferAllocate(uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed {
+    function onOfferAllocate(uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed updatedState {
         require(amount > 0, "SaplingLendingPool: invalid amount");
         require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
-
-        balances.rawLiquidity -= amount;
 
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), loanDesk, amount);
 
@@ -145,8 +143,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      */
     function onOfferDeallocate(uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed {
         require(amount > 0, "SaplingLendingPool: invalid amount");
-
-        balances.rawLiquidity += amount;
 
         SafeERC20Upgradeable.safeTransferFrom(
             IERC20Upgradeable(tokenConfig.liquidityToken),
@@ -182,29 +178,24 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         nonReentrant
         whenNotPaused
         whenNotClosed
+        updatedState
     {
         //// check
         require(loanClosed[loanDesk][loanId] == false, "SaplingLendingPool: loan is closed");
 
         // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
 
-        //// effect
-        settleYield();
-
         uint256 principalPaid;
         uint256 stakerEarnedInterest;
         uint256 protocolEarnedInterest;
         if (interestPayable == 0) {
             principalPaid = transferAmount;
-            balances.rawLiquidity += transferAmount;
             stakerEarnedInterest = 0;
             protocolEarnedInterest = 0;
         } else {
             principalPaid = transferAmount - interestPayable;
             uint256 shareholderYield;
             (shareholderYield, protocolEarnedInterest, stakerEarnedInterest) = breakdownEarnings(interestPayable);
-
-            balances.rawLiquidity += transferAmount - (protocolEarnedInterest + stakerEarnedInterest);
 
             if (balances.preSettledYield > shareholderYield) {
                 balances.preSettledYield -= shareholderYield;
@@ -265,6 +256,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         nonReentrant
         whenNotPaused
         whenNotClosed
+        updatedState
         returns (uint256, uint256)
     {
         //// check
@@ -274,8 +266,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         //// effect
         loanClosed[loanDesk][loanId] = true;
-
-        settleYield();
 
         //remove protocol and staker earnings from yield loss
         if (yieldLoss > 0) {
@@ -352,7 +342,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      *      Pool can be close when no funds remain committed to strategies.
      */
     function canClose() internal view override returns (bool) {
-        return ILoanDesk(loanDesk).allocatedFunds() == 0
+        return IERC20(tokenConfig.liquidityToken).balanceOf(loanDesk) == 0
             && ILoanDesk(loanDesk).lentFunds() == 0;
     }
 
@@ -362,7 +352,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @dev Overrides the same method in the base contract.
      */
     function strategizedFunds() internal view override returns (uint256) {
-        return ILoanDesk(loanDesk).allocatedFunds() + ILoanDesk(loanDesk).lentFunds();
+        return IERC20(tokenConfig.liquidityToken).balanceOf(loanDesk) + ILoanDesk(loanDesk).lentFunds();
     }
 
     /**

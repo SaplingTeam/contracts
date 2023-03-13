@@ -72,6 +72,12 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         _;
     }
 
+    /// Modifier to update pool accounting state before function execution
+    modifier updatedState() {
+        IPoolContext(config.pool).settleYield();
+        _;
+    }
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -125,7 +131,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         });
 
         balances = LoanDeskBalances({
-            allocatedFunds: 0,
             lentFunds: 0,
             weightedAvgAPR: 0
         });
@@ -340,7 +345,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             offeredTime: 0
         });
 
-        balances.allocatedFunds += _amount;
         loanApplications[appId].status = LoanApplicationStatus.OFFER_DRAFTED;
 
         //// interactions
@@ -497,7 +501,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         //// effect
         loanApplications[appId].status = LoanApplicationStatus.CANCELLED;
-        balances.allocatedFunds -= offer.amount;
 
         emit LoanOfferCancelled(appId, offer.borrower, offer.amount);
 
@@ -512,7 +515,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      *      The loan must be in OFFER_MADE status.
      * @param appId ID of the loan application to accept the offer of
      */
-    function borrow(uint256 appId) external whenNotClosed whenNotPaused nonReentrant {
+    function borrow(uint256 appId) external whenNotClosed whenNotPaused nonReentrant updatedState {
 
         //// check
 
@@ -524,12 +527,9 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         //// effect
 
-        IPoolContext(config.pool).settleYield();
-
         app.status = LoanApplicationStatus.OFFER_ACCEPTED;
 
         uint256 offerAmount = offer.amount;
-        balances.allocatedFunds -= offerAmount;
 
         uint256 prevBorrowedFunds = balances.lentFunds;
         balances.lentFunds += offerAmount;
@@ -620,14 +620,13 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         onlyStaker
         whenNotPaused
         nonReentrant
+        updatedState
     {
         //// check
 
         require(canDefault(loanId), "LoanDesk: cannot default this loan at this time");
 
         //// effect
-
-        IPoolContext(config.pool).settleYield();
 
         Loan storage loan = loans[loanId];
 
@@ -657,7 +656,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @param loanId ID of the loan to make a payment towards
      * @param amount Payment amount in tokens
      */
-    function repayBase(uint256 loanId, uint256 amount) internal nonReentrant whenNotPaused {
+    function repayBase(uint256 loanId, uint256 amount) internal nonReentrant whenNotPaused updatedState {
 
         //// check
 
@@ -679,8 +678,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         require(transferAmount > 0, "SaplingLendingPool: invalid amount - increase to daily interest");
 
         //// effect
-
-        IPoolContext(config.pool).settleYield();
 
         uint256 principalPaid = transferAmount - interestPayable;
 
@@ -957,7 +954,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @return True if the contract is closed, false otherwise.
      */
     function canClose() internal view override returns (bool) {
-        return balances.allocatedFunds == 0 && balances.lentFunds == 0;
+        return balances.lentFunds == 0 && IERC20(config.liquidityToken).balanceOf(address(this)) == 0;
     }
 
     /**
@@ -967,14 +964,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      */
     function canOpen() internal view override returns (bool) {
         return config.pool != address(0) && config.liquidityToken != address(0);
-    }
-
-    /**
-     * @notice Accessor
-     * @dev Total funds allocated for loan offers, including both drafted and pending acceptance
-     */
-    function allocatedFunds() external view returns (uint256) {
-        return balances.allocatedFunds;
     }
 
     /**
