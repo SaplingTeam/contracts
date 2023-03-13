@@ -131,8 +131,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         require(amount > 0, "SaplingLendingPool: invalid amount");
         require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
 
-        balances.rawLiquidity -= amount;
-
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), loanDesk, amount);
 
         emit OfferLiquidityAllocated(amount);
@@ -145,8 +143,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      */
     function onOfferDeallocate(uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed {
         require(amount > 0, "SaplingLendingPool: invalid amount");
-
-        balances.rawLiquidity += amount;
 
         SafeERC20Upgradeable.safeTransferFrom(
             IERC20Upgradeable(tokenConfig.liquidityToken),
@@ -196,15 +192,12 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         uint256 protocolEarnedInterest;
         if (interestPayable == 0) {
             principalPaid = transferAmount;
-            balances.rawLiquidity += transferAmount;
             stakerEarnedInterest = 0;
             protocolEarnedInterest = 0;
         } else {
             principalPaid = transferAmount - interestPayable;
             uint256 shareholderYield;
             (shareholderYield, protocolEarnedInterest, stakerEarnedInterest) = breakdownEarnings(interestPayable);
-
-            balances.rawLiquidity += transferAmount - (protocolEarnedInterest + stakerEarnedInterest);
 
             if (balances.preSettledYield > shareholderYield) {
                 balances.preSettledYield -= shareholderYield;
