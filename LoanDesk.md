@@ -100,6 +100,14 @@ modifier loanInStatus(uint256 loanId, enum ILoanDesk.LoanStatus status)
 
 A modifier to limit access only to when the loan exists and has the specified status
 
+### updatedState
+
+```solidity
+modifier updatedState()
+```
+
+Modifier to update pool accounting state before function execution
+
 ### disableIntitializers
 
 ```solidity

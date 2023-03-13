@@ -42,6 +42,14 @@ Per user withdrawal allowances with time windows
 modifier noWithdrawalRequests()
 ```
 
+### updatedState
+
+```solidity
+modifier updatedState()
+```
+
+Modifier to update pool accounting state before function execution
+
 ### __SaplingPoolContext_init
 
 ```solidity
@@ -344,7 +352,7 @@ _View pool funds limit based on the staked funds._
 ### enter
 
 ```solidity
-function enter(uint256 amount) internal returns (uint256)
+function enter(uint256 amount) private returns (uint256)
 ```
 
 _Internal method to enter the pool with a liquidity token amount.
@@ -364,7 +372,7 @@ Shares are equivalent to pool tokens and are represented by them._
 ### exit
 
 ```solidity
-function exit(uint256 amount) internal returns (uint256)
+function exit(uint256 amount) private returns (uint256)
 ```
 
 _Internal method to exit the pool with funds amount.
