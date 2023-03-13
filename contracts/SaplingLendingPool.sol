@@ -127,9 +127,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @dev Hook for a new loan offer. Caller must be the LoanDesk.
      * @param amount Amount to be allocated for loan offers.
      */
-    function onOfferAllocate(uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed {
-        settleYield();
-
+    function onOfferAllocate(uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed updatedState {
         require(amount > 0, "SaplingLendingPool: invalid amount");
         require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
 
@@ -180,14 +178,12 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         nonReentrant
         whenNotPaused
         whenNotClosed
+        updatedState
     {
         //// check
         require(loanClosed[loanDesk][loanId] == false, "SaplingLendingPool: loan is closed");
 
         // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
-
-        //// effect
-        settleYield();
 
         uint256 principalPaid;
         uint256 stakerEarnedInterest;
@@ -260,6 +256,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         nonReentrant
         whenNotPaused
         whenNotClosed
+        updatedState
         returns (uint256, uint256)
     {
         //// check
@@ -269,8 +266,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         //// effect
         loanClosed[loanDesk][loanId] = true;
-
-        settleYield();
 
         //remove protocol and staker earnings from yield loss
         if (yieldLoss > 0) {
