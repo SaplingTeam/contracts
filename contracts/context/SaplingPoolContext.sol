@@ -334,7 +334,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @return Max amount of liquidity tokens withdrawable by the caller.
      */
     function amountWithdrawable(address wallet) public view returns (uint256) {
-        return paused() ? 0 : MathUpgradeable.min(balances.rawLiquidity, balanceOf(wallet));
+        return paused() ? 0 : MathUpgradeable.min(liquidity(), balanceOf(wallet));
     }
 
     /**
@@ -395,7 +395,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         ) {
             return 0;
         } else if (closed() || totalPoolShares == balances.stakedShares) {
-            return MathUpgradeable.min(balances.rawLiquidity, sharesToFunds(balances.stakedShares));
+            return MathUpgradeable.min(liquidity(), sharesToFunds(balances.stakedShares));
         }
 
         uint256 lenderShares = totalPoolShares - balances.stakedShares;
@@ -406,7 +406,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         );
 
         return MathUpgradeable.min(
-            balances.rawLiquidity,
+            liquidity(),
             sharesToFunds(balances.stakedShares - lockedStakeShares)
         );
     }
@@ -423,8 +423,10 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
                 SaplingMath.HUNDRED_PERCENT
         );
 
-        return balances.rawLiquidity > lenderAllocatedLiquidity 
-            ? balances.rawLiquidity - lenderAllocatedLiquidity 
+        uint256 rawLiquidity = liquidity();
+
+        return rawLiquidity > lenderAllocatedLiquidity
+            ? rawLiquidity - lenderAllocatedLiquidity
             : 0;
     }
 
@@ -469,8 +471,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         //// effect
 
         uint256 shares = fundsToShares(amount);
-
-        balances.rawLiquidity += amount;
 
         if (isStaker) {
             // this is a staking entry
@@ -531,8 +531,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
             config.exitFeePercent, 
             SaplingMath.HUNDRED_PERCENT
         );
-
-        balances.rawLiquidity -= transferAmount;
 
         //// interactions
 
@@ -606,7 +604,15 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @notice Current amount of liquidity tokens in the pool, including liquid, in strategies, and settled yield
      */
     function poolFunds() public view returns (uint256) {
-        return balances.rawLiquidity + strategizedFunds() + balances.preSettledYield;
+        return liquidity() + strategizedFunds() + balances.preSettledYield;
+    }
+
+    /**
+     * @notice Lending pool raw liquidity, same as the liquidity token balance.
+     * @dev Encapsulated in to a function to reduce compiled contract size.
+     */
+    function liquidity() public view returns (uint256) {
+        return IERC20(tokenConfig.liquidityToken).balanceOf(address(this));
     }
 
     /**
@@ -707,5 +713,5 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     /**
      * @dev Slots reserved for future state variables
      */
-    uint256[42] private __gap;
+    uint256[43] private __gap;
 }
