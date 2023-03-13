@@ -604,7 +604,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 expect(limit).to.equal(stakeAmount.mul(oneHundredPercent / targetStakePercent));
             });
 
-            it('Staker can stake on a failed pool and have a correct pool balance', async function () {
+            it('Staker cannot stake on a failed pool', async function () {
                 await saplingPoolContext.connect(staker).stake(stakeAmount);
 
                 let depositAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
@@ -652,8 +652,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 await liquidityToken.connect(deployer).mint(staker.address, depositAmount);
                 await liquidityToken.connect(staker).approve(saplingPoolContext.address, stakeAmount);
-                await saplingPoolContext.connect(staker).stake(stakeAmount);
-                expect(await saplingPoolContext.balanceStaked()).to.equal(stakeAmount.sub(1));
+                await expect(saplingPoolContext.connect(staker).stake(stakeAmount))
+                    .to.be.revertedWith('SaplingPoolContext: share price too low');
             });
 
             describe('Rejection scenarios', function () {
