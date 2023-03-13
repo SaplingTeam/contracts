@@ -28,9 +28,6 @@ interface ILoanDesk {
     /// Tracked contract balances and parameters
     struct LoanDeskBalances {
 
-        /// Total funds allocated for loan offers, including both drafted and pending acceptance
-        uint256 allocatedFunds;
-
         // Total funds lent at this time, accounts only for loan principals
         uint256 lentFunds;
 
@@ -266,12 +263,6 @@ interface ILoanDesk {
 
     /// Setter event
     event TemplateLoanAPRSet(uint256 prevValue, uint256 newValue);
-
-    /**
-     * @notice Accessor
-     * @dev Total funds allocated for loan offers, including both drafted and pending acceptance
-     */
-    function allocatedFunds() external view returns (uint256);
 
     /**
      * @notice Accessor

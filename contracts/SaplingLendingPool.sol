@@ -131,8 +131,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         require(amount > 0, "SaplingLendingPool: invalid amount");
         require(strategyLiquidity() >= amount, "SaplingLendingPool: insufficient liquidity");
 
-        balances.rawLiquidity -= amount;
-
         SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.liquidityToken), loanDesk, amount);
 
         emit OfferLiquidityAllocated(amount);
@@ -145,8 +143,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      */
     function onOfferDeallocate(uint256 amount) external onlyLoanDesk whenNotPaused whenNotClosed {
         require(amount > 0, "SaplingLendingPool: invalid amount");
-
-        balances.rawLiquidity += amount;
 
         SafeERC20Upgradeable.safeTransferFrom(
             IERC20Upgradeable(tokenConfig.liquidityToken),
@@ -196,15 +192,12 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         uint256 protocolEarnedInterest;
         if (interestPayable == 0) {
             principalPaid = transferAmount;
-            balances.rawLiquidity += transferAmount;
             stakerEarnedInterest = 0;
             protocolEarnedInterest = 0;
         } else {
             principalPaid = transferAmount - interestPayable;
             uint256 shareholderYield;
             (shareholderYield, protocolEarnedInterest, stakerEarnedInterest) = breakdownEarnings(interestPayable);
-
-            balances.rawLiquidity += transferAmount - (protocolEarnedInterest + stakerEarnedInterest);
 
             if (balances.preSettledYield > shareholderYield) {
                 balances.preSettledYield -= shareholderYield;
@@ -352,7 +345,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      *      Pool can be close when no funds remain committed to strategies.
      */
     function canClose() internal view override returns (bool) {
-        return ILoanDesk(loanDesk).allocatedFunds() == 0
+        return IERC20(tokenConfig.liquidityToken).balanceOf(loanDesk) == 0
             && ILoanDesk(loanDesk).lentFunds() == 0;
     }
 
@@ -362,7 +355,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @dev Overrides the same method in the base contract.
      */
     function strategizedFunds() internal view override returns (uint256) {
-        return ILoanDesk(loanDesk).allocatedFunds() + ILoanDesk(loanDesk).lentFunds();
+        return IERC20(tokenConfig.liquidityToken).balanceOf(loanDesk) + ILoanDesk(loanDesk).lentFunds();
     }
 
     /**
