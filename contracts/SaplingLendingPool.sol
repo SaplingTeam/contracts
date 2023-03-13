@@ -352,7 +352,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      *      Pool can be close when no funds remain committed to strategies.
      */
     function canClose() internal view override returns (bool) {
-        return ILoanDesk(loanDesk).allocatedFunds() == 0
+        return IERC20(tokenConfig.liquidityToken).balanceOf(loanDesk) == 0
             && ILoanDesk(loanDesk).lentFunds() == 0;
     }
 
@@ -362,7 +362,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @dev Overrides the same method in the base contract.
      */
     function strategizedFunds() internal view override returns (uint256) {
-        return ILoanDesk(loanDesk).allocatedFunds() + ILoanDesk(loanDesk).lentFunds();
+        return IERC20(tokenConfig.liquidityToken).balanceOf(loanDesk) + ILoanDesk(loanDesk).lentFunds();
     }
 
     /**

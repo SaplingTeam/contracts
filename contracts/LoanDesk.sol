@@ -127,7 +127,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         });
 
         balances = LoanDeskBalances({
-            allocatedFunds: 0,
             lentFunds: 0,
             weightedAvgAPR: 0
         });
@@ -342,7 +341,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             offeredTime: 0
         });
 
-        balances.allocatedFunds += _amount;
         loanApplications[appId].status = LoanApplicationStatus.OFFER_DRAFTED;
 
         //// interactions
@@ -406,14 +404,9 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         //// interactions
         if (offer.amount > prevAmount) {
-            uint256 amountDelta = offer.amount - prevAmount;
-            balances.allocatedFunds += amountDelta;
-
-            ILendingPool(config.pool).onOfferAllocate(amountDelta);
+            ILendingPool(config.pool).onOfferAllocate(offer.amount - prevAmount);
         } else if (offer.amount < prevAmount) {
             uint256 returnAmount = prevAmount - offer.amount;
-            balances.allocatedFunds -= returnAmount;
-
             SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(config.liquidityToken), config.pool, returnAmount);
             ILendingPool(config.pool).onOfferDeallocate(returnAmount);
         }
@@ -504,7 +497,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         //// effect
         loanApplications[appId].status = LoanApplicationStatus.CANCELLED;
-        balances.allocatedFunds -= offer.amount;
 
         emit LoanOfferCancelled(appId, offer.borrower, offer.amount);
 
@@ -536,7 +528,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         app.status = LoanApplicationStatus.OFFER_ACCEPTED;
 
         uint256 offerAmount = offer.amount;
-        balances.allocatedFunds -= offerAmount;
 
         uint256 prevBorrowedFunds = balances.lentFunds;
         balances.lentFunds += offerAmount;
@@ -964,7 +955,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @return True if the contract is closed, false otherwise.
      */
     function canClose() internal view override returns (bool) {
-        return balances.allocatedFunds == 0 && balances.lentFunds == 0;
+        return balances.lentFunds == 0 && IERC20(config.liquidityToken).balanceOf(address(this)) == 0;
     }
 
     /**
@@ -974,14 +965,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      */
     function canOpen() internal view override returns (bool) {
         return config.pool != address(0) && config.liquidityToken != address(0);
-    }
-
-    /**
-     * @notice Accessor
-     * @dev Total funds allocated for loan offers, including both drafted and pending acceptance
-     */
-    function allocatedFunds() external view returns (uint256) {
-        return balances.allocatedFunds;
     }
 
     /**
