@@ -244,7 +244,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @dev Withdrawal amount must be non zero and not exceed amountWithdrawable().
      * @param amount Liquidity token amount to withdraw.
      */
-    function withdraw(uint256 amount) public onlyUser whenNotPaused {
+    function withdraw(uint256 amount) public onlyUser whenNotPaused updatedState {
         WithdrawalAllowance storage allowance = withdrawalAllowances[msg.sender];
 
         require(amount <= allowance.amount, "SaplingPoolContext: insufficient withdrawal allowance amount");
@@ -285,7 +285,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Unstake amount must be non zero and not exceed amountUnstakable().
      * @param amount Liquidity token amount to unstake.
      */
-    function unstake(uint256 amount) external onlyStaker whenNotPaused {
+    function unstake(uint256 amount) external onlyStaker whenNotPaused updatedState {
         require(amount <= amountUnstakable(), "SaplingPoolContext: requested amount is not available for unstaking");
 
         uint256 sharesBurned = exit(amount);
@@ -300,7 +300,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      An appropriate spend limit must be present at the asset token contract.
      *      This function can only be called when the total pool token supply is zero.
      */
-    function initialMint() external onlyStaker whenNotPaused whenClosed {
+    function initialMint() external onlyStaker whenNotPaused whenClosed updatedState {
         require(
             totalPoolTokenSupply() == 0 && poolFunds() == 0,
             "Sapling Pool Context: invalid initial conditions"
@@ -453,7 +453,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to add to the pool on behalf of the caller.
      * @return Amount of pool tokens minted and allocated to the caller.
      */
-    function enter(uint256 amount) internal nonReentrant updatedState returns (uint256) {
+    function enter(uint256 amount) private nonReentrant returns (uint256) {
         //// check
 
         require(amount >= 10 ** tokenConfig.decimals, "SaplingPoolContext: entry amount too low");
@@ -505,7 +505,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param amount Liquidity token amount to withdraw from the pool on behalf of the caller.
      * @return Amount of pool tokens burned and taken from the caller.
      */
-    function exit(uint256 amount) internal nonReentrant updatedState returns (uint256) {
+    function exit(uint256 amount) private nonReentrant returns (uint256) {
         //// check
         require(amount > 0, "SaplingPoolContext: pool withdrawal amount is 0");
 
