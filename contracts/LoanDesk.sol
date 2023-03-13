@@ -72,6 +72,12 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         _;
     }
 
+    /// Modifier to update pool accounting state before function execution
+    modifier updatedState() {
+        IPoolContext(config.pool).settleYield();
+        _;
+    }
+
     /**
      * @dev Disable initializers
      */
@@ -511,7 +517,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      *      The loan must be in OFFER_MADE status.
      * @param appId ID of the loan application to accept the offer of
      */
-    function borrow(uint256 appId) external whenNotClosed whenNotPaused nonReentrant {
+    function borrow(uint256 appId) external whenNotClosed whenNotPaused nonReentrant updatedState {
 
         //// check
 
@@ -522,8 +528,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         require(offer.borrower == msg.sender, "LoanDesk: msg.sender is not the borrower on this loan");
 
         //// effect
-
-        IPoolContext(config.pool).settleYield();
 
         app.status = LoanApplicationStatus.OFFER_ACCEPTED;
 
@@ -618,14 +622,13 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         onlyStaker
         whenNotPaused
         nonReentrant
+        updatedState
     {
         //// check
 
         require(canDefault(loanId), "LoanDesk: cannot default this loan at this time");
 
         //// effect
-
-        IPoolContext(config.pool).settleYield();
 
         Loan storage loan = loans[loanId];
 
@@ -655,7 +658,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @param loanId ID of the loan to make a payment towards
      * @param amount Payment amount in tokens
      */
-    function repayBase(uint256 loanId, uint256 amount) internal nonReentrant whenNotPaused {
+    function repayBase(uint256 loanId, uint256 amount) internal nonReentrant whenNotPaused updatedState {
 
         //// check
 
@@ -677,8 +680,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         require(transferAmount > 0, "SaplingLendingPool: invalid amount - increase to daily interest");
 
         //// effect
-
-        IPoolContext(config.pool).settleYield();
 
         uint256 principalPaid = transferAmount - interestPayable;
 
