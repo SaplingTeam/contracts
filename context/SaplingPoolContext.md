@@ -439,6 +439,16 @@ function poolFunds() public view returns (uint256)
 
 Current amount of liquidity tokens in the pool, including liquid, in strategies, and settled yield
 
+### liquidity
+
+```solidity
+function liquidity() public view returns (uint256)
+```
+
+Lending pool raw liquidity, same as the liquidity token balance.
+
+_Encapsulated in to a function to reduce compiled contract size._
+
 ### strategizedFunds
 
 ```solidity
@@ -489,7 +499,7 @@ _Represent percentage parameter values in contract specific format._
 ### __gap
 
 ```solidity
-uint256[42] __gap
+uint256[43] __gap
 ```
 
 _Slots reserved for future state variables_

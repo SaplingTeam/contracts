@@ -613,16 +613,6 @@ _Overrides a hook in SaplingStakerContext._
 | ---- | ---- | ----------- |
 | [0] | bool | True if the conditions to open are met, false otherwise. |
 
-### allocatedFunds
-
-```solidity
-function allocatedFunds() external view returns (uint256)
-```
-
-Accessor
-
-_Total funds allocated for loan offers, including both drafted and pending acceptance_
-
 ### lentFunds
 
 ```solidity

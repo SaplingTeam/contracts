@@ -30,7 +30,6 @@ struct PoolConfig {
 
 ```solidity
 struct PoolBalance {
-  uint256 rawLiquidity;
   uint256 preSettledYield;
   uint256 stakedShares;
 }

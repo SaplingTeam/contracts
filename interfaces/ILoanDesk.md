@@ -18,7 +18,6 @@ struct LoanDeskConfig {
 
 ```solidity
 struct LoanDeskBalances {
-  uint256 allocatedFunds;
   uint256 lentFunds;
   uint16 weightedAvgAPR;
 }
@@ -268,16 +267,6 @@ event TemplateLoanAPRSet(uint256 prevValue, uint256 newValue)
 ```
 
 Setter event
-
-### allocatedFunds
-
-```solidity
-function allocatedFunds() external view returns (uint256)
-```
-
-Accessor
-
-_Total funds allocated for loan offers, including both drafted and pending acceptance_
 
 ### lentFunds
 
