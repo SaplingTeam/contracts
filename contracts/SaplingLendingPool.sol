@@ -30,10 +30,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         _;
     }
 
-    /**
-     * @dev Disable initializers
-     */
-    function disableIntitializers() external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
         _disableInitializers();
     }
 
@@ -72,6 +70,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @param _loanDesk New LoanDesk address
      */
     function setLoanDesk(address _loanDesk) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
+        require(address (loanDesk) == address (0), "SaplingLendingPool: LoanDesk already set");
+
         address prevLoanDesk = loanDesk;
         loanDesk = _loanDesk;
         emit LoanDeskSet(prevLoanDesk, _loanDesk);
