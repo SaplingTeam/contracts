@@ -279,7 +279,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         uint256 lenderLoss = 0;
 
         if (totalLoss > 0) {
-            uint256 remainingLostShares = fundsToShares(totalLoss);
+            uint256 remainingLostShares = fundsToSharesBase(totalLoss, true);
 
             if (balances.stakedShares > 0) {
                 uint256 stakedShareLoss = MathUpgradeable.min(remainingLostShares, balances.stakedShares);

@@ -455,6 +455,12 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function enter(uint256 amount) private nonReentrant returns (uint256) {
         //// check
+        uint256 _poolFunds = poolFunds();
+        uint256 totalShares = totalPoolTokenSupply();
+        if (totalShares != 0) {
+            // do not allow entry if share price is down 95% from launch
+            require(_poolFunds > totalShares / 20, "SaplingPoolContext: share price too low");
+        }
 
         require(amount >= 10 ** tokenConfig.decimals, "SaplingPoolContext: entry amount too low");
 
@@ -463,7 +469,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         // non-stakers must follow pool size limit
         if (!isStaker) {
             uint256 poolLimit = poolFundsLimit();
-            uint256 _poolFunds = poolFunds();
             require(
                 poolLimit > _poolFunds && amount <= poolLimit - _poolFunds,
                 "SaplingPoolContext: deposit amount is over the remaining pool limit"
@@ -559,23 +564,36 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
     /**
      * @notice Get share value of funds.
+     * @dev For use in all cases except for defaults. Use fundsToSharesBase for default calculations instead.
      * @param funds Amount of liquidity tokens
      * @return Converted pool token value
      */
     function fundsToShares(uint256 funds) public view returns (uint256) {
+        return fundsToSharesBase(funds, false);
+    }
+
+    /**
+     * @notice Get share value of funds.
+     * @dev Setting the isDefault flag will allow conversion avoiding divide by zero error,
+     *      replacing the denominator with 1.
+     * @param funds Amount of liquidity tokens
+     * @param isDefault whether or not the call if for calculation for a default
+     * @return Converted pool token value
+     */
+    function fundsToSharesBase(uint256 funds, bool isDefault) public view returns (uint256) {
         uint256 totalPoolTokens = totalPoolTokenSupply();
         uint256 _poolFunds = poolFunds();
 
         if (totalPoolTokens == 0) {
-            // a pool with no positions
+            // a pool with no positions has 1:1 conversion rate
             return funds;
-        } else if (_poolFunds == 0) {
+        } else if (_poolFunds == 0 && isDefault) {
             /*
-                Handle failed pool case, where: poolFunds == 0, but totalPoolShares > 0
-                To minimize loss for the new depositor, assume the total value of existing shares is the minimum
-                possible nonzero integer, which is 1.
+                Allow defaults on a failed pool: mulDiv() will revert if _poolFunds == 0.
+                Use minimum value, 1 as a replacement for _poolFunds.
+                Simplify (funds * totalPoolTokens) / 1 as funds * totalPoolTokens.
 
-                Simplify (tokens * totalPoolShares) / 1 as tokens * totalPoolShares.
+                For non default calls, entry is prevented in enter() when conversion rate is down 95% from launch.
             */
             return funds * totalPoolTokens;
         }
