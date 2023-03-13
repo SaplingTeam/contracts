@@ -413,9 +413,31 @@ function fundsToShares(uint256 funds) public view returns (uint256)
 
 Get share value of funds.
 
+_For use in all cases except for defaults. Use fundsToSharesBase for default calculations instead._
+
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | funds | uint256 | Amount of liquidity tokens |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | uint256 | Converted pool token value |
+
+### fundsToSharesBase
+
+```solidity
+function fundsToSharesBase(uint256 funds, bool isDefault) public view returns (uint256)
+```
+
+Get share value of funds.
+
+_Setting the isDefault flag will allow conversion avoiding divide by zero error,
+     replacing the denominator with 1._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| funds | uint256 | Amount of liquidity tokens |
+| isDefault | bool | whether or not the call if for calculation for a default |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
