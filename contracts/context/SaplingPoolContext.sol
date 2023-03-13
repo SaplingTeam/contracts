@@ -713,5 +713,5 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     /**
      * @dev Slots reserved for future state variables
      */
-    uint256[42] private __gap;
+    uint256[43] private __gap;
 }
