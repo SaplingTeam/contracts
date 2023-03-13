@@ -108,13 +108,11 @@ modifier updatedState()
 
 Modifier to update pool accounting state before function execution
 
-### disableIntitializers
+### constructor
 
 ```solidity
-function disableIntitializers() external
+constructor() public
 ```
-
-_Disable initializers_
 
 ### initialize
 

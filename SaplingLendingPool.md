@@ -44,13 +44,11 @@ modifier onlyLoanDesk()
 
 A modifier to limit access only to the loan desk contract
 
-### disableIntitializers
+### constructor
 
 ```solidity
-function disableIntitializers() external
+constructor() public
 ```
-
-_Disable initializers_
 
 ### initialize
 
