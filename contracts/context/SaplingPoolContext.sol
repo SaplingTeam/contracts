@@ -324,7 +324,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     function amountDepositable() public view returns (uint256) {
         uint256 poolLimit = poolFundsLimit();
         uint256 _poolFunds = poolFunds();
-        if (poolLimit <= _poolFunds || closed() || paused()) {
+        if (poolLimit <= _poolFunds || closed() || paused() || !isPpsHealthy(totalPoolTokenSupply(), _poolFunds)) {
             return 0;
         }
 
@@ -457,11 +457,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         //// check
         uint256 _poolFunds = poolFunds();
         uint256 totalShares = totalPoolTokenSupply();
-        if (totalShares != 0) {
-            // do not allow entry if share price is down 95% from launch
-            require(_poolFunds > totalShares / 20, "SaplingPoolContext: share price too low");
-        }
 
+        require(isPpsHealthy(totalShares, _poolFunds), "SaplingPoolContext: share price too low");
         require(amount >= 10 ** tokenConfig.decimals, "SaplingPoolContext: entry amount too low");
 
         bool isStaker = msg.sender == staker;
@@ -726,6 +723,19 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
             stakerEarningsComponent: uint16(stakerWithdrawableAPY),
             lenderComponent: uint16(_lenderAPY)
         });
+    }
+
+    /**
+     * @dev Checks if given values of total shares and funds maintain acceptable conversion rate for pool entries.
+     *
+     *      Set PPS_RATE_CHECK_DIVISOR as a divisor derived from a percentage.
+     *      i.e. When the PPS_RATE_CHECK_DIVISOR is 20, method returns false if PPS has fallen over 95% from initial rate.
+     * @param shares Total pool shares
+     * @param funds Total pool funds
+     * @return Returns true if price per share is greater than or equal to the required minimum, false otherwise
+     */
+    function isPpsHealthy(uint256 shares, uint256 funds) private pure returns (bool) {
+        return funds >= shares / SaplingMath.PPS_RATE_CHECK_DIVISOR;
     }
 
     /**
