@@ -28,6 +28,14 @@ uint16 MAX_PROTOCOL_FEE_PERCENT
 
 Math safe upper bound for percentage of paid interest to be allocated as protocol fee
 
+### PPS_RATE_CHECK_DIVISOR
+
+```solidity
+uint256 PPS_RATE_CHECK_DIVISOR
+```
+
+Total shares divisor to calculate the minimum pool funds to maintain acceptable conversion rate for pool entries
+
 ### SAFE_MIN_DURATION
 
 ```solidity

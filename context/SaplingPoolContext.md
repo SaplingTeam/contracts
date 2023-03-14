@@ -526,6 +526,26 @@ _Represent percentage parameter values in contract specific format._
 | ---- | ---- | ----------- |
 | [0] | struct IPoolContext.APYBreakdown | Pool apy with protocol, staker, and lender components broken down. |
 
+### isPpsHealthy
+
+```solidity
+function isPpsHealthy(uint256 shares, uint256 funds) private pure returns (bool)
+```
+
+_Checks if given values of total shares and funds maintain acceptable conversion rate for pool entries.
+
+     Set PPS_RATE_CHECK_DIVISOR as a divisor derived from a percentage.
+     i.e. When the PPS_RATE_CHECK_DIVISOR is 20, method returns false if PPS has fallen over 95% from initial rate._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| shares | uint256 | Total pool shares |
+| funds | uint256 | Total pool funds |
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| [0] | bool | Returns true if price per share is greater than or equal to the required minimum, false otherwise |
+
 ### __gap
 
 ```solidity
