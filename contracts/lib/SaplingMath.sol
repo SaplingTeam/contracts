@@ -20,6 +20,9 @@ library SaplingMath {
     /// Math safe upper bound for percentage of paid interest to be allocated as protocol fee
     uint16 public constant MAX_PROTOCOL_FEE_PERCENT = uint16(50 * 10 ** PERCENT_DECIMALS);
 
+    /// Total shares divisor to calculate the minimum pool funds to maintain acceptable conversion rate for pool entries
+    uint256 public constant PPS_RATE_CHECK_DIVISOR = 20; // multiplication by '5/100' is simplified as division by '20'
+
     /// Math safe minimum loan duration in seconds
     uint256 public constant SAFE_MIN_DURATION = 1 days;
 
