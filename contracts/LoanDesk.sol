@@ -795,25 +795,36 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         Loan storage loan = loans[loanId];
 
-        uint256 paymentDueTime;
-
-        if (loan.installments > 1) {
-            uint256 installmentPeriod = loan.duration / loan.installments;
-            uint256 pastInstallments = (block.timestamp - loan.borrowedTime) / installmentPeriod;
-            uint256 minTotalPayment = loan.installmentAmount * pastInstallments;
-
-            LoanDetail storage detail = loanDetails[loanId];
-            uint256 totalRepaid = detail.principalAmountRepaid + detail.interestPaid;
-            if (totalRepaid >= minTotalPayment) {
-                return false;
-            }
-
-            paymentDueTime = loan.borrowedTime + ((totalRepaid / loan.installmentAmount) + 1) * installmentPeriod;
-        } else {
-            paymentDueTime = loan.borrowedTime + loan.duration;
+        if (block.timestamp > loan.borrowedTime + loan.duration + loan.gracePeriod) {
+            // loan has any outstanding amount and is overdue beyond the grace period
+            return true;
         }
 
-        return block.timestamp > paymentDueTime + loan.gracePeriod;
+        uint256 installmentPeriod = loan.duration / loan.installments;
+        uint256 pastInstallments = (block.timestamp - loan.borrowedTime) / installmentPeriod;
+        uint256 paymentDueTime = loan.borrowedTime + pastInstallments * installmentPeriod;
+        uint256 totalPaymentExpected = loan.installmentAmount * pastInstallments;
+
+        if (block.timestamp > paymentDueTime + loan.gracePeriod
+            && loanDetails[loanId].totalAmountRepaid < totalPaymentExpected) {
+            /*
+                Some installment amount is overdue:
+
+                - current time is after the last installment due date + grace installmentPeriod, AND
+                - total amount repaid is less than the sum of all previous installments
+
+                Note:
+
+                When installment amount is greater than necessary for loan amortisation,
+                if installment payments are kept on time, borrower is not overcharged on any payment beyond
+                the total amount due, and the loan will naturally be closed before it can be considered a default.
+
+                canDefault() requires loans to be in OUTSTANDING status.
+             */
+            return true;
+        }
+
+        return false;
     }
 
     /**
