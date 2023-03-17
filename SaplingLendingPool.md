@@ -20,13 +20,13 @@ address treasury
 
 Address where the protocol fees are sent to
 
-### yieldSettledTime
+### yieldSettledDay
 
 ```solidity
-uint256 yieldSettledTime
+uint256 yieldSettledDay
 ```
 
-timestamp up to which the yield has been settled.
+unix day up to which the yield has been settled.
 
 ### loanClosed
 
@@ -137,7 +137,7 @@ _Hook for a loan offer amount update. Amount update can be due to offer update o
 ### onRepay
 
 ```solidity
-function onRepay(uint256 loanId, address borrower, address payer, uint256 transferAmount, uint256 interestPayable) external
+function onRepay(uint256 loanId, address borrower, address payer, uint256 transferAmount, uint256 interestPayable, uint256 borrowedTime) external
 ```
 
 _Hook for repayments. Caller must be the LoanDesk. 
@@ -152,6 +152,7 @@ _Hook for repayments. Caller must be the LoanDesk.
 | payer | address | Actual payer address |
 | transferAmount | uint256 | Amount chargeable |
 | interestPayable | uint256 | Amount of interest paid, this value is already included in the payment amount |
+| borrowedTime | uint256 | Block timestamp when this loan was borrowed |
 
 ### onDefault
 

@@ -88,7 +88,7 @@ _Hook for a loan offer amount update._
 ### onRepay
 
 ```solidity
-function onRepay(uint256 loanId, address borrower, address payer, uint256 transferAmount, uint256 interestPayable) external
+function onRepay(uint256 loanId, address borrower, address payer, uint256 transferAmount, uint256 interestPayable, uint256 borrowedTime) external
 ```
 
 _Hook for repayments. Caller must be the LoanDesk. 
@@ -103,6 +103,7 @@ _Hook for repayments. Caller must be the LoanDesk.
 | payer | address | Actual payer address |
 | transferAmount | uint256 | Amount chargeable |
 | interestPayable | uint256 | Amount of interest paid, this value is already included in the payment amount |
+| borrowedTime | uint256 | Block timestamp when this loan was borrowed |
 
 ### onDefault
 
