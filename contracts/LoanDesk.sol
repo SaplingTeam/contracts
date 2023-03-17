@@ -708,7 +708,8 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             loan.borrower, 
             msg.sender,
             transferAmount,
-            interestPayable
+            interestPayable,
+            loan.borrowedTime
         );
     }
 
@@ -956,7 +957,8 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             return 0;
         }
 
-        return MathUpgradeable.ceilDiv(timeTo - timeFrom, 86400);
+        // interest acquiring days are the floor of the past days but not less than 1
+        return MathUpgradeable.max((timeTo - timeFrom) / 86400, 1);
     }
 
     /**

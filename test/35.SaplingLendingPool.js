@@ -603,19 +603,28 @@ describe('Sapling Lending Pool', function () {
                         let stakedBalanceBefore = await lendingPool.balanceStaked();
 
                         expect(await loanDesk.canDefault(loanId)).to.equal(true);
-                        await loanDesk.connect(staker).defaultLoan(loanId);
+
+                        let tx = await loanDesk.connect(staker).defaultLoan(loanId);
+                        let loanDefaultedEvent = (await tx.wait()).events.filter((e) => e.event === 'LoanDefaulted')[0];
+                        let stakerLoss = loanDefaultedEvent.args.stakerLoss;
+                        let lenderLoss = loanDefaultedEvent.args.lenderLoss;
+                        let lossAmount = stakerLoss.add(lenderLoss);
 
                         loan = await loanDesk.loans(loanId);
-                        let loanDetail = await loanDesk.loanDetails(loanId);
-                        let lossAmount = loan.amount.sub(loanDetail.principalAmountRepaid);
 
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
-                        expect((await lendingPool.poolFunds())).to.equal(poolFundsBefore.sub(lossAmount));
-                        expect(await lendingPool.balanceStaked()).to.gte(stakedBalanceBefore.sub(lossAmount).sub(5))
-                            .and.to.lte(stakedBalanceBefore.sub(lossAmount).add(5));
+
+                        // allow +/- half token accuracy due to pre settled yield being a rough value based on averages
+                        expect((await lendingPool.poolFunds()))
+                            .to.gte(poolFundsBefore.sub(lossAmount).sub(TOKEN_MULTIPLIER.div(2))).and
+                            .to.lte(poolFundsBefore.sub(lossAmount).add(TOKEN_MULTIPLIER.div(2)));
+                        expect(await lendingPool.balanceStaked())
+                            .to.gte(stakedBalanceBefore.sub(stakerLoss).sub(TOKEN_MULTIPLIER.div(2))).and
+                            .to.lte(stakedBalanceBefore.sub(stakerLoss).add(TOKEN_MULTIPLIER.div(2)));
                     });
 
                     it('Staker can default a loan that has no payments made', async function () {
+                        // manual settling is only necessary to get the pool funds and staked balance pre default
                         await lendingPool.connect(staker).settleYield();
 
                         let poolFundsBefore = (await lendingPool.poolFunds());
@@ -634,7 +643,9 @@ describe('Sapling Lending Pool', function () {
                         expect((await lendingPool.poolFunds()))
                             .to.gte(poolFundsBefore.sub(lossAmount).sub(1)).and
                             .to.lte(poolFundsBefore.sub(lossAmount).add(1));
-                        expect(await lendingPool.balanceStaked()).to.equal(stakedBalanceBefore.sub(stakerLoss));
+                        expect(await lendingPool.balanceStaked())
+                            .to.gte(stakedBalanceBefore.sub(stakerLoss).sub(1))
+                            .and.to.lte(stakedBalanceBefore.sub(stakerLoss).add(1));
                     });
 
                     it('Staker can default a loan with an loss amount equal to the stakers stake', async function () {
