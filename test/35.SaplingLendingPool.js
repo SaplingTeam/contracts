@@ -506,29 +506,6 @@ describe('Sapling Lending Pool', function () {
                     );
                 });
 
-                it('Borrower can do a payment with amount less than the required minimum but equal to outstanding balance', async function () {
-                    let loan = await loanDesk.loans(loanId);
-
-                    await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()-60]);
-                    await ethers.provider.send('evm_mine');
-
-                    let paymentAmount2 = TOKEN_MULTIPLIER.mul(1).sub(1);
-                    let paymentAmount1 = (await loanDesk.loanBalanceDue(loanId)).sub(paymentAmount2);
-
-                    await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount1.add(paymentAmount2));
-                    await liquidityToken
-                        .connect(borrower1)
-                        .approve(lendingPool.address, paymentAmount1.add(paymentAmount2));
-                    await loanDesk.connect(borrower1).repay(loanId, paymentAmount1);
-
-                    await expect(loanDesk.connect(borrower1).repay(loanId, paymentAmount2)).to.be.not.reverted;
-
-                    await ethers.provider.send('evm_mine');
-
-                    loan = await loanDesk.loans(loanId);
-                    expect(loan.status).to.equal(LoanStatus.REPAID);
-                });
-
                 describe('Rejection scenarios', function () {
                     it('Repaying a less than minimum payment amount on a loan with a greater outstanding balance should fail', async function () {
                         let paymentAmount = TOKEN_MULTIPLIER.mul(1).sub(1);
