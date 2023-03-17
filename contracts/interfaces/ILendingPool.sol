@@ -58,13 +58,15 @@ interface ILendingPool {
      * @param payer Actual payer address
      * @param transferAmount Amount chargeable
      * @param interestPayable Amount of interest paid, this value is already included in the payment amount
+     * @param borrowedTime Block timestamp when this loan was borrowed
      */
     function onRepay(
         uint256 loanId, 
         address borrower,
         address payer,
         uint256 transferAmount,
-        uint256 interestPayable
+        uint256 interestPayable,
+        uint256 borrowedTime
     ) external;
 
     /**

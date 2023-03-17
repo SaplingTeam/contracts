@@ -1208,7 +1208,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                     let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
-                    await ethers.provider.send('evm_increaseTime', [loanDuration.toNumber() - 3]);
+                    await ethers.provider.send('evm_increaseTime', [loanDuration.toNumber()-10]);
                     await ethers.provider.send('evm_mine');
                 });
 

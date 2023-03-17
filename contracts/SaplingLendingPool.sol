@@ -18,8 +18,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /// Address where the protocol fees are sent to
     address public treasury;
 
-    /// timestamp up to which the yield has been settled.
-    uint256 public yieldSettledTime;
+    /// unix day up to which the yield has been settled.
+    uint256 public yieldSettledDay;
 
     /// Mark the loans closed to guards against double actions due to future bugs or compromised LoanDesk
     mapping(address => mapping(uint256 => bool)) private loanClosed;
@@ -59,7 +59,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         require(_treasury != address(0), "SaplingPoolContext: treasury address is not set");
 
         treasury = _treasury;
-        yieldSettledTime = block.timestamp;
+        yieldSettledDay = block.timestamp / 86400;
     }
 
     /**
@@ -94,7 +94,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      *      taking into account the protocol fee and the staker earnings.
      */
     function settleYield() public override {
-        if (block.timestamp < yieldSettledTime + 86400) {
+        uint256 unixDay = block.timestamp / 86400;
+        if (yieldSettledDay == unixDay) {
             // re-settlement is too soon, do nothing
             return;
         }
@@ -104,11 +105,11 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
 
         if (principalOutstanding == 0 || avgApr == 0) {
             // new yield will be zero, update settled time and do nothing
-            yieldSettledTime = block.timestamp;
+            yieldSettledDay = unixDay;
             return;
         }
 
-        uint256 interestDays = MathUpgradeable.ceilDiv(block.timestamp - yieldSettledTime, 86400);
+        uint256 interestDays = unixDay - yieldSettledDay;
         uint256 interestPercent = MathUpgradeable.mulDiv(uint256(avgApr) * 1e18, interestDays, 365);
         uint256 interestDue = MathUpgradeable.mulDiv(
             principalOutstanding,
@@ -120,7 +121,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         (uint256 shareholderYield, /* ignored */, /* ignored */) = breakdownEarnings(interestDue);
 
         balances.preSettledYield += shareholderYield;
-        yieldSettledTime += interestDays * 86400;
+        yieldSettledDay = unixDay;
     }
 
     /**
@@ -165,13 +166,15 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @param payer Actual payer address
      * @param transferAmount Amount chargeable
      * @param interestPayable Amount of interest paid, this value is already included in the payment amount
+     * @param borrowedTime Block timestamp when this loan was borrowed
      */
     function onRepay(
         uint256 loanId, 
         address borrower,
         address payer,
         uint256 transferAmount,
-        uint256 interestPayable
+        uint256 interestPayable,
+        uint256 borrowedTime
     ) 
         external 
         onlyLoanDesk
@@ -194,13 +197,21 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             protocolEarnedInterest = 0;
         } else {
             principalPaid = transferAmount - interestPayable;
+
             uint256 shareholderYield;
             (shareholderYield, protocolEarnedInterest, stakerEarnedInterest) = breakdownEarnings(interestPayable);
 
-            if (balances.preSettledYield > shareholderYield) {
-                balances.preSettledYield -= shareholderYield;
-            } else {
-                balances.preSettledYield = 0;
+            /*
+                Reduce settled yield by the paid interest amount only if the loan was not borrowed on the same unix day.
+                Yield is pre-settled before each borrow, and is only settled once a day - meaning,
+                the yield from the loan borrowed today is not settled until the next unix day.
+             */
+            uint256 unixDay = block.timestamp / 86400;
+            if (unixDay > borrowedTime / 86400) {
+                // actual paid interest could be technically more than settled yield due to averaging and integer math
+                balances.preSettledYield  = balances.preSettledYield > shareholderYield
+                    ? balances.preSettledYield - shareholderYield
+                    : 0;
             }
         }
 
