@@ -18,11 +18,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /// Address where the protocol fees are sent to
     address public treasury;
 
-    /// unix day up to which the yield has been settled.
+    /// unix day on which the yield has been settled.
     uint256 public yieldSettledDay;
-
-    /// Mark the loans closed to guards against double actions due to future bugs or compromised LoanDesk
-    mapping(address => mapping(uint256 => bool)) private loanClosed;
 
     /// A modifier to limit access only to the loan desk contract
     modifier onlyLoanDesk() {
@@ -183,9 +180,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         whenNotClosed
         updatedState
     {
-        //// check
-        require(loanClosed[loanDesk][loanId] == false, "SaplingLendingPool: loan is closed");
-
         // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
 
         uint256 principalPaid;
@@ -209,7 +203,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             uint256 unixDay = block.timestamp / 86400;
             if (unixDay > borrowedTime / 86400) {
                 // actual paid interest could be technically more than settled yield due to averaging and integer math
-                balances.preSettledYield  = balances.preSettledYield > shareholderYield
+                balances.preSettledYield = balances.preSettledYield > shareholderYield
                     ? balances.preSettledYield - shareholderYield
                     : 0;
             }
@@ -270,13 +264,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         updatedState
         returns (uint256, uint256)
     {
-        //// check
-        require(loanClosed[loanDesk][loanId] == false, "SaplingLendingPool: loan is closed");
-
         // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
-
-        //// effect
-        loanClosed[loanDesk][loanId] = true;
 
         //remove protocol and staker earnings from yield loss
         if (yieldLoss > 0) {
@@ -302,8 +290,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 if (balances.stakedShares == 0) {
                     emit StakedFundsDepleted();
                 }
-
-                //// interactions
 
                 //burn staked shares; this external interaction must happen before calculating lender loss
                 IPoolToken(tokenConfig.poolToken).burn(address(this), stakedShareLoss);

@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.15;
 
+/**
+ * @title SaplingPoolContext Interface
+ */
 interface IPoolContext {
 
     /// Tokens configuration
@@ -12,7 +15,7 @@ interface IPoolContext {
         /// Address of an ERC20 liquidity token accepted by the pool
         address liquidityToken;
 
-        /// decimals value retrieved from the liquidity token contract upon contract construction
+        /// Decimals value retrieved from the liquidity token contract upon contract construction
         uint8 decimals;
     }
 
@@ -73,13 +76,13 @@ interface IPoolContext {
         /// Total pool APY
         uint16 totalPoolAPY;
 
-        /// part of the pool APY allocated as protool revenue
+        /// part of the pool APY allocated as protocol revenue
         uint16 protocolRevenueComponent;
 
         /// part of the pool APY allocated as staker earnings
         uint16 stakerEarningsComponent;
 
-        /// part of the pool APY allocated as lender APY. Lender APY also includes stakers's non-leveraged yield
+        /// part of the pool APY allocated as lender APY. Lender APY also includes staker's non-leveraged yield
         uint16 lenderComponent;
     }
 

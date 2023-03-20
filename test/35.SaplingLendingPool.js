@@ -476,11 +476,11 @@ describe('Sapling Lending Pool', function () {
 
                     let loanDetail = await loanDesk.loanDetails(loanId);
 
-                    let expectedProtocolFee = loanDetail.interestPaid
+                    let expectedProtocolFee = loanDetail.totalAmountRepaid.sub(loanDetail.principalAmountRepaid)
                         .mul(protocolEarningPercent)
                         .div(ONE_HUNDRED_PERCENT);
 
-                    let stakerEarnedInterest = loanDetail.interestPaid
+                    let stakerEarnedInterest = loanDetail.totalAmountRepaid.sub(loanDetail.principalAmountRepaid)
                         .sub(expectedProtocolFee)
                         .mul(stakerEarningsPercent)
                         .div(stakerEarningsPercent.add(ONE_HUNDRED_PERCENT));

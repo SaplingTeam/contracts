@@ -53,17 +53,16 @@ abstract contract SaplingContext is Initializable, PausableUpgradeable {
     }
 
     /**
-     * @notice Resume the contract.
+     * @notice Unpause the contract.
      * @dev Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause.
-     *      Caller must have the PAUSER_ROLE. 
-     *      
+     *      Caller must have the PAUSER_ROLE.
      */
     function unpause() external onlyRole(SaplingRoles.PAUSER_ROLE) {
         _unpause();
     }
 
     /**
-     * @notice Verify if an address has any non-user roles
+     * @notice Verify if an address has any non-user roles.
      * @dev When overriding, return "contract local verification result" AND super.isNonUserAddress(party).
      * @param party Address to verify
      * @return True if the address has any roles, false otherwise

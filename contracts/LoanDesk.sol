@@ -15,19 +15,15 @@ import "./lib/SaplingMath.sol";
 
 /**
  * @title Loan Desk
- * @notice Provides loan application and offer flow.
+ * @notice Provides loan lifecycle.
  */
 contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable {
 
     /// LoanDesk configuration parameters
     LoanDeskConfig public config;
 
-    /// Tracked contract balances and parameters
-    LoanDeskBalances public balances;
-
     /// Default loan parameter values
     LoanTemplate public loanTemplate;
-
 
     // Loan applications state 
 
@@ -54,6 +50,12 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
     /// LoanDetails by loan ID
     mapping(uint256 => LoanDetail) public loanDetails;
+
+    // Total funds lent at this time, accounts only for loan principals
+    uint256 public lentFunds;
+
+    /// Weighted average loan APR on the borrowed funds
+    uint16 public weightedAvgAPR;
 
 
     /// A modifier to limit access only to when the application exists and has the specified status
@@ -128,11 +130,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             lenderGovernanceRole: _lenderGovernanceRole,
             pool: _pool,
             liquidityToken: _liquidityToken
-        });
-
-        balances = LoanDeskBalances({
-            lentFunds: 0,
-            weightedAvgAPR: 0
         });
 
         nextApplicationId = 1;
@@ -261,7 +258,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             borrower: msg.sender,
             amount: _amount,
             duration: _duration,
-            requestedTime: block.timestamp,
             status: LoanApplicationStatus.APPLIED,
             profileId: _profileId,
             profileDigest: _profileDigest
@@ -341,8 +337,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             installmentAmount: _installmentAmount,
             installments: _installments,
             apr: _apr,
-            lockedTime: 0,
-            offeredTime: 0
+            lockedTime: 0
         });
 
         loanApplications[appId].status = LoanApplicationStatus.OFFER_DRAFTED;
@@ -418,7 +413,8 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
     /**
      * @notice Lock a draft loan offer.
-     * @dev Loan application must be in OFFER_DRAFTED status.
+     * @dev Locking an offer makes it cancellable by a lender vote.
+     *      Loan application must be in OFFER_DRAFTED status.
      *      Caller must be the staker.
      * @param appId Loan application id
      */
@@ -442,6 +438,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @notice Make a loan offer.
      * @dev Loan application must be in OFFER_DRAFT_LOCKED status.
      *      Caller must be the staker.
+     *      Voting lock period must have expired.
      * @param appId Loan application id
      */
     function offerLoan(
@@ -463,7 +460,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         //// effect
         loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
-        loanOffers[appId].offeredTime = block.timestamp;
 
         emit LoanOffered(appId, loanApplications[appId].borrower);
     }
@@ -473,12 +469,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @dev Loan application must be in one of OFFER_MADE, OFFER_DRAFT_LOCKED, OFFER_MADE statuses.
      *      Caller must be the staker or the lender governance within the voting window.
      */
-    function cancelLoan(
-        uint256 appId
-    )
-        external
-        whenNotPaused
-    {
+    function cancelLoan(uint256 appId) external whenNotPaused {
         /// check
         require(appId != 0, "LoanDesk: invalid id");
         LoanApplicationStatus status = loanApplications[appId].status;
@@ -531,8 +522,8 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         uint256 offerAmount = offer.amount;
 
-        uint256 prevBorrowedFunds = balances.lentFunds;
-        balances.lentFunds += offerAmount;
+        uint256 prevBorrowedFunds = lentFunds;
+        lentFunds += offerAmount;
 
         emit LoanOfferAccepted(appId, app.borrower, offerAmount);
 
@@ -558,13 +549,12 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             loanId: loanId,
             totalAmountRepaid: 0,
             principalAmountRepaid: 0,
-            interestPaid: 0,
             interestPaidTillTime: block.timestamp
         });
 
-        balances.weightedAvgAPR = uint16(
-            (prevBorrowedFunds * balances.weightedAvgAPR + offerAmount * offer.apr)
-            / balances.lentFunds
+        weightedAvgAPR = uint16(
+            (prevBorrowedFunds * weightedAvgAPR + offerAmount * offer.apr)
+            / lentFunds
         );
 
         //// interactions
@@ -610,7 +600,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @notice Default a loan.
      * @dev Loan must be in OUTSTANDING status.
      *      Caller must be the staker.
-     *      canDefault(loanId) must return 'true'.
+     *      canDefault(loanId) must be true.
      * @param loanId ID of the loan to default
      */
     function defaultLoan(
@@ -642,7 +632,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         // update lent funds and avg apr after the call to onDefault(),
         // to have pre-default price per share when burning the correct amount of stake
-        balances.lentFunds -= principalLoss;
+        lentFunds -= principalLoss;
         updateAvgApr(principalLoss, loan.apr);
 
         emit LoanDefaulted(loanId, loan.borrower, stakerLoss, lenderLoss);
@@ -685,10 +675,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         loanDetail.totalAmountRepaid += transferAmount;
         loanDetail.principalAmountRepaid += principalPaid;
         loanDetail.interestPaidTillTime += payableInterestDays * 86400;
-        
-        if (interestPayable != 0) {
-            loanDetail.interestPaid += interestPayable;
-        }
 
         if (loanDetail.principalAmountRepaid >= loan.amount) {
             loan.status = LoanStatus.REPAID;
@@ -698,7 +684,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         emit LoanRepaymentInitiated(loanId, loan.borrower, msg.sender, transferAmount, interestPayable);
 
-        balances.lentFunds -= principalPaid;
+        lentFunds -= principalPaid;
         updateAvgApr(principalPaid, loan.apr);
 
         //// interactions
@@ -719,13 +705,13 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @param apr annual percentage rate of the strategy
      */
     function updateAvgApr(uint256 amountReducedBy, uint16 apr) internal {
-        if (balances.lentFunds > 0) {
-            balances.weightedAvgAPR = uint16(
-                ((balances.lentFunds + amountReducedBy) * balances.weightedAvgAPR - amountReducedBy * apr)
-                / balances.lentFunds
+        if (lentFunds > 0) {
+            weightedAvgAPR = uint16(
+                ((lentFunds + amountReducedBy) * weightedAvgAPR - amountReducedBy * apr)
+                / lentFunds
             );
         } else {
-            balances.weightedAvgAPR = 0;
+            weightedAvgAPR = 0;
         }
     }
 
@@ -743,24 +729,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      */
     function loansCount() external view returns(uint256) {
         return nextLoanId - 1;
-    }
-
-    /**
-     * @notice Accessor for loan.
-     * @param loanId ID of the loan
-     * @return Loan struct instance for the specified loan ID.
-     */
-    function loanById(uint256 loanId) external view returns (Loan memory) {
-        return loans[loanId];
-    }
-
-    /**
-     * @notice Accessor for loan detail.
-     * @param loanId ID of the loan
-     * @return LoanDetail struct instance for the specified loan ID.
-     */
-    function loanDetailById(uint256 loanId) external view returns (LoanDetail memory) {
-        return loanDetails[loanId];
     }
 
     /**
@@ -947,7 +915,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
     /**
      * @notice Get the number of days in a time period to witch an interest can be applied.
-     * @dev Returns the ceiling of the count.
+     * @dev Returns the floor of the count, but not less than 1.
      * @param timeFrom Epoch timestamp of the start of the time period.
      * @param timeTo Epoch timestamp of the end of the time period.
      * @return Ceil count of days in a time period to witch an interest can be applied.
@@ -967,7 +935,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @return True if the contract is closed, false otherwise.
      */
     function canClose() internal view override returns (bool) {
-        return balances.lentFunds == 0 && IERC20(config.liquidityToken).balanceOf(address(this)) == 0;
+        return lentFunds == 0 && IERC20(config.liquidityToken).balanceOf(address(this)) == 0;
     }
 
     /**
@@ -977,21 +945,5 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      */
     function canOpen() internal view override returns (bool) {
         return config.pool != address(0) && config.liquidityToken != address(0);
-    }
-
-    /**
-     * @notice Accessor
-     * @dev Total funds lent at this time, accounts only for loan principals
-     */
-    function lentFunds() external view returns (uint256) {
-        return balances.lentFunds;
-    }
-
-    /**
-     * @notice Accessor
-     * @dev Weighted average loan APR on the borrowed funds
-     */
-    function weightedAvgAPR() external view returns (uint16) {
-        return balances.weightedAvgAPR;
     }
 }

@@ -22,7 +22,7 @@ contract LenderVotes is Governor, GovernorCountingSimple, GovernorVotes, Governo
     }
 
     function votingPeriod() public pure override returns (uint256) {
-        return 40659; // 1 day using 2.125s block time
+        return 43200; // 1 day using 2s block time
     }
 
     function proposalThreshold() public pure override returns (uint256) {
