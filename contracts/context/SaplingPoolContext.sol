@@ -23,12 +23,13 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     /// Pool configuration
     PoolConfig public config;
 
-    /// Key pool balances
+    /// Pool balances
     PoolBalance public balances;
 
     /// Per user withdrawal allowances with time windows
     mapping (address => WithdrawalAllowance) public withdrawalAllowances;
 
+    /// Limits access only when no active withdrawal requests are present
     modifier noWithdrawalRequests() {
         WithdrawalAllowance storage allowance = withdrawalAllowances[msg.sender];
         require(
@@ -158,7 +159,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Set an upper bound for the staker earn factor percent.
+     * @notice Set an upper bound for the staker earn factor.
      * @dev _stakerEarnFactorMax must be greater than or equal to SaplingMath.HUNDRED_PERCENT. If the current
      *      earn factor is greater than the new maximum, then the current earn factor is set to the new maximum.
      *      Caller must be the governance.
@@ -188,7 +189,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Set the staker earn factor percent.
+     * @notice Set the staker earn factor.
      * @dev _stakerEarnFactor must be inclusively between SaplingMath.HUNDRED_PERCENT and stakerEarnFactorMax.
      *      Caller must be the staker.
      * @param _stakerEarnFactor new staker earn factor.
@@ -210,7 +211,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *         tokens and transfer it to the caller. Exact exchange rate depends on the current pool state.
      * @dev Deposit amount must be non zero and not exceed amountDepositable().
      *      An appropriate spend limit must be present at the token contract.
-     *      Caller must not be a user.
+     *      Caller must be a user.
      *      Caller must not have any outstanding withdrawal requests.
      * @param amount Liquidity token amount to deposit.
      */
@@ -222,6 +223,12 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         emit FundsDeposited(msg.sender, amount, sharesMinted);
     }
 
+    /**
+     * @notice Request withdrawal allowance.
+     * @dev Allowance amount must not exceed current balance. Withdrawal allowance is active after 1 minute of request,
+     *      and is valid for a single use within 10 minutes after becoming active.
+     * @param _amount Liquidity token amount of allowance.
+     */
     function requestWithdrawalAllowance(uint256 _amount) external onlyUser whenNotPaused updatedState {
         require(_amount <= balanceOf(msg.sender), "SaplingPoolContext: amount exceeds account balance");
 
@@ -239,9 +246,9 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
     /**
      * @notice Withdraw funds from the pool. Withdrawals redeem equivalent amount of the caller's pool tokens
-     *         by burning the tokens in question.
-     *         Exact exchange rate depends on the current pool state.
+     *         by burning the tokens in question. Exact exchange rate depends on the current pool state.
      * @dev Withdrawal amount must be non zero and not exceed amountWithdrawable().
+     *      Must have a valid withdrawal allowance.
      * @param amount Liquidity token amount to withdraw.
      */
     function withdraw(uint256 amount) public onlyUser whenNotPaused updatedState {
@@ -343,7 +350,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
     /**
      * @notice Check the staker's balance in the pool.
-     * @return Liquidity token balance of the staker's stake.
+     * @return Liquidity token balance of the stake.
      */
     function balanceStaked() external view returns (uint256) {
         return sharesToFunds(balances.stakedShares);
@@ -362,8 +369,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
     /**
      * @notice Check funds amount unstakable by the staker at this time.
-     * @dev Return value depends on the staked balance and targetStakePercent, and is limited by pool
-     *      liquidity.
+     * @dev Return value depends on the staked balance and targetStakePercent, and is limited by pool liquidity.
      * @return Max amount of liquidity tokens unstakable by the staker.
      */
     function amountUnstakable() public view returns (uint256) {
@@ -422,7 +428,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
     /**
      * @dev Internal method to enter the pool with a liquidity token amount.
-     *      With the exception of the staker's call, amount must not exceed amountDepositable().
      *      If the caller is the staker, entered funds are considered staked.
      *      New pool tokens are minted in a way that will not influence the current share price.
      * @dev Shares are equivalent to pool tokens and are represented by them.
@@ -618,11 +623,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param _totalPoolTokens total pull token supply. For current conditions use: totalPoolTokenSupply()
      * @param _stakedTokens the amount of staked pool tokens. Must be less than or equal to _totalPoolTokens. 
      *                      For current conditions use: balances.stakedShares
-     * @param _poolFunds liquidity token funds that make up the pool. For current conditions use: balances.poolFunds
+     * @param _poolFunds liquidity token funds that make up the pool. For current conditions use: poolFunds()
      * @param _strategizedFunds part of the pool funds that will remain in strategies. Must be less than or equal to 
-     *                          _poolFunds. For current conditions use: balances.strategizedFunds
+     *                          _poolFunds. For current conditions use: strategizedFunds()
      * @param _avgStrategyAPR Weighted average APR of the funds in strategies. 
-     *                        For current conditions use: config.weightedAvgStrategyAPR
+     *                        For current conditions use: ILoanDesk(loanDesk).weightedAvgAPR()
      * @param _protocolFeePercent Protocol fee parameter. Must be less than 100%.
      *                            For current conditions use: config.protocolFeePercent
      * @param _stakerEarnFactor Staker's earn factor. Must be greater than or equal to 1x (100%).

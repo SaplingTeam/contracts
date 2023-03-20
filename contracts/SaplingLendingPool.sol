@@ -18,7 +18,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /// Address where the protocol fees are sent to
     address public treasury;
 
-    /// unix day up to which the yield has been settled.
+    /// unix day on which the yield has been settled.
     uint256 public yieldSettledDay;
 
     /// A modifier to limit access only to the loan desk contract
@@ -290,8 +290,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
                 if (balances.stakedShares == 0) {
                     emit StakedFundsDepleted();
                 }
-
-                //// interactions
 
                 //burn staked shares; this external interaction must happen before calculating lender loss
                 IPoolToken(tokenConfig.poolToken).burn(address(this), stakedShareLoss);

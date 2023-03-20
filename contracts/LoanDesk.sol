@@ -15,7 +15,7 @@ import "./lib/SaplingMath.sol";
 
 /**
  * @title Loan Desk
- * @notice Provides loan application and offer flow.
+ * @notice Provides loan lifecycle.
  */
 contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable {
 
@@ -24,7 +24,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
     /// Default loan parameter values
     LoanTemplate public loanTemplate;
-
 
     // Loan applications state 
 
@@ -414,7 +413,8 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
     /**
      * @notice Lock a draft loan offer.
-     * @dev Loan application must be in OFFER_DRAFTED status.
+     * @dev Locking an offer makes it cancellable by a lender vote.
+     *      Loan application must be in OFFER_DRAFTED status.
      *      Caller must be the staker.
      * @param appId Loan application id
      */
@@ -438,6 +438,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @notice Make a loan offer.
      * @dev Loan application must be in OFFER_DRAFT_LOCKED status.
      *      Caller must be the staker.
+     *      Voting lock period must have expired.
      * @param appId Loan application id
      */
     function offerLoan(
@@ -604,7 +605,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @notice Default a loan.
      * @dev Loan must be in OUTSTANDING status.
      *      Caller must be the staker.
-     *      canDefault(loanId) must return 'true'.
+     *      canDefault(loanId) must be true.
      * @param loanId ID of the loan to default
      */
     function defaultLoan(
@@ -919,7 +920,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
     /**
      * @notice Get the number of days in a time period to witch an interest can be applied.
-     * @dev Returns the ceiling of the count.
+     * @dev Returns the floor of the count, but not less than 1.
      * @param timeFrom Epoch timestamp of the start of the time period.
      * @param timeTo Epoch timestamp of the end of the time period.
      * @return Ceil count of days in a time period to witch an interest can be applied.

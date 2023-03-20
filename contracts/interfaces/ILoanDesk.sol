@@ -3,7 +3,6 @@ pragma solidity ^0.8.15;
 
 /**
  * @title LoanDesk Interface
- * @dev LoanDesk interface defining common structures and hooks for the lending pools.
  */
 interface ILoanDesk {
 
@@ -13,7 +12,7 @@ interface ILoanDesk {
         /**
          * Lender voting contract role
          * @notice Role given to the address of the voting contract that can cancel a loan offer upon a passing vote
-         * @dev The value of this role should be unique for each pool. Role must be created before the pool contract
+         * @dev The value of this role should be unique for each pool. Role must be created before the contract
          *      deployment, then passed during construction/initialization.
          */
         bytes32 lenderGovernanceRole;
@@ -26,7 +25,7 @@ interface ILoanDesk {
     }
 
     /**
-     * Loan application statuses. Initial value is defines as 'NULL' to differentiate the unintitialized state from
+     * Loan application statuses. Initial value is defined as 'NULL' to differentiate the uninitialized state from
      * the logical initial states.
      */
     enum LoanApplicationStatus {
@@ -116,7 +115,7 @@ interface ILoanDesk {
     }
 
     /**
-     * Loan statuses. Initial value is defines as 'NULL' to differentiate the unintitialized state from the logical
+     * Loan statuses. Initial value is defines as 'NULL' to differentiate the uninitialized state from the logical
      * initial state.
      */
     enum LoanStatus {
@@ -129,7 +128,7 @@ interface ILoanDesk {
     /// Loan object
     struct Loan {
 
-        /// ID, increamental, value is not linked to application ID
+        /// ID, incremental, value is not linked to application ID
         uint256 id;
 
         /// Address of the loan desk contract this loan was created at
@@ -138,7 +137,7 @@ interface ILoanDesk {
         // Application ID, same as the loan application ID this loan is made for
         uint256 applicationId;
 
-        /// Recepient of the loan principal, the borrower
+        /// Recipient of the loan principal, the borrower
         address borrower;
 
         /// Loan principal amount in liquidity tokens
@@ -185,7 +184,7 @@ interface ILoanDesk {
         uint256 interestPaidTillTime;
     }
 
-    /// Event for when a new loan is requested, and an application is created
+    /// Event for when a new loan is requested
     event LoanRequested(uint256 applicationId, address indexed borrower, uint256 amount, uint256 duration);
 
     /// Event for when a loan request is denied

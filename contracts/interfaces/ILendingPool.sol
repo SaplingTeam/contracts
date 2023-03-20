@@ -3,7 +3,7 @@ pragma solidity ^0.8.15;
 
 /**
  * @title LendingPool Interface
- * @dev This interface has all LendingPool events, structs, and LoanDesk function hooks.
+ * @dev This interface defines LendingPool events, structs, and LoanDesk function hooks.
  */
 interface ILendingPool {
 
@@ -13,7 +13,7 @@ interface ILendingPool {
     /// Setter event
     event TreasurySet(address prevAddress, address newAddress);
 
-    /// Event for when the protocol revenue is collected
+    /// Event for when the protocol revenue is issued
     event ProtocolRevenue(address treasury, uint256 amount);
 
     /// Event for when a loan is defaulted
@@ -43,15 +43,16 @@ interface ILendingPool {
 
     /**
      * @dev Hook for a loan offer amount update.
+     *      Caller must be the LoanDesk.
      * @param amount Previously allocated amount being returned.
      */
     function onOfferDeallocate(uint256 amount) external;
 
-     /**
-     * @dev Hook for repayments. Caller must be the LoanDesk. 
+    /**
+     * @dev Hook for repayments. Caller must be the LoanDesk.
      *      
      *      Parameters besides the loanId exists simply to avoid rereading it from the caller via additional inter 
-     *      contract call. Avoiding loop call reduces gas, contract bytecode size, and reduces the risk of reentrancy.
+     *      contract call. Avoiding a recursive call reduces gas and contract bytecode size.
      *
      * @param loanId ID of the loan which has just been borrowed
      * @param borrower Borrower address
@@ -71,7 +72,7 @@ interface ILendingPool {
 
     /**
      * @dev Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
-     * the staked funds. If these funds are not sufficient, the lenders will share the loss.
+     *      the staked funds. If these funds are not sufficient, the lenders will share the loss.
      * @param loanId ID of the loan to default
      * @param principalLoss Unpaid principal amount to resolve
      * @param yieldLoss Unpaid yield amount to resolve
