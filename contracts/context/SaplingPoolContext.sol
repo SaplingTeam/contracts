@@ -544,7 +544,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param isDefault whether or not the call if for calculation for a default
      * @return Converted pool token value
      */
-    function fundsToSharesBase(uint256 funds, bool isDefault) public view returns (uint256) {
+    function fundsToSharesBase(uint256 funds, bool isDefault) internal view returns (uint256) {
         uint256 totalPoolTokens = totalPoolTokenSupply();
         uint256 _poolFunds = poolFunds();
 
