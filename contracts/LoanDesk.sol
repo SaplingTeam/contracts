@@ -736,24 +736,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
     }
 
     /**
-     * @notice Accessor for loan.
-     * @param loanId ID of the loan
-     * @return Loan struct instance for the specified loan ID.
-     */
-    function loanById(uint256 loanId) external view returns (Loan memory) {
-        return loans[loanId];
-    }
-
-    /**
-     * @notice Accessor for loan detail.
-     * @param loanId ID of the loan
-     * @return LoanDetail struct instance for the specified loan ID.
-     */
-    function loanDetailById(uint256 loanId) external view returns (LoanDetail memory) {
-        return loanDetails[loanId];
-    }
-
-    /**
      * @notice Loan balance due including interest if paid in full at this time.
      * @dev Loan must be in OUTSTANDING status.
      * @param loanId ID of the loan to check the balance of
