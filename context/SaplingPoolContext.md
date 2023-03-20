@@ -26,7 +26,7 @@ Pool configuration
 struct IPoolContext.PoolBalance balances
 ```
 
-Key pool balances
+Pool balances
 
 ### withdrawalAllowances
 
@@ -41,6 +41,8 @@ Per user withdrawal allowances with time windows
 ```solidity
 modifier noWithdrawalRequests()
 ```
+
+Limits access only when no active withdrawal requests are present
 
 ### updatedState
 
@@ -118,7 +120,7 @@ __protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_FEE_PERC
 function setStakerEarnFactorMax(uint16 _stakerEarnFactorMax) external
 ```
 
-Set an upper bound for the staker earn factor percent.
+Set an upper bound for the staker earn factor.
 
 __stakerEarnFactorMax must be greater than or equal to SaplingMath.HUNDRED_PERCENT. If the current
      earn factor is greater than the new maximum, then the current earn factor is set to the new maximum.
@@ -134,7 +136,7 @@ __stakerEarnFactorMax must be greater than or equal to SaplingMath.HUNDRED_PERCE
 function setStakerEarnFactor(uint16 _stakerEarnFactor) external
 ```
 
-Set the staker earn factor percent.
+Set the staker earn factor.
 
 __stakerEarnFactor must be inclusively between SaplingMath.HUNDRED_PERCENT and stakerEarnFactorMax.
      Caller must be the staker._
@@ -154,7 +156,7 @@ Deposit funds to the pool. Depositing funds will mint an equivalent amount of po
 
 _Deposit amount must be non zero and not exceed amountDepositable().
      An appropriate spend limit must be present at the token contract.
-     Caller must not be a user.
+     Caller must be a user.
      Caller must not have any outstanding withdrawal requests._
 
 | Name | Type | Description |
@@ -167,6 +169,15 @@ _Deposit amount must be non zero and not exceed amountDepositable().
 function requestWithdrawalAllowance(uint256 _amount) external
 ```
 
+Request withdrawal allowance.
+
+_Allowance amount must not exceed current balance. Withdrawal allowance is active after 1 minute of request,
+     and is valid for a single use within 10 minutes after becoming active._
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| _amount | uint256 | Liquidity token amount of allowance. |
+
 ### withdraw
 
 ```solidity
@@ -174,10 +185,10 @@ function withdraw(uint256 amount) public
 ```
 
 Withdraw funds from the pool. Withdrawals redeem equivalent amount of the caller's pool tokens
-        by burning the tokens in question.
-        Exact exchange rate depends on the current pool state.
+        by burning the tokens in question. Exact exchange rate depends on the current pool state.
 
-_Withdrawal amount must be non zero and not exceed amountWithdrawable()._
+_Withdrawal amount must be non zero and not exceed amountWithdrawable().
+     Must have a valid withdrawal allowance._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -271,26 +282,7 @@ Check the staker's balance in the pool.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Liquidity token balance of the staker's stake. |
-
-### simpleProjectedAPY
-
-```solidity
-function simpleProjectedAPY(uint16 strategyRate, uint256 _avgStrategyAPR) external view returns (struct IPoolContext.APYBreakdown)
-```
-
-Projected APY breakdown given the current pool state and a specific strategy rate and an average apr.
-
-_Represent percentage parameter values in contract specific format._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| strategyRate | uint16 | Percentage of pool funds projected to be used in strategies. |
-| _avgStrategyAPR | uint256 | Weighted average APR of the funds in strategies. |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | struct IPoolContext.APYBreakdown | Projected APY breakdown |
+| [0] | uint256 | Liquidity token balance of the stake. |
 
 ### balanceOf
 
@@ -318,8 +310,7 @@ function amountUnstakable() public view returns (uint256)
 
 Check funds amount unstakable by the staker at this time.
 
-_Return value depends on the staked balance and targetStakePercent, and is limited by pool
-     liquidity._
+_Return value depends on the staked balance and targetStakePercent, and is limited by pool liquidity._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -356,7 +347,6 @@ function enter(uint256 amount) private returns (uint256)
 ```
 
 _Internal method to enter the pool with a liquidity token amount.
-     With the exception of the staker's call, amount must not exceed amountDepositable().
      If the caller is the staker, entered funds are considered staked.
      New pool tokens are minted in a way that will not influence the current share price.
 Shares are equivalent to pool tokens and are represented by them._
@@ -426,7 +416,7 @@ _For use in all cases except for defaults. Use fundsToSharesBase for default cal
 ### fundsToSharesBase
 
 ```solidity
-function fundsToSharesBase(uint256 funds, bool isDefault) public view returns (uint256)
+function fundsToSharesBase(uint256 funds, bool isDefault) internal view returns (uint256)
 ```
 
 Get share value of funds.
@@ -516,9 +506,9 @@ _Represent percentage parameter values in contract specific format._
 | ---- | ---- | ----------- |
 | _totalPoolTokens | uint256 | total pull token supply. For current conditions use: totalPoolTokenSupply() |
 | _stakedTokens | uint256 | the amount of staked pool tokens. Must be less than or equal to _totalPoolTokens.                       For current conditions use: balances.stakedShares |
-| _poolFunds | uint256 | liquidity token funds that make up the pool. For current conditions use: balances.poolFunds |
-| _strategizedFunds | uint256 | part of the pool funds that will remain in strategies. Must be less than or equal to                           _poolFunds. For current conditions use: balances.strategizedFunds |
-| _avgStrategyAPR | uint256 | Weighted average APR of the funds in strategies.                         For current conditions use: config.weightedAvgStrategyAPR |
+| _poolFunds | uint256 | liquidity token funds that make up the pool. For current conditions use: poolFunds() |
+| _strategizedFunds | uint256 | part of the pool funds that will remain in strategies. Must be less than or equal to                           _poolFunds. For current conditions use: strategizedFunds() |
+| _avgStrategyAPR | uint256 | Weighted average APR of the funds in strategies.                         For current conditions use: ILoanDesk(loanDesk).weightedAvgAPR() |
 | _protocolFeePercent | uint16 | Protocol fee parameter. Must be less than 100%.                            For current conditions use: config.protocolFeePercent |
 | _stakerEarnFactor | uint16 | Staker's earn factor. Must be greater than or equal to 1x (100%).                           For current conditions use: config.stakerEarnFactor |
 

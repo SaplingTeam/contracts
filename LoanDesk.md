@@ -2,7 +2,7 @@
 
 ## LoanDesk
 
-Provides loan application and offer flow.
+Provides loan lifecycle.
 
 ### config
 
@@ -11,14 +11,6 @@ struct ILoanDesk.LoanDeskConfig config
 ```
 
 LoanDesk configuration parameters
-
-### balances
-
-```solidity
-struct ILoanDesk.LoanDeskBalances balances
-```
-
-Tracked contract balances and parameters
 
 ### loanTemplate
 
@@ -83,6 +75,24 @@ mapping(uint256 => struct ILoanDesk.LoanDetail) loanDetails
 ```
 
 LoanDetails by loan ID
+
+### lentFunds
+
+```solidity
+uint256 lentFunds
+```
+
+Accessor
+
+_Total funds lent at this time, accounts only for loan principals_
+
+### weightedAvgAPR
+
+```solidity
+uint16 weightedAvgAPR
+```
+
+Weighted average loan APR on the borrowed funds
 
 ### applicationInStatus
 
@@ -290,7 +300,8 @@ function lockDraftOffer(uint256 appId) external
 
 Lock a draft loan offer.
 
-_Loan application must be in OFFER_DRAFTED status.
+_Locking an offer makes it cancellable by a lender vote.
+     Loan application must be in OFFER_DRAFTED status.
      Caller must be the staker._
 
 | Name | Type | Description |
@@ -306,7 +317,8 @@ function offerLoan(uint256 appId) external
 Make a loan offer.
 
 _Loan application must be in OFFER_DRAFT_LOCKED status.
-     Caller must be the staker._
+     Caller must be the staker.
+     Voting lock period must have expired._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -384,7 +396,7 @@ Default a loan.
 
 _Loan must be in OUTSTANDING status.
      Caller must be the staker.
-     canDefault(loanId) must return 'true'._
+     canDefault(loanId) must be true._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -443,38 +455,6 @@ Count of all loans in this pool.
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | uint256 | Loan count. |
-
-### loanById
-
-```solidity
-function loanById(uint256 loanId) external view returns (struct ILoanDesk.Loan)
-```
-
-Accessor for loan.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | struct ILoanDesk.Loan | Loan struct instance for the specified loan ID. |
-
-### loanDetailById
-
-```solidity
-function loanDetailById(uint256 loanId) external view returns (struct ILoanDesk.LoanDetail)
-```
-
-Accessor for loan detail.
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| loanId | uint256 | ID of the loan |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | struct ILoanDesk.LoanDetail | LoanDetail struct instance for the specified loan ID. |
 
 ### loanBalanceDue
 
@@ -580,7 +560,7 @@ function countInterestDays(uint256 timeFrom, uint256 timeTo) private pure return
 
 Get the number of days in a time period to witch an interest can be applied.
 
-_Returns the ceiling of the count._
+_Returns the floor of the count, but not less than 1._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -618,24 +598,4 @@ _Overrides a hook in SaplingStakerContext._
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | [0] | bool | True if the conditions to open are met, false otherwise. |
-
-### lentFunds
-
-```solidity
-function lentFunds() external view returns (uint256)
-```
-
-Accessor
-
-_Total funds lent at this time, accounts only for loan principals_
-
-### weightedAvgAPR
-
-```solidity
-function weightedAvgAPR() external view returns (uint16)
-```
-
-Accessor
-
-_Weighted average loan APR on the borrowed funds_
 

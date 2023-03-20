@@ -2,8 +2,6 @@
 
 ## ILoanDesk
 
-_LoanDesk interface defining common structures and hooks for the lending pools._
-
 ### LoanDeskConfig
 
 ```solidity
@@ -11,15 +9,6 @@ struct LoanDeskConfig {
   bytes32 lenderGovernanceRole;
   address pool;
   address liquidityToken;
-}
-```
-
-### LoanDeskBalances
-
-```solidity
-struct LoanDeskBalances {
-  uint256 lentFunds;
-  uint16 weightedAvgAPR;
 }
 ```
 
@@ -58,7 +47,6 @@ struct LoanApplication {
   address borrower;
   uint256 amount;
   uint256 duration;
-  uint256 requestedTime;
   enum ILoanDesk.LoanApplicationStatus status;
   string profileId;
   string profileDigest;
@@ -78,7 +66,6 @@ struct LoanOffer {
   uint16 installments;
   uint16 apr;
   uint256 lockedTime;
-  uint256 offeredTime;
 }
 ```
 
@@ -119,7 +106,6 @@ struct LoanDetail {
   uint256 loanId;
   uint256 totalAmountRepaid;
   uint256 principalAmountRepaid;
-  uint256 interestPaid;
   uint256 interestPaidTillTime;
 }
 ```
@@ -130,7 +116,7 @@ struct LoanDetail {
 event LoanRequested(uint256 applicationId, address borrower, uint256 amount, uint256 duration)
 ```
 
-Event for when a new loan is requested, and an application is created
+Event for when a new loan is requested
 
 ### LoanRequestDenied
 

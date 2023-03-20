@@ -2,7 +2,7 @@
 
 ## ILendingPool
 
-_This interface has all LendingPool events, structs, and LoanDesk function hooks._
+_This interface defines LendingPool events, structs, and LoanDesk function hooks._
 
 ### LoanDeskSet
 
@@ -26,7 +26,7 @@ Setter event
 event ProtocolRevenue(address treasury, uint256 amount)
 ```
 
-Event for when the protocol revenue is collected
+Event for when the protocol revenue is issued
 
 ### LoanDefaulted
 
@@ -79,7 +79,8 @@ _Hook for a new loan offer.
 function onOfferDeallocate(uint256 amount) external
 ```
 
-_Hook for a loan offer amount update._
+_Hook for a loan offer amount update.
+     Caller must be the LoanDesk._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -91,10 +92,10 @@ _Hook for a loan offer amount update._
 function onRepay(uint256 loanId, address borrower, address payer, uint256 transferAmount, uint256 interestPayable, uint256 borrowedTime) external
 ```
 
-_Hook for repayments. Caller must be the LoanDesk. 
+_Hook for repayments. Caller must be the LoanDesk.
      
      Parameters besides the loanId exists simply to avoid rereading it from the caller via additional inter 
-     contract call. Avoiding loop call reduces gas, contract bytecode size, and reduces the risk of reentrancy._
+     contract call. Avoiding a recursive call reduces gas and contract bytecode size._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
@@ -112,7 +113,7 @@ function onDefault(uint256 loanId, uint256 principalLoss, uint256 yieldLoss) ext
 ```
 
 _Hook for defaulting a loan. Caller must be the LoanDesk. Defaulting a loan will cover the loss using 
-the staked funds. If these funds are not sufficient, the lenders will share the loss._
+     the staked funds. If these funds are not sufficient, the lenders will share the loss._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |

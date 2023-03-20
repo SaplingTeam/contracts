@@ -26,15 +26,7 @@ Address where the protocol fees are sent to
 uint256 yieldSettledDay
 ```
 
-unix day up to which the yield has been settled.
-
-### loanClosed
-
-```solidity
-mapping(address => mapping(uint256 => bool)) loanClosed
-```
-
-Mark the loans closed to guards against double actions due to future bugs or compromised LoanDesk
+unix day on which the yield has been settled.
 
 ### onlyLoanDesk
 

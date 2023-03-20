@@ -52,7 +52,7 @@ _Only the functions using whenPaused and whenNotPaused modifiers will be affecte
 function unpause() external
 ```
 
-Resume the contract.
+Unpause the contract.
 
 _Only the functions using whenPaused and whenNotPaused modifiers will be affected by unpause.
      Caller must have the PAUSER_ROLE._
@@ -63,7 +63,7 @@ _Only the functions using whenPaused and whenNotPaused modifiers will be affecte
 function isNonUserAddress(address party) internal view virtual returns (bool)
 ```
 
-Verify if an address has any non-user roles
+Verify if an address has any non-user roles.
 
 _When overriding, return "contract local verification result" AND super.isNonUserAddress(party)._
 
