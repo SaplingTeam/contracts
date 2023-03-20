@@ -21,9 +21,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
     /// unix day up to which the yield has been settled.
     uint256 public yieldSettledDay;
 
-    /// Mark the loans closed to guards against double actions due to future bugs or compromised LoanDesk
-    mapping(address => mapping(uint256 => bool)) private loanClosed;
-
     /// A modifier to limit access only to the loan desk contract
     modifier onlyLoanDesk() {
         require(msg.sender == loanDesk, "SaplingLendingPool: caller is not the LoanDesk");
@@ -183,9 +180,6 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         whenNotClosed
         updatedState
     {
-        //// check
-        require(loanClosed[loanDesk][loanId] == false, "SaplingLendingPool: loan is closed");
-
         // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
 
         uint256 principalPaid;
@@ -270,13 +264,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         updatedState
         returns (uint256, uint256)
     {
-        //// check
-        require(loanClosed[loanDesk][loanId] == false, "SaplingLendingPool: loan is closed");
-
         // @dev trust the loan validity via LoanDesk checks as the only caller authorized is LoanDesk
-
-        //// effect
-        loanClosed[loanDesk][loanId] = true;
 
         //remove protocol and staker earnings from yield loss
         if (yieldLoss > 0) {
