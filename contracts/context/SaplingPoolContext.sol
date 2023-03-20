@@ -350,30 +350,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     }
 
     /**
-     * @notice Projected APY breakdown given the current pool state and a specific strategy rate and an average apr.
-     * @dev Represent percentage parameter values in contract specific format.
-     * @param strategyRate Percentage of pool funds projected to be used in strategies.
-     * @param _avgStrategyAPR Weighted average APR of the funds in strategies.
-     * @return Projected APY breakdown
-     */
-    function simpleProjectedAPY(
-        uint16 strategyRate, 
-        uint256 _avgStrategyAPR) external view returns (APYBreakdown memory) {
-        require(strategyRate <= SaplingMath.HUNDRED_PERCENT, "SaplingPoolContext: invalid borrow rate");
-
-        uint256 _poolFunds = poolFunds();
-        return projectedAPYBreakdown(
-            totalPoolTokenSupply(),
-            balances.stakedShares,
-            _poolFunds,
-            MathUpgradeable.mulDiv(_poolFunds, strategyRate, SaplingMath.HUNDRED_PERCENT),
-            _avgStrategyAPR,
-            config.protocolFeePercent,
-            config.stakerEarnFactor
-        );
-    }
-
-    /**
      * @notice Check wallet's funds balance in the pool. This balance includes deposited balance and acquired
      *         yield. This balance does not included staked balance, balance locked in withdrawal requests,
      *         leveraged earnings or protocol revenue.
