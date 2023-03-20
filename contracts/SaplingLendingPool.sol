@@ -203,7 +203,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
             uint256 unixDay = block.timestamp / 86400;
             if (unixDay > borrowedTime / 86400) {
                 // actual paid interest could be technically more than settled yield due to averaging and integer math
-                balances.preSettledYield  = balances.preSettledYield > shareholderYield
+                balances.preSettledYield = balances.preSettledYield > shareholderYield
                     ? balances.preSettledYield - shareholderYield
                     : 0;
             }

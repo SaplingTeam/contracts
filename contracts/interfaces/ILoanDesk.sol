@@ -213,10 +213,10 @@ interface ILoanDesk {
 
     /// Event for when a loan payment is initiated
     event LoanRepaymentInitiated(
-        uint256 loanId, 
-        address borrower, 
-        address payer, 
-        uint256 amount, 
+        uint256 loanId,
+        address borrower,
+        address payer,
+        uint256 amount,
         uint256 interestAmount
     );
 

@@ -27,10 +27,10 @@ interface ILendingPool {
 
     /// Event for when a loan repayments are made
     event LoanRepaymentProcessed(
-        uint256 loanId, 
-        address borrower, 
-        address payer, 
-        uint256 amount, 
+        uint256 loanId,
+        address borrower,
+        address payer,
+        uint256 amount,
         uint256 interestAmount
     );
 
@@ -62,7 +62,7 @@ interface ILendingPool {
      * @param borrowedTime Block timestamp when this loan was borrowed
      */
     function onRepay(
-        uint256 loanId, 
+        uint256 loanId,
         address borrower,
         address payer,
         uint256 transferAmount,
@@ -77,13 +77,7 @@ interface ILendingPool {
      * @param principalLoss Unpaid principal amount to resolve
      * @param yieldLoss Unpaid yield amount to resolve
      */
-    function onDefault(
-        uint256 loanId,
-        uint256 principalLoss,
-        uint256 yieldLoss
-    )
-     external 
-     returns (uint256, uint256);
+    function onDefault(uint256 loanId, uint256 principalLoss, uint256 yieldLoss) external returns (uint256, uint256);
 
     /**
      * @notice View indicating whether or not a given loan can be offered by the staker.

@@ -165,7 +165,9 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Caller must be the governance.
      * @param _stakerEarnFactorMax new maximum for staker earn factor.
      */
-    function setStakerEarnFactorMax(uint16 _stakerEarnFactorMax)
+    function setStakerEarnFactorMax(
+        uint16 _stakerEarnFactorMax
+    )
         external
         onlyRole(SaplingRoles.GOVERNANCE_ROLE)
         updatedState
@@ -316,11 +318,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         uint256 sharesMinted = enter(10 ** tokenConfig.decimals);
         balances.stakedShares -= sharesMinted;
 
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20Upgradeable(tokenConfig.poolToken),
-            accessControl,
-            sharesMinted
-        );
+        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(tokenConfig.poolToken), accessControl, sharesMinted);
     }
 
     /**
@@ -391,10 +389,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
             SaplingMath.HUNDRED_PERCENT - config.targetStakePercent
         );
 
-        return MathUpgradeable.min(
-            liquidity(),
-            sharesToFunds(balances.stakedShares - lockedStakeShares)
-        );
+        return MathUpgradeable.min(liquidity(), sharesToFunds(balances.stakedShares - lockedStakeShares));
     }
 
     /**
