@@ -22,9 +22,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
     /// LoanDesk configuration parameters
     LoanDeskConfig public config;
 
-    /// Tracked contract balances and parameters
-    LoanDeskBalances public balances;
-
     /// Default loan parameter values
     LoanTemplate public loanTemplate;
 
@@ -54,6 +51,12 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
     /// LoanDetails by loan ID
     mapping(uint256 => LoanDetail) public loanDetails;
+
+    // Total funds lent at this time, accounts only for loan principals
+    uint256 public lentFunds;
+
+    /// Weighted average loan APR on the borrowed funds
+    uint16 public weightedAvgAPR;
 
 
     /// A modifier to limit access only to when the application exists and has the specified status
@@ -128,11 +131,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             lenderGovernanceRole: _lenderGovernanceRole,
             pool: _pool,
             liquidityToken: _liquidityToken
-        });
-
-        balances = LoanDeskBalances({
-            lentFunds: 0,
-            weightedAvgAPR: 0
         });
 
         nextApplicationId = 1;
@@ -528,8 +526,8 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         uint256 offerAmount = offer.amount;
 
-        uint256 prevBorrowedFunds = balances.lentFunds;
-        balances.lentFunds += offerAmount;
+        uint256 prevBorrowedFunds = lentFunds;
+        lentFunds += offerAmount;
 
         emit LoanOfferAccepted(appId, app.borrower, offerAmount);
 
@@ -558,9 +556,9 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             interestPaidTillTime: block.timestamp
         });
 
-        balances.weightedAvgAPR = uint16(
-            (prevBorrowedFunds * balances.weightedAvgAPR + offerAmount * offer.apr)
-            / balances.lentFunds
+        weightedAvgAPR = uint16(
+            (prevBorrowedFunds * weightedAvgAPR + offerAmount * offer.apr)
+            / lentFunds
         );
 
         //// interactions
@@ -638,7 +636,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         // update lent funds and avg apr after the call to onDefault(),
         // to have pre-default price per share when burning the correct amount of stake
-        balances.lentFunds -= principalLoss;
+        lentFunds -= principalLoss;
         updateAvgApr(principalLoss, loan.apr);
 
         emit LoanDefaulted(loanId, loan.borrower, stakerLoss, lenderLoss);
@@ -690,7 +688,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         emit LoanRepaymentInitiated(loanId, loan.borrower, msg.sender, transferAmount, interestPayable);
 
-        balances.lentFunds -= principalPaid;
+        lentFunds -= principalPaid;
         updateAvgApr(principalPaid, loan.apr);
 
         //// interactions
@@ -711,13 +709,13 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @param apr annual percentage rate of the strategy
      */
     function updateAvgApr(uint256 amountReducedBy, uint16 apr) internal {
-        if (balances.lentFunds > 0) {
-            balances.weightedAvgAPR = uint16(
-                ((balances.lentFunds + amountReducedBy) * balances.weightedAvgAPR - amountReducedBy * apr)
-                / balances.lentFunds
+        if (lentFunds > 0) {
+            weightedAvgAPR = uint16(
+                ((lentFunds + amountReducedBy) * weightedAvgAPR - amountReducedBy * apr)
+                / lentFunds
             );
         } else {
-            balances.weightedAvgAPR = 0;
+            weightedAvgAPR = 0;
         }
     }
 
@@ -959,7 +957,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @return True if the contract is closed, false otherwise.
      */
     function canClose() internal view override returns (bool) {
-        return balances.lentFunds == 0 && IERC20(config.liquidityToken).balanceOf(address(this)) == 0;
+        return lentFunds == 0 && IERC20(config.liquidityToken).balanceOf(address(this)) == 0;
     }
 
     /**
@@ -969,21 +967,5 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      */
     function canOpen() internal view override returns (bool) {
         return config.pool != address(0) && config.liquidityToken != address(0);
-    }
-
-    /**
-     * @notice Accessor
-     * @dev Total funds lent at this time, accounts only for loan principals
-     */
-    function lentFunds() external view returns (uint256) {
-        return balances.lentFunds;
-    }
-
-    /**
-     * @notice Accessor
-     * @dev Weighted average loan APR on the borrowed funds
-     */
-    function weightedAvgAPR() external view returns (uint16) {
-        return balances.weightedAvgAPR;
     }
 }

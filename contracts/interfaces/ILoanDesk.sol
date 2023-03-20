@@ -25,16 +25,6 @@ interface ILoanDesk {
         address liquidityToken;
     }
 
-    /// Tracked contract balances and parameters
-    struct LoanDeskBalances {
-
-        // Total funds lent at this time, accounts only for loan principals
-        uint256 lentFunds;
-
-        /// Weighted average loan APR on the borrowed funds
-        uint16 weightedAvgAPR;
-    }
-
     /**
      * Loan application statuses. Initial value is defines as 'NULL' to differentiate the unintitialized state from
      * the logical initial states.
