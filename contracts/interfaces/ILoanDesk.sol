@@ -84,9 +84,6 @@ interface ILoanDesk {
         /// Requested loan duration in seconds
         uint256 duration;
 
-        /// Block timestamp
-        uint256 requestedTime;
-
         /// Application status
         LoanApplicationStatus status;
 
@@ -124,11 +121,8 @@ interface ILoanDesk {
         /// Annual percentage rate
         uint16 apr;
 
-        // block timestamp when the offer was locked
+        // block timestamp when the offer was locked for voting
         uint256 lockedTime;
-
-        /// Block timestamp of the offer creation/update
-        uint256 offeredTime;
     }
 
     /**

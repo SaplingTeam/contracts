@@ -261,7 +261,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             borrower: msg.sender,
             amount: _amount,
             duration: _duration,
-            requestedTime: block.timestamp,
             status: LoanApplicationStatus.APPLIED,
             profileId: _profileId,
             profileDigest: _profileDigest
@@ -341,8 +340,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             installmentAmount: _installmentAmount,
             installments: _installments,
             apr: _apr,
-            lockedTime: 0,
-            offeredTime: 0
+            lockedTime: 0
         });
 
         loanApplications[appId].status = LoanApplicationStatus.OFFER_DRAFTED;
@@ -463,7 +461,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         //// effect
         loanApplications[appId].status = LoanApplicationStatus.OFFER_MADE;
-        loanOffers[appId].offeredTime = block.timestamp;
 
         emit LoanOffered(appId, loanApplications[appId].borrower);
     }

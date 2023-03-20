@@ -452,7 +452,6 @@ describe('Loan Desk', function () {
                 expect(loanApplication.borrower).to.equal(borrower1.address);
                 expect(loanApplication.amount).to.equal(loanAmount);
                 expect(loanApplication.duration).to.equal(loanDuration);
-                expect(loanApplication.requestedTime).to.equal(blockTimestamp);
                 expect(loanApplication.status).to.equal(LoanApplicationStatus.APPLIED);
             });
 
