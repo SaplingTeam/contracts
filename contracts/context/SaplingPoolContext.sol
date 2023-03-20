@@ -462,15 +462,6 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         require(amount >= 10 ** tokenConfig.decimals, "SaplingPoolContext: entry amount too low");
 
         bool isStaker = msg.sender == staker;
-
-        // non-stakers must follow pool size limit
-        if (!isStaker) {
-            uint256 poolLimit = poolFundsLimit();
-            require(
-                poolLimit > _poolFunds && amount <= poolLimit - _poolFunds,
-                "SaplingPoolContext: deposit amount is over the remaining pool limit"
-            );
-        }
         
         //// effect
 
