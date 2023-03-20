@@ -197,9 +197,6 @@ interface ILoanDesk {
         /// Principal amount repaid in liquidity tokens
         uint256 principalAmountRepaid;
 
-        /// Interest paid in liquidity tokens
-        uint256 interestPaid;
-
         /// timestamp to calculate the interest from, on the outstanding principal
         uint256 interestPaidTillTime;
     }

@@ -558,7 +558,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             loanId: loanId,
             totalAmountRepaid: 0,
             principalAmountRepaid: 0,
-            interestPaid: 0,
             interestPaidTillTime: block.timestamp
         });
 
@@ -685,10 +684,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         loanDetail.totalAmountRepaid += transferAmount;
         loanDetail.principalAmountRepaid += principalPaid;
         loanDetail.interestPaidTillTime += payableInterestDays * 86400;
-        
-        if (interestPayable != 0) {
-            loanDetail.interestPaid += interestPayable;
-        }
 
         if (loanDetail.principalAmountRepaid >= loan.amount) {
             loan.status = LoanStatus.REPAID;
