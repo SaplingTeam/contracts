@@ -1,9 +1,9 @@
 const { expect } = require('chai');
 const { ethers, upgrades } = require('hardhat');
 const { TOKEN_DECIMALS } = require('./utils/constants');
-const { POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require('./utils/roles');
 const { mintAndApprove } = require('./utils/helpers');
 const { snapshot, rollback } = require('./utils/evmControl');
+const { deployEnv, deployProtocol } = require("./utils/deployer");
 
 let evmSnapshotIds = [];
 
@@ -32,46 +32,23 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
     });
 
     before(async function () {
-        [deployer, governance, lenderGovernance, protocol, staker, ...addresses] = await ethers.getSigners();
+        const e = await deployEnv();
+        const p = await deployProtocol(e);
 
-        let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
-        coreAccessControl = await CoreAccessControlCF.deploy();
+        deployer = e.deployer;
+        governance = e.governance;
+        protocol = e.treasury;
+        lenderGovernance = e.lenderGovernance;
+        staker = e.staker;
+        addresses = e.users;
 
-        await initAccessControl(coreAccessControl, deployer, governance, lenderGovernance.address);
+        liquidityToken = e.assetToken;
 
-        let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
-        let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
+        coreAccessControl = p.coreAccessControl;
+        poolToken = p.poolToken;
+        lendingPool = p.pool;
+        loanDesk = p.loanDesk;
 
-        liquidityToken = await (
-            await ethers.getContractFactory('PoolToken')
-        ).deploy('Test USDC', 'TestUSDC', TOKEN_DECIMALS);
-
-        poolToken = await (
-            await ethers.getContractFactory('PoolToken')
-        ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
-
-        lendingPool = await upgrades.deployProxy(SaplingLendingPoolCF, [
-            poolToken.address,
-            liquidityToken.address,
-            coreAccessControl.address,
-            protocol.address,
-            staker.address,
-        ]);
-        await lendingPool.deployed();
-
-        loanDesk = await upgrades.deployProxy(LoanDeskCF, [
-            lendingPool.address,
-            liquidityToken.address,
-            coreAccessControl.address,
-            staker.address,
-            POOL_1_LENDER_GOVERNANCE_ROLE,
-        ]);
-        await loanDesk.deployed();
-
-        await poolToken.connect(deployer).transferOwnership(lendingPool.address);
-        await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
-
-        SaplingStakerContextCF = SaplingLendingPoolCF;
         saplingStakerContext = lendingPool;
 
         await loanDesk.connect(staker).open();
@@ -80,7 +57,7 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
     describe('Deployment', function () {
         it('Can deploy', async function () {
             await expect(
-                upgrades.deployProxy(SaplingStakerContextCF, [
+                upgrades.deployProxy(await ethers.getContractFactory('SaplingLendingPool'), [
                     poolToken.address,
                     liquidityToken.address,
                     coreAccessControl.address,

@@ -1,15 +1,15 @@
 const { expect } = require('chai');
 const { ethers, upgrades } = require('hardhat');
 const { NULL_ADDRESS, TOKEN_DECIMALS } = require('./utils/constants');
-const { GOVERNANCE_ROLE, POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require('./utils/roles');
+const { GOVERNANCE_ROLE } = require('./utils/roles');
 const { snapshot, rollback } = require('./utils/evmControl');
+const { deployEnv, deployProtocol } = require("./utils/deployer");
 
 let evmSnapshotIds = [];
 
 describe('Sapling Context (via SaplingLendingPool)', function () {
     let coreAccessControl;
 
-    let SaplingContextCF;
     let saplingContext;
     let liquidityToken;
     let poolToken;
@@ -31,43 +31,23 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
     });
 
     before(async function () {
-        [deployer, governance, lenderGovernance, protocol, staker, ...addresses] = await ethers.getSigners();
+        const e = await deployEnv();
+        const p = await deployProtocol(e);
 
-        let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
-        coreAccessControl = await CoreAccessControlCF.deploy();
+        deployer = e.deployer;
+        governance = e.governance;
+        protocol = e.treasury;
+        lenderGovernance = e.lenderGovernance;
+        staker = e.staker;
+        addresses = e.users;
 
-        await initAccessControl(coreAccessControl, deployer, governance, lenderGovernance.address);
+        liquidityToken = e.assetToken;
 
-        let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
-        let PoolTokenCF = await ethers.getContractFactory('PoolToken');
-        let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
+        coreAccessControl = p.coreAccessControl;
+        poolToken = p.poolToken;
+        lendingPool = p.pool;
+        loanDesk = p.loanDesk;
 
-        liquidityToken = await PoolTokenCF.deploy('Test USDC', 'TestUSDC', TOKEN_DECIMALS);
-
-        poolToken = await PoolTokenCF.deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
-
-        lendingPool = await upgrades.deployProxy(SaplingLendingPoolCF, [
-            poolToken.address,
-            liquidityToken.address,
-            coreAccessControl.address,
-            protocol.address,
-            staker.address,
-        ]);
-        await lendingPool.deployed();
-
-        loanDesk = await upgrades.deployProxy(LoanDeskCF, [
-            lendingPool.address,
-            liquidityToken.address,
-            coreAccessControl.address,
-            staker.address,
-            POOL_1_LENDER_GOVERNANCE_ROLE,
-        ]);
-        await loanDesk.deployed();
-
-        await poolToken.connect(deployer).transferOwnership(lendingPool.address);
-        await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
-
-        SaplingContextCF = SaplingLendingPoolCF;
         saplingContext = lendingPool;
     });
 
@@ -78,7 +58,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
 
             await expect(
-                upgrades.deployProxy(SaplingContextCF, [
+                upgrades.deployProxy(await ethers.getContractFactory('SaplingLendingPool'), [
                     poolToken2.address,
                     liquidityToken.address,
                     coreAccessControl.address,
@@ -91,7 +71,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
         describe('Rejection Scenarios', function () {
             it('Deploying with null access control address should fail', async function () {
                 await expect(
-                    upgrades.deployProxy(SaplingContextCF, [
+                    upgrades.deployProxy(await ethers.getContractFactory('SaplingLendingPool'), [
                         poolToken.address,
                         liquidityToken.address,
                         NULL_ADDRESS,

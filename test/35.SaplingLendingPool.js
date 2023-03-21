@@ -3,20 +3,19 @@ const { BigNumber } = require('ethers');
 const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
 const { TOKEN_DECIMALS, TOKEN_MULTIPLIER, NIL_UUID, NIL_DIGEST } = require('./utils/constants');
-const { POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require('./utils/roles');
 const { mintAndApprove, expectEqualsWithinMargin } = require('./utils/helpers');
 const { snapshot, rollback, skipEvmTime } = require('./utils/evmControl');
+const { deployEnv, deployProtocol } = require('./utils/deployer');
 
 let evmSnapshotIds = [];
 
 describe('Sapling Lending Pool', function () {
     let coreAccessControl;
 
-    let SaplingLendingPoolCF;
     let liquidityToken;
     let poolToken;
     let loanDesk;
-    let saplingMath;
+    let lendingPool;
 
     let deployer;
     let governance;
@@ -34,46 +33,22 @@ describe('Sapling Lending Pool', function () {
     });
 
     before(async function () {
-        [deployer, governance, lenderGovernance, protocol, staker, ...addresses] = await ethers.getSigners();
+        const e = await deployEnv();
+        const p = await deployProtocol(e);
 
-        let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
-        coreAccessControl = await CoreAccessControlCF.deploy();
+        deployer = e.deployer;
+        governance = e.governance;
+        protocol = e.treasury;
+        lenderGovernance = e.lenderGovernance;
+        staker = e.staker;
+        addresses = e.users;
 
-        await initAccessControl(coreAccessControl, deployer, governance, lenderGovernance.address);
+        liquidityToken = e.assetToken;
 
-        SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
-        let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
-
-        liquidityToken = await (
-            await ethers.getContractFactory('PoolToken')
-        ).deploy('Test USDC', 'TestUSDC', TOKEN_DECIMALS);
-
-        poolToken = await (
-            await ethers.getContractFactory('PoolToken')
-        ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
-
-        lendingPool = await upgrades.deployProxy(SaplingLendingPoolCF, [
-            poolToken.address,
-            liquidityToken.address,
-            coreAccessControl.address,
-            protocol.address,
-            staker.address,
-        ]);
-        await lendingPool.deployed();
-
-        loanDesk = await upgrades.deployProxy(LoanDeskCF, [
-            lendingPool.address,
-            liquidityToken.address,
-            coreAccessControl.address,
-            staker.address,
-            POOL_1_LENDER_GOVERNANCE_ROLE,
-        ]);
-        await loanDesk.deployed();
-
-        await poolToken.connect(deployer).transferOwnership(lendingPool.address);
-        await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
-
-        saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
+        coreAccessControl = p.coreAccessControl;
+        poolToken = p.poolToken;
+        lendingPool = p.pool;
+        loanDesk = p.loanDesk;
 
         let initialMintAmount = 10 ** TOKEN_DECIMALS;
         await mintAndApprove(liquidityToken, deployer, staker, lendingPool.address, initialMintAmount);
@@ -90,7 +65,7 @@ describe('Sapling Lending Pool', function () {
             ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
 
             await expect(
-                upgrades.deployProxy(SaplingLendingPoolCF, [
+                upgrades.deployProxy(await ethers.getContractFactory('SaplingLendingPool'), [
                     poolToken2.address,
                     liquidityToken.address,
                     coreAccessControl.address,
@@ -139,8 +114,8 @@ describe('Sapling Lending Pool', function () {
         let loanDuration;
 
         before(async function () {
-            PERCENT_DECIMALS = await saplingMath.PERCENT_DECIMALS();
-            ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
+            PERCENT_DECIMALS = await lendingPool.percentDecimals();
+            ONE_HUNDRED_PERCENT = 100 * 10 ** PERCENT_DECIMALS;
             exitFeePercent = (await lendingPool.config()).exitFeePercent;
 
             lender1 = addresses[1];
@@ -390,7 +365,7 @@ describe('Sapling Lending Pool', function () {
                     let paymentAmount = await loanDesk.loanBalanceDue(loanId);
 
                     let protocolEarningPercent = (await lendingPool.config()).protocolFeePercent;
-                    let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
+                    // let ONE_HUNDRED_PERCENT = await lendingPool.HUNDRED_PERCENT();
 
                     let stakedShares = (await lendingPool.balances()).stakedShares;
                     let totalPoolShares = await poolToken.totalSupply();

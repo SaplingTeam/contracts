@@ -946,4 +946,11 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
     function canOpen() internal view override returns (bool) {
         return config.pool != address(0) && config.liquidityToken != address(0);
     }
+
+    /**
+     * @dev External accessor for library level percent decimals.
+     */
+    function percentDecimals() external view returns (uint8) {
+        return SaplingMath.PERCENT_DECIMALS;
+    }
 }
