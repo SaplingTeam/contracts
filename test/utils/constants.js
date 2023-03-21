@@ -1,5 +1,4 @@
-const { ethers } = require("hardhat");
-
+const { ethers } = require('hardhat');
 
 const TOKEN_DECIMALS = 6;
 const TOKEN_MULTIPLIER = ethers.BigNumber.from(10).pow(TOKEN_DECIMALS);

@@ -2,15 +2,14 @@ const { expect } = require('chai');
 const { BigNumber } = require('ethers');
 const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
-const { TOKEN_DECIMALS, TOKEN_MULTIPLIER, NIL_UUID, NIL_DIGEST} = require("./utils/constants");
-const { POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require("./utils/roles");
-const { mintAndApprove } = require("./utils/helpers");
-const { snapshot, rollback, skipEvmTime } = require("./utils/evmControl");
+const { TOKEN_DECIMALS, TOKEN_MULTIPLIER, NIL_UUID, NIL_DIGEST } = require('./utils/constants');
+const { POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require('./utils/roles');
+const { mintAndApprove } = require('./utils/helpers');
+const { snapshot, rollback, skipEvmTime } = require('./utils/evmControl');
 
 let evmSnapshotIds = [];
 
 describe('Loan Desk', function () {
-
     let coreAccessControl;
 
     let LoanDeskCF;
@@ -58,7 +57,7 @@ describe('Loan Desk', function () {
             liquidityToken.address,
             coreAccessControl.address,
             protocol.address,
-            staker.address
+            staker.address,
         ]);
         await lendingPool.deployed();
 
@@ -212,7 +211,9 @@ describe('Loan Desk', function () {
                         let maxValue = 100 * 10 ** PERCENT_DECIMALS;
 
                         let newValue = 40 * 10 ** PERCENT_DECIMALS;
-                        assertHardhatInvariant(newValue != currentValue && minValue <= newValue && newValue <= maxValue);
+                        assertHardhatInvariant(
+                            newValue != currentValue && minValue <= newValue && newValue <= maxValue,
+                        );
 
                         await expect(loanDesk.connect(governance).setTemplateLoanAPR(newValue)).to.be.reverted;
                     });
@@ -412,12 +413,7 @@ describe('Loan Desk', function () {
             it('Borrower can request a loan', async function () {
                 let requestLoanTx = await loanDesk
                     .connect(borrower1)
-                    .requestLoan(
-                        loanAmount,
-                        loanDuration,
-                        NIL_UUID,
-                        NIL_DIGEST,
-                    );
+                    .requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
                 let applicationId = (await requestLoanTx.wait()).events.filter((e) => e.event === 'LoanRequested')[0]
                     .args.applicationId;
 
@@ -435,12 +431,7 @@ describe('Loan Desk', function () {
             it('Can view most recent applicationId by address', async function () {
                 let requestLoanTx = await loanDesk
                     .connect(borrower1)
-                    .requestLoan(
-                        loanAmount,
-                        loanDuration,
-                        NIL_UUID,
-                        NIL_DIGEST,
-                    );
+                    .requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
                 let applicationId = (await requestLoanTx.wait()).events.filter((e) => e.event === 'LoanRequested')[0]
                     .args.applicationId;
                 expect(await loanDesk.recentApplicationIdOf(borrower1.address)).to.equal(applicationId);
@@ -450,117 +441,53 @@ describe('Loan Desk', function () {
                 it('Requesting a loan with an amount less than the minimum should fail', async function () {
                     let minAmount = (await loanDesk.loanTemplate()).minAmount;
                     await expect(
-                        loanDesk
-                            .connect(borrower1)
-                            .requestLoan(
-                                minAmount.sub(1),
-                                loanDuration,
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            ),
+                        loanDesk.connect(borrower1).requestLoan(minAmount.sub(1), loanDuration, NIL_UUID, NIL_DIGEST),
                     ).to.be.reverted;
                 });
 
                 it('Requesting a loan with a duration less than the minimum should fail', async function () {
                     let minDuration = (await loanDesk.loanTemplate()).minDuration;
                     await expect(
-                        loanDesk
-                            .connect(borrower1)
-                            .requestLoan(
-                                loanAmount,
-                                minDuration.sub(1),
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            ),
+                        loanDesk.connect(borrower1).requestLoan(loanAmount, minDuration.sub(1), NIL_UUID, NIL_DIGEST),
                     ).to.be.reverted;
                 });
 
                 it('Requesting a loan with a duration greater than the maximum should fail', async function () {
                     let maxDuration = (await loanDesk.loanTemplate()).maxDuration;
                     await expect(
-                        loanDesk
-                            .connect(borrower1)
-                            .requestLoan(
-                                loanAmount,
-                                maxDuration.add(1),
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            ),
+                        loanDesk.connect(borrower1).requestLoan(loanAmount, maxDuration.add(1), NIL_UUID, NIL_DIGEST),
                     ).to.be.reverted;
                 });
 
                 it('Requesting a loan should fail while another application from the same borrower is pending approval', async function () {
-                    await loanDesk
-                        .connect(borrower1)
-                        .requestLoan(
-                            loanAmount,
-                            loanDuration,
-                            NIL_UUID,
-                            NIL_DIGEST,
-                        );
+                    await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
                     await expect(
-                        loanDesk
-                            .connect(borrower1)
-                            .requestLoan(
-                                loanAmount,
-                                loanDuration,
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            ),
+                        loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST),
                     ).to.be.reverted;
                 });
 
                 it('Requesting a loan when the loan desk is paused should fail', async function () {
                     await loanDesk.connect(governance).pause();
                     await expect(
-                        loanDesk
-                            .connect(borrower1)
-                            .requestLoan(
-                                loanAmount,
-                                loanDuration,
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            ),
+                        loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST),
                     ).to.be.reverted;
                 });
 
                 it('Requesting a loan when the loan desk is closed should fail', async function () {
                     await loanDesk.connect(staker).close();
                     await expect(
-                        loanDesk
-                            .connect(borrower1)
-                            .requestLoan(
-                                loanAmount,
-                                loanDuration,
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            ),
+                        loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST),
                     ).to.be.reverted;
                 });
 
                 it('Requesting a loan as the staker should fail', async function () {
-                    await expect(
-                        loanDesk
-                            .connect(staker)
-                            .requestLoan(
-                                loanAmount,
-                                loanDuration,
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            ),
-                    ).to.be.reverted;
+                    await expect(loanDesk.connect(staker).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST))
+                        .to.be.reverted;
                 });
 
                 it('Requesting a loan as the governance should fail', async function () {
                     await expect(
-                        loanDesk
-                            .connect(governance)
-                            .requestLoan(
-                                loanAmount,
-                                loanDuration,
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            ),
+                        loanDesk.connect(governance).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST),
                     ).to.be.reverted;
                 });
             });
@@ -584,14 +511,7 @@ describe('Loan Desk', function () {
                 installments = 1;
                 apr = (await loanDesk.loanTemplate()).apr;
 
-                await loanDesk
-                    .connect(borrower1)
-                    .requestLoan(
-                        loanAmount,
-                        loanDuration,
-                        NIL_UUID,
-                        NIL_DIGEST,
-                    );
+                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
                 applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                 application = await loanDesk.loanApplications(applicationId);
 
@@ -630,31 +550,35 @@ describe('Loan Desk', function () {
 
                 describe('Rejection scenarios', function () {
                     it('Making a draft offer with installment number less than 1 should fail', async function () {
-                        await expect(loanDesk
-                        .connect(staker)
-                        .draftOffer(
-                            applicationId,
-                            application.amount,
-                            application.duration,
-                            gracePeriod,
-                            0,
-                            0,
-                            apr,
-                        )).to.be.revertedWith('LoanDesk: invalid number of installments');
+                        await expect(
+                            loanDesk
+                                .connect(staker)
+                                .draftOffer(
+                                    applicationId,
+                                    application.amount,
+                                    application.duration,
+                                    gracePeriod,
+                                    0,
+                                    0,
+                                    apr,
+                                ),
+                        ).to.be.revertedWith('LoanDesk: invalid number of installments');
                     });
 
                     it('Making a draft offer with installment number greater than the number of days in the duration should fail', async function () {
-                        await expect(loanDesk
-                        .connect(staker)
-                        .draftOffer(
-                            applicationId,
-                            application.amount,
-                            application.duration,
-                            gracePeriod,
-                            0,
-                            application.duration.div(86400).add(1),
-                            apr,
-                        )).to.be.revertedWith('LoanDesk: invalid number of installments');
+                        await expect(
+                            loanDesk
+                                .connect(staker)
+                                .draftOffer(
+                                    applicationId,
+                                    application.amount,
+                                    application.duration,
+                                    gracePeriod,
+                                    0,
+                                    application.duration.div(86400).add(1),
+                                    apr,
+                                ),
+                        ).to.be.revertedWith('LoanDesk: invalid number of installments');
                     });
 
                     it('Offering a loan that is not in APPLIED status should fail', async function () {
@@ -686,7 +610,7 @@ describe('Loan Desk', function () {
 
                     it('Offering a loan with an amount greater than available liquidity should fail', async function () {
                         let rawLiquidity = await liquidityToken.balanceOf(lendingPool.address);
-                        let poolFunds = (await lendingPool.poolFunds());
+                        let poolFunds = await lendingPool.poolFunds();
                         let targetLiquidityPercent = (await lendingPool.config()).targetLiquidityPercent;
                         let ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
 
@@ -697,12 +621,7 @@ describe('Loan Desk', function () {
 
                         await loanDesk
                             .connect(borrower2)
-                            .requestLoan(
-                                amountBorrowable.add(1),
-                                loanDuration,
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            );
+                            .requestLoan(amountBorrowable.add(1), loanDuration, NIL_UUID, NIL_DIGEST);
                         let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                         let otherApplication = await loanDesk.loanApplications(otherApplicationId);
 
@@ -728,14 +647,7 @@ describe('Loan Desk', function () {
                         let loanAmount = amountStaked.mul(75).div(100);
                         let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
 
-                        await loanDesk
-                            .connect(borrower2)
-                            .requestLoan(
-                                loanAmount,
-                                loanDuration,
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            );
+                        await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
                         let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                         let otherApplication = await loanDesk.loanApplications(otherApplicationId);
 
@@ -751,11 +663,11 @@ describe('Loan Desk', function () {
                                 apr,
                             );
                         await loanDesk.connect(staker).lockDraftOffer(otherApplicationId);
-                        await skipEvmTime(2*24*60*60 + 1);
-                await loanDesk.connect(staker).offerLoan(otherApplicationId);
+                        await skipEvmTime(2 * 24 * 60 * 60 + 1);
+                        await loanDesk.connect(staker).offerLoan(otherApplicationId);
                         let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
-                        let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
-                            .args.loanId;
+                        let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args
+                            .loanId;
 
                         let loan = await loanDesk.loans(otherLoanId);
                         await skipEvmTime(loan.duration.add(loan.gracePeriod).toNumber());
@@ -936,18 +848,23 @@ describe('Loan Desk', function () {
                         let offer = await loanDesk.loanOffers(applicationId);
 
                         let newOfferedAmount = offer.amount.div(2);
-                        expect(await lendingPool.canOffer(offeredFunds.sub(offer.amount).add(newOfferedAmount)))
-                            .to.equal(true);
+                        expect(
+                            await lendingPool.canOffer(offeredFunds.sub(offer.amount).add(newOfferedAmount)),
+                        ).to.equal(true);
 
-                        await expect(loanDesk.connect(staker).updateDraftOffer(
-                                offer.applicationId,
-                                newOfferedAmount,
-                                offer.duration,
-                                offer.gracePeriod,
-                                offer.installmentAmount,
-                                offer.installments,
-                                offer.apr,
-                            )).to.be.not.reverted;
+                        await expect(
+                            loanDesk
+                                .connect(staker)
+                                .updateDraftOffer(
+                                    offer.applicationId,
+                                    newOfferedAmount,
+                                    offer.duration,
+                                    offer.gracePeriod,
+                                    offer.installmentAmount,
+                                    offer.installments,
+                                    offer.apr,
+                                ),
+                        ).to.be.not.reverted;
                     });
                 });
 
@@ -964,13 +881,8 @@ describe('Loan Desk', function () {
                         let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
                         let requestLoanTx = await loanDesk
                             .connect(borrower2)
-                            .requestLoan(
-                                loanAmount,
-                                loanDuration,
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            );
-                        let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address)
+                            .requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
+                        let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
 
                         let otherApplication = await loanDesk.loanApplications(otherApplicationId);
                         await loanDesk
@@ -994,8 +906,8 @@ describe('Loan Desk', function () {
                     describe('Rejection scenarios', function () {
                         it('Cancelling a loan that is not in APPROVED status should fail', async function () {
                             await loanDesk.connect(staker).lockDraftOffer(applicationId);
-                            await skipEvmTime(2*24*60*60 + 1);
-                await loanDesk.connect(staker).offerLoan(applicationId);
+                            await skipEvmTime(2 * 24 * 60 * 60 + 1);
+                            await loanDesk.connect(staker).offerLoan(applicationId);
                             await loanDesk.connect(borrower1).borrow(applicationId);
                             await expect(loanDesk.connect(staker).cancelLoan(applicationId)).to.be.reverted;
                         });
@@ -1037,12 +949,9 @@ describe('Loan Desk', function () {
 
                 it('Borrowers can request another loan after the previous request is no longer pending', async function () {
                     await loanDesk.connect(staker).denyLoan(applicationId);
-                    await expect(loanDesk.connect(borrower1).requestLoan(
-                            loanAmount,
-                            loanDuration,
-                            NIL_UUID,
-                            NIL_DIGEST,
-                        )).to.be.not.reverted;
+                    await expect(
+                        loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST),
+                    ).to.be.not.reverted;
                 });
 
                 describe('Rejection scenarios', function () {

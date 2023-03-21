@@ -1,8 +1,6 @@
 const { expect } = require('chai');
-const { BigNumber } = require('ethers');
-const { ethers, upgrades } = require('hardhat');
-const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
-const { snapshot, rollback } = require("./utils/evmControl");
+const { ethers } = require('hardhat');
+const { snapshot, rollback } = require('./utils/evmControl');
 
 let evmSnapshotIds = [];
 

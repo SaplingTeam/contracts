@@ -1,4 +1,4 @@
-const { ethers } = require("hardhat");
+const { ethers } = require('hardhat');
 
 async function skipEvmTime(durationSeconds) {
     await ethers.provider.send('evm_increaseTime', [durationSeconds]);
@@ -18,5 +18,5 @@ async function rollback(evmSnapshotIds) {
 module.exports = {
     skipEvmTime,
     snapshot,
-    rollback
-}
+    rollback,
+};

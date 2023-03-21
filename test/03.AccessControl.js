@@ -1,14 +1,11 @@
 const { expect } = require('chai');
-const { BigNumber } = require('ethers');
-const { ethers, upgrades } = require('hardhat');
-const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
-const { DEFAULT_ADMIN_ROLE } = require("./utils/roles");
-const { snapshot, rollback } = require("./utils/evmControl");
+const { ethers } = require('hardhat');
+const { DEFAULT_ADMIN_ROLE } = require('./utils/roles');
+const { snapshot, rollback } = require('./utils/evmControl');
 
 let evmSnapshotIds = [];
 
 describe('CoreAccessControl', function () {
-
     let CoreAccessControlCF;
     let coreAccessControl;
 
@@ -36,7 +33,6 @@ describe('CoreAccessControl', function () {
 
     describe('Deployment', function () {
         it('Can transfer DEFAULT_ADMIN_ROLE', async function () {
-
             await coreAccessControl.connect(deployer).grantRole(DEFAULT_ADMIN_ROLE, governance.address);
             await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
 
@@ -47,7 +43,6 @@ describe('CoreAccessControl', function () {
     });
 
     describe('Use Cases', function () {
-
         after(async function () {
             await rollback(evmSnapshotIds);
         });

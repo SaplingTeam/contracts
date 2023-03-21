@@ -1,9 +1,8 @@
 const { expect } = require('chai');
 const { BigNumber } = require('ethers');
 const { ethers } = require('hardhat');
-const { TOKEN_DECIMALS, TOKEN_MULTIPLIER } = require("./utils/constants");
-const { snapshot, rollback } = require("./utils/evmControl");
-
+const { TOKEN_DECIMALS, TOKEN_MULTIPLIER } = require('./utils/constants');
+const { snapshot, rollback } = require('./utils/evmControl');
 
 let evmSnapshotIds = [];
 

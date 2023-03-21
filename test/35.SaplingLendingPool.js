@@ -2,15 +2,14 @@ const { expect } = require('chai');
 const { BigNumber } = require('ethers');
 const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
-const { TOKEN_DECIMALS, TOKEN_MULTIPLIER, NIL_UUID, NIL_DIGEST } = require("./utils/constants");
-const { POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require("./utils/roles");
-const { mintAndApprove, expectEqualsWithinMargin } = require("./utils/helpers");
-const { snapshot, rollback, skipEvmTime } = require("./utils/evmControl");
+const { TOKEN_DECIMALS, TOKEN_MULTIPLIER, NIL_UUID, NIL_DIGEST } = require('./utils/constants');
+const { POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require('./utils/roles');
+const { mintAndApprove, expectEqualsWithinMargin } = require('./utils/helpers');
+const { snapshot, rollback, skipEvmTime } = require('./utils/evmControl');
 
 let evmSnapshotIds = [];
 
 describe('Sapling Lending Pool', function () {
-
     let coreAccessControl;
 
     let SaplingLendingPoolCF;
@@ -58,7 +57,7 @@ describe('Sapling Lending Pool', function () {
             liquidityToken.address,
             coreAccessControl.address,
             protocol.address,
-            staker.address
+            staker.address,
         ]);
         await lendingPool.deployed();
 
@@ -96,7 +95,7 @@ describe('Sapling Lending Pool', function () {
                     liquidityToken.address,
                     coreAccessControl.address,
                     protocol.address,
-                    staker.address
+                    staker.address,
                 ]),
             ).to.be.not.reverted;
         });
@@ -165,8 +164,7 @@ describe('Sapling Lending Pool', function () {
             await lendingPool.connect(lender1).deposit(depositAmount);
         });
 
-        describe('Initial state', function () {
-        });
+        describe('Initial state', function () {});
 
         describe('Setting pool parameters', function () {
             describe('Loan Desk', function () {});
@@ -180,14 +178,7 @@ describe('Sapling Lending Pool', function () {
 
             describe('Rejection scenarios', function () {
                 it('Closing the pool with a non-zero borrowed amount should fail', async function () {
-                    await loanDesk
-                        .connect(borrower1)
-                        .requestLoan(
-                            loanAmount,
-                            loanDuration,
-                            NIL_UUID,
-                            NIL_DIGEST,
-                        );
+                    await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
                     let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                     let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                     let installments = 1;
@@ -196,8 +187,8 @@ describe('Sapling Lending Pool', function () {
                         .connect(staker)
                         .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                     await loanDesk.connect(staker).lockDraftOffer(applicationId);
-                    await skipEvmTime(2*24*60*60 + 1);
-                await loanDesk.connect(staker).offerLoan(applicationId);
+                    await skipEvmTime(2 * 24 * 60 * 60 + 1);
+                    await loanDesk.connect(staker).offerLoan(applicationId);
                     await loanDesk.connect(borrower1).borrow(applicationId);
 
                     await expect(lendingPool.connect(staker).close()).to.be.reverted;
@@ -221,14 +212,7 @@ describe('Sapling Lending Pool', function () {
 
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
-                await loanDesk
-                    .connect(borrower1)
-                    .requestLoan(
-                        loanAmount,
-                        loanDuration,
-                        NIL_UUID,
-                        NIL_DIGEST,
-                    );
+                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
                 applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                 application = await loanDesk.loanApplications(applicationId);
                 await loanDesk
@@ -247,7 +231,7 @@ describe('Sapling Lending Pool', function () {
             it('Borrowers can borrow', async function () {
                 let balanceBefore = await liquidityToken.balanceOf(borrower1.address);
                 await loanDesk.connect(staker).lockDraftOffer(applicationId);
-                await skipEvmTime(2*24*60*60 + 1);
+                await skipEvmTime(2 * 24 * 60 * 60 + 1);
                 await loanDesk.connect(staker).offerLoan(applicationId);
                 let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                 let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
@@ -301,14 +285,7 @@ describe('Sapling Lending Pool', function () {
             before(async function () {
                 await snapshot(evmSnapshotIds);
 
-                await loanDesk
-                    .connect(borrower1)
-                    .requestLoan(
-                        loanAmount,
-                        loanDuration,
-                        NIL_UUID,
-                        NIL_DIGEST,
-                    );
+                await loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
                 let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                 let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                 let installments = 1;
@@ -317,7 +294,7 @@ describe('Sapling Lending Pool', function () {
                     .connect(staker)
                     .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                 await loanDesk.connect(staker).lockDraftOffer(applicationId);
-                await skipEvmTime(2*24*60*60 + 1);
+                await skipEvmTime(2 * 24 * 60 * 60 + 1);
                 await loanDesk.connect(staker).offerLoan(applicationId);
                 let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                 loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
@@ -377,11 +354,7 @@ describe('Sapling Lending Pool', function () {
                     await mintAndApprove(liquidityToken, deployer, lender3, lendingPool.address, paymentAmount);
                     await expect(
                         loanDesk.connect(lender3).repayOnBehalf(loanId, paymentAmount, borrower1.address),
-                    ).to.changeTokenBalance(
-                        liquidityToken,
-                        lender3.address,
-                        -paymentAmount,
-                    );
+                    ).to.changeTokenBalance(liquidityToken, lender3.address, -paymentAmount);
                     let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
 
                     loan = await loanDesk.loans(loanId);
@@ -400,11 +373,7 @@ describe('Sapling Lending Pool', function () {
                     await mintAndApprove(liquidityToken, deployer, lender3, lendingPool.address, paymentAmount);
                     await expect(
                         loanDesk.connect(lender3).repayOnBehalf(loanId, paymentAmount, borrower1.address),
-                    ).to.changeTokenBalance(
-                        liquidityToken,
-                        lender3.address,
-                        -paymentAmount,
-                    );
+                    ).to.changeTokenBalance(liquidityToken, lender3.address, -paymentAmount);
                     let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
 
                     let loanDetail = await loanDesk.loanDetails(loanId);
@@ -413,7 +382,7 @@ describe('Sapling Lending Pool', function () {
                 });
 
                 it('Repaying a loan will transfer earnings to the staker', async function () {
-                    let balanceBefore = (await liquidityToken.balanceOf(staker.address));
+                    let balanceBefore = await liquidityToken.balanceOf(staker.address);
                     let loan = await loanDesk.loans(loanId);
 
                     await skipEvmTime(loan.duration.toNumber());
@@ -425,7 +394,8 @@ describe('Sapling Lending Pool', function () {
 
                     let stakedShares = (await lendingPool.balances()).stakedShares;
                     let totalPoolShares = await poolToken.totalSupply();
-                    let stakerExcessLeverageComponent = ((await lendingPool.config()).stakerEarnFactor) - ONE_HUNDRED_PERCENT;
+                    let stakerExcessLeverageComponent =
+                        (await lendingPool.config()).stakerEarnFactor - ONE_HUNDRED_PERCENT;
 
                     let currentStakePercent = stakedShares.mul(ONE_HUNDRED_PERCENT).div(totalPoolShares);
                     let stakerEarningsPercent = currentStakePercent
@@ -437,11 +407,13 @@ describe('Sapling Lending Pool', function () {
 
                     let loanDetail = await loanDesk.loanDetails(loanId);
 
-                    let expectedProtocolFee = loanDetail.totalAmountRepaid.sub(loanDetail.principalAmountRepaid)
+                    let expectedProtocolFee = loanDetail.totalAmountRepaid
+                        .sub(loanDetail.principalAmountRepaid)
                         .mul(protocolEarningPercent)
                         .div(ONE_HUNDRED_PERCENT);
 
-                    let stakerEarnedInterest = loanDetail.totalAmountRepaid.sub(loanDetail.principalAmountRepaid)
+                    let stakerEarnedInterest = loanDetail.totalAmountRepaid
+                        .sub(loanDetail.principalAmountRepaid)
                         .sub(expectedProtocolFee)
                         .mul(stakerEarningsPercent)
                         .div(stakerEarningsPercent.add(ONE_HUNDRED_PERCENT));
@@ -461,7 +433,7 @@ describe('Sapling Lending Pool', function () {
                     await expect(loanDesk.connect(borrower1).repay(loanId, paymentAmount)).to.changeTokenBalance(
                         liquidityToken,
                         borrower1.address,
-                        -loanBalanceDue
+                        -loanBalanceDue,
                     );
                 });
 
@@ -508,14 +480,20 @@ describe('Sapling Lending Pool', function () {
 
                     it('Repaying a loan from an unrelated address should fail', async function () {
                         let paymentAmount = BigNumber.from(100).mul(TOKEN_MULTIPLIER);
-                        await mintAndApprove(liquidityToken, deployer, addresses[0], lendingPool.address, paymentAmount);
+                        await mintAndApprove(
+                            liquidityToken,
+                            deployer,
+                            addresses[0],
+                            lendingPool.address,
+                            paymentAmount,
+                        );
                         await expect(loanDesk.connect(addresses[0]).repay(loanId, paymentAmount)).to.be.reverted;
                     });
 
                     it('Repaying a loan on behalf of a wrong borrower should fail', async function () {
                         await mintAndApprove(liquidityToken, deployer, lender3, lendingPool.address, loanAmount);
-                        await expect(loanDesk.connect(lender3).repayOnBehalf(loanId, loanAmount, borrower2.address))
-                            .to.be.reverted;
+                        await expect(loanDesk.connect(lender3).repayOnBehalf(loanId, loanAmount, borrower2.address)).to
+                            .be.reverted;
                     });
                 });
             });
@@ -546,7 +524,7 @@ describe('Sapling Lending Pool', function () {
                         await mintAndApprove(liquidityToken, deployer, borrower1, lendingPool.address, paymentAmount);
                         await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
 
-                        let poolFundsBefore = (await lendingPool.poolFunds());
+                        let poolFundsBefore = await lendingPool.poolFunds();
                         let stakedBalanceBefore = await lendingPool.balanceStaked();
 
                         expect(await loanDesk.canDefault(loanId)).to.equal(true);
@@ -562,15 +540,23 @@ describe('Sapling Lending Pool', function () {
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
 
                         // allow +/- half token accuracy due to pre settled yield being a rough value based on averages
-                        expectEqualsWithinMargin(await lendingPool.poolFunds(), poolFundsBefore.sub(lossAmount), TOKEN_MULTIPLIER);
-                        expectEqualsWithinMargin(await lendingPool.balanceStaked(), stakedBalanceBefore.sub(stakerLoss), TOKEN_MULTIPLIER);
+                        expectEqualsWithinMargin(
+                            await lendingPool.poolFunds(),
+                            poolFundsBefore.sub(lossAmount),
+                            TOKEN_MULTIPLIER,
+                        );
+                        expectEqualsWithinMargin(
+                            await lendingPool.balanceStaked(),
+                            stakedBalanceBefore.sub(stakerLoss),
+                            TOKEN_MULTIPLIER,
+                        );
                     });
 
                     it('Staker can default a loan that has no payments made', async function () {
                         // manual settling is only necessary to get the pool funds and staked balance pre default
                         await lendingPool.connect(staker).settleYield();
 
-                        let poolFundsBefore = (await lendingPool.poolFunds());
+                        let poolFundsBefore = await lendingPool.poolFunds();
                         let stakedBalanceBefore = await lendingPool.balanceStaked();
 
                         expect(await loanDesk.canDefault(loanId)).to.equal(true);
@@ -583,80 +569,44 @@ describe('Sapling Lending Pool', function () {
                         loan = await loanDesk.loans(loanId);
 
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
-                        expectEqualsWithinMargin(await lendingPool.poolFunds(), poolFundsBefore.sub(lossAmount), BigNumber.from(2));
-                        expectEqualsWithinMargin(await lendingPool.balanceStaked(), stakedBalanceBefore.sub(stakerLoss), BigNumber.from(2));
+                        expectEqualsWithinMargin(
+                            await lendingPool.poolFunds(),
+                            poolFundsBefore.sub(lossAmount),
+                            BigNumber.from(2),
+                        );
+                        expectEqualsWithinMargin(
+                            await lendingPool.balanceStaked(),
+                            stakedBalanceBefore.sub(stakerLoss),
+                            BigNumber.from(2),
+                        );
                     });
 
                     it('Staker can default a loan with an loss amount equal to the stakers stake', async function () {
                         let loanAmount = await lendingPool.balanceStaked();
                         let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
 
-                        await loanDesk
-                            .connect(borrower2)
-                            .requestLoan(
-                                loanAmount,
-                                loanDuration,
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            );
+                        await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
                         let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                         let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                         let installments = 1;
                         let apr = (await loanDesk.loanTemplate()).apr;
                         await loanDesk
                             .connect(staker)
-                            .draftOffer(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
-                        await loanDesk.connect(staker).lockDraftOffer(otherApplicationId);
-                        await skipEvmTime(2*24*60*60 + 1);
-                await loanDesk.connect(staker).offerLoan(otherApplicationId);
-                        let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
-                        let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
-                            .args.loanId;
-
-                        await skipEvmTime(loanDuration.add(gracePeriod).add(1).toNumber());
-
-                        await lendingPool.connect(staker).settleYield();
-
-                        let poolFundsBefore = (await lendingPool.poolFunds());
-
-                        expect(await loanDesk.canDefault(otherLoanId)).to.equal(true);
-                        tx = await loanDesk.connect(staker).defaultLoan(otherLoanId);
-                        let loanDefaultedEvent = (await tx.wait()).events.filter((e) => e.event === 'LoanDefaulted')[0];
-                        let stakerLoss = loanDefaultedEvent.args.stakerLoss;
-                        let lenderLoss = loanDefaultedEvent.args.lenderLoss;
-                        let lossAmount = stakerLoss.add(lenderLoss);
-
-                        let loan = await loanDesk.loans(otherLoanId);
-                        expect(loan.status).to.equal(LoanStatus.DEFAULTED);
-                        expectEqualsWithinMargin(await lendingPool.poolFunds(), poolFundsBefore.sub(lossAmount), BigNumber.from(2));
-                        expect(await lendingPool.balanceStaked()).to.equal(0);
-                    });
-
-                    it('Staker can default a loan with an loss amount greater than the stakers stake', async function () {
-                        let loanAmount = (await lendingPool.balanceStaked()).mul(2);
-                        let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
-
-                        await loanDesk
-                            .connect(borrower2)
-                            .requestLoan(
+                            .draftOffer(
+                                otherApplicationId,
                                 loanAmount,
                                 loanDuration,
-                                NIL_UUID,
-                                NIL_DIGEST,
+                                gracePeriod,
+                                0,
+                                installments,
+                                apr,
                             );
-                        let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
-                        let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
-                        let installments = 1;
-                        let apr = (await loanDesk.loanTemplate()).apr;
-                        await loanDesk
-                            .connect(staker)
-                            .draftOffer(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                         await loanDesk.connect(staker).lockDraftOffer(otherApplicationId);
-                        await skipEvmTime(2*24*60*60 + 1);
+                        await skipEvmTime(2 * 24 * 60 * 60 + 1);
                         await loanDesk.connect(staker).offerLoan(otherApplicationId);
                         let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
-                        let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
-                            .args.loanId;
+                        let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args
+                            .loanId;
 
                         await skipEvmTime(loanDuration.add(gracePeriod).add(1).toNumber());
 
@@ -673,19 +623,66 @@ describe('Sapling Lending Pool', function () {
 
                         let loan = await loanDesk.loans(otherLoanId);
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
-                        expectEqualsWithinMargin(await lendingPool.poolFunds(), poolFundsBefore.sub(lossAmount), BigNumber.from(2));
+                        expectEqualsWithinMargin(
+                            await lendingPool.poolFunds(),
+                            poolFundsBefore.sub(lossAmount),
+                            BigNumber.from(2),
+                        );
+                        expect(await lendingPool.balanceStaked()).to.equal(0);
+                    });
+
+                    it('Staker can default a loan with an loss amount greater than the stakers stake', async function () {
+                        let loanAmount = (await lendingPool.balanceStaked()).mul(2);
+                        let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
+
+                        await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
+                        let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
+                        let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
+                        let installments = 1;
+                        let apr = (await loanDesk.loanTemplate()).apr;
+                        await loanDesk
+                            .connect(staker)
+                            .draftOffer(
+                                otherApplicationId,
+                                loanAmount,
+                                loanDuration,
+                                gracePeriod,
+                                0,
+                                installments,
+                                apr,
+                            );
+                        await loanDesk.connect(staker).lockDraftOffer(otherApplicationId);
+                        await skipEvmTime(2 * 24 * 60 * 60 + 1);
+                        await loanDesk.connect(staker).offerLoan(otherApplicationId);
+                        let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
+                        let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args
+                            .loanId;
+
+                        await skipEvmTime(loanDuration.add(gracePeriod).add(1).toNumber());
+
+                        await lendingPool.connect(staker).settleYield();
+
+                        let poolFundsBefore = await lendingPool.poolFunds();
+
+                        expect(await loanDesk.canDefault(otherLoanId)).to.equal(true);
+                        tx = await loanDesk.connect(staker).defaultLoan(otherLoanId);
+                        let loanDefaultedEvent = (await tx.wait()).events.filter((e) => e.event === 'LoanDefaulted')[0];
+                        let stakerLoss = loanDefaultedEvent.args.stakerLoss;
+                        let lenderLoss = loanDefaultedEvent.args.lenderLoss;
+                        let lossAmount = stakerLoss.add(lenderLoss);
+
+                        let loan = await loanDesk.loans(otherLoanId);
+                        expect(loan.status).to.equal(LoanStatus.DEFAULTED);
+                        expectEqualsWithinMargin(
+                            await lendingPool.poolFunds(),
+                            poolFundsBefore.sub(lossAmount),
+                            BigNumber.from(2),
+                        );
                         expect(await lendingPool.balanceStaked()).to.equal(0);
                     });
 
                     it('Staker can default a loan with a missed installment', async function () {
-                        await loanDesk
-                            .connect(borrower2)
-                            .requestLoan(
-                                loanAmount,
-                                loanDuration,
-                                NIL_UUID,
-                                NIL_DIGEST,
-                            );
+                        await loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
 
                         let applicationId2 = await loanDesk.recentApplicationIdOf(borrower2.address);
                         let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
@@ -704,8 +701,8 @@ describe('Sapling Lending Pool', function () {
                                 apr,
                             );
                         await loanDesk.connect(staker).lockDraftOffer(applicationId2);
-                        await skipEvmTime(2*24*60*60 + 1);
-                await loanDesk.connect(staker).offerLoan(applicationId2);
+                        await skipEvmTime(2 * 24 * 60 * 60 + 1);
+                        await loanDesk.connect(staker).offerLoan(applicationId2);
                         let tx = await loanDesk.connect(borrower2).borrow(applicationId2);
                         let loanId2 = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
@@ -718,17 +715,23 @@ describe('Sapling Lending Pool', function () {
                     describe('Rejection scenarios', function () {
                         it('Defaulting a loan that is not in OUTSTANDING status should fail', async function () {
                             let paymentAmount = await loanDesk.loanBalanceDue(loanId);
-                            await mintAndApprove(liquidityToken, deployer, borrower1, lendingPool.address, paymentAmount);
+                            await mintAndApprove(
+                                liquidityToken,
+                                deployer,
+                                borrower1,
+                                lendingPool.address,
+                                paymentAmount,
+                            );
                             await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
                             loan = await loanDesk.loans(loanId);
                             assertHardhatInvariant(loan.status === LoanStatus.REPAID);
 
-                            await expect(loanDesk.canDefault(loanId)).to.be.revertedWith("LoanDesk: invalid status");
+                            await expect(loanDesk.canDefault(loanId)).to.be.revertedWith('LoanDesk: invalid status');
                             await expect(loanDesk.connect(staker).defaultLoan(loanId)).to.be.reverted;
                         });
 
                         it('Defaulting a nonexistent loan should fail', async function () {
-                            await expect(loanDesk.canDefault(loanId.add(1))).to.be.revertedWith("LoanDesk: not found");
+                            await expect(loanDesk.canDefault(loanId.add(1))).to.be.revertedWith('LoanDesk: not found');
                             await expect(loanDesk.connect(staker).defaultLoan(loanId.add(1))).to.be.reverted;
                         });
 

@@ -1,15 +1,12 @@
 const { expect } = require('chai');
-const { BigNumber } = require('ethers');
 const { ethers, upgrades } = require('hardhat');
-const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
-const { NULL_ADDRESS, TOKEN_DECIMALS } = require("./utils/constants");
-const { GOVERNANCE_ROLE, POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require("./utils/roles");
-const { snapshot, rollback } = require("./utils/evmControl");
+const { NULL_ADDRESS, TOKEN_DECIMALS } = require('./utils/constants');
+const { GOVERNANCE_ROLE, POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require('./utils/roles');
+const { snapshot, rollback } = require('./utils/evmControl');
 
 let evmSnapshotIds = [];
 
 describe('Sapling Context (via SaplingLendingPool)', function () {
-
     let coreAccessControl;
 
     let SaplingContextCF;
@@ -54,7 +51,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             liquidityToken.address,
             coreAccessControl.address,
             protocol.address,
-            staker.address
+            staker.address,
         ]);
         await lendingPool.deployed();
 
@@ -86,7 +83,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                     liquidityToken.address,
                     coreAccessControl.address,
                     protocol.address,
-                    staker.address
+                    staker.address,
                 ]),
             ).to.be.not.reverted;
         });
@@ -99,7 +96,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                         liquidityToken.address,
                         NULL_ADDRESS,
                         protocol.address,
-                        staker.address
+                        staker.address,
                     ]),
                 ).to.be.reverted;
             });
