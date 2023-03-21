@@ -2,28 +2,14 @@ const { expect } = require('chai');
 const { BigNumber } = require('ethers');
 const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
+const { TOKEN_DECIMALS } = require("./utils/constants");
+const { POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require("./utils/roles");
+const { mintAndApprove } = require("./utils/helpers");
+const { snapshot, rollback } = require("./utils/evmControl");
 
 let evmSnapshotIds = [];
 
-async function snapshot() {
-    let id = await hre.network.provider.send('evm_snapshot');
-    evmSnapshotIds.push(id);
-}
-
-async function rollback() {
-    let id = evmSnapshotIds.pop();
-    await hre.network.provider.send('evm_revert', [id]);
-}
-
 describe('Sapling Staker Context (via SaplingLendingPool)', function () {
-    const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
-    const TOKEN_DECIMALS = 6;
-
-    const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
-    const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
-    const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
-    const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
 
@@ -41,11 +27,11 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
     let addresses;
 
     beforeEach(async function () {
-        await snapshot();
+        await snapshot(evmSnapshotIds);
     });
 
     afterEach(async function () {
-        await rollback();
+        await rollback(evmSnapshotIds);
     });
 
     before(async function () {
@@ -54,14 +40,7 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
 
-        await coreAccessControl.connect(deployer).grantRole(DEFAULT_ADMIN_ROLE, governance.address);
-        await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
-
-        await coreAccessControl.connect(governance).grantRole(GOVERNANCE_ROLE, governance.address);
-        await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
-        await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
-
-        await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
+        await initAccessControl(coreAccessControl, deployer, governance, lenderGovernance.address);
 
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
@@ -129,8 +108,7 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
         describe('Close', function () {
             beforeEach(async function () {
                 let initialMintAmount = 10 ** TOKEN_DECIMALS;
-                await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
-                await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+                await mintAndApprove(liquidityToken, deployer, staker, lendingPool.address, initialMintAmount);
                 await lendingPool.connect(staker).initialMint();
 
                 await saplingStakerContext.connect(staker).open();
@@ -156,8 +134,7 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
         describe('Open', function () {
             it('Staker can open', async function () {
                 let initialMintAmount = 10 ** TOKEN_DECIMALS;
-                await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
-                await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+                await mintAndApprove(liquidityToken, deployer, staker, lendingPool.address, initialMintAmount);
                 await lendingPool.connect(staker).initialMint();
 
                 await saplingStakerContext.connect(staker).open();
@@ -171,8 +148,7 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
 
                 it('Opening when not closed should fail', async function () {
                     let initialMintAmount = 10 ** TOKEN_DECIMALS;
-                    await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
-                    await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+                    await mintAndApprove(liquidityToken, deployer, staker, lendingPool.address, initialMintAmount);
                     await lendingPool.connect(staker).initialMint();
 
                     await saplingStakerContext.connect(staker).open();
@@ -181,8 +157,7 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
 
                 it('Opening as a non staker should fail', async function () {
                     let initialMintAmount = 10 ** TOKEN_DECIMALS;
-                    await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
-                    await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+                    await mintAndApprove(liquidityToken, deployer, staker, lendingPool.address, initialMintAmount);
                     await lendingPool.connect(staker).initialMint();
 
                     await expect(saplingStakerContext.connect(addresses[0]).open()).to.be.reverted;

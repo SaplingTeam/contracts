@@ -2,28 +2,14 @@ const { expect } = require('chai');
 const { BigNumber } = require('ethers');
 const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
+const { TOKEN_DECIMALS, TOKEN_MULTIPLIER, NIL_UUID, NIL_DIGEST } = require("./utils/constants");
+const { POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require("./utils/roles");
+const { mintAndApprove } = require("./utils/helpers");
+const { rollback, snapshot, skipEvmTime } = require("./utils/evmControl");
 
 let evmSnapshotIds = [];
 
-async function snapshot() {
-    let id = await hre.network.provider.send('evm_snapshot');
-    evmSnapshotIds.push(id);
-}
-
-async function rollback() {
-    let id = evmSnapshotIds.pop();
-    await hre.network.provider.send('evm_revert', [id]);
-}
-
 describe('Attack Sapling Lending Pool', function () {
-    const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
-    const TOKEN_DECIMALS = 6;
-
-    const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
-    const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
-    const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
-    const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
 
@@ -41,11 +27,11 @@ describe('Attack Sapling Lending Pool', function () {
     let addresses;
 
     beforeEach(async function () {
-        await snapshot();
+        await snapshot(evmSnapshotIds);
     });
 
     afterEach(async function () {
-        await rollback();
+        await rollback(evmSnapshotIds);
     });
 
     before(async function () {
@@ -54,14 +40,7 @@ describe('Attack Sapling Lending Pool', function () {
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
 
-        await coreAccessControl.connect(deployer).grantRole(DEFAULT_ADMIN_ROLE, governance.address);
-        await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
-
-        await coreAccessControl.connect(governance).grantRole(GOVERNANCE_ROLE, governance.address);
-        await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
-        await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
-
-        await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
+        await initAccessControl(coreAccessControl, deployer, governance, lenderGovernance.address);
 
         SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
@@ -98,8 +77,7 @@ describe('Attack Sapling Lending Pool', function () {
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
 
         let initialMintAmount = 10 ** TOKEN_DECIMALS;
-        await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
-        await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+        await mintAndApprove(liquidityToken, deployer, staker, lendingPool.address, initialMintAmount);
         await lendingPool.connect(staker).initialMint();
 
         await lendingPool.connect(staker).open();
@@ -135,7 +113,6 @@ describe('Attack Sapling Lending Pool', function () {
         };
 
         let PERCENT_DECIMALS;
-        let TOKEN_MULTIPLIER;
         let ONE_HUNDRED_PERCENT;
         let exitFeePercent;
 
@@ -154,7 +131,6 @@ describe('Attack Sapling Lending Pool', function () {
 
         before(async function () {
             PERCENT_DECIMALS = await saplingMath.PERCENT_DECIMALS();
-            TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
             ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
             exitFeePercent = (await lendingPool.config()).exitFeePercent;
 
@@ -172,12 +148,10 @@ describe('Attack Sapling Lending Pool', function () {
             loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
 
-            await liquidityToken.connect(deployer).mint(staker.address, stakeAmount);
-            await liquidityToken.connect(staker).approve(lendingPool.address, stakeAmount);
+            await mintAndApprove(liquidityToken, deployer, staker, lendingPool.address, stakeAmount);
             await lendingPool.connect(staker).stake(stakeAmount);
 
-            await liquidityToken.connect(deployer).mint(lender1.address, depositAmount);
-            await liquidityToken.connect(lender1).approve(lendingPool.address, depositAmount);
+            await mintAndApprove(liquidityToken, deployer, lender1, lendingPool.address, depositAmount);
             await lendingPool.connect(lender1).deposit(depositAmount);
             let initialBalance = BigNumber.from(1e12).mul(TOKEN_MULTIPLIER);
             await liquidityToken.connect(deployer).mint(borrower1.address, initialBalance);
@@ -187,11 +161,11 @@ describe('Attack Sapling Lending Pool', function () {
             let applicationId;
 
             after(async function () {
-                await rollback();
+                await rollback(evmSnapshotIds);
             });
 
             before(async function () {
-                await snapshot();
+                await snapshot(evmSnapshotIds);
 
                 gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                 installments = 1;
@@ -204,8 +178,8 @@ describe('Attack Sapling Lending Pool', function () {
                     .requestLoan(
                         loanAmount,
                         loanDuration,
-                        'a937074e-85a7-42a9-b858-9795d9471759',
-                        '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                        NIL_UUID,
+                        NIL_DIGEST,
                     );
                 applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                 application = await loanDesk.loanApplications(applicationId);
@@ -221,8 +195,7 @@ describe('Attack Sapling Lending Pool', function () {
                         apr,
                     );
                 await loanDesk.connect(staker).lockDraftOffer(applicationId);
-                await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(2*24*60*60 + 1);
                 await loanDesk.connect(staker).offerLoan(applicationId);
             });
 
@@ -254,8 +227,7 @@ describe('Attack Sapling Lending Pool', function () {
                 let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                 let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
                 let loan = await loanDesk.loans(loanId);
-                await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(loan.duration.toNumber());
                 await expect(loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
                 expect(await liquidityToken.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
             });
@@ -289,8 +261,8 @@ describe('Attack Sapling Lending Pool', function () {
                     .requestLoan(
                         loanAmount,
                         loanDuration,
-                        'a937074e-85a7-42a9-b858-9795d9471759',
-                        '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                        NIL_UUID,
+                        NIL_DIGEST,
                     )).to.be.reverted;
             });
 
@@ -300,8 +272,7 @@ describe('Attack Sapling Lending Pool', function () {
                 let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                 let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
-                await ethers.provider.send('evm_increaseTime', [60]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(60);
 
                 let balanceSimulated = await loanDesk.loanBalanceDue(loanId);
 

@@ -2,22 +2,12 @@ const { expect } = require('chai');
 const { BigNumber } = require('ethers');
 const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
+const { DEFAULT_ADMIN_ROLE } = require("./utils/roles");
+const { snapshot, rollback } = require("./utils/evmControl");
 
 let evmSnapshotIds = [];
 
-async function snapshot() {
-    let id = await hre.network.provider.send('evm_snapshot');
-    evmSnapshotIds.push(id);
-}
-
-async function rollback() {
-    let id = evmSnapshotIds.pop();
-    await hre.network.provider.send('evm_revert', [id]);
-}
-
 describe('CoreAccessControl', function () {
-    const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
-    const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
     let CoreAccessControlCF;
     let coreAccessControl;
@@ -29,17 +19,17 @@ describe('CoreAccessControl', function () {
     let addresses;
 
     beforeEach(async function () {
-        await snapshot();
+        await snapshot(evmSnapshotIds);
     });
 
     afterEach(async function () {
-        await rollback();
+        await rollback(evmSnapshotIds);
     });
 
     before(async function () {
         [deployer, governance, protocol, staker, ...addresses] = await ethers.getSigners();
 
-        let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
+        CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
 
         coreAccessControl = await CoreAccessControlCF.deploy();
     });
@@ -59,11 +49,11 @@ describe('CoreAccessControl', function () {
     describe('Use Cases', function () {
 
         after(async function () {
-            await rollback();
+            await rollback(evmSnapshotIds);
         });
 
         before(async function () {
-            await snapshot();
+            await snapshot(evmSnapshotIds);
 
             await coreAccessControl.connect(deployer).grantRole(DEFAULT_ADMIN_ROLE, governance.address);
             await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);

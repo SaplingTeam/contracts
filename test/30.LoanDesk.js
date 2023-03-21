@@ -2,27 +2,14 @@ const { expect } = require('chai');
 const { BigNumber } = require('ethers');
 const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
+const { TOKEN_DECIMALS, TOKEN_MULTIPLIER, NIL_UUID, NIL_DIGEST} = require("./utils/constants");
+const { POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require("./utils/roles");
+const { mintAndApprove } = require("./utils/helpers");
+const { snapshot, rollback, skipEvmTime } = require("./utils/evmControl");
 
 let evmSnapshotIds = [];
 
-async function snapshot() {
-    let id = await hre.network.provider.send('evm_snapshot');
-    evmSnapshotIds.push(id);
-}
-
-async function rollback() {
-    await hre.network.provider.send('evm_revert', [evmSnapshotIds.pop()]);
-}
-
 describe('Loan Desk', function () {
-    const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
-    const TOKEN_DECIMALS = 6;
-
-    const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
-    const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
-    const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
-    const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
 
@@ -40,11 +27,11 @@ describe('Loan Desk', function () {
     let addresses;
 
     beforeEach(async function () {
-        await snapshot();
+        await snapshot(evmSnapshotIds);
     });
 
     afterEach(async function () {
-        await rollback();
+        await rollback(evmSnapshotIds);
     });
 
     before(async function () {
@@ -53,14 +40,7 @@ describe('Loan Desk', function () {
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
 
-        await coreAccessControl.connect(deployer).grantRole(DEFAULT_ADMIN_ROLE, governance.address);
-        await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
-
-        await coreAccessControl.connect(governance).grantRole(GOVERNANCE_ROLE, governance.address);
-        await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
-        await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
-
-        await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
+        await initAccessControl(coreAccessControl, deployer, governance, lenderGovernance.address);
 
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         LoanDeskCF = await ethers.getContractFactory('LoanDesk');
@@ -97,8 +77,7 @@ describe('Loan Desk', function () {
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
 
         let initialMintAmount = 10 ** TOKEN_DECIMALS;
-        await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
-        await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+        await mintAndApprove(liquidityToken, deployer, staker, lendingPool.address, initialMintAmount);
         await lendingPool.connect(staker).initialMint();
 
         await lendingPool.connect(staker).open();
@@ -134,7 +113,6 @@ describe('Loan Desk', function () {
         };
 
         let PERCENT_DECIMALS;
-        let TOKEN_MULTIPLIER;
 
         let lender1;
         let lender2;
@@ -151,7 +129,6 @@ describe('Loan Desk', function () {
             borrower2 = addresses[4];
 
             PERCENT_DECIMALS = await saplingMath.PERCENT_DECIMALS();
-            TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
 
             loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
@@ -438,8 +415,8 @@ describe('Loan Desk', function () {
                     .requestLoan(
                         loanAmount,
                         loanDuration,
-                        'a937074e-85a7-42a9-b858-9795d9471759',
-                        '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                        NIL_UUID,
+                        NIL_DIGEST,
                     );
                 let applicationId = (await requestLoanTx.wait()).events.filter((e) => e.event === 'LoanRequested')[0]
                     .args.applicationId;
@@ -461,8 +438,8 @@ describe('Loan Desk', function () {
                     .requestLoan(
                         loanAmount,
                         loanDuration,
-                        'a937074e-85a7-42a9-b858-9795d9471759',
-                        '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                        NIL_UUID,
+                        NIL_DIGEST,
                     );
                 let applicationId = (await requestLoanTx.wait()).events.filter((e) => e.event === 'LoanRequested')[0]
                     .args.applicationId;
@@ -478,8 +455,8 @@ describe('Loan Desk', function () {
                             .requestLoan(
                                 minAmount.sub(1),
                                 loanDuration,
-                                'a937074e-85a7-42a9-b858-9795d9471759',
-                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                                NIL_UUID,
+                                NIL_DIGEST,
                             ),
                     ).to.be.reverted;
                 });
@@ -492,8 +469,8 @@ describe('Loan Desk', function () {
                             .requestLoan(
                                 loanAmount,
                                 minDuration.sub(1),
-                                'a937074e-85a7-42a9-b858-9795d9471759',
-                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                                NIL_UUID,
+                                NIL_DIGEST,
                             ),
                     ).to.be.reverted;
                 });
@@ -506,8 +483,8 @@ describe('Loan Desk', function () {
                             .requestLoan(
                                 loanAmount,
                                 maxDuration.add(1),
-                                'a937074e-85a7-42a9-b858-9795d9471759',
-                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                                NIL_UUID,
+                                NIL_DIGEST,
                             ),
                     ).to.be.reverted;
                 });
@@ -518,8 +495,8 @@ describe('Loan Desk', function () {
                         .requestLoan(
                             loanAmount,
                             loanDuration,
-                            'a937074e-85a7-42a9-b858-9795d9471759',
-                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                            NIL_UUID,
+                            NIL_DIGEST,
                         );
                     await expect(
                         loanDesk
@@ -527,8 +504,8 @@ describe('Loan Desk', function () {
                             .requestLoan(
                                 loanAmount,
                                 loanDuration,
-                                'a937074e-85a7-42a9-b858-9795d9471759',
-                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                                NIL_UUID,
+                                NIL_DIGEST,
                             ),
                     ).to.be.reverted;
                 });
@@ -541,8 +518,8 @@ describe('Loan Desk', function () {
                             .requestLoan(
                                 loanAmount,
                                 loanDuration,
-                                'a937074e-85a7-42a9-b858-9795d9471759',
-                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                                NIL_UUID,
+                                NIL_DIGEST,
                             ),
                     ).to.be.reverted;
                 });
@@ -555,8 +532,8 @@ describe('Loan Desk', function () {
                             .requestLoan(
                                 loanAmount,
                                 loanDuration,
-                                'a937074e-85a7-42a9-b858-9795d9471759',
-                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                                NIL_UUID,
+                                NIL_DIGEST,
                             ),
                     ).to.be.reverted;
                 });
@@ -568,8 +545,8 @@ describe('Loan Desk', function () {
                             .requestLoan(
                                 loanAmount,
                                 loanDuration,
-                                'a937074e-85a7-42a9-b858-9795d9471759',
-                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                                NIL_UUID,
+                                NIL_DIGEST,
                             ),
                     ).to.be.reverted;
                 });
@@ -581,8 +558,8 @@ describe('Loan Desk', function () {
                             .requestLoan(
                                 loanAmount,
                                 loanDuration,
-                                'a937074e-85a7-42a9-b858-9795d9471759',
-                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                                NIL_UUID,
+                                NIL_DIGEST,
                             ),
                     ).to.be.reverted;
                 });
@@ -597,11 +574,11 @@ describe('Loan Desk', function () {
             let application;
 
             after(async function () {
-                await rollback();
+                await rollback(evmSnapshotIds);
             });
 
             before(async function () {
-                await snapshot();
+                await snapshot(evmSnapshotIds);
 
                 gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                 installments = 1;
@@ -612,8 +589,8 @@ describe('Loan Desk', function () {
                     .requestLoan(
                         loanAmount,
                         loanDuration,
-                        'a937074e-85a7-42a9-b858-9795d9471759',
-                        '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                        NIL_UUID,
+                        NIL_DIGEST,
                     );
                 applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                 application = await loanDesk.loanApplications(applicationId);
@@ -621,12 +598,10 @@ describe('Loan Desk', function () {
                 let stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
                 let depositAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
 
-                await liquidityToken.connect(deployer).mint(staker.address, stakeAmount);
-                await liquidityToken.connect(staker).approve(lendingPool.address, stakeAmount);
+                await mintAndApprove(liquidityToken, deployer, staker, lendingPool.address, stakeAmount);
                 await lendingPool.connect(staker).stake(stakeAmount);
 
-                await liquidityToken.connect(deployer).mint(lender1.address, depositAmount);
-                await liquidityToken.connect(lender1).approve(lendingPool.address, depositAmount);
+                await mintAndApprove(liquidityToken, deployer, lender1, lendingPool.address, depositAmount);
                 await lendingPool.connect(lender1).deposit(depositAmount);
             });
 
@@ -725,8 +700,8 @@ describe('Loan Desk', function () {
                             .requestLoan(
                                 amountBorrowable.add(1),
                                 loanDuration,
-                                'a937074e-85a7-42a9-b858-9795d9471759',
-                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                                NIL_UUID,
+                                NIL_DIGEST,
                             );
                         let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                         let otherApplication = await loanDesk.loanApplications(otherApplicationId);
@@ -758,8 +733,8 @@ describe('Loan Desk', function () {
                             .requestLoan(
                                 loanAmount,
                                 loanDuration,
-                                'a937074e-85a7-42a9-b858-9795d9471759',
-                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                                NIL_UUID,
+                                NIL_DIGEST,
                             );
                         let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                         let otherApplication = await loanDesk.loanApplications(otherApplicationId);
@@ -776,18 +751,14 @@ describe('Loan Desk', function () {
                                 apr,
                             );
                         await loanDesk.connect(staker).lockDraftOffer(otherApplicationId);
-                        await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
-                await ethers.provider.send('evm_mine');
+                        await skipEvmTime(2*24*60*60 + 1);
                 await loanDesk.connect(staker).offerLoan(otherApplicationId);
                         let tx = await loanDesk.connect(borrower2).borrow(otherApplicationId);
                         let otherLoanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0]
                             .args.loanId;
 
                         let loan = await loanDesk.loans(otherLoanId);
-                        await ethers.provider.send('evm_increaseTime', [
-                            loan.duration.add(loan.gracePeriod).toNumber(),
-                        ]);
-                        await ethers.provider.send('evm_mine');
+                        await skipEvmTime(loan.duration.add(loan.gracePeriod).toNumber());
 
                         await loanDesk.connect(staker).defaultLoan(otherLoanId);
 
@@ -940,11 +911,11 @@ describe('Loan Desk', function () {
 
             describe('Actions on a Loan Offer', function () {
                 after(async function () {
-                    await rollback();
+                    await rollback(evmSnapshotIds);
                 });
 
                 before(async function () {
-                    await snapshot();
+                    await snapshot(evmSnapshotIds);
 
                     await loanDesk
                         .connect(staker)
@@ -996,8 +967,8 @@ describe('Loan Desk', function () {
                             .requestLoan(
                                 loanAmount,
                                 loanDuration,
-                                'a937074e-85a7-42a9-b858-9795d9471759',
-                                '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                                NIL_UUID,
+                                NIL_DIGEST,
                             );
                         let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address)
 
@@ -1023,8 +994,7 @@ describe('Loan Desk', function () {
                     describe('Rejection scenarios', function () {
                         it('Cancelling a loan that is not in APPROVED status should fail', async function () {
                             await loanDesk.connect(staker).lockDraftOffer(applicationId);
-                            await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
-                await ethers.provider.send('evm_mine');
+                            await skipEvmTime(2*24*60*60 + 1);
                 await loanDesk.connect(staker).offerLoan(applicationId);
                             await loanDesk.connect(borrower1).borrow(applicationId);
                             await expect(loanDesk.connect(staker).cancelLoan(applicationId)).to.be.reverted;
@@ -1070,8 +1040,8 @@ describe('Loan Desk', function () {
                     await expect(loanDesk.connect(borrower1).requestLoan(
                             loanAmount,
                             loanDuration,
-                            'a937074e-85a7-42a9-b858-9795d9471759',
-                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                            NIL_UUID,
+                            NIL_DIGEST,
                         )).to.be.not.reverted;
                 });
 

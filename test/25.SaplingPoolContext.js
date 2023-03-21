@@ -2,28 +2,14 @@ const { expect } = require('chai');
 const { BigNumber } = require('ethers');
 const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
+const { NULL_ADDRESS, TOKEN_DECIMALS, TOKEN_MULTIPLIER, NIL_UUID, NIL_DIGEST } = require("./utils/constants");
+const { POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require("./utils/roles");
+const { mintAndApprove } = require("./utils/helpers");
+const { snapshot, rollback, skipEvmTime } = require("./utils/evmControl");
 
 let evmSnapshotIds = [];
 
-async function snapshot() {
-    let id = await hre.network.provider.send('evm_snapshot');
-    evmSnapshotIds.push(id);
-}
-
-async function rollback() {
-    let id = evmSnapshotIds.pop();
-    await hre.network.provider.send('evm_revert', [id]);
-}
-
 describe('Sapling Pool Context (via SaplingLendingPool)', function () {
-    const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
-    const TOKEN_DECIMALS = 6;
-
-    const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
-    const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
-    const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
-    const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
 
     let coreAccessControl;
 
@@ -42,11 +28,11 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
     let addresses;
 
     beforeEach(async function () {
-        await snapshot();
+        await snapshot(evmSnapshotIds);
     });
 
     afterEach(async function () {
-        await rollback();
+        await rollback(evmSnapshotIds);
     });
 
     before(async function () {
@@ -55,14 +41,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
         let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
         coreAccessControl = await CoreAccessControlCF.deploy();
 
-        await coreAccessControl.connect(deployer).grantRole(DEFAULT_ADMIN_ROLE, governance.address);
-        await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
-
-        await coreAccessControl.connect(governance).grantRole(GOVERNANCE_ROLE, governance.address);
-        await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
-        await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
-
-        await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
+        await initAccessControl(coreAccessControl, deployer, governance, lenderGovernance.address);
 
         let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
         let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
@@ -102,8 +81,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
 
         let initialMintAmount = 10 ** TOKEN_DECIMALS;
-        await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
-        await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
+        await mintAndApprove(liquidityToken, deployer, staker, lendingPool.address, initialMintAmount);
         await lendingPool.connect(staker).initialMint();
 
         await lendingPool.connect(staker).open();
@@ -178,7 +156,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
     describe('Use Cases', function () {
         let PERCENT_DECIMALS;
-        let TOKEN_MULTIPLIER;
         let ONE_HUNDRED_PERCENT;
         let exitFeePercent;
 
@@ -195,7 +172,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
         before(async function () {
             PERCENT_DECIMALS = await saplingMath.PERCENT_DECIMALS();
-            TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
             ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
             exitFeePercent = (await saplingPoolContext.config()).exitFeePercent;
 
@@ -210,11 +186,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
 
-            await liquidityToken.connect(deployer).mint(staker.address, stakeAmount);
-            await liquidityToken.connect(staker).approve(saplingPoolContext.address, stakeAmount);
-
-            await liquidityToken.connect(deployer).mint(lender1.address, depositAmount);
-            await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
+            await mintAndApprove(liquidityToken, deployer, staker, saplingPoolContext.address, stakeAmount);
+            await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, depositAmount);
         });
 
         describe('Initial State', function () {
@@ -521,12 +494,10 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     let stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
                     let depositAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
 
-                    await liquidityToken.connect(deployer).mint(staker.address, stakeAmount);
-                    await liquidityToken.connect(staker).approve(saplingPoolContext.address, stakeAmount);
+                    await mintAndApprove(liquidityToken, deployer, staker, saplingPoolContext.address, stakeAmount);
                     await saplingPoolContext.connect(staker).stake(stakeAmount);
 
-                    await liquidityToken.connect(deployer).mint(lender1.address, depositAmount);
-                    await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
+                    await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, depositAmount);
                     await saplingPoolContext.connect(lender1).deposit(depositAmount);
 
                     let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
@@ -536,8 +507,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .requestLoan(
                             loanAmount,
                             loanDuration,
-                            '0xa937074e-85a7-42a9-b858-9795d9471759',
-                            '0x6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                            NIL_UUID,
+                            NIL_DIGEST,
                         );
                     let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                     let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
@@ -547,8 +518,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .connect(staker)
                         .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                     await loanDesk.connect(staker).lockDraftOffer(applicationId);
-                    await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
-                await ethers.provider.send('evm_mine');
+
+                    await skipEvmTime(2*24*60*60 + 1);
                 await loanDesk.connect(staker).offerLoan(applicationId);
                     await loanDesk.connect(borrower1).borrow(applicationId);
 
@@ -559,14 +530,13 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
         describe('Staking', function () {
             after(async function () {
-                await rollback();
+                await rollback(evmSnapshotIds);
             });
 
             before(async function () {
-                await snapshot();
+                await snapshot(evmSnapshotIds);
 
-                await liquidityToken.connect(deployer).mint(staker.address, stakeAmount);
-                await liquidityToken.connect(staker).approve(saplingPoolContext.address, stakeAmount);
+                await mintAndApprove(liquidityToken, deployer, staker, saplingPoolContext.address, stakeAmount);
             });
 
             it('Staker can stake', async function () {
@@ -608,8 +578,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 await saplingPoolContext.connect(staker).stake(stakeAmount);
 
                 let depositAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
-                await liquidityToken.connect(deployer).mint(lender1.address, depositAmount);
-                await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
+                await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, depositAmount);
                 await saplingPoolContext.connect(lender1).deposit(depositAmount);
 
                 let loanAmount = await saplingPoolContext.poolFunds();
@@ -620,8 +589,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     .requestLoan(
                         loanAmount,
                         loanDuration,
-                        'a937074e-85a7-42a9-b858-9795d9471759',
-                        '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                        NIL_UUID,
+                        NIL_DIGEST,
                     );
                 let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
 
@@ -633,8 +602,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     .connect(staker)
                     .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                 await loanDesk.connect(staker).lockDraftOffer(applicationId);
-                await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(2*24*60*60 + 1);
                 await loanDesk.connect(staker).offerLoan(applicationId);
                 let tx = await loanDesk.connect(borrower1).borrow(applicationId);
 
@@ -642,16 +610,14 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     .args.loanId;
 
                 let loan = await loanDesk.loans(loanId);
-                await ethers.provider.send('evm_increaseTime', [loan.duration.add(loan.gracePeriod).toNumber()]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(loan.duration.add(loan.gracePeriod).toNumber());
 
                 await loanDesk.connect(staker).defaultLoan(loanId);
 
                 assertHardhatInvariant((await saplingPoolContext.balanceStaked()).eq(0));
                 assertHardhatInvariant(((await saplingPoolContext.poolFunds())).eq(0));
 
-                await liquidityToken.connect(deployer).mint(staker.address, depositAmount);
-                await liquidityToken.connect(staker).approve(saplingPoolContext.address, stakeAmount);
+                await mintAndApprove(liquidityToken, deployer, staker, saplingPoolContext.address, stakeAmount);
                 await expect(saplingPoolContext.connect(staker).stake(stakeAmount))
                     .to.be.revertedWith('SaplingPoolContext: share price too low');
             });
@@ -672,20 +638,17 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 });
 
                 it('Staking as the protocol should fail', async function () {
-                    await liquidityToken.connect(deployer).mint(protocol.address, stakeAmount);
-                    await liquidityToken.connect(protocol).approve(saplingPoolContext.address, stakeAmount);
+                    await mintAndApprove(liquidityToken, deployer, protocol, saplingPoolContext.address, stakeAmount);
                     await expect(saplingPoolContext.connect(protocol).stake(stakeAmount)).to.be.reverted;
                 });
 
                 it('Staking as the governance should fail', async function () {
-                    await liquidityToken.connect(deployer).mint(governance.address, stakeAmount);
-                    await liquidityToken.connect(governance).approve(saplingPoolContext.address, stakeAmount);
+                    await mintAndApprove(liquidityToken, deployer, governance, saplingPoolContext.address, stakeAmount);
                     await expect(saplingPoolContext.connect(governance).stake(stakeAmount)).to.be.reverted;
                 });
 
                 it('Staking as a lender should fail', async function () {
-                    await liquidityToken.connect(deployer).mint(lender1.address, stakeAmount);
-                    await liquidityToken.connect(lender1).approve(saplingPoolContext.address, stakeAmount);
+                    await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, stakeAmount);
                     await expect(saplingPoolContext.connect(lender1).stake(stakeAmount)).to.be.reverted;
                 });
 
@@ -697,11 +660,11 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .requestLoan(
                             loanAmount,
                             loanDuration,
-                            'a937074e-85a7-42a9-b858-9795d9471759',
-                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                            NIL_UUID,
+                            NIL_DIGEST,
                         );
 
-                    await liquidityToken.connect(borrower1).approve(saplingPoolContext.address, stakeAmount);
+                    await mintAndApprove(liquidityToken, deployer, borrower1, saplingPoolContext.address, stakeAmount);
                     await expect(saplingPoolContext.connect(borrower1).stake(stakeAmount)).to.be.reverted;
                 });
             });
@@ -709,11 +672,11 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
         describe('Unstaking', function () {
             after(async function () {
-                await rollback();
+                await rollback(evmSnapshotIds);
             });
 
             before(async function () {
-                await snapshot();
+                await snapshot(evmSnapshotIds);
                 await saplingPoolContext.connect(staker).stake(stakeAmount);
                 await saplingPoolContext.connect(lender1).deposit(depositAmount.sub(10 ** TOKEN_DECIMALS));
             });
@@ -754,8 +717,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 let requestAmount = depositAmount.sub(10 ** TOKEN_DECIMALS);
                 await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(requestAmount);
-                await ethers.provider.send('evm_increaseTime', [61]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(61);
 
                 await saplingPoolContext.connect(lender1).withdraw(requestAmount);
 
@@ -842,8 +804,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .requestLoan(
                             loanAmount,
                             loanDuration,
-                            'a937074e-85a7-42a9-b858-9795d9471759',
-                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                            NIL_UUID,
+                            NIL_DIGEST,
                         );
 
                     await expect(saplingPoolContext.connect(borrower1).unstake(unstakeAmount)).to.be.reverted;
@@ -853,11 +815,11 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
         describe('Deposits', function () {
             after(async function () {
-                await rollback();
+                await rollback(evmSnapshotIds);
             });
 
             before(async function () {
-                await snapshot();
+                await snapshot(evmSnapshotIds);
 
                 await saplingPoolContext.connect(staker).stake(stakeAmount);
             });
@@ -877,7 +839,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             it('Deposit is reflected on the pool contract balance', async function () {
                 let prevBalance = await liquidityToken.balanceOf(saplingPoolContext.address);
 
-                await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
+                await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, depositAmount);
                 await saplingPoolContext.connect(lender1).deposit(depositAmount);
 
                 let balance = await liquidityToken.balanceOf(saplingPoolContext.address);
@@ -887,7 +849,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             it('Deposit is reflected on pool liquidity', async function () {
                 let prevLiquidity = await liquidityToken.balanceOf(saplingPoolContext.address);
 
-                await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
+                await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, depositAmount);
                 await saplingPoolContext.connect(lender1).deposit(depositAmount);
 
                 let liquidity = await liquidityToken.balanceOf(saplingPoolContext.address);
@@ -898,7 +860,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             it('Deposit is reflected on pool funds', async function () {
                 let prevPoolFunds = (await saplingPoolContext.poolFunds());
 
-                await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
+                await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, depositAmount);
                 await saplingPoolContext.connect(lender1).deposit(depositAmount);
 
                 let poolFunds = (await saplingPoolContext.poolFunds());
@@ -938,8 +900,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .sub(stakeAmount)
                         .sub(10 ** TOKEN_DECIMALS);
 
-                    await liquidityToken.connect(deployer).mint(lender1.address, calculatedDepositable);
-                    await liquidityToken.connect(lender1).approve(saplingPoolContext.address, calculatedDepositable);
+                    await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, calculatedDepositable);
                     await saplingPoolContext.connect(lender1).deposit(calculatedDepositable);
                     expect(await saplingPoolContext.amountDepositable()).to.equal(0);
                 });
@@ -947,37 +908,36 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             describe('Rejection scenarios', function () {
                 it('Depositing a zero amount should fail', async function () {
-                    await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
+                    await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, depositAmount);
                     await expect(saplingPoolContext.connect(lender1).deposit(0)).to.be.reverted;
                 });
 
                 it('Depositing an amount greater than allowed should fail', async function () {
                     let amountDepositable = await saplingPoolContext.amountDepositable();
 
-                    await liquidityToken.connect(lender1).approve(saplingPoolContext.address, amountDepositable.add(1));
+                    await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, amountDepositable.add(1));
                     await expect(saplingPoolContext.connect(lender1).deposit(amountDepositable.add(1))).to.be.reverted;
                 });
 
                 it('Depositing when the pool is paused should fail', async function () {
                     await saplingPoolContext.connect(governance).pause();
-                    await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
+                    await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, depositAmount);
                     await expect(saplingPoolContext.connect(lender1).deposit(depositAmount)).to.be.reverted;
                 });
 
                 it('Depositing when the pool is closed should fail', async function () {
                     await saplingPoolContext.connect(staker).close();
-                    await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
+                    await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, depositAmount);
                     await expect(saplingPoolContext.connect(lender1).deposit(depositAmount)).to.be.reverted;
                 });
 
                 it('Depositing as the staker should fail', async function () {
-                    await liquidityToken.connect(staker).approve(saplingPoolContext.address, depositAmount);
+                    await mintAndApprove(liquidityToken, deployer, staker, saplingPoolContext.address, depositAmount);
                     await expect(saplingPoolContext.connect(staker).deposit(depositAmount)).to.be.reverted;
                 });
 
                 it('Depositing as the governance should fail', async function () {
-                    await liquidityToken.connect(lender1).transfer(governance.address, depositAmount);
-                    await liquidityToken.connect(governance).approve(saplingPoolContext.address, depositAmount);
+                    await mintAndApprove(liquidityToken, deployer, governance, saplingPoolContext.address, depositAmount);
                     await expect(saplingPoolContext.connect(governance).deposit(depositAmount)).to.be.reverted;
                 });
             });
@@ -985,11 +945,11 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
         describe('Withdrawals', function () {
             after(async function () {
-                await rollback();
+                await rollback(evmSnapshotIds);
             });
 
             before(async function () {
-                await snapshot();
+                await snapshot(evmSnapshotIds);
 
                 await saplingPoolContext.connect(staker).stake(stakeAmount);
                 await saplingPoolContext.connect(lender1).deposit(depositAmount);
@@ -1005,8 +965,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     .div(stakeAmount.add(depositAmount.sub(withdrawAmount)).add(10 ** TOKEN_DECIMALS));
 
                 await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
-                await ethers.provider.send('evm_increaseTime', [61]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(61);
 
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
                 expect(await saplingPoolContext.balanceOf(lender1.address)).to.equal(
@@ -1022,8 +981,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 let prevBalance = await liquidityToken.balanceOf(saplingPoolContext.address);
 
                 await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
-                await ethers.provider.send('evm_increaseTime', [61]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(61);
 
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
 
@@ -1040,8 +998,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 let prevLiquidity = await liquidityToken.balanceOf(saplingPoolContext.address);
 
                 await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
-                await ethers.provider.send('evm_increaseTime', [61]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(61);
 
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
 
@@ -1056,8 +1013,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 let prevPoolFunds = (await saplingPoolContext.poolFunds());
 
                 await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
-                await ethers.provider.send('evm_increaseTime', [61]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(61);
 
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
 
@@ -1074,8 +1030,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 let expectedWithdrawalFee = withdrawAmount.mul(exitFeePercent).div(ONE_HUNDRED_PERCENT);
 
                 await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
-                await ethers.provider.send('evm_increaseTime', [61]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(61);
 
                 await saplingPoolContext.connect(lender1).withdraw(withdrawAmount);
 
@@ -1087,8 +1042,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             describe('Rejection scenarios', function () {
                 it('Withdrawing a zero amount should fail', async function () {
                     await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
-                    await ethers.provider.send('evm_increaseTime', [61]);
-                    await ethers.provider.send('evm_mine');
+                    await skipEvmTime(61);
 
                     await expect(saplingPoolContext.connect(lender1).withdraw(0)).to.be.reverted;
                 });
@@ -1110,24 +1064,22 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .requestLoan(
                             loanAmount,
                             loanDuration,
-                            'a937074e-85a7-42a9-b858-9795d9471759',
-                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                            NIL_UUID,
+                            NIL_DIGEST,
                         );
                     let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                     await loanDesk
                         .connect(staker)
                         .draftOffer(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                     await loanDesk.connect(staker).lockDraftOffer(otherApplicationId);
-                    await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
-                await ethers.provider.send('evm_mine');
+                    await skipEvmTime(2*24*60*60 + 1);
                 await loanDesk.connect(staker).offerLoan(otherApplicationId);
                     await loanDesk.connect(borrower1).borrow(otherApplicationId);
 
                     let amountWithdrawable = await saplingPoolContext.amountWithdrawable(lender1.address);
 
                     await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(amountWithdrawable.add(1));
-                    await ethers.provider.send('evm_increaseTime', [61]);
-                    await ethers.provider.send('evm_mine');
+                    await skipEvmTime(61);
 
                     await expect(saplingPoolContext.connect(lender1).withdraw(amountWithdrawable.add(1))).to.be
                         .reverted;
@@ -1135,8 +1087,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 it('Withdrawing when the pool is paused should fail', async function () {
                     await saplingPoolContext.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
-                    await ethers.provider.send('evm_increaseTime', [61]);
-                    await ethers.provider.send('evm_mine');
+                    await skipEvmTime(61);
 
                     await saplingPoolContext.connect(governance).pause();
 
@@ -1160,8 +1111,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .requestLoan(
                             loanAmount,
                             loanDuration,
-                            'a937074e-85a7-42a9-b858-9795d9471759',
-                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                            NIL_UUID,
+                            NIL_DIGEST,
                         );
                     let otherApplicationId = await loanDesk.recentApplicationIdOf(borrower2.address);
                     await loanDesk
@@ -1177,11 +1128,11 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             describe('Protocol fees', function () {
                 after(async function () {
-                    await rollback();
+                    await rollback(evmSnapshotIds);
                 });
 
                 before(async function () {
-                    await snapshot();
+                    await snapshot(evmSnapshotIds);
 
                     let gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
                     let installments = 1;
@@ -1194,30 +1145,27 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .requestLoan(
                             loanAmount,
                             loanDuration,
-                            'a937074e-85a7-42a9-b858-9795d9471759',
-                            '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                            NIL_UUID,
+                            NIL_DIGEST,
                         );
                     let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                     await loanDesk
                         .connect(staker)
                         .draftOffer(applicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
                     await loanDesk.connect(staker).lockDraftOffer(applicationId);
-                    await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
-                await ethers.provider.send('evm_mine');
+                    await skipEvmTime(2*24*60*60 + 1);
                 await loanDesk.connect(staker).offerLoan(applicationId);
                     let tx = await loanDesk.connect(borrower1).borrow(applicationId);
                     let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
-                    await ethers.provider.send('evm_increaseTime', [loanDuration.toNumber()-10]);
-                    await ethers.provider.send('evm_mine');
+                    await skipEvmTime(loanDuration.toNumber()-10);
                 });
 
                 it('Treasury earns protocol fee on paid interest', async function () {
                     let paymentAmount = await loanDesk.loanBalanceDue(1);
                     paymentAmount = paymentAmount.sub(loanAmount);
 
-                    await liquidityToken.connect(deployer).mint(borrower1.address, paymentAmount);
-                    await liquidityToken.connect(borrower1).approve(saplingPoolContext.address, paymentAmount);
+                    await mintAndApprove(liquidityToken, deployer, borrower1, saplingPoolContext.address, paymentAmount);
 
                     await expect(loanDesk.connect(borrower1).repay(1, paymentAmount)).to.changeTokenBalance(
                         liquidityToken,
@@ -1232,19 +1180,18 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             let poolFunds;
 
             after(async function () {
-                await rollback();
+                await rollback(evmSnapshotIds);
             });
 
             before(async function () {
-                await snapshot();
+                await snapshot(evmSnapshotIds);
 
                 depositAmount = BigNumber.from(18000).mul(TOKEN_MULTIPLIER).sub(10 ** TOKEN_DECIMALS);
                 loanAmount = BigNumber.from(10000).mul(TOKEN_MULTIPLIER);
 
                 await saplingPoolContext.connect(staker).stake(stakeAmount);
 
-                await liquidityToken.connect(deployer).mint(lender1.address, depositAmount);
-                await liquidityToken.connect(lender1).approve(saplingPoolContext.address, depositAmount);
+                await mintAndApprove(liquidityToken, deployer, lender1, saplingPoolContext.address, depositAmount);
                 await saplingPoolContext.connect(lender1).deposit(depositAmount);
 
                 poolFunds = stakeAmount.add(depositAmount).add(10 ** TOKEN_DECIMALS);
@@ -1254,8 +1201,8 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     .requestLoan(
                         loanAmount,
                         loanDuration,
-                        'a937074e-85a7-42a9-b858-9795d9471759',
-                        '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
+                        NIL_UUID,
+                        NIL_DIGEST,
                     );
                 let applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
                 let application = await loanDesk.loanApplications(applicationId);
@@ -1276,8 +1223,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         apr,
                     );
                     await loanDesk.connect(staker).lockDraftOffer(applicationId);
-                    await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(2*24*60*60 + 1);
                 await loanDesk.connect(staker).offerLoan(applicationId);
                 await loanDesk.connect(borrower1).borrow(applicationId);
             });
