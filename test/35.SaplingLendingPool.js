@@ -4,7 +4,7 @@ const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
 const { TOKEN_DECIMALS, TOKEN_MULTIPLIER, NIL_UUID, NIL_DIGEST } = require("./utils/constants");
 const { POOL_1_LENDER_GOVERNANCE_ROLE, initAccessControl } = require("./utils/roles");
-const { mintAndApprove } = require("./utils/helpers");
+const { mintAndApprove, expectEqualsWithinMargin } = require("./utils/helpers");
 const { snapshot, rollback, skipEvmTime } = require("./utils/evmControl");
 
 let evmSnapshotIds = [];
@@ -562,12 +562,8 @@ describe('Sapling Lending Pool', function () {
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
 
                         // allow +/- half token accuracy due to pre settled yield being a rough value based on averages
-                        expect((await lendingPool.poolFunds()))
-                            .to.gte(poolFundsBefore.sub(lossAmount).sub(TOKEN_MULTIPLIER.div(2))).and
-                            .to.lte(poolFundsBefore.sub(lossAmount).add(TOKEN_MULTIPLIER.div(2)));
-                        expect(await lendingPool.balanceStaked())
-                            .to.gte(stakedBalanceBefore.sub(stakerLoss).sub(TOKEN_MULTIPLIER.div(2))).and
-                            .to.lte(stakedBalanceBefore.sub(stakerLoss).add(TOKEN_MULTIPLIER.div(2)));
+                        expectEqualsWithinMargin(await lendingPool.poolFunds(), poolFundsBefore.sub(lossAmount), TOKEN_MULTIPLIER);
+                        expectEqualsWithinMargin(await lendingPool.balanceStaked(), stakedBalanceBefore.sub(stakerLoss), TOKEN_MULTIPLIER);
                     });
 
                     it('Staker can default a loan that has no payments made', async function () {
@@ -587,12 +583,8 @@ describe('Sapling Lending Pool', function () {
                         loan = await loanDesk.loans(loanId);
 
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
-                        expect((await lendingPool.poolFunds()))
-                            .to.gte(poolFundsBefore.sub(lossAmount).sub(1)).and
-                            .to.lte(poolFundsBefore.sub(lossAmount).add(1));
-                        expect(await lendingPool.balanceStaked())
-                            .to.gte(stakedBalanceBefore.sub(stakerLoss).sub(1))
-                            .and.to.lte(stakedBalanceBefore.sub(stakerLoss).add(1));
+                        expectEqualsWithinMargin(await lendingPool.poolFunds(), poolFundsBefore.sub(lossAmount), BigNumber.from(2));
+                        expectEqualsWithinMargin(await lendingPool.balanceStaked(), stakedBalanceBefore.sub(stakerLoss), BigNumber.from(2));
                     });
 
                     it('Staker can default a loan with an loss amount equal to the stakers stake', async function () {
@@ -636,9 +628,7 @@ describe('Sapling Lending Pool', function () {
 
                         let loan = await loanDesk.loans(otherLoanId);
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
-                        expect((await lendingPool.poolFunds()))
-                            .to.gte(poolFundsBefore.sub(lossAmount).sub(1)).and
-                            .to.lte(poolFundsBefore.sub(lossAmount).add(1));
+                        expectEqualsWithinMargin(await lendingPool.poolFunds(), poolFundsBefore.sub(lossAmount), BigNumber.from(2));
                         expect(await lendingPool.balanceStaked()).to.equal(0);
                     });
 
@@ -683,9 +673,7 @@ describe('Sapling Lending Pool', function () {
 
                         let loan = await loanDesk.loans(otherLoanId);
                         expect(loan.status).to.equal(LoanStatus.DEFAULTED);
-                        expect((await lendingPool.poolFunds()))
-                            .to.gte(poolFundsBefore.sub(lossAmount).sub(1)).and
-                            .to.lte(poolFundsBefore.sub(lossAmount).add(1));
+                        expectEqualsWithinMargin(await lendingPool.poolFunds(), poolFundsBefore.sub(lossAmount), BigNumber.from(2));
                         expect(await lendingPool.balanceStaked()).to.equal(0);
                     });
 
