@@ -22,19 +22,19 @@ async function deployEnv() {
 }
 
 async function deployProtocol(environment) {
-    const coreAccessControl = await deployAccessControl(environment);
-    await initAccessControl(coreAccessControl, environment);
+    const accessControl = await deployAccessControl(environment);
+    await initAccessControl(accessControl, environment);
 
     const poolToken = await deployPoolToken(environment);
-    const pool = await deployLendingPool(environment, poolToken, coreAccessControl);
-    const loanDesk = await deployLoanDesk(environment, pool, coreAccessControl);
+    const pool = await deployLendingPool(environment, poolToken, accessControl);
+    const loanDesk = await deployLoanDesk(environment, pool, accessControl);
 
     await poolToken.connect(environment.deployer).transferOwnership(pool.address);
     await pool.connect(environment.governance).setLoanDesk(loanDesk.address);
 
     return {
         environment: environment,
-        coreAccessControl: coreAccessControl,
+        accessControl: accessControl,
         pool: pool,
         poolToken: poolToken,
         loanDesk: loanDesk,
