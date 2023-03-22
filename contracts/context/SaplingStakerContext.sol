@@ -139,7 +139,7 @@ abstract contract SaplingStakerContext is SaplingContext {
      * @return True if the conditions of the closure are met, false otherwise.
      */
     function canClose() internal view virtual returns (bool) {
-        return true;
+        return !_closed;
     }
 
     /**
@@ -148,7 +148,7 @@ abstract contract SaplingStakerContext is SaplingContext {
      * @return True if the conditions to open are met, false otherwise.
      */
     function canOpen() internal view virtual returns (bool) {
-        return true;
+        return _closed;
     }
 
     /**
