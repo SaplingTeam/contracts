@@ -117,6 +117,10 @@ describe('Loan Desk', function () {
                     .and.gte(minValue)
                     .and.lte(maxValue);
             });
+
+            it('Pool and LoanDesk percentDecimals are the same', async function () {
+                expect(await p.loanDesk.percentDecimals()).to.equal(await p.pool.percentDecimals());
+            });
         });
 
         describe('Setting pool parameters', function () {
@@ -374,8 +378,6 @@ describe('Loan Desk', function () {
                 let applicationId = (await requestLoanTx.wait()).events.filter((e) => e.event === 'LoanRequested')[0]
                     .args.applicationId;
 
-                let blockTimestamp = await (await ethers.provider.getBlock()).timestamp;
-
                 let loanApplication = await p.loanDesk.loanApplications(applicationId);
 
                 expect(loanApplication.id).to.equal(applicationId);
@@ -383,6 +385,16 @@ describe('Loan Desk', function () {
                 expect(loanApplication.amount).to.equal(loanAmount);
                 expect(loanApplication.duration).to.equal(loanDuration);
                 expect(loanApplication.status).to.equal(LoanApplicationStatus.APPLIED);
+            });
+
+            it('Requesting a loan increments application count', async function () {
+                let prevApplicationCount = await p.loanDesk.applicationsCount();
+                await p.loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
+                expect(await p.loanDesk.applicationsCount()).to.equal(prevApplicationCount.add(1));
+
+                prevApplicationCount = await p.loanDesk.applicationsCount();
+                await p.loanDesk.connect(borrower2).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
+                expect(await p.loanDesk.applicationsCount()).to.equal(prevApplicationCount.add(1));
             });
 
             it('Can view most recent applicationId by address', async function () {
@@ -507,6 +519,100 @@ describe('Loan Desk', function () {
                 });
 
                 describe('Rejection scenarios', function () {
+                    it('Making a draft offer with less than minimum amount should fail', async function () {
+                        await expect(
+                            p.loanDesk
+                                .connect(e.staker)
+                                .draftOffer(
+                                    applicationId,
+                                    (await p.loanDesk.loanTemplate()).minAmount.sub(1),
+                                    application.duration,
+                                    gracePeriod,
+                                    0,
+                                    installments,
+                                    apr,
+                                ),
+                        ).to.be.revertedWith('LoanDesk: invalid amount');
+                    });
+
+                    it('Making a draft offer with less than minimum duration should fail', async function () {
+                        await expect(
+                            p.loanDesk
+                                .connect(e.staker)
+                                .draftOffer(
+                                    applicationId,
+                                    application.amount,
+                                    (await p.loanDesk.loanTemplate()).minDuration.sub(1),
+                                    gracePeriod,
+                                    0,
+                                    installments,
+                                    apr,
+                                ),
+                        ).to.be.revertedWith('LoanDesk: invalid duration');
+                    });
+
+                    it('Making a draft offer with greater than maximum duration should fail', async function () {
+                        await expect(
+                            p.loanDesk
+                                .connect(e.staker)
+                                .draftOffer(
+                                    applicationId,
+                                    application.amount,
+                                    (await p.loanDesk.loanTemplate()).maxDuration.add(1),
+                                    gracePeriod,
+                                    0,
+                                    installments,
+                                    apr,
+                                ),
+                        ).to.be.revertedWith('LoanDesk: invalid duration');
+                    });
+
+                    it('Making a draft offer with less than minimum grace period should fail', async function () {
+                        await expect(
+                            p.loanDesk
+                                .connect(e.staker)
+                                .draftOffer(
+                                    applicationId,
+                                    application.amount,
+                                    application.duration,
+                                    (await saplingMath.MIN_LOAN_GRACE_PERIOD()).sub(1),
+                                    0,
+                                    installments,
+                                    apr,
+                                ),
+                        ).to.be.revertedWith('LoanDesk: invalid grace period');
+                    });
+
+                    it('Making a draft offer with greater than maximum grace period should fail', async function () {
+                        await expect(
+                            p.loanDesk
+                                .connect(e.staker)
+                                .draftOffer(
+                                    applicationId,
+                                    application.amount,
+                                    application.duration,
+                                    (await saplingMath.MAX_LOAN_GRACE_PERIOD()).add(1),
+                                    0,
+                                    installments,
+                                    apr,
+                                ),
+                        ).to.be.revertedWith('LoanDesk: invalid grace period');
+                    });
+
+                    it('Making a draft offer with greater than maximum APR should fail', async function () {
+                        await expect(
+                            p.loanDesk.connect(e.staker).draftOffer(
+                                applicationId,
+                                application.amount,
+                                application.duration, //
+                                gracePeriod,
+                                0,
+                                installments,
+                                await saplingMath.HUNDRED_PERCENT() + 1,
+                            ),
+                        ).to.be.revertedWith('LoanDesk: invalid APR');
+                    });
+
                     it('Making a draft offer with installment number less than 1 should fail', async function () {
                         await expect(
                             p.loanDesk
@@ -802,13 +908,30 @@ describe('Loan Desk', function () {
 
                 describe('Update', function () {
                     it('Staker can update loan offers', async function () {
-                        let offeredFunds = await e.assetToken.balanceOf(p.loanDesk.address);
                         let offer = await p.loanDesk.loanOffers(applicationId);
 
-                        let newOfferedAmount = offer.amount.div(2);
-                        expect(await p.pool.canOffer(offeredFunds.sub(offer.amount).add(newOfferedAmount))).to.equal(
-                            true,
-                        );
+                        await expect(
+                            p.loanDesk
+                                .connect(e.staker)
+                                .updateDraftOffer(
+                                    offer.applicationId,
+                                    offer.amount,
+                                    offer.duration,
+                                    offer.gracePeriod,
+                                    offer.installmentAmount,
+                                    offer.installments,
+                                    offer.apr * 2,
+                                ),
+                        ).to.be.not.reverted;
+                    });
+
+                    it('Staker can decrease the principal in draft loan offers', async function () {
+                        const poolLiquidityBefore = await p.pool.liquidity();
+                        let offer = await p.loanDesk.loanOffers(applicationId);
+
+                        const amountDelta = 100 * TOKEN_MULTIPLIER;
+                        assertHardhatInvariant((await p.pool.canOffer(amountDelta)) === true, null);
+                        let newOfferedAmount = offer.amount.sub(amountDelta);
 
                         await expect(
                             p.loanDesk
@@ -823,11 +946,72 @@ describe('Loan Desk', function () {
                                     offer.apr,
                                 ),
                         ).to.be.not.reverted;
+
+                        expect(await p.pool.liquidity()).to.equal(poolLiquidityBefore.add(amountDelta));
+                    });
+
+                    it('Staker can increase the principal in draft loan offers', async function () {
+                        const poolLiquidityBefore = await p.pool.liquidity();
+                        let offer = await p.loanDesk.loanOffers(applicationId);
+
+                        const amountDelta = 100 * TOKEN_MULTIPLIER;
+                        assertHardhatInvariant((await p.pool.canOffer(amountDelta)) === true, null);
+                        let newOfferedAmount = offer.amount.add(amountDelta);
+
+                        await expect(
+                            p.loanDesk
+                                .connect(e.staker)
+                                .updateDraftOffer(
+                                    offer.applicationId,
+                                    newOfferedAmount,
+                                    offer.duration,
+                                    offer.gracePeriod,
+                                    offer.installmentAmount,
+                                    offer.installments,
+                                    offer.apr,
+                                ),
+                        ).to.be.not.reverted;
+
+                        expect(await p.pool.liquidity()).to.equal(poolLiquidityBefore.sub(amountDelta));
+                    });
+
+                    it('Staker cannot increase the principal beyond available liquidity', async function () {
+                        const strategyLiquidity = await p.pool.strategyLiquidity();
+                        let offer = await p.loanDesk.loanOffers(applicationId);
+
+                        const amountDelta = strategyLiquidity.add(1);
+                        let newOfferedAmount = offer.amount.add(amountDelta);
+
+                        await expect(
+                            p.loanDesk
+                                .connect(e.staker)
+                                .updateDraftOffer(
+                                    offer.applicationId,
+                                    newOfferedAmount,
+                                    offer.duration,
+                                    offer.gracePeriod,
+                                    offer.installmentAmount,
+                                    offer.installments,
+                                    offer.apr,
+                                ),
+                        ).to.be.revertedWith('LoanDesk: lending pool cannot offer this loan at this time');
                     });
                 });
 
                 describe('Cancel', function () {
                     it('Staker can cancel', async function () {
+                        await p.loanDesk.connect(e.staker).cancelLoan(applicationId);
+                        expect((await p.loanDesk.loanApplications(applicationId)).status).to.equal(
+                            LoanApplicationStatus.CANCELLED,
+                        );
+                    });
+
+                    it('Staker can cancel locked offers', async function () {
+                        await p.loanDesk.connect(e.staker).lockDraftOffer(applicationId);
+                        expect((await p.loanDesk.loanApplications(applicationId)).status).to.equal(
+                            LoanApplicationStatus.OFFER_DRAFT_LOCKED,
+                        );
+
                         await p.loanDesk.connect(e.staker).cancelLoan(applicationId);
                         expect((await p.loanDesk.loanApplications(applicationId)).status).to.equal(
                             LoanApplicationStatus.CANCELLED,
@@ -892,6 +1076,82 @@ describe('Loan Desk', function () {
 
                         it('Cancelling a loan from an unrelated address should fail', async function () {
                             await expect(p.loanDesk.connect(e.users[0]).cancelLoan(applicationId)).to.be.reverted;
+                        });
+                    });
+                });
+
+                describe('Locking', function () {
+                    it('Staker can lock a draft offer', async function () {
+                        await p.loanDesk.connect(e.staker).lockDraftOffer(applicationId);
+                        expect((await p.loanDesk.loanApplications(applicationId)).status).to.equal(
+                            LoanApplicationStatus.OFFER_DRAFT_LOCKED,
+                        );
+                    });
+
+                    it('Can make an active offer on a locked offer after a voting period', async function () {
+                        await p.loanDesk.connect(e.staker).lockDraftOffer(applicationId);
+                        await skipEvmTime(2 * 24 * 60 * 60 + 1);
+                        await expect(p.loanDesk.connect(e.staker).offerLoan(applicationId)).to.be.not.reverted;
+
+                        expect((await p.loanDesk.loanApplications(applicationId)).status).to.equal(
+                            LoanApplicationStatus.OFFER_MADE,
+                        );
+                    });
+
+                    it('Cannot make an active offer on a locked offer before the voting period', async function () {
+                        await p.loanDesk.connect(e.staker).lockDraftOffer(applicationId);
+                        await expect(p.loanDesk.connect(e.staker).offerLoan(applicationId)).to.be.revertedWith(
+                            'LoanDesk: voting lock period is in effect',
+                        );
+                    });
+
+                    it('Lender governance can cancel a locked offer within voting period', async function () {
+                        await p.loanDesk.connect(e.staker).lockDraftOffer(applicationId);
+                        await expect(p.loanDesk.connect(e.lenderGovernance).cancelLoan(applicationId)).to.be.not
+                            .reverted;
+
+                        expect((await p.loanDesk.loanApplications(applicationId)).status).to.equal(
+                            LoanApplicationStatus.CANCELLED,
+                        );
+                    });
+
+                    it('Lender governance cannot cancel a locked offer after the voting period', async function () {
+                        await p.loanDesk.connect(e.staker).lockDraftOffer(applicationId);
+                        await skipEvmTime(2 * 24 * 60 * 60 + 1);
+                        await expect(
+                            p.loanDesk.connect(e.lenderGovernance).cancelLoan(applicationId),
+                        ).to.be.revertedWith('LoanDesk: unauthorized');
+                    });
+
+                    describe('Rejection scenarios', function () {
+                        it('Locking a loan that is not in OFFER_DRAFTED status should fail', async function () {
+                            await p.loanDesk.connect(e.staker).lockDraftOffer(applicationId);
+                            await expect(p.loanDesk.connect(e.staker).lockDraftOffer(applicationId)).to.be.reverted;
+                        });
+
+                        it('Locking a nonexistent loan should fail', async function () {
+                            await expect(p.loanDesk.connect(e.staker).lockDraftOffer(applicationId.add(1))).to.be
+                                .reverted;
+                        });
+
+                        it('Locking a loan as the protocol should fail', async function () {
+                            await expect(p.loanDesk.connect(e.treasury).lockDraftOffer(applicationId)).to.be.reverted;
+                        });
+
+                        it('Locking a loan as the governance should fail', async function () {
+                            await expect(p.loanDesk.connect(e.governance).lockDraftOffer(applicationId)).to.be.reverted;
+                        });
+
+                        it('Locking a loan as a lender should fail', async function () {
+                            await expect(p.loanDesk.connect(lender1).lockDraftOffer(applicationId)).to.be.reverted;
+                        });
+
+                        it('Locking a loan as the borrower should fail', async function () {
+                            await expect(p.loanDesk.connect(borrower1).lockDraftOffer(applicationId)).to.be.reverted;
+                        });
+
+                        it('Locking a loan from an unrelated address should fail', async function () {
+                            await expect(p.loanDesk.connect(e.users[0]).lockDraftOffer(applicationId)).to.be.reverted;
                         });
                     });
                 });

@@ -110,5 +110,34 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
                 });
             });
         });
+
+        describe('Set staker', function () {
+            it('Governance can set a new staker', async function () {
+                await p.pool.connect(e.governance).setStaker(e.users[0].address);
+                expect(await p.pool.staker()).to.equal(e.users[0].address);
+            });
+
+            describe('Rejection scenarios', function () {
+                it('Staker cannot set a new staker', async function () {
+                    await expect(p.pool.connect(e.staker).setStaker(e.users[0].address)).to.be.reverted;
+                });
+
+                it('Treasury cannot set a new staker', async function () {
+                    await expect(p.pool.connect(e.treasury).setStaker(e.users[0].address)).to.be.reverted;
+                });
+
+                it('pauser cannot set a new staker', async function () {
+                    await expect(p.pool.connect(e.pauser).setStaker(e.users[0].address)).to.be.reverted;
+                });
+
+                it('Deployer cannot set a new staker', async function () {
+                    await expect(p.pool.connect(e.deployer).setStaker(e.users[0].address)).to.be.reverted;
+                });
+
+                it('User cannot set a new staker', async function () {
+                    await expect(p.pool.connect(e.users[1]).setStaker(e.users[0].address)).to.be.reverted;
+                });
+            });
+        });
     });
 });

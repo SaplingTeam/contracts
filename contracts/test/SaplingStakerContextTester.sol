@@ -37,6 +37,20 @@ contract SaplingStakerContextTester is SaplingStakerContext {
     }
 
     /**
+     * @dev Wrapper for an internal function
+     */
+    function canCloseWrapper() external view returns (bool) {
+        return canClose();
+    }
+
+    /**
+     * @dev Wrapper for an internal function
+     */
+    function canOpenWrapper() external view returns (bool) {
+        return canOpen();
+    }
+
+    /**
      * @dev A state changing function with onlyUser modifier
      * @param newValue, new 
      */

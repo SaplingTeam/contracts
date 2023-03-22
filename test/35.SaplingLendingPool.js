@@ -2,10 +2,10 @@ const { expect } = require('chai');
 const { BigNumber } = require('ethers');
 const { ethers, upgrades } = require('hardhat');
 const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
-const { TOKEN_DECIMALS, TOKEN_MULTIPLIER, NIL_UUID, NIL_DIGEST } = require('./utils/constants');
+const { TOKEN_DECIMALS, TOKEN_MULTIPLIER, NIL_UUID, NIL_DIGEST, NULL_ADDRESS } = require('./utils/constants');
 const { mintAndApprove, expectEqualsWithinMargin } = require('./utils/helpers');
 const { snapshot, rollback, skipEvmTime } = require('./utils/evmControl');
-const { deployEnv, deployProtocol } = require('./utils/deployer');
+const { deployEnv, deployProtocol, deployPoolToken, deployLendingPool, deployLoanDesk } = require('./utils/deployer');
 
 let evmSnapshotIds = [];
 
@@ -33,11 +33,12 @@ describe('Sapling Lending Pool', function () {
     });
 
     describe('Deployment', function () {
-        it('Can deploy', async function () {
-            let poolToken2 = await (
-                await ethers.getContractFactory('PoolToken')
-            ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
+        let poolToken2;
+        before(async function () {
+            poolToken2 = await deployPoolToken(e);
+        });
 
+        it('Can deploy', async function () {
             await expect(
                 upgrades.deployProxy(await ethers.getContractFactory('SaplingLendingPool'), [
                     poolToken2.address,
@@ -49,10 +50,26 @@ describe('Sapling Lending Pool', function () {
             ).to.be.not.reverted;
         });
 
-        describe('Rejection Scenarios', function () {});
+        describe('Rejection Scenarios', function () {
+            it('Deploying with null treasury address should fail', async function () {
+                await expect(
+                    upgrades.deployProxy(await ethers.getContractFactory('SaplingLendingPool'), [
+                        poolToken2.address,
+                        e.assetToken.address,
+                        p.accessControl.address,
+                        NULL_ADDRESS,
+                        e.staker.address,
+                    ]),
+                ).to.be.reverted;
+            });
+        });
     });
 
     describe('Initial state', function () {
+        it('Applications count is correct', async function () {
+            expect(await p.loanDesk.applicationsCount()).to.equal(0);
+        });
+
         it('Loan count is correct', async function () {
             expect(await p.loanDesk.loansCount()).to.equal(0);
         });
@@ -116,7 +133,76 @@ describe('Sapling Lending Pool', function () {
         describe('Initial state', function () {});
 
         describe('Setting pool parameters', function () {
-            describe('Loan Desk', function () {});
+            describe('Loan Desk', function () {
+                let poolToken;
+                let pool;
+                let loanDesk;
+                let loanDesk2;
+
+                before(async function () {
+                    poolToken = await deployPoolToken(e);
+                    pool = await deployLendingPool(e, poolToken, p.accessControl);
+                    loanDesk = await deployLoanDesk(e, pool, p.accessControl);
+                    loanDesk2 = await deployLoanDesk(e, pool, p.accessControl);
+                    poolToken.connect(e.deployer).transferOwnership(pool.address);
+                });
+
+                it('Governance can set loan desk', async function () {
+                    assertHardhatInvariant(
+                        (await pool.loanDesk()) === NULL_ADDRESS,
+                        'This test requires loan desk not to be set.',
+                    );
+                    await pool.connect(e.governance).setLoanDesk(loanDesk.address);
+                    expect(await pool.loanDesk()).to.be.equal(loanDesk.address);
+                });
+
+                it('Setting loan desk more than once should fail', async function () {
+                    await pool.connect(e.governance).setLoanDesk(loanDesk.address);
+
+                    await expect(pool.connect(e.governance).setLoanDesk(loanDesk2.address)).to.be.revertedWith(
+                        'SaplingLendingPool: LoanDesk already set',
+                    );
+                });
+
+                it('Non-Governance cannot set loan desk', async function () {
+                    assertHardhatInvariant(
+                        (await pool.loanDesk()) === NULL_ADDRESS,
+                        'This test requires loan desk not to be set.',
+                    );
+                    await expect(pool.connect(e.staker).setLoanDesk(loanDesk.address)).to.be.reverted;
+                    await expect(pool.connect(e.treasury).setLoanDesk(loanDesk.address)).to.be.reverted;
+                    await expect(pool.connect(e.pauser).setLoanDesk(loanDesk.address)).to.be.reverted;
+                    await expect(pool.connect(e.users[0]).setLoanDesk(loanDesk.address)).to.be.reverted;
+                    await expect(pool.connect(e.deployer).setLoanDesk(loanDesk.address)).to.be.reverted;
+                });
+            });
+
+            describe('Treasury', function () {
+                it('Governance can set treasury', async function () {
+                    await p.pool.connect(e.governance).setTreasury(e.users[0].address);
+                    expect(await p.pool.treasury()).to.be.equal(e.users[0].address);
+                });
+
+                it('Governance can set treasury more than once', async function () {
+                    await p.pool.connect(e.governance).setTreasury(e.users[0].address);
+                    expect(await p.pool.treasury()).to.be.equal(e.users[0].address);
+
+                    await p.pool.connect(e.governance).setTreasury(e.treasury.address);
+                    expect(await p.pool.treasury()).to.be.equal(e.treasury.address);
+                });
+
+                it('Treasury cannot be set to a NULL address', async function () {
+                    await expect(p.pool.connect(e.governance).setTreasury(NULL_ADDRESS)).to.be.reverted;
+                });
+
+                it('Non-Governance cannot set treasury', async function () {
+                    await expect(p.pool.connect(e.staker).setTreasury(e.users[0].address)).to.be.reverted;
+                    await expect(p.pool.connect(e.treasury).setTreasury(e.users[0].address)).to.be.reverted;
+                    await expect(p.pool.connect(e.pauser).setTreasury(e.users[0].address)).to.be.reverted;
+                    await expect(p.pool.connect(e.users[0]).setTreasury(e.users[0].address)).to.be.reverted;
+                    await expect(p.pool.connect(e.deployer).setTreasury(e.users[0].address)).to.be.reverted;
+                });
+            });
         });
 
         describe('Close Pool', function () {
@@ -141,6 +227,29 @@ describe('Sapling Lending Pool', function () {
                     await p.loanDesk.connect(borrower1).borrow(applicationId);
 
                     await expect(p.pool.connect(e.staker).close()).to.be.reverted;
+                });
+            });
+        });
+
+        describe('onlyLoanDesk access', function () {
+            describe('Rejection scenarios', function () {
+                it('Calling a loan desk hook from a non LoanDesk address should fail', async function () {
+                    const amount = (await p.pool.strategyLiquidity()).sub(1);
+                    await expect(p.pool.connect(e.deployer).onOfferAllocate(amount)).to.be.revertedWith(
+                        'SaplingLendingPool: caller is not the LoanDesk',
+                    );
+                    await expect(p.pool.connect(e.staker).onOfferAllocate(amount)).to.be.revertedWith(
+                        'SaplingLendingPool: caller is not the LoanDesk',
+                    );
+                    await expect(p.pool.connect(e.treasury).onOfferAllocate(amount)).to.be.revertedWith(
+                        'SaplingLendingPool: caller is not the LoanDesk',
+                    );
+                    await expect(p.pool.connect(e.pauser).onOfferAllocate(amount)).to.be.revertedWith(
+                        'SaplingLendingPool: caller is not the LoanDesk',
+                    );
+                    await expect(p.pool.connect(e.users[0]).onOfferAllocate(amount)).to.be.revertedWith(
+                        'SaplingLendingPool: caller is not the LoanDesk',
+                    );
                 });
             });
         });
@@ -385,15 +494,52 @@ describe('Sapling Lending Pool', function () {
                     );
                 });
 
+                it('Repaying less than the interest due will only charge interest to whole days, and not pay towards the principal', async function () {
+                    const loan = await p.loanDesk.loans(loanId);
+
+                    await skipEvmTime(loan.duration.toNumber() - 60);
+
+                    const balanceDue = await p.loanDesk.loanBalanceDue(loanId);
+                    const loanDetail = await p.loanDesk.loanDetails(loanId);
+                    const interestDue = balanceDue.sub(loan.amount.sub(loanDetail.principalAmountRepaid));
+
+                    const paymentAmount = interestDue.sub(1);
+                    await mintAndApprove(e.assetToken, e.deployer, borrower1, p.pool.address, paymentAmount);
+                    const userBalanceBefore = await e.assetToken.balanceOf(borrower1.address);
+                    await p.loanDesk.connect(borrower1).repay(loanId, paymentAmount);
+                    const userBalanceAfter = await e.assetToken.balanceOf(borrower1.address);
+
+                    const nextLoanDetail = await p.loanDesk.loanDetails(loanId);
+                    const interestAmountRepaid = nextLoanDetail.totalAmountRepaid.sub(nextLoanDetail.principalAmountRepaid);
+
+                    expect(nextLoanDetail.principalAmountRepaid).to.equal(loanDetail.principalAmountRepaid);
+                    expect(interestAmountRepaid).to.be.lt(paymentAmount);
+                    expect(userBalanceAfter).to.equal(userBalanceBefore.sub(interestAmountRepaid));
+                });
+
                 describe('Rejection scenarios', function () {
-                    it('Repaying a less than minimum payment amount on a loan with a greater outstanding balance should fail', async function () {
-                        let paymentAmount = TOKEN_MULTIPLIER.mul(1).sub(1);
+                    it('Repaying with 0 amount should fail', async function () {
+                        let paymentAmount = BigNumber.from(0);
+
+                        await expect(p.loanDesk.connect(borrower1).repay(loanId, paymentAmount)).to.be.revertedWith(
+                            'LoanDesk: invalid amount',
+                        );
+                    });
+
+                    it('Repaying with less than the daily interest while interest is outstanding should fail', async function () {
+                        let paymentAmount = BigNumber.from(TOKEN_MULTIPLIER.div(10));
                         let balanceDue = await p.loanDesk.loanBalanceDue(loanId);
+                        assertHardhatInvariant(balanceDue.gt(paymentAmount), null);
+                        await mintAndApprove(e.assetToken, e.deployer, borrower1, p.pool.address, paymentAmount);
 
-                        assertHardhatInvariant(balanceDue.gt(paymentAmount));
-
-                        await mintAndApprove(e.assetToken, e.deployer, e.treasury, p.pool.address, paymentAmount);
-                        await expect(p.loanDesk.connect(e.treasury).repay(loanId, paymentAmount)).to.be.reverted;
+                        assertHardhatInvariant(
+                            (await p.loanDesk.loanDetails(loanId)).interestPaidTillTime.toNumber() <
+                                (await ethers.provider.getBlock()).timestamp,
+                            null,
+                        );
+                        await expect(p.loanDesk.connect(borrower1).repay(loanId, paymentAmount)).to.be.revertedWith(
+                            'LoanDesk: invalid amount - increase to daily interest',
+                        );
                     });
 
                     it('Repaying a loan that is not in OUTSTANDING status should fail', async function () {
