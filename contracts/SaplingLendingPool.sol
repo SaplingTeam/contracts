@@ -80,6 +80,8 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
      * @param _treasury New treasury address
      */
     function setTreasury(address _treasury) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
+        require(address (_treasury) != address (0), "SaplingLendingPool: invalid treasury address");
+
         address prevTreasury = treasury;
         treasury = _treasury;
         emit TreasurySet(prevTreasury, _treasury);
