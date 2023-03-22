@@ -312,7 +312,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     function initialMint() external onlyStaker whenNotPaused whenClosed updatedState {
         require(
             totalPoolTokenSupply() == 0 && poolFunds() == 0,
-            "Sapling Pool Context: invalid initial conditions"
+            "SaplingPoolContext: invalid initial conditions"
         );
 
         uint256 sharesMinted = enter(10 ** tokenConfig.decimals);
@@ -476,7 +476,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function exit(uint256 amount) private nonReentrant returns (uint256) {
         //// check
-        require(amount > 0, "SaplingPoolContext: pool withdrawal amount is 0");
+        require(amount > 0, "SaplingPoolContext: exit amount is 0");
 
         uint256 shares = fundsToShares(amount);
 
@@ -642,15 +642,15 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         pure 
         returns (APYBreakdown memory) 
     {
-        require(_stakedTokens <= _totalPoolTokens, "SaplingPoolContext: invalid parameter _stakedTokens");
-        require(_strategizedFunds <= _poolFunds, "SaplingPoolContext: invalid parameter _strategizedFunds");
+        require(_stakedTokens <= _totalPoolTokens, "SaplingPoolContext: invalid _stakedTokens");
+        require(_strategizedFunds <= _poolFunds, "SaplingPoolContext: invalid _strategizedFunds");
         require(
             _protocolFeePercent <= SaplingMath.HUNDRED_PERCENT,
-            "SaplingPoolContext: invalid parameter _protocolFeePercent"
+            "SaplingPoolContext: invalid _protocolFeePercent"
         );
         require(
             _stakerEarnFactor >= SaplingMath.HUNDRED_PERCENT,
-            "SaplingPoolContext: invalid parameter _stakerEarnFactor"
+            "SaplingPoolContext: invalid _stakerEarnFactor"
         );
 
         if (_poolFunds == 0 || _strategizedFunds == 0 || _avgStrategyAPR == 0) {

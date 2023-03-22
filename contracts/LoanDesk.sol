@@ -323,7 +323,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         require(
             ILendingPool(config.pool).canOffer(_amount),
-            "LoanDesk: lending pool cannot offer this loan at this time"
+            "LoanDesk: pool cannot offer this loan at this time"
         );
 
         //// effect
@@ -486,7 +486,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             require(
                 hasRole(config.lenderGovernanceRole, msg.sender) && status == LoanApplicationStatus.OFFER_DRAFT_LOCKED
                 && block.timestamp < offer.lockedTime + SaplingMath.LOAN_LOCK_PERIOD,
-                    "SaplingContext: unauthorized"
+                "LoanDesk: unauthorized"
             );
         }
 
@@ -653,10 +653,10 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         Loan storage loan = loans[loanId];
         require(
             loan.id == loanId && loan.status == LoanStatus.OUTSTANDING,
-            "SaplingLendingPool: not found or invalid loan status"
+            "LoanDesk: not found or invalid loan status"
         );
 
-        require(amount > 0, "SaplingLendingPool: invalid amount");
+        require(amount > 0, "LoanDesk: invalid amount");
 
         (
             uint256 transferAmount,
@@ -665,7 +665,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         ) = payableLoanBalance(loanId, amount);
 
         // check transferable amount, zero transferable amount means the payment 'amount' was less than 1 day interest
-        require(transferAmount > 0, "SaplingLendingPool: invalid amount - increase to daily interest");
+        require(transferAmount > 0, "LoanDesk: invalid amount - increase to daily interest");
 
         //// effect
 

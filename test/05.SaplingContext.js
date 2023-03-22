@@ -51,7 +51,7 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
                         e.treasury.address,
                         e.staker.address,
                     ]),
-                ).to.be.reverted;
+                ).to.be.revertedWith('SaplingContext: access control contract address is not set');
             });
         });
     });
@@ -80,11 +80,11 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             describe('Rejection scenarios', function () {
                 it('Pausing when paused should fail', async function () {
                     await p.pool.connect(e.governance).pause();
-                    await expect(p.pool.connect(e.governance).pause()).to.be.reverted;
+                    await expect(p.pool.connect(e.governance).pause()).to.be.revertedWith('Pausable: paused');
                 });
 
                 it('Pausing as a non governance should fail', async function () {
-                    await expect(p.pool.connect(e.users[0]).pause()).to.be.reverted;
+                    await expect(p.pool.connect(e.users[0]).pause()).to.be.revertedWith('SaplingContext: unauthorized');
                 });
             });
         });
@@ -102,11 +102,13 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             describe('Rejection scenarios', function () {
                 it('Resuming when not paused should fail', async function () {
                     await p.pool.connect(e.governance).unpause();
-                    await expect(p.pool.connect(e.governance).unpause()).to.be.reverted;
+                    await expect(p.pool.connect(e.governance).unpause()).to.be.revertedWith('Pausable: not paused');
                 });
 
                 it('Resuming as a non governance should fail', async function () {
-                    await expect(p.pool.connect(e.users[0]).unpause()).to.be.reverted;
+                    await expect(p.pool.connect(e.users[0]).unpause()).to.be.revertedWith(
+                        'SaplingContext: unauthorized',
+                    );
                 });
             });
         });

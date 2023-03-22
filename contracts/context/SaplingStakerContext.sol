@@ -28,7 +28,7 @@ abstract contract SaplingStakerContext is SaplingContext {
 
     /// A modifier to limit access only to the staker
     modifier onlyStaker() {
-        require(msg.sender == staker, "SaplingStakerContext: caller is the staker");
+        require(msg.sender == staker, "SaplingStakerContext: unauthorized");
         _;
     }
 

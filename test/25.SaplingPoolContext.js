@@ -61,7 +61,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         e.treasury.address,
                         e.staker.address,
                     ]),
-                ).to.be.reverted;
+                ).to.be.revertedWith('SaplingPoolContext: liquidity token address is not set');
             });
 
             it('Deploying with null pool token address should fail', async function () {
@@ -73,7 +73,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         e.treasury.address,
                         e.staker.address,
                     ]),
-                ).to.be.reverted;
+                ).to.be.revertedWith('SaplingPoolContext: pool token address is not set');
             });
 
             it('Deploying with a pool token with non-zero total supply should fail', async function () {
@@ -108,7 +108,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 p.pool.connect(e.staker).initialMint();
 
                 await mintAndApprove(e.assetToken, e.deployer, e.staker, p.pool.address, 10 ** TOKEN_DECIMALS);
-                await expect(p.pool.connect(e.staker).initialMint()).to.be.reverted;
+                await expect(p.pool.connect(e.staker).initialMint()).to.be.revertedWith(
+                    'SaplingPoolContext: invalid initial conditions',
+                );
             });
         });
     });
@@ -255,7 +257,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         let currentValue = (await p.pool.config()).targetStakePercent;
                         let maxValue = await saplingMath.HUNDRED_PERCENT();
 
-                        await expect(p.pool.connect(e.governance).setTargetStakePercent(maxValue + 1)).to.be.reverted;
+                        await expect(
+                            p.pool.connect(e.governance).setTargetStakePercent(maxValue + 1),
+                        ).to.be.revertedWith('SaplingPoolContext: target stake percent is out of bounds');
                     });
 
                     it('A non-governance cannot set target stake percent', async function () {
@@ -265,7 +269,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         let newValue = 50 * 10 ** PERCENT_DECIMALS;
                         assertHardhatInvariant(newValue != currentValue && newValue <= maxValue);
 
-                        await expect(p.pool.connect(e.staker).setTargetStakePercent(newValue)).to.be.reverted;
+                        await expect(p.pool.connect(e.staker).setTargetStakePercent(newValue)).to.be.revertedWith(
+                            'SaplingContext: unauthorized',
+                        );
                     });
                 });
             });
@@ -287,7 +293,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         let currentValue = (await p.pool.config()).targetLiquidityPercent;
                         let maxValue = await saplingMath.HUNDRED_PERCENT();
 
-                        await expect(p.pool.connect(e.staker).setTargetLiquidityPercent(maxValue + 1)).to.be.reverted;
+                        await expect(
+                            p.pool.connect(e.staker).setTargetLiquidityPercent(maxValue + 1),
+                        ).to.be.revertedWith('SaplingPoolContext: target liquidity percent is out of bounds');
                     });
 
                     it('A non-staker cannot set target liquidity percent', async function () {
@@ -297,7 +305,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         let newValue = 50 * 10 ** PERCENT_DECIMALS;
                         assertHardhatInvariant(newValue != currentValue && newValue <= maxValue);
 
-                        await expect(p.pool.connect(e.governance).setTargetLiquidityPercent(newValue)).to.be.reverted;
+                        await expect(
+                            p.pool.connect(e.governance).setTargetLiquidityPercent(newValue),
+                        ).to.be.revertedWith('SaplingStakerContext: unauthorized');
                     });
                 });
             });
@@ -330,7 +340,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         let newValue = 2 * 10 ** PERCENT_DECIMALS;
                         assertHardhatInvariant(newValue != currentValue && newValue <= maxValue);
 
-                        await expect(p.pool.connect(e.staker).setProtocolEarningPercent(newValue)).to.be.reverted;
+                        await expect(p.pool.connect(e.staker).setProtocolEarningPercent(newValue)).to.be.revertedWith(
+                            'SaplingContext: unauthorized',
+                        );
                     });
                 });
             });
@@ -365,12 +377,16 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     it("Staker's earn factor cannot be set to a value less than the allowed minimum", async function () {
                         let minValue = await saplingMath.HUNDRED_PERCENT();
                         assertHardhatInvariant(minValue > 0);
-                        await expect(p.pool.connect(e.staker).setStakerEarnFactor(minValue - 1)).to.be.reverted;
+                        await expect(p.pool.connect(e.staker).setStakerEarnFactor(minValue - 1)).to.be.revertedWith(
+                            'SaplingPoolContext: _stakerEarnFactor is out of bounds',
+                        );
                     });
 
                     it("Staker's earn factor cannot be set to a value greater than the allowed maximum", async function () {
                         let maxValue = (await p.pool.config()).stakerEarnFactorMax;
-                        await expect(p.pool.connect(e.staker).setStakerEarnFactor(maxValue + 1)).to.be.reverted;
+                        await expect(p.pool.connect(e.staker).setStakerEarnFactor(maxValue + 1)).to.be.revertedWith(
+                            'SaplingPoolContext: _stakerEarnFactor is out of bounds',
+                        );
                     });
 
                     it("A non-staker cannot set staker's earn factor", async function () {
@@ -383,7 +399,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                             newValue != currentValue && minValue <= newValue && newValue <= maxValue,
                         );
 
-                        await expect(p.pool.connect(e.governance).setStakerEarnFactor(newValue)).to.be.reverted;
+                        await expect(p.pool.connect(e.governance).setStakerEarnFactor(newValue)).to.be.revertedWith(
+                            'SaplingStakerContext: unauthorized',
+                        );
                     });
                 });
             });
@@ -417,7 +435,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     it("Maximum for Staker's earn factor cannot be set to a value less than the allowed minimum", async function () {
                         let minValue = await saplingMath.HUNDRED_PERCENT();
                         assertHardhatInvariant(minValue > 0);
-                        await expect(p.pool.connect(e.governance).setStakerEarnFactorMax(minValue - 1)).to.be.reverted;
+                        await expect(
+                            p.pool.connect(e.governance).setStakerEarnFactorMax(minValue - 1),
+                        ).to.be.revertedWith('SaplingPoolContext: _stakerEarnFactorMax is out of bounds');
                     });
 
                     it("A non-governance cannot set a maximum for staker's earn factor", async function () {
@@ -430,7 +450,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                             newValue != currentValue && minValue <= newValue && newValue <= maxValue,
                         );
 
-                        await expect(p.pool.connect(e.staker).setStakerEarnFactorMax(newValue)).to.be.reverted;
+                        await expect(p.pool.connect(e.staker).setStakerEarnFactorMax(newValue)).to.be.revertedWith(
+                            'SaplingContext: unauthorized',
+                        );
                     });
                 });
             });
@@ -469,7 +491,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     await p.loanDesk.connect(e.staker).offerLoan(applicationId);
                     await p.loanDesk.connect(borrower1).borrow(applicationId);
 
-                    await expect(p.pool.connect(e.staker).close()).to.be.reverted;
+                    await expect(p.pool.connect(e.staker).close()).to.be.revertedWith(
+                        'SaplingStakerContext: cannot close the pool under current conditions',
+                    );
                 });
             });
         });
@@ -565,32 +589,42 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             describe('Rejection scenarios', function () {
                 it('Staking a zero amount should fail', async function () {
-                    await expect(p.pool.connect(e.staker).stake(0)).to.be.reverted;
+                    await expect(p.pool.connect(e.staker).stake(0)).to.be.revertedWith(
+                        'SaplingPoolContext: entry amount too low',
+                    );
                 });
 
                 it('Staking when the pool is paused should fail', async function () {
                     await p.pool.connect(e.governance).pause();
-                    await expect(p.pool.connect(e.staker).stake(stakeAmount)).to.be.reverted;
+                    await expect(p.pool.connect(e.staker).stake(stakeAmount)).to.be.revertedWith('Pausable: paused');
                 });
 
                 it('Staking when the pool is closed should fail', async function () {
                     await p.pool.connect(e.staker).close();
-                    await expect(p.pool.connect(e.staker).stake(stakeAmount)).to.be.reverted;
+                    await expect(p.pool.connect(e.staker).stake(stakeAmount)).to.be.revertedWith(
+                        'SaplingStakerContext: closed',
+                    );
                 });
 
                 it('Staking as the protocol should fail', async function () {
                     await mintAndApprove(e.assetToken, e.deployer, e.treasury, p.pool.address, stakeAmount);
-                    await expect(p.pool.connect(e.treasury).stake(stakeAmount)).to.be.reverted;
+                    await expect(p.pool.connect(e.treasury).stake(stakeAmount)).to.be.revertedWith(
+                        'SaplingStakerContext: unauthorized',
+                    );
                 });
 
                 it('Staking as the governance should fail', async function () {
                     await mintAndApprove(e.assetToken, e.deployer, e.governance, p.pool.address, stakeAmount);
-                    await expect(p.pool.connect(e.governance).stake(stakeAmount)).to.be.reverted;
+                    await expect(p.pool.connect(e.governance).stake(stakeAmount)).to.be.revertedWith(
+                        'SaplingStakerContext: unauthorized',
+                    );
                 });
 
                 it('Staking as a lender should fail', async function () {
                     await mintAndApprove(e.assetToken, e.deployer, lender1, p.pool.address, stakeAmount);
-                    await expect(p.pool.connect(lender1).stake(stakeAmount)).to.be.reverted;
+                    await expect(p.pool.connect(lender1).stake(stakeAmount)).to.be.revertedWith(
+                        'SaplingStakerContext: unauthorized',
+                    );
                 });
 
                 it('Staking as a borrower should fail', async function () {
@@ -599,7 +633,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     await p.loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
 
                     await mintAndApprove(e.assetToken, e.deployer, borrower1, p.pool.address, stakeAmount);
-                    await expect(p.pool.connect(borrower1).stake(stakeAmount)).to.be.reverted;
+                    await expect(p.pool.connect(borrower1).stake(stakeAmount)).to.be.revertedWith(
+                        'SaplingStakerContext: unauthorized',
+                    );
                 });
             });
         });
@@ -645,7 +681,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 });
 
                 it('Amount unstakable is bound by pool liquidity', async function () {
-
                     let origUnstakable = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
 
                     const loanAmount = (await p.pool.liquidity()).sub(BigNumber.from(500).mul(TOKEN_MULTIPLIER));
@@ -660,16 +695,19 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                             applicationId,
                             application.amount,
                             application.duration,
-                            (await p.loanDesk.loanTemplate()).gracePeriod,
+                            (
+                                await p.loanDesk.loanTemplate()
+                            ).gracePeriod,
                             0,
                             1,
-                            (await p.loanDesk.loanTemplate()).apr,
+                            (
+                                await p.loanDesk.loanTemplate()
+                            ).apr,
                         );
 
                     const amountUnstakable = await p.pool.amountUnstakable();
                     expect(amountUnstakable).to.equal(await p.pool.liquidity());
                     expect(amountUnstakable).to.lt(origUnstakable);
-
                 });
             });
 
@@ -729,29 +767,41 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
             describe('Rejection scenarios', function () {
                 it('Unstaking a zero amount should fail', async function () {
-                    await expect(p.pool.connect(e.staker).unstake(0)).to.be.reverted;
+                    await expect(p.pool.connect(e.staker).unstake(0)).to.be.revertedWith(
+                        'SaplingPoolContext: exit amount is 0',
+                    );
                 });
 
                 it('Unstaking an amount greater than unstakable should fail', async function () {
                     let amountUnstakable = await p.pool.amountUnstakable();
-                    await expect(p.pool.connect(e.staker).unstake(amountUnstakable.add(1))).to.be.reverted;
+                    await expect(p.pool.connect(e.staker).unstake(amountUnstakable.add(1))).to.be.revertedWith(
+                        'SaplingPoolContext: requested amount is not available for unstaking',
+                    );
                 });
 
                 it('Unstaking when the pool is paused should fail', async function () {
                     await p.pool.connect(e.governance).pause();
-                    await expect(p.pool.connect(e.staker).unstake(unstakeAmount)).to.be.reverted;
+                    await expect(p.pool.connect(e.staker).unstake(unstakeAmount)).to.be.revertedWith(
+                        'Pausable: paused',
+                    );
                 });
 
                 it('Unstaking as the protocol should fail', async function () {
-                    await expect(p.pool.connect(e.treasury).unstake(unstakeAmount)).to.be.reverted;
+                    await expect(p.pool.connect(e.treasury).unstake(unstakeAmount)).to.be.revertedWith(
+                        'SaplingStakerContext: unauthorized',
+                    );
                 });
 
                 it('Unstaking as the governance should fail', async function () {
-                    await expect(p.pool.connect(e.governance).unstake(unstakeAmount)).to.be.reverted;
+                    await expect(p.pool.connect(e.governance).unstake(unstakeAmount)).to.be.revertedWith(
+                        'SaplingStakerContext: unauthorized',
+                    );
                 });
 
                 it('Unstaking as a lender should fail', async function () {
-                    await expect(p.pool.connect(lender1).unstake(unstakeAmount)).to.be.reverted;
+                    await expect(p.pool.connect(lender1).unstake(unstakeAmount)).to.be.revertedWith(
+                        'SaplingStakerContext: unauthorized',
+                    );
                 });
 
                 it('Unstaking as a borrower should fail', async function () {
@@ -759,7 +809,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
                     await p.loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
 
-                    await expect(p.pool.connect(borrower1).unstake(unstakeAmount)).to.be.reverted;
+                    await expect(p.pool.connect(borrower1).unstake(unstakeAmount)).to.be.revertedWith(
+                        'SaplingStakerContext: unauthorized',
+                    );
                 });
             });
         });
@@ -860,14 +912,18 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             describe('Rejection scenarios', function () {
                 it('Depositing a zero amount should fail', async function () {
                     await mintAndApprove(e.assetToken, e.deployer, lender1, p.pool.address, depositAmount);
-                    await expect(p.pool.connect(lender1).deposit(0)).to.be.reverted;
+                    await expect(p.pool.connect(lender1).deposit(0)).to.be.revertedWith(
+                        'SaplingPoolContext: entry amount too low',
+                    );
                 });
 
                 it('Depositing an amount greater than allowed should fail', async function () {
                     let amountDepositable = await p.pool.amountDepositable();
 
                     await mintAndApprove(e.assetToken, e.deployer, lender1, p.pool.address, amountDepositable.add(1));
-                    await expect(p.pool.connect(lender1).deposit(amountDepositable.add(1))).to.be.reverted;
+                    await expect(p.pool.connect(lender1).deposit(amountDepositable.add(1))).to.be.revertedWith(
+                        'SaplingPoolContext: invalid deposit amount',
+                    );
                 });
 
                 it('Depositing while having an active withdrawal request should fail', async function () {
@@ -888,23 +944,29 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                 it('Depositing when the pool is paused should fail', async function () {
                     await p.pool.connect(e.governance).pause();
                     await mintAndApprove(e.assetToken, e.deployer, lender1, p.pool.address, depositAmount);
-                    await expect(p.pool.connect(lender1).deposit(depositAmount)).to.be.reverted;
+                    await expect(p.pool.connect(lender1).deposit(depositAmount)).to.be.revertedWith('Pausable: paused');
                 });
 
                 it('Depositing when the pool is closed should fail', async function () {
                     await p.pool.connect(e.staker).close();
                     await mintAndApprove(e.assetToken, e.deployer, lender1, p.pool.address, depositAmount);
-                    await expect(p.pool.connect(lender1).deposit(depositAmount)).to.be.reverted;
+                    await expect(p.pool.connect(lender1).deposit(depositAmount)).to.be.revertedWith(
+                        'SaplingStakerContext: closed',
+                    );
                 });
 
                 it('Depositing as the staker should fail', async function () {
                     await mintAndApprove(e.assetToken, e.deployer, e.staker, p.pool.address, depositAmount);
-                    await expect(p.pool.connect(e.staker).deposit(depositAmount)).to.be.reverted;
+                    await expect(p.pool.connect(e.staker).deposit(depositAmount)).to.be.revertedWith(
+                        'SaplingStakerContext: caller is not a user',
+                    );
                 });
 
                 it('Depositing as the governance should fail', async function () {
                     await mintAndApprove(e.assetToken, e.deployer, e.governance, p.pool.address, depositAmount);
-                    await expect(p.pool.connect(e.governance).deposit(depositAmount)).to.be.reverted;
+                    await expect(p.pool.connect(e.governance).deposit(depositAmount)).to.be.revertedWith(
+                        'SaplingStakerContext: caller is not a user',
+                    );
                 });
             });
         });
@@ -958,7 +1020,6 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             });
 
             it('Withdrawal allowance is single use even if withdrawn less than requested', async function () {
-
                 await p.pool.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
                 await skipEvmTime(61);
 
@@ -1032,27 +1093,37 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     await p.pool.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
                     await skipEvmTime(61);
 
-                    await expect(p.pool.connect(lender1).withdraw(0)).to.be.reverted;
+                    await expect(p.pool.connect(lender1).withdraw(0)).to.be.revertedWith(
+                        'SaplingPoolContext: exit amount is 0',
+                    );
                 });
 
                 it("Requesting a withdrawal allowance for amount greater than user's balance should fail", async function () {
                     const requestAmount = (await p.pool.balanceOf(lender1.address)).add(1);
-                    await expect(p.pool.connect(lender1).requestWithdrawalAllowance(requestAmount)).to.be.revertedWith('SaplingPoolContext: amount exceeds account balance');
+                    await expect(p.pool.connect(lender1).requestWithdrawalAllowance(requestAmount)).to.be.revertedWith(
+                        'SaplingPoolContext: amount exceeds account balance',
+                    );
                 });
 
                 it('Withdrawing without an active allowance should fail', async function () {
-                    await expect(p.pool.connect(lender1).withdraw(withdrawAmount)).to.be.reverted;
+                    await expect(p.pool.connect(lender1).withdraw(withdrawAmount)).to.be.revertedWith(
+                        'SaplingPoolContext: insufficient withdrawal allowance amount',
+                    );
                 });
 
                 it('Withdrawing while too early for the allowance to take effect should fail', async function () {
                     await p.pool.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
-                    await expect(p.pool.connect(lender1).withdraw(withdrawAmount)).to.be.revertedWith('SaplingPoolContext: request is too early');
+                    await expect(p.pool.connect(lender1).withdraw(withdrawAmount)).to.be.revertedWith(
+                        'SaplingPoolContext: request is too early',
+                    );
                 });
 
                 it('Withdrawing after the allowance has expired should fail', async function () {
                     await p.pool.connect(lender1).requestWithdrawalAllowance(withdrawAmount);
                     await skipEvmTime(60 * 11);
-                    await expect(p.pool.connect(lender1).withdraw(withdrawAmount)).to.be.revertedWith('SaplingPoolContext: withdrawal allowance has expired');
+                    await expect(p.pool.connect(lender1).withdraw(withdrawAmount)).to.be.revertedWith(
+                        'SaplingPoolContext: withdrawal allowance has expired',
+                    );
                 });
 
                 it('Withdrawing an amount greater than in the allowance should fail', async function () {
@@ -1060,7 +1131,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                     await p.pool.connect(lender1).requestWithdrawalAllowance(amount);
                     await skipEvmTime(61);
-                    await expect(p.pool.connect(lender1).withdraw(amount.add(1))).to.be.revertedWith('SaplingPoolContext: insufficient withdrawal allowance amount');
+                    await expect(p.pool.connect(lender1).withdraw(amount.add(1))).to.be.revertedWith(
+                        'SaplingPoolContext: insufficient withdrawal allowance amount',
+                    );
                 });
 
                 it('Withdrawing an amount greater than available should fail', async function () {
@@ -1085,7 +1158,9 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                     await p.pool.connect(lender1).requestWithdrawalAllowance(amountWithdrawable.add(1));
                     await skipEvmTime(61);
 
-                    await expect(p.pool.connect(lender1).withdraw(amountWithdrawable.add(1))).to.be.reverted;
+                    await expect(p.pool.connect(lender1).withdraw(amountWithdrawable.add(1))).to.be.revertedWith(
+                        'SaplingPoolContext: requested amount is unavailable at this time',
+                    );
                 });
 
                 it('Withdrawing when the pool is paused should fail', async function () {
@@ -1094,13 +1169,17 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                     await p.pool.connect(e.governance).pause();
 
-                    await expect(p.pool.connect(lender1).withdraw(withdrawAmount)).to.be.reverted;
+                    await expect(p.pool.connect(lender1).withdraw(withdrawAmount)).to.be.revertedWith(
+                        'Pausable: paused',
+                    );
                 });
 
                 it('Withdrawing as the staker should fail', async function () {
                     let balance = await p.pool.balanceStaked();
 
-                    await expect(p.pool.connect(e.staker).requestWithdrawalAllowance(balance.div(10))).to.be.reverted;
+                    await expect(
+                        p.pool.connect(e.staker).requestWithdrawalAllowance(balance.div(10)),
+                    ).to.be.revertedWith('SaplingStakerContext: caller is not a user');
                 });
 
                 it('Withdrawing as a borrower should fail', async function () {
@@ -1114,9 +1193,13 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                         .connect(e.staker)
                         .draftOffer(otherApplicationId, loanAmount, loanDuration, gracePeriod, 0, installments, apr);
 
-                    await expect(p.pool.connect(borrower2).requestWithdrawalAllowance(loanAmount)).to.be.reverted;
+                    await expect(p.pool.connect(borrower2).requestWithdrawalAllowance(loanAmount)).to.be.revertedWith(
+                        'SaplingPoolContext: amount exceeds account balance',
+                    );
 
-                    await expect(p.pool.connect(borrower2).withdraw(loanAmount)).to.be.reverted;
+                    await expect(p.pool.connect(borrower2).withdraw(loanAmount)).to.be.revertedWith(
+                        'SaplingPoolContext: insufficient withdrawal allowance amount',
+                    );
                 });
             });
 
@@ -1305,7 +1388,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 let expectedLenderAPY = poolAPY.sub(protocolAPY).sub(stakerWithdrawableAPY).toNumber();
 
-                const totalShares = await p.poolToken.totalSupply()
+                const totalShares = await p.poolToken.totalSupply();
                 const stakedShares = (await p.pool.balances()).stakedShares;
 
                 expect(
@@ -1341,7 +1424,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
             describe('Rejection scenarios', function () {
                 it('APY projection should fail when borrow rate of over 100% is requested', async function () {
                     const apr = (await p.loanDesk.loanTemplate()).apr;
-                    const totalShares = await p.poolToken.totalSupply()
+                    const totalShares = await p.poolToken.totalSupply();
                     const stakedShares = (await p.pool.balances()).stakedShares;
                     await expect(
                         p.pool.projectedAPYBreakdown(
@@ -1362,7 +1445,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 it('APY projection should fail when staked tokens are greater than total shares', async function () {
                     const apr = (await p.loanDesk.loanTemplate()).apr;
-                    const totalShares = await p.poolToken.totalSupply()
+                    const totalShares = await p.poolToken.totalSupply();
                     await expect(
                         p.pool.projectedAPYBreakdown(
                             totalShares,
@@ -1382,7 +1465,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 it('APY projection should fail when protocol fee percent is greater than maximum', async function () {
                     const apr = (await p.loanDesk.loanTemplate()).apr;
-                    const totalShares = await p.poolToken.totalSupply()
+                    const totalShares = await p.poolToken.totalSupply();
                     const stakedShares = (await p.pool.balances()).stakedShares;
                     await expect(
                         p.pool.projectedAPYBreakdown(
@@ -1391,7 +1474,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
                             poolFunds,
                             poolFunds,
                             apr,
-                            await  saplingMath.MAX_PROTOCOL_FEE_PERCENT() + 1,
+                            (await saplingMath.MAX_PROTOCOL_FEE_PERCENT()) + 1,
                             (
                                 await p.pool.config()
                             ).stakerEarnFactor,
@@ -1401,7 +1484,7 @@ describe('Sapling Pool Context (via SaplingLendingPool)', function () {
 
                 it('APY projection should fail when protocol fee staker earn factor is less than minimum', async function () {
                     const apr = (await p.loanDesk.loanTemplate()).apr;
-                    const totalShares = await p.poolToken.totalSupply()
+                    const totalShares = await p.poolToken.totalSupply();
                     const stakedShares = (await p.pool.balances()).stakedShares;
                     await expect(
                         p.pool.projectedAPYBreakdown(
