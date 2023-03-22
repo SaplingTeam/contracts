@@ -536,6 +536,14 @@ _Checks if given values of total shares and funds maintain acceptable conversion
 | ---- | ---- | ----------- |
 | [0] | bool | Returns true if price per share is greater than or equal to the required minimum, false otherwise |
 
+### percentDecimals
+
+```solidity
+function percentDecimals() external view returns (uint8)
+```
+
+_External accessor for library level percent decimals._
+
 ### __gap
 
 ```solidity

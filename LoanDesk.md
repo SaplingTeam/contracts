@@ -599,3 +599,11 @@ _Overrides a hook in SaplingStakerContext._
 | ---- | ---- | ----------- |
 | [0] | bool | True if the conditions to open are met, false otherwise. |
 
+### percentDecimals
+
+```solidity
+function percentDecimals() external view returns (uint8)
+```
+
+_External accessor for library level percent decimals._
+
