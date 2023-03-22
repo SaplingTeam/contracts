@@ -507,26 +507,31 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      *      The loan must be in OFFER_MADE status.
      * @param appId ID of the loan application to accept the offer of
      */
-    function borrow(uint256 appId) external whenNotClosed whenNotPaused nonReentrant updatedState {
-
+    function borrow(
+        uint256 appId
+    )
+        external
+        whenNotClosed
+        whenNotPaused
+        nonReentrant
+        applicationInStatus(appId, ILoanDesk.LoanApplicationStatus.OFFER_MADE)
+        updatedState
+    {
         //// check
-
-        LoanApplication storage app = loanApplications[appId];
-        require(app.status == ILoanDesk.LoanApplicationStatus.OFFER_MADE, "LoanDesk: invalid offer status");
 
         LoanOffer storage offer = loanOffers[appId];
         require(offer.borrower == msg.sender, "LoanDesk: msg.sender is not the borrower on this loan");
 
         //// effect
 
-        app.status = LoanApplicationStatus.OFFER_ACCEPTED;
+        loanApplications[appId].status = LoanApplicationStatus.OFFER_ACCEPTED;
 
         uint256 offerAmount = offer.amount;
 
         uint256 prevBorrowedFunds = lentFunds;
         lentFunds += offerAmount;
 
-        emit LoanOfferAccepted(appId, app.borrower, offerAmount);
+        emit LoanOfferAccepted(appId, msg.sender, offerAmount);
 
         uint256 loanId = nextLoanId;
         nextLoanId++;
