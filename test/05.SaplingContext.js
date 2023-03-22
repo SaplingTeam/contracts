@@ -1,97 +1,27 @@
 const { expect } = require('chai');
-const { BigNumber } = require('ethers');
 const { ethers, upgrades } = require('hardhat');
-const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
+const { NULL_ADDRESS, TOKEN_DECIMALS } = require('./utils/constants');
+const { GOVERNANCE_ROLE } = require('./utils/roles');
+const { snapshot, rollback } = require('./utils/evmControl');
+const { deployEnv, deployProtocol } = require('./utils/deployer');
 
 let evmSnapshotIds = [];
 
-async function snapshot() {
-    let id = await hre.network.provider.send('evm_snapshot');
-    evmSnapshotIds.push(id);
-}
-
-async function rollback() {
-    let id = evmSnapshotIds.pop();
-    await hre.network.provider.send('evm_revert', [id]);
-}
-
 describe('Sapling Context (via SaplingLendingPool)', function () {
-    const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
-    const TOKEN_DECIMALS = 6;
-
-    const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
-    const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
-    const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
-
-    let coreAccessControl;
-
-    let SaplingContextCF;
-    let saplingContext;
-    let liquidityToken;
-    let poolToken;
-    let loanDesk;
-
-    let deployer;
-    let governance;
-    let lenderGovernance;
-    let protocol;
-    let staker;
-    let addresses;
+    let e; // initialized environment metadata
+    let p; // deployed protocol metadata
 
     beforeEach(async function () {
-        await snapshot();
+        await snapshot(evmSnapshotIds);
     });
 
     afterEach(async function () {
-        await rollback();
+        await rollback(evmSnapshotIds);
     });
 
     before(async function () {
-        [deployer, governance, lenderGovernance, protocol, staker, ...addresses] = await ethers.getSigners();
-
-        let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
-        coreAccessControl = await CoreAccessControlCF.deploy();
-
-        await coreAccessControl.connect(deployer).grantRole(DEFAULT_ADMIN_ROLE, governance.address);
-        await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
-
-        await coreAccessControl.connect(governance).grantRole(GOVERNANCE_ROLE, governance.address);
-        await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
-
-        await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
-
-        let SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
-        let PoolTokenCF = await ethers.getContractFactory('PoolToken');
-        let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
-
-        liquidityToken = await PoolTokenCF.deploy('Test USDC', 'TestUSDC', TOKEN_DECIMALS);
-
-        poolToken = await PoolTokenCF.deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
-
-        lendingPool = await upgrades.deployProxy(SaplingLendingPoolCF, [
-            poolToken.address,
-            liquidityToken.address,
-            coreAccessControl.address,
-            protocol.address,
-            staker.address
-        ]);
-        await lendingPool.deployed();
-
-        loanDesk = await upgrades.deployProxy(LoanDeskCF, [
-            lendingPool.address,
-            liquidityToken.address,
-            coreAccessControl.address,
-            staker.address,
-            POOL_1_LENDER_GOVERNANCE_ROLE,
-        ]);
-        await loanDesk.deployed();
-
-        await poolToken.connect(deployer).transferOwnership(lendingPool.address);
-        await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
-
-        SaplingContextCF = SaplingLendingPoolCF;
-        saplingContext = lendingPool;
+        e = await deployEnv();
+        p = await deployProtocol(e);
     });
 
     describe('Deployment', function () {
@@ -101,12 +31,12 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
             ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
 
             await expect(
-                upgrades.deployProxy(SaplingContextCF, [
+                upgrades.deployProxy(await ethers.getContractFactory('SaplingLendingPool'), [
                     poolToken2.address,
-                    liquidityToken.address,
-                    coreAccessControl.address,
-                    protocol.address,
-                    staker.address
+                    e.assetToken.address,
+                    p.accessControl.address,
+                    e.treasury.address,
+                    e.staker.address,
                 ]),
             ).to.be.not.reverted;
         });
@@ -114,12 +44,12 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
         describe('Rejection Scenarios', function () {
             it('Deploying with null access control address should fail', async function () {
                 await expect(
-                    upgrades.deployProxy(SaplingContextCF, [
-                        poolToken.address,
-                        liquidityToken.address,
+                    upgrades.deployProxy(await ethers.getContractFactory('SaplingLendingPool'), [
+                        p.poolToken.address,
+                        e.assetToken.address,
                         NULL_ADDRESS,
-                        protocol.address,
-                        staker.address
+                        e.treasury.address,
+                        e.staker.address,
                     ]),
                 ).to.be.reverted;
             });
@@ -129,54 +59,54 @@ describe('Sapling Context (via SaplingLendingPool)', function () {
     describe('Use Cases', function () {
         describe('Initial State', function () {
             it('Governance address is correct', async function () {
-                expect(await coreAccessControl.getRoleMember(GOVERNANCE_ROLE, 0)).to.equal(governance.address);
+                expect(await p.accessControl.getRoleMember(GOVERNANCE_ROLE, 0)).to.equal(e.governance.address);
             });
 
             it('Protocol wallet address is correct', async function () {
-                expect(await saplingContext.treasury()).to.equal(protocol.address);
+                expect(await p.pool.treasury()).to.equal(e.treasury.address);
             });
 
             it('Context is not paused', async function () {
-                expect(await saplingContext.paused()).to.equal(false);
+                expect(await p.pool.paused()).to.equal(false);
             });
         });
 
         describe('Pause', function () {
             it('Governance can pause', async function () {
-                await saplingContext.connect(governance).pause();
-                expect(await saplingContext.paused()).to.equal(true);
+                await p.pool.connect(e.governance).pause();
+                expect(await p.pool.paused()).to.equal(true);
             });
 
             describe('Rejection scenarios', function () {
                 it('Pausing when paused should fail', async function () {
-                    await saplingContext.connect(governance).pause();
-                    await expect(saplingContext.connect(governance).pause()).to.be.reverted;
+                    await p.pool.connect(e.governance).pause();
+                    await expect(p.pool.connect(e.governance).pause()).to.be.reverted;
                 });
 
                 it('Pausing as a non governance should fail', async function () {
-                    await expect(saplingContext.connect(addresses[0]).pause()).to.be.reverted;
+                    await expect(p.pool.connect(e.users[0]).pause()).to.be.reverted;
                 });
             });
         });
 
         describe('Resume', function () {
             beforeEach(async function () {
-                await saplingContext.connect(governance).pause();
+                await p.pool.connect(e.governance).pause();
             });
 
             it('Governance can resume', async function () {
-                await saplingContext.connect(governance).unpause();
-                expect(await saplingContext.paused()).to.equal(false);
+                await p.pool.connect(e.governance).unpause();
+                expect(await p.pool.paused()).to.equal(false);
             });
 
             describe('Rejection scenarios', function () {
                 it('Resuming when not paused should fail', async function () {
-                    await saplingContext.connect(governance).unpause();
-                    await expect(saplingContext.connect(governance).unpause()).to.be.reverted;
+                    await p.pool.connect(e.governance).unpause();
+                    await expect(p.pool.connect(e.governance).unpause()).to.be.reverted;
                 });
 
                 it('Resuming as a non governance should fail', async function () {
-                    await expect(saplingContext.connect(addresses[0]).unpause()).to.be.reverted;
+                    await expect(p.pool.connect(e.users[0]).unpause()).to.be.reverted;
                 });
             });
         });

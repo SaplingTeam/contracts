@@ -1,22 +1,14 @@
 const { expect } = require('chai');
 const { BigNumber } = require('ethers');
 const { ethers } = require('hardhat');
+const { TOKEN_DECIMALS, TOKEN_MULTIPLIER } = require('./utils/constants');
+const { snapshot, rollback } = require('./utils/evmControl');
 
 let evmSnapshotIds = [];
-
-async function snapshot() {
-    let id = await hre.network.provider.send('evm_snapshot');
-    evmSnapshotIds.push(id);
-}
-
-async function rollback() {
-    await hre.network.provider.send('evm_revert', [evmSnapshotIds.pop()]);
-}
 
 describe('Pool Token', function () {
     const NAME = 'Sapling Test Lending Pool Token';
     const SYMBOL = 'SLPT';
-    const TOKEN_DECIMALS = 6;
 
     let PoolTokenCF;
 
@@ -24,11 +16,11 @@ describe('Pool Token', function () {
     let addresses;
 
     beforeEach(async function () {
-        await snapshot();
+        await snapshot(evmSnapshotIds);
     });
 
     afterEach(async function () {
-        await rollback();
+        await rollback(evmSnapshotIds);
     });
 
     before(async function () {
@@ -47,13 +39,11 @@ describe('Pool Token', function () {
     describe('Use Cases', function () {
         let poolToken;
 
-        let TOKEN_MULTIPLIER;
         let mintAmount;
 
         before(async function () {
             poolToken = await PoolTokenCF.deploy(NAME, SYMBOL, TOKEN_DECIMALS);
 
-            TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
             mintAmount = BigNumber.from(500 + Math.floor(Math.random() * 500)).mul(TOKEN_MULTIPLIER);
         });
 
@@ -93,11 +83,11 @@ describe('Pool Token', function () {
             let burnAmount;
 
             after(async function () {
-                await rollback();
+                await rollback(evmSnapshotIds);
             });
 
             before(async function () {
-                await snapshot();
+                await snapshot(evmSnapshotIds);
 
                 await poolToken.connect(deployer).mint(addresses[0].address, mintAmount);
                 burnAmount = mintAmount.div(2);

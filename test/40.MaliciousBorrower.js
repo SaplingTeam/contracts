@@ -1,109 +1,38 @@
 const { expect } = require('chai');
 const { BigNumber } = require('ethers');
 const { ethers, upgrades } = require('hardhat');
-const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
+const { TOKEN_DECIMALS, TOKEN_MULTIPLIER, NIL_UUID, NIL_DIGEST } = require('./utils/constants');
+const { mintAndApprove } = require('./utils/helpers');
+const { rollback, snapshot, skipEvmTime } = require('./utils/evmControl');
+const { deployEnv, deployProtocol } = require('./utils/deployer');
 
 let evmSnapshotIds = [];
 
-async function snapshot() {
-    let id = await hre.network.provider.send('evm_snapshot');
-    evmSnapshotIds.push(id);
-}
-
-async function rollback() {
-    let id = evmSnapshotIds.pop();
-    await hre.network.provider.send('evm_revert', [id]);
-}
-
 describe('Attack Sapling Lending Pool', function () {
-    const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
-    const TOKEN_DECIMALS = 6;
-
-    const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
-    const GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("GOVERNANCE_ROLE"));
-    const TREASURY_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("TREASURY_ROLE"));
-    const PAUSER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("PAUSER_ROLE"));
-    const POOL_1_LENDER_GOVERNANCE_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("POOL_1_LENDER_GOVERNANCE_ROLE"));
-
-    let coreAccessControl;
-
-    let SaplingLendingPoolCF;
-    let liquidityToken;
-    let poolToken;
-    let loanDesk;
     let saplingMath;
 
-    let deployer;
-    let governance;
-    let lenderGovernance;
-    let protocol;
-    let staker;
-    let addresses;
+    let e; // initialized environment metadata
+    let p; // deployed protocol metadata
 
     beforeEach(async function () {
-        await snapshot();
+        await snapshot(evmSnapshotIds);
     });
 
     afterEach(async function () {
-        await rollback();
+        await rollback(evmSnapshotIds);
     });
 
     before(async function () {
-        [deployer, governance, lenderGovernance, protocol, staker, ...addresses] = await ethers.getSigners();
-
-        let CoreAccessControlCF = await ethers.getContractFactory('CoreAccessControl');
-        coreAccessControl = await CoreAccessControlCF.deploy();
-
-        await coreAccessControl.connect(deployer).grantRole(DEFAULT_ADMIN_ROLE, governance.address);
-        await coreAccessControl.connect(deployer).renounceRole(DEFAULT_ADMIN_ROLE, deployer.address);
-
-        await coreAccessControl.connect(governance).grantRole(GOVERNANCE_ROLE, governance.address);
-        await coreAccessControl.connect(governance).grantRole(TREASURY_ROLE, protocol.address);
-        await coreAccessControl.connect(governance).grantRole(PAUSER_ROLE, governance.address);
-
-        await coreAccessControl.connect(governance).grantRole(POOL_1_LENDER_GOVERNANCE_ROLE, lenderGovernance.address);
-
-        SaplingLendingPoolCF = await ethers.getContractFactory('SaplingLendingPool');
-        let LoanDeskCF = await ethers.getContractFactory('LoanDesk');
-
-        liquidityToken = await (
-            await ethers.getContractFactory('PoolToken')
-        ).deploy('Test USDC', 'TestUSDC', TOKEN_DECIMALS);
-
-        poolToken = await (
-            await ethers.getContractFactory('PoolToken')
-        ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
-
-        lendingPool = await upgrades.deployProxy(SaplingLendingPoolCF, [
-            poolToken.address,
-            liquidityToken.address,
-            coreAccessControl.address,
-            protocol.address,
-            staker.address
-        ]);
-        await lendingPool.deployed();
-
-        loanDesk = await upgrades.deployProxy(LoanDeskCF, [
-            lendingPool.address,
-            liquidityToken.address,
-            coreAccessControl.address,
-            staker.address,
-            POOL_1_LENDER_GOVERNANCE_ROLE,
-        ]);
-        await loanDesk.deployed();
-
-        await poolToken.connect(deployer).transferOwnership(lendingPool.address);
-        await lendingPool.connect(governance).setLoanDesk(loanDesk.address);
+        e = await deployEnv();
+        p = await deployProtocol(e);
 
         saplingMath = await (await ethers.getContractFactory('SaplingMath')).deploy();
 
-        let initialMintAmount = 10 ** TOKEN_DECIMALS;
-        await liquidityToken.connect(deployer).mint(staker.address, initialMintAmount);
-        await liquidityToken.connect(staker).approve(lendingPool.address, initialMintAmount);
-        await lendingPool.connect(staker).initialMint();
+        await mintAndApprove(e.assetToken, e.deployer, e.staker, p.pool.address, 10 ** TOKEN_DECIMALS);
+        await p.pool.connect(e.staker).initialMint();
 
-        await lendingPool.connect(staker).open();
-        await loanDesk.connect(staker).open();
+        await p.pool.connect(e.staker).open();
+        await p.loanDesk.connect(e.staker).open();
     });
 
     describe('Deployment', function () {
@@ -113,12 +42,12 @@ describe('Attack Sapling Lending Pool', function () {
             ).deploy('Sapling Test Lending Pool Token', 'SLPT', TOKEN_DECIMALS);
 
             await expect(
-                upgrades.deployProxy(SaplingLendingPoolCF, [
+                upgrades.deployProxy(await ethers.getContractFactory('SaplingLendingPool'), [
                     poolToken2.address,
-                    liquidityToken.address,
-                    coreAccessControl.address,
-                    protocol.address,
-                    staker.address
+                    e.assetToken.address,
+                    p.accessControl.address,
+                    e.treasury.address,
+                    e.staker.address,
                 ]),
             ).to.be.not.reverted;
         });
@@ -135,7 +64,6 @@ describe('Attack Sapling Lending Pool', function () {
         };
 
         let PERCENT_DECIMALS;
-        let TOKEN_MULTIPLIER;
         let ONE_HUNDRED_PERCENT;
         let exitFeePercent;
 
@@ -154,16 +82,15 @@ describe('Attack Sapling Lending Pool', function () {
 
         before(async function () {
             PERCENT_DECIMALS = await saplingMath.PERCENT_DECIMALS();
-            TOKEN_MULTIPLIER = BigNumber.from(10).pow(TOKEN_DECIMALS);
             ONE_HUNDRED_PERCENT = await saplingMath.HUNDRED_PERCENT();
-            exitFeePercent = (await lendingPool.config()).exitFeePercent;
+            exitFeePercent = (await p.pool.config()).exitFeePercent;
 
-            lender1 = addresses[1];
-            lender2 = addresses[2];
-            lender3 = addresses[3];
+            lender1 = e.users[1];
+            lender2 = e.users[2];
+            lender3 = e.users[3];
 
-            borrower1 = addresses[4];
-            borrower2 = addresses[5];
+            borrower1 = e.users[4];
+            borrower2 = e.users[5];
 
             stakeAmount = BigNumber.from(2000).mul(TOKEN_MULTIPLIER);
             unstakeAmount = BigNumber.from(500).mul(TOKEN_MULTIPLIER);
@@ -172,45 +99,36 @@ describe('Attack Sapling Lending Pool', function () {
             loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
             loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
 
-            await liquidityToken.connect(deployer).mint(staker.address, stakeAmount);
-            await liquidityToken.connect(staker).approve(lendingPool.address, stakeAmount);
-            await lendingPool.connect(staker).stake(stakeAmount);
+            await mintAndApprove(e.assetToken, e.deployer, e.staker, p.pool.address, stakeAmount);
+            await p.pool.connect(e.staker).stake(stakeAmount);
 
-            await liquidityToken.connect(deployer).mint(lender1.address, depositAmount);
-            await liquidityToken.connect(lender1).approve(lendingPool.address, depositAmount);
-            await lendingPool.connect(lender1).deposit(depositAmount);
+            await mintAndApprove(e.assetToken, e.deployer, lender1, p.pool.address, depositAmount);
+            await p.pool.connect(lender1).deposit(depositAmount);
             let initialBalance = BigNumber.from(1e12).mul(TOKEN_MULTIPLIER);
-            await liquidityToken.connect(deployer).mint(borrower1.address, initialBalance);
+            await e.assetToken.connect(e.deployer).mint(borrower1.address, initialBalance);
         });
 
         describe('Malicious Borrower', function () {
             let applicationId;
 
             after(async function () {
-                await rollback();
+                await rollback(evmSnapshotIds);
             });
 
             before(async function () {
-                await snapshot();
+                await snapshot(evmSnapshotIds);
 
-                gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
+                gracePeriod = (await p.loanDesk.loanTemplate()).gracePeriod;
                 installments = 1;
-                apr = (await loanDesk.loanTemplate()).apr;
+                apr = (await p.loanDesk.loanTemplate()).apr;
 
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
-                await loanDesk
-                    .connect(borrower1)
-                    .requestLoan(
-                        loanAmount,
-                        loanDuration,
-                        'a937074e-85a7-42a9-b858-9795d9471759',
-                        '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
-                    );
-                applicationId = await loanDesk.recentApplicationIdOf(borrower1.address);
-                application = await loanDesk.loanApplications(applicationId);
-                await loanDesk
-                    .connect(staker)
+                await p.loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST);
+                applicationId = await p.loanDesk.recentApplicationIdOf(borrower1.address);
+                application = await p.loanDesk.loanApplications(applicationId);
+                await p.loanDesk
+                    .connect(e.staker)
                     .draftOffer(
                         applicationId,
                         application.amount,
@@ -220,96 +138,87 @@ describe('Attack Sapling Lending Pool', function () {
                         installments,
                         apr,
                     );
-                await loanDesk.connect(staker).lockDraftOffer(applicationId);
-                await ethers.provider.send('evm_increaseTime', [2*24*60*60 + 1]);
-                await ethers.provider.send('evm_mine');
-                await loanDesk.connect(staker).offerLoan(applicationId);
+                await p.loanDesk.connect(e.staker).lockDraftOffer(applicationId);
+                await skipEvmTime(2 * 24 * 60 * 60 + 1);
+                await p.loanDesk.connect(e.staker).offerLoan(applicationId);
             });
 
             it('Revert If Borrow Twice Same Block', async function () {
                 //get initial loans count to check only 1 loan object was created
-                let prevLoansCount = await loanDesk.loansCount();
+                let prevLoansCount = await p.loanDesk.loansCount();
 
-                let balanceBefore = await liquidityToken.balanceOf(borrower1.address);
+                let balanceBefore = await e.assetToken.balanceOf(borrower1.address);
                 //turn of automining before write tx to keep the block open for the next call
-                await ethers.provider.send("evm_setAutomine", [false]);
-                await loanDesk.connect(borrower1).borrow(applicationId);
+                await ethers.provider.send('evm_setAutomine', [false]);
+                await p.loanDesk.connect(borrower1).borrow(applicationId);
                 let loanId = 1; //predict ID, automine is off
 
                 //tun automining back on to prevent deadlock as expect() will hang until block is finalized
-                await ethers.provider.send("evm_setAutomine", [true]);
-                await expect(loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
+                await ethers.provider.send('evm_setAutomine', [true]);
+                await expect(p.loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
 
                 // check that only 1 new loan object was created
-                expect(await loanDesk.loansCount()).to.equal(prevLoansCount.add(1));
+                expect(await p.loanDesk.loansCount()).to.equal(prevLoansCount.add(1));
 
                 //get the loan after the block is mined, as the committed block
-                let loan = await loanDesk.loans(loanId);
+                let loan = await p.loanDesk.loans(loanId);
 
-                expect(await liquidityToken.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
+                expect(await e.assetToken.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
             });
 
             it('Revert If Borrow Twice Slow', async function () {
-                let balanceBefore = await liquidityToken.balanceOf(borrower1.address);
-                let tx = await loanDesk.connect(borrower1).borrow(applicationId);
+                let balanceBefore = await e.assetToken.balanceOf(borrower1.address);
+                let tx = await p.loanDesk.connect(borrower1).borrow(applicationId);
                 let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
-                let loan = await loanDesk.loans(loanId);
-                await ethers.provider.send('evm_increaseTime', [loan.duration.toNumber()]);
-                await ethers.provider.send('evm_mine');
-                await expect(loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
-                expect(await liquidityToken.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
+                let loan = await p.loanDesk.loans(loanId);
+                await skipEvmTime(loan.duration.toNumber());
+                await expect(p.loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
+                expect(await e.assetToken.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
             });
 
             it('Revert If Borrow Repay Borrow', async function () {
-                let tx = await loanDesk.connect(borrower1).borrow(applicationId);
+                let tx = await p.loanDesk.connect(borrower1).borrow(applicationId);
                 let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
-                let paymentAmount = (await loanDesk.loanBalanceDue(loanId));
-                await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
-                await expect(loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
+                let paymentAmount = await p.loanDesk.loanBalanceDue(loanId);
+                await e.assetToken.connect(borrower1).approve(p.pool.address, paymentAmount);
+                await p.loanDesk.connect(borrower1).repay(loanId, paymentAmount);
+                await expect(p.loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
             });
 
             it('Revert If Borrow Repay Half Borrow', async function () {
-                let tx = await loanDesk.connect(borrower1).borrow(applicationId);
+                let tx = await p.loanDesk.connect(borrower1).borrow(applicationId);
                 let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
-                let paymentAmount = (await loanDesk.loanBalanceDue(loanId)).div(2);
-                await liquidityToken.connect(borrower1).approve(lendingPool.address, paymentAmount);
-                await loanDesk.connect(borrower1).repay(loanId, paymentAmount);
-                await expect(loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
+                let paymentAmount = (await p.loanDesk.loanBalanceDue(loanId)).div(2);
+                await e.assetToken.connect(borrower1).approve(p.pool.address, paymentAmount);
+                await p.loanDesk.connect(borrower1).repay(loanId, paymentAmount);
+                await expect(p.loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
             });
 
             it('Revert If Request Loan Twice', async function () {
-                gracePeriod = (await loanDesk.loanTemplate()).gracePeriod;
+                gracePeriod = (await p.loanDesk.loanTemplate()).gracePeriod;
                 installments = 1;
-                apr = (await loanDesk.loanTemplate()).apr;
+                apr = (await p.loanDesk.loanTemplate()).apr;
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
-                await expect(loanDesk
-                    .connect(borrower1)
-                    .requestLoan(
-                        loanAmount,
-                        loanDuration,
-                        'a937074e-85a7-42a9-b858-9795d9471759',
-                        '6ed20e4f9a1c7827f58bf833d47a074cdbfa8773f21c1081186faba1569ddb29',
-                    )).to.be.reverted;
+                await expect(p.loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST))
+                    .to.be.reverted;
             });
 
             it('Check Repayment Math', async function () {
-                const quickFuzz = [10,20,30,40,50,60,70,80,90,100,249];
+                const quickFuzz = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 249];
 
-                let tx = await loanDesk.connect(borrower1).borrow(applicationId);
+                let tx = await p.loanDesk.connect(borrower1).borrow(applicationId);
                 let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
 
-                await ethers.provider.send('evm_increaseTime', [60]);
-                await ethers.provider.send('evm_mine');
+                await skipEvmTime(60);
 
-                let balanceSimulated = await loanDesk.loanBalanceDue(loanId);
+                let balanceSimulated = await p.loanDesk.loanBalanceDue(loanId);
 
                 for (let i = 0; i < quickFuzz.length; i++) {
                     const multiAmount = BigNumber.from(quickFuzz[i]).mul(TOKEN_MULTIPLIER);
-                    await liquidityToken.connect(borrower1).approve(lendingPool.address, multiAmount);
-                    await loanDesk.connect(borrower1).repay(loanId, multiAmount);
-                    let balanceOutstanding = await loanDesk.loanBalanceDue(loanId);
+                    await e.assetToken.connect(borrower1).approve(p.pool.address, multiAmount);
+                    await p.loanDesk.connect(borrower1).repay(loanId, multiAmount);
+                    let balanceOutstanding = await p.loanDesk.loanBalanceDue(loanId);
                     balanceSimulated = balanceSimulated.sub(multiAmount);
                     expect(balanceOutstanding).to.equal(balanceSimulated);
                 }
