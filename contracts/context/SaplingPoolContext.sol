@@ -708,7 +708,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     /**
      * @dev External accessor for library level percent decimals.
      */
-    function percentDecimals() external view returns (uint8) {
+    function percentDecimals() external pure returns (uint8) {
         return SaplingMath.PERCENT_DECIMALS;
     }
 
