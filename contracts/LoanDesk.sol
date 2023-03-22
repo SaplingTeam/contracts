@@ -472,6 +472,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
     function cancelLoan(uint256 appId) external whenNotPaused {
         /// check
         require(appId != 0, "LoanDesk: invalid id");
+        require(loanApplications[appId].id == appId, "LoanDesk: not found");
         LoanApplicationStatus status = loanApplications[appId].status;
         require(
             status == LoanApplicationStatus.OFFER_DRAFTED 
