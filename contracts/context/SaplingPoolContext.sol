@@ -645,7 +645,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         require(_stakedTokens <= _totalPoolTokens, "SaplingPoolContext: invalid _stakedTokens");
         require(_strategizedFunds <= _poolFunds, "SaplingPoolContext: invalid _strategizedFunds");
         require(
-            _protocolFeePercent <= SaplingMath.HUNDRED_PERCENT,
+            _protocolFeePercent <= SaplingMath.MAX_PROTOCOL_FEE_PERCENT,
             "SaplingPoolContext: invalid _protocolFeePercent"
         );
         require(
