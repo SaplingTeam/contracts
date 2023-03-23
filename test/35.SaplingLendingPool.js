@@ -690,12 +690,12 @@ describe('Sapling Lending Pool', function () {
                         expectEqualsWithinMargin(
                             await p.pool.poolFunds(),
                             poolFundsBefore.sub(lossAmount),
-                            TOKEN_MULTIPLIER,
+                            BigNumber.from(2),
                         );
                         expectEqualsWithinMargin(
                             await p.pool.balanceStaked(),
                             stakedBalanceBefore.sub(stakerLoss),
-                            TOKEN_MULTIPLIER,
+                            BigNumber.from(2),
                         );
                     });
 
