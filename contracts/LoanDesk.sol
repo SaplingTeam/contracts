@@ -848,7 +848,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         Loan storage loan = loans[loanId];
         LoanDetail storage detail = loanDetails[loanId];
 
-        uint256 daysPassed = countInterestDays(detail.interestPaidTillTime, block.timestamp);
+        uint256 daysPassed = countInterestDays(loan.borrowedTime, detail.interestPaidTillTime);
         uint256 interestPercent = MathUpgradeable.mulDiv(uint256(loan.apr) * 1e18, daysPassed, 365);
 
         uint256 principalOutstanding = loan.amount - detail.principalAmountRepaid;
@@ -921,18 +921,34 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
     /**
      * @notice Get the number of days in a time period to witch an interest can be applied.
-     * @dev Returns the floor of the count, but not less than 1.
-     * @param timeFrom Epoch timestamp of the start of the time period.
-     * @param timeTo Epoch timestamp of the end of the time period.
-     * @return Ceil count of days in a time period to witch an interest can be applied.
+     * @dev Returns the floor of the unix day count, but not less than 1.
+     * @param borrowedTime Block timestamp of the loan borrowed time.
+     * @param interestPaidTillTime Block timestamp up to which the interest is paid for.
+     * @return Floor count of unix day in a time period to witch an interest can be applied.
      */
-    function countInterestDays(uint256 timeFrom, uint256 timeTo) private pure returns(uint256) {
-        if (timeTo <= timeFrom) {
+    function countInterestDays(uint256 borrowedTime, uint256 interestPaidTillTime) private view returns(uint256) {
+        uint256 unixDay = block.timestamp / 86400;
+        uint256 interestPaidUnixDay = interestPaidTillTime / 86400;
+        if (unixDay < interestPaidUnixDay) {
+            /*
+             No interest to be charged if current unixDay is less than interestPaidUnixDay,
+             which will be the case on the second payment being made on the same day of borrowing.
+
+             Not charging interest for the seconds payment on the same day is expected as the first payment
+             must be at least the full daily interest amount.
+             */
             return 0;
         }
 
-        // interest acquiring days are the floor of the past days but not less than 1
-        return MathUpgradeable.max((timeTo - timeFrom) / 86400, 1);
+        if (borrowedTime / 86400 == unixDay) {
+            /*
+             Minimum of one day interest is required while on the same unix day as borrow,
+             if the first day's interest is not already accounted for (handled by the first if clause).
+            */
+            return 1;
+        }
+
+        return unixDay - interestPaidUnixDay;
     }
 
     /**
