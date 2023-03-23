@@ -413,26 +413,6 @@ _For use in all cases except for defaults. Use fundsToSharesBase for default cal
 | ---- | ---- | ----------- |
 | [0] | uint256 | Converted pool token value |
 
-### fundsToSharesBase
-
-```solidity
-function fundsToSharesBase(uint256 funds, bool isDefault) internal view returns (uint256)
-```
-
-Get share value of funds.
-
-_Setting the isDefault flag will allow conversion avoiding divide by zero error,
-     replacing the denominator with 1._
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| funds | uint256 | Amount of liquidity tokens |
-| isDefault | bool | whether or not the call if for calculation for a default |
-
-| Name | Type | Description |
-| ---- | ---- | ----------- |
-| [0] | uint256 | Converted pool token value |
-
 ### maintainsStakeRatio
 
 ```solidity
@@ -539,7 +519,7 @@ _Checks if given values of total shares and funds maintain acceptable conversion
 ### percentDecimals
 
 ```solidity
-function percentDecimals() external view returns (uint8)
+function percentDecimals() external pure returns (uint8)
 ```
 
 _External accessor for library level percent decimals._

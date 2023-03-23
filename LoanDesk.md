@@ -555,21 +555,21 @@ Loan balances payable given a max payment amount.
 ### countInterestDays
 
 ```solidity
-function countInterestDays(uint256 timeFrom, uint256 timeTo) private pure returns (uint256)
+function countInterestDays(uint256 borrowedTime, uint256 interestPaidTillTime) private view returns (uint256)
 ```
 
 Get the number of days in a time period to witch an interest can be applied.
 
-_Returns the floor of the count, but not less than 1._
+_Returns the floor of the unix day count, but not less than 1._
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| timeFrom | uint256 | Epoch timestamp of the start of the time period. |
-| timeTo | uint256 | Epoch timestamp of the end of the time period. |
+| borrowedTime | uint256 | Block timestamp of the loan borrowed time. |
+| interestPaidTillTime | uint256 | Block timestamp up to which the interest is paid for. |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| [0] | uint256 | Ceil count of days in a time period to witch an interest can be applied. |
+| [0] | uint256 | Floor count of unix day in a time period to witch an interest can be applied. |
 
 ### canClose
 
@@ -602,7 +602,7 @@ _Overrides a hook in SaplingStakerContext._
 ### percentDecimals
 
 ```solidity
-function percentDecimals() external view returns (uint8)
+function percentDecimals() external pure returns (uint8)
 ```
 
 _External accessor for library level percent decimals._

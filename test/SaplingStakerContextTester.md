@@ -37,6 +37,22 @@ function isNonUserAddressWrapper(address party) external view returns (bool)
 
 _Wrapper for an internal function_
 
+### canCloseWrapper
+
+```solidity
+function canCloseWrapper() external view returns (bool)
+```
+
+_Wrapper for an internal function_
+
+### canOpenWrapper
+
+```solidity
+function canOpenWrapper() external view returns (bool)
+```
+
+_Wrapper for an internal function_
+
 ### someOnlyUserFunction
 
 ```solidity
