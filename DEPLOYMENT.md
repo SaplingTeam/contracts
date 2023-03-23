@@ -11,6 +11,7 @@ Custom use cases may require a different deployment configuration. A deployment 
       2. Upgrader address or multisig
       3. Deployer address
       4. Staker address
+      5. Treasury address
    2. Steps:
       1. Deploy CoreAccessControl.sol; Example: scripts/access_control/deploy.js
       2. Verify access control
@@ -25,10 +26,10 @@ Custom use cases may require a different deployment configuration. A deployment 
    6. Set upgrader as the owner of the proxy admin
 
 3. Lender voting
-   2. Deploy LenderVotes (Govenor). Example: scripts/govenor/deploy.js
+   1. Deploy LenderVotes (Govenor). Example: scripts/govenor/deploy.js
 
-4. Configure Core access control: assign pool specific staker and lender governance roles. Example: scripts/access_control/configure.pool.js
+4. Configure Core access control: assign pool specific lender governance roles. Example: scripts/access_control/configure.pool.js
 
 5. Verify all deployed contracts upon deployment.
 
-6. Lending pool and loan desk start in a closed state. Staker must call open() on each contract to enable the pool.
+6. Lending pool and loan desk start in a closed state. Staker must call initalMint() on the lending pool, and open() on each contract to enable the pool.

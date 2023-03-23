@@ -38,12 +38,10 @@ Then update the values accordingly in `.env`
 
 - Run unit tests: `npm run test`
 - Run unit tests with coverage report: `npm run coverage` 
-- Check contracts code style: `npm run check`
-- Autoformat all unit test code: `npm run pretty-tests`
 
 ### Deployment
 
-See [DEPLOYMENT.md](DEPLOYMENT.md)
+See [DEPLOYMENT](DEPLOYMENT.md) for a sample guide. Plan and test production deployments on case by case basis. 
 
 ## Contributing
 
