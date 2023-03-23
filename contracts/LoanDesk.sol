@@ -323,7 +323,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         require(
             ILendingPool(config.pool).canOffer(_amount),
-            "LoanDesk: lending pool cannot offer this loan at this time"
+            "LoanDesk: pool cannot offer this loan at this time"
         );
 
         //// effect
@@ -472,6 +472,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
     function cancelLoan(uint256 appId) external whenNotPaused {
         /// check
         require(appId != 0, "LoanDesk: invalid id");
+        require(loanApplications[appId].id == appId, "LoanDesk: not found");
         LoanApplicationStatus status = loanApplications[appId].status;
         require(
             status == LoanApplicationStatus.OFFER_DRAFTED 
@@ -486,7 +487,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             require(
                 hasRole(config.lenderGovernanceRole, msg.sender) && status == LoanApplicationStatus.OFFER_DRAFT_LOCKED
                 && block.timestamp < offer.lockedTime + SaplingMath.LOAN_LOCK_PERIOD,
-                    "SaplingContext: unauthorized"
+                "LoanDesk: unauthorized"
             );
         }
 
@@ -506,26 +507,31 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      *      The loan must be in OFFER_MADE status.
      * @param appId ID of the loan application to accept the offer of
      */
-    function borrow(uint256 appId) external whenNotClosed whenNotPaused nonReentrant updatedState {
-
+    function borrow(
+        uint256 appId
+    )
+        external
+        whenNotClosed
+        whenNotPaused
+        nonReentrant
+        applicationInStatus(appId, ILoanDesk.LoanApplicationStatus.OFFER_MADE)
+        updatedState
+    {
         //// check
-
-        LoanApplication storage app = loanApplications[appId];
-        require(app.status == ILoanDesk.LoanApplicationStatus.OFFER_MADE, "LoanDesk: invalid offer status");
 
         LoanOffer storage offer = loanOffers[appId];
         require(offer.borrower == msg.sender, "LoanDesk: msg.sender is not the borrower on this loan");
 
         //// effect
 
-        app.status = LoanApplicationStatus.OFFER_ACCEPTED;
+        loanApplications[appId].status = LoanApplicationStatus.OFFER_ACCEPTED;
 
         uint256 offerAmount = offer.amount;
 
         uint256 prevBorrowedFunds = lentFunds;
         lentFunds += offerAmount;
 
-        emit LoanOfferAccepted(appId, app.borrower, offerAmount);
+        emit LoanOfferAccepted(appId, msg.sender, offerAmount);
 
         uint256 loanId = nextLoanId;
         nextLoanId++;
@@ -653,10 +659,10 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         Loan storage loan = loans[loanId];
         require(
             loan.id == loanId && loan.status == LoanStatus.OUTSTANDING,
-            "SaplingLendingPool: not found or invalid loan status"
+            "LoanDesk: not found or invalid loan status"
         );
 
-        require(amount > 0, "SaplingLendingPool: invalid amount");
+        require(amount > 0, "LoanDesk: invalid amount");
 
         (
             uint256 transferAmount,
@@ -665,7 +671,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         ) = payableLoanBalance(loanId, amount);
 
         // check transferable amount, zero transferable amount means the payment 'amount' was less than 1 day interest
-        require(transferAmount > 0, "SaplingLendingPool: invalid amount - increase to daily interest");
+        require(transferAmount > 0, "LoanDesk: invalid amount - increase to daily interest");
 
         //// effect
 
@@ -842,7 +848,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         Loan storage loan = loans[loanId];
         LoanDetail storage detail = loanDetails[loanId];
 
-        uint256 daysPassed = countInterestDays(detail.interestPaidTillTime, block.timestamp);
+        uint256 daysPassed = countInterestDays(loan.borrowedTime, detail.interestPaidTillTime);
         uint256 interestPercent = MathUpgradeable.mulDiv(uint256(loan.apr) * 1e18, daysPassed, 365);
 
         uint256 principalOutstanding = loan.amount - detail.principalAmountRepaid;
@@ -915,18 +921,34 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
     /**
      * @notice Get the number of days in a time period to witch an interest can be applied.
-     * @dev Returns the floor of the count, but not less than 1.
-     * @param timeFrom Epoch timestamp of the start of the time period.
-     * @param timeTo Epoch timestamp of the end of the time period.
-     * @return Ceil count of days in a time period to witch an interest can be applied.
+     * @dev Returns the floor of the unix day count, but not less than 1.
+     * @param borrowedTime Block timestamp of the loan borrowed time.
+     * @param interestPaidTillTime Block timestamp up to which the interest is paid for.
+     * @return Floor count of unix day in a time period to witch an interest can be applied.
      */
-    function countInterestDays(uint256 timeFrom, uint256 timeTo) private pure returns(uint256) {
-        if (timeTo <= timeFrom) {
+    function countInterestDays(uint256 borrowedTime, uint256 interestPaidTillTime) private view returns(uint256) {
+        uint256 unixDay = block.timestamp / 86400;
+        uint256 interestPaidUnixDay = interestPaidTillTime / 86400;
+        if (unixDay < interestPaidUnixDay) {
+            /*
+             No interest to be charged if current unixDay is less than interestPaidUnixDay,
+             which will be the case on the second payment being made on the same day of borrowing.
+
+             Not charging interest for the seconds payment on the same day is expected as the first payment
+             must be at least the full daily interest amount.
+             */
             return 0;
         }
 
-        // interest acquiring days are the floor of the past days but not less than 1
-        return MathUpgradeable.max((timeTo - timeFrom) / 86400, 1);
+        if (borrowedTime / 86400 == unixDay) {
+            /*
+             Minimum of one day interest is required while on the same unix day as borrow,
+             if the first day's interest is not already accounted for (handled by the first if clause).
+            */
+            return 1;
+        }
+
+        return unixDay - interestPaidUnixDay;
     }
 
     /**
@@ -950,7 +972,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
     /**
      * @dev External accessor for library level percent decimals.
      */
-    function percentDecimals() external view returns (uint8) {
+    function percentDecimals() external pure returns (uint8) {
         return SaplingMath.PERCENT_DECIMALS;
     }
 }

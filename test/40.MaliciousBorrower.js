@@ -155,7 +155,9 @@ describe('Attack Sapling Lending Pool', function () {
 
                 //tun automining back on to prevent deadlock as expect() will hang until block is finalized
                 await ethers.provider.send('evm_setAutomine', [true]);
-                await expect(p.loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
+                await expect(p.loanDesk.connect(borrower1).borrow(applicationId)).to.be.revertedWith(
+                    'LoanDesk: invalid status',
+                );
 
                 // check that only 1 new loan object was created
                 expect(await p.loanDesk.loansCount()).to.equal(prevLoansCount.add(1));
@@ -172,7 +174,9 @@ describe('Attack Sapling Lending Pool', function () {
                 let loanId = (await tx.wait()).events.filter((e) => e.event === 'LoanBorrowed')[0].args.loanId;
                 let loan = await p.loanDesk.loans(loanId);
                 await skipEvmTime(loan.duration.toNumber());
-                await expect(p.loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
+                await expect(p.loanDesk.connect(borrower1).borrow(applicationId)).to.be.revertedWith(
+                    'LoanDesk: invalid status',
+                );
                 expect(await e.assetToken.balanceOf(borrower1.address)).to.equal(balanceBefore.add(loan.amount));
             });
 
@@ -182,7 +186,9 @@ describe('Attack Sapling Lending Pool', function () {
                 let paymentAmount = await p.loanDesk.loanBalanceDue(loanId);
                 await e.assetToken.connect(borrower1).approve(p.pool.address, paymentAmount);
                 await p.loanDesk.connect(borrower1).repay(loanId, paymentAmount);
-                await expect(p.loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
+                await expect(p.loanDesk.connect(borrower1).borrow(applicationId)).to.be.revertedWith(
+                    'LoanDesk: invalid status',
+                );
             });
 
             it('Revert If Borrow Repay Half Borrow', async function () {
@@ -191,7 +197,9 @@ describe('Attack Sapling Lending Pool', function () {
                 let paymentAmount = (await p.loanDesk.loanBalanceDue(loanId)).div(2);
                 await e.assetToken.connect(borrower1).approve(p.pool.address, paymentAmount);
                 await p.loanDesk.connect(borrower1).repay(loanId, paymentAmount);
-                await expect(p.loanDesk.connect(borrower1).borrow(applicationId)).to.be.reverted;
+                await expect(p.loanDesk.connect(borrower1).borrow(applicationId)).to.be.revertedWith(
+                    'LoanDesk: invalid status',
+                );
             });
 
             it('Revert If Request Loan Twice', async function () {
@@ -200,8 +208,9 @@ describe('Attack Sapling Lending Pool', function () {
                 apr = (await p.loanDesk.loanTemplate()).apr;
                 let loanAmount = BigNumber.from(1000).mul(TOKEN_MULTIPLIER);
                 let loanDuration = BigNumber.from(365).mul(24 * 60 * 60);
-                await expect(p.loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST))
-                    .to.be.reverted;
+                await expect(
+                    p.loanDesk.connect(borrower1).requestLoan(loanAmount, loanDuration, NIL_UUID, NIL_DIGEST),
+                ).to.be.revertedWith('LoanDesk: another loan application is pending');
             });
 
             it('Check Repayment Math', async function () {

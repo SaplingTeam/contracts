@@ -68,11 +68,13 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
             describe('Rejection scenarios', function () {
                 it('Closing the pool when closed should fail', async function () {
                     await p.pool.connect(e.staker).close();
-                    await expect(p.pool.connect(e.staker).close()).to.be.reverted;
+                    await expect(p.pool.connect(e.staker).close()).to.be.revertedWith('SaplingStakerContext: closed');
                 });
 
                 it('Closing the pool as a non staker should fail', async function () {
-                    await expect(p.pool.connect(e.users[0]).close()).to.be.reverted;
+                    await expect(p.pool.connect(e.users[0]).close()).to.be.revertedWith(
+                        'SaplingStakerContext: unauthorized',
+                    );
                 });
             });
         });
@@ -89,7 +91,9 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
 
             describe('Rejection scenarios', function () {
                 it('Opening without initial mint should fail', async function () {
-                    await expect(p.pool.connect(e.staker).open()).to.be.reverted;
+                    await expect(p.pool.connect(e.staker).open()).to.be.revertedWith(
+                        'SaplingStakerContext: cannot open the pool under current conditions',
+                    );
                 });
 
                 it('Opening when not closed should fail', async function () {
@@ -98,7 +102,9 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
                     await p.pool.connect(e.staker).initialMint();
 
                     await p.pool.connect(e.staker).open();
-                    await expect(p.pool.connect(e.staker).open()).to.be.reverted;
+                    await expect(p.pool.connect(e.staker).open()).to.be.revertedWith(
+                        'SaplingStakerContext: not closed',
+                    );
                 });
 
                 it('Opening as a non staker should fail', async function () {
@@ -106,7 +112,48 @@ describe('Sapling Staker Context (via SaplingLendingPool)', function () {
                     await mintAndApprove(e.assetToken, e.deployer, e.staker, p.pool.address, initialMintAmount);
                     await p.pool.connect(e.staker).initialMint();
 
-                    await expect(p.pool.connect(e.users[0]).open()).to.be.reverted;
+                    await expect(p.pool.connect(e.users[0]).open()).to.be.revertedWith(
+                        'SaplingStakerContext: unauthorized',
+                    );
+                });
+            });
+        });
+
+        describe('Set staker', function () {
+            it('Governance can set a new staker', async function () {
+                await p.pool.connect(e.governance).setStaker(e.users[0].address);
+                expect(await p.pool.staker()).to.equal(e.users[0].address);
+            });
+
+            describe('Rejection scenarios', function () {
+                it('Staker cannot set a new staker', async function () {
+                    await expect(p.pool.connect(e.staker).setStaker(e.users[0].address)).to.be.revertedWith(
+                        'SaplingContext: unauthorized',
+                    );
+                });
+
+                it('Treasury cannot set a new staker', async function () {
+                    await expect(p.pool.connect(e.treasury).setStaker(e.users[0].address)).to.be.revertedWith(
+                        'SaplingContext: unauthorized',
+                    );
+                });
+
+                it('pauser cannot set a new staker', async function () {
+                    await expect(p.pool.connect(e.pauser).setStaker(e.users[0].address)).to.be.revertedWith(
+                        'SaplingContext: unauthorized',
+                    );
+                });
+
+                it('Deployer cannot set a new staker', async function () {
+                    await expect(p.pool.connect(e.deployer).setStaker(e.users[0].address)).to.be.revertedWith(
+                        'SaplingContext: unauthorized',
+                    );
+                });
+
+                it('User cannot set a new staker', async function () {
+                    await expect(p.pool.connect(e.users[1]).setStaker(e.users[0].address)).to.be.revertedWith(
+                        'SaplingContext: unauthorized',
+                    );
                 });
             });
         });

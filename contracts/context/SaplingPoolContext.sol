@@ -312,7 +312,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     function initialMint() external onlyStaker whenNotPaused whenClosed updatedState {
         require(
             totalPoolTokenSupply() == 0 && poolFunds() == 0,
-            "Sapling Pool Context: invalid initial conditions"
+            "SaplingPoolContext: invalid initial conditions"
         );
 
         uint256 sharesMinted = enter(10 ** tokenConfig.decimals);
@@ -476,7 +476,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function exit(uint256 amount) private nonReentrant returns (uint256) {
         //// check
-        require(amount > 0, "SaplingPoolContext: pool withdrawal amount is 0");
+        require(amount > 0, "SaplingPoolContext: exit amount is 0");
 
         uint256 shares = fundsToShares(amount);
 
@@ -533,33 +533,12 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @return Converted pool token value
      */
     function fundsToShares(uint256 funds) public view returns (uint256) {
-        return fundsToSharesBase(funds, false);
-    }
-
-    /**
-     * @notice Get share value of funds.
-     * @dev Setting the isDefault flag will allow conversion avoiding divide by zero error,
-     *      replacing the denominator with 1.
-     * @param funds Amount of liquidity tokens
-     * @param isDefault whether or not the call if for calculation for a default
-     * @return Converted pool token value
-     */
-    function fundsToSharesBase(uint256 funds, bool isDefault) internal view returns (uint256) {
         uint256 totalPoolTokens = totalPoolTokenSupply();
         uint256 _poolFunds = poolFunds();
 
         if (totalPoolTokens == 0) {
             // a pool with no positions has 1:1 conversion rate
             return funds;
-        } else if (_poolFunds == 0 && isDefault) {
-            /*
-                Allow defaults on a failed pool: mulDiv() will revert if _poolFunds == 0.
-                Use minimum value, 1 as a replacement for _poolFunds.
-                Simplify (funds * totalPoolTokens) / 1 as funds * totalPoolTokens.
-
-                For non default calls, entry is prevented in enter() when conversion rate is down 95% from launch.
-            */
-            return funds * totalPoolTokens;
         }
 
         return MathUpgradeable.mulDiv(funds, totalPoolTokens, _poolFunds);
@@ -642,15 +621,15 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         pure 
         returns (APYBreakdown memory) 
     {
-        require(_stakedTokens <= _totalPoolTokens, "SaplingPoolContext: invalid parameter _stakedTokens");
-        require(_strategizedFunds <= _poolFunds, "SaplingPoolContext: invalid parameter _strategizedFunds");
+        require(_stakedTokens <= _totalPoolTokens, "SaplingPoolContext: invalid _stakedTokens");
+        require(_strategizedFunds <= _poolFunds, "SaplingPoolContext: invalid _strategizedFunds");
         require(
-            _protocolFeePercent <= SaplingMath.HUNDRED_PERCENT,
-            "SaplingPoolContext: invalid parameter _protocolFeePercent"
+            _protocolFeePercent <= SaplingMath.MAX_PROTOCOL_FEE_PERCENT,
+            "SaplingPoolContext: invalid _protocolFeePercent"
         );
         require(
             _stakerEarnFactor >= SaplingMath.HUNDRED_PERCENT,
-            "SaplingPoolContext: invalid parameter _stakerEarnFactor"
+            "SaplingPoolContext: invalid _stakerEarnFactor"
         );
 
         if (_poolFunds == 0 || _strategizedFunds == 0 || _avgStrategyAPR == 0) {
@@ -708,7 +687,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
     /**
      * @dev External accessor for library level percent decimals.
      */
-    function percentDecimals() external view returns (uint8) {
+    function percentDecimals() external pure returns (uint8) {
         return SaplingMath.PERCENT_DECIMALS;
     }
 

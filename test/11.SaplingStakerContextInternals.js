@@ -1,5 +1,6 @@
 const { expect } = require('chai');
 const { ethers, upgrades } = require('hardhat');
+const { assertHardhatInvariant } = require('hardhat/internal/core/errors');
 const { PAUSER_ROLE, initAccessControl } = require('./utils/roles');
 const { snapshot, rollback } = require('./utils/evmControl');
 
@@ -98,6 +99,30 @@ describe('Sapling Staker Context (internals)', function () {
                 await expect(contract.connect(addresses[0]).someOnlyUserFunction(42)).to.be.revertedWith(
                     'SaplingStakerContext: caller is not a user',
                 );
+            });
+        });
+
+        describe('Close', function () {
+            it('Can close is false while closed', async function () {
+                assertHardhatInvariant(await contract.closed(), 'Start the contract closed for this test.');
+                expect(await contract.canCloseWrapper()).to.equal(false);
+            });
+
+            it('Can close is true while not closed', async function () {
+                await contract.connect(staker).open();
+                expect(await contract.canCloseWrapper()).to.equal(true);
+            });
+        });
+
+        describe('Open', function () {
+            it('Can open is true while closed', async function () {
+                assertHardhatInvariant(await contract.closed(), 'Start the contract closed for this test.');
+                expect(await contract.canOpenWrapper()).to.equal(true);
+            });
+
+            it('Can open is false while not closed', async function () {
+                await contract.connect(staker).open();
+                expect(await contract.canOpenWrapper()).to.equal(false);
             });
         });
     });
