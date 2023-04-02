@@ -319,7 +319,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         validateLoanParams(_amount, _duration, _gracePeriod, _installmentAmount, _installments, _apr);
 
-        LoanApplication storage app = loanApplications[appId];
+        address borrower = loanApplications[appId].borrower;
 
         require(
             ILendingPool(config.pool).canOffer(_amount),
@@ -330,7 +330,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         loanOffers[appId] = LoanOffer({
             applicationId: appId,
-            borrower: app.borrower,
+            borrower: borrower,
             amount: _amount,
             duration: _duration,
             gracePeriod: _gracePeriod,
@@ -346,7 +346,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         ILendingPool(config.pool).onOfferAllocate(_amount);
 
-        emit LoanDrafted(appId, app.borrower, _amount);
+        emit LoanDrafted(appId, borrower, _amount);
     }
 
     /**
