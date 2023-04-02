@@ -399,13 +399,13 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         offer.installments = _installments;
         offer.apr = _apr;
 
-        emit LoanDraftUpdated(appId, offer.borrower, prevAmount, offer.amount);
+        emit LoanDraftUpdated(appId, offer.borrower, prevAmount, _amount);
 
         //// interactions
-        if (offer.amount > prevAmount) {
-            ILendingPool(config.pool).onOfferAllocate(offer.amount - prevAmount);
-        } else if (offer.amount < prevAmount) {
-            uint256 returnAmount = prevAmount - offer.amount;
+        if (_amount > prevAmount) {
+            ILendingPool(config.pool).onOfferAllocate(_amount - prevAmount);
+        } else if (_amount < prevAmount) {
+            uint256 returnAmount = prevAmount - _amount;
             SafeERC20Upgradeable.safeApprove(IERC20Upgradeable(config.liquidityToken), config.pool, returnAmount);
             ILendingPool(config.pool).onOfferDeallocate(returnAmount);
         }
@@ -529,7 +529,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 offerAmount = offer.amount;
 
         uint256 prevBorrowedFunds = lentFunds;
-        lentFunds += offerAmount;
+        lentFunds = prevBorrowedFunds + offerAmount;
 
         emit LoanOfferAccepted(appId, msg.sender, offerAmount);
 
@@ -541,7 +541,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             loanDeskAddress: address(this),
             applicationId: appId,
             borrower: offer.borrower,
-            amount: offer.amount,
+            amount: offerAmount,
             duration: offer.duration,
             gracePeriod: offer.gracePeriod,
             installmentAmount: offer.installmentAmount,
@@ -565,9 +565,9 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         //// interactions
 
-        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(config.liquidityToken), offer.borrower, offer.amount);
+        SafeERC20Upgradeable.safeTransfer(IERC20Upgradeable(config.liquidityToken), offer.borrower, offerAmount);
 
-        emit LoanBorrowed(loanId, appId, offer.borrower, offer.amount);
+        emit LoanBorrowed(loanId, appId, offer.borrower, offerAmount);
     }
 
     /**
