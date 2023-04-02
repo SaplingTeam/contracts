@@ -469,7 +469,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @dev Loan application must be in one of OFFER_MADE, OFFER_DRAFT_LOCKED, OFFER_MADE statuses.
      *      Caller must be the staker or the lender governance within the voting window.
      */
-    function cancelLoan(uint256 appId) external whenNotPaused {
+    function cancelLoan(uint256 appId) external {
         /// check
         require(appId != 0, "LoanDesk: invalid id");
         require(loanApplications[appId].id == appId, "LoanDesk: not found");
