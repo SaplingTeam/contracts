@@ -311,7 +311,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function initialMint() external onlyStaker whenNotPaused whenClosed updatedState {
         require(
-            totalPoolTokenSupply() == 0 && poolFunds() == 0,
+            totalPoolTokenSupply() == 0,
             "SaplingPoolContext: invalid initial conditions"
         );
 
@@ -681,7 +681,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @return Returns true if price per share is greater than or equal to the required minimum, false otherwise
      */
     function isPpsHealthy(uint256 shares, uint256 funds) private pure returns (bool) {
-        return funds >= shares / SaplingMath.PPS_RATE_CHECK_DIVISOR;
+        return funds * SaplingMath.PPS_RATE_CHECK_DIVISOR >= shares;
     }
 
     /**
