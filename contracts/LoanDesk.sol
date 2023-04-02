@@ -957,7 +957,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @return True if the contract is closed, false otherwise.
      */
     function canClose() internal view override returns (bool) {
-        return lentFunds == 0 && IERC20(config.liquidityToken).balanceOf(address(this)) == 0;
+        return lentFunds == 0;
     }
 
     /**
