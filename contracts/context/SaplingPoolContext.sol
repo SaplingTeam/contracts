@@ -311,7 +311,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      */
     function initialMint() external onlyStaker whenNotPaused whenClosed updatedState {
         require(
-            totalPoolTokenSupply() == 0 && poolFunds() == 0,
+            totalPoolTokenSupply() == 0,
             "SaplingPoolContext: invalid initial conditions"
         );
 
