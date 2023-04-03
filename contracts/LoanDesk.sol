@@ -55,7 +55,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
     uint256 public lentFunds;
 
     /// Weighted average loan APR on the borrowed funds
-    uint16 public weightedAvgAPR;
+    uint32 public weightedAvgAPR;
 
 
     /// A modifier to limit access only to when the application exists and has the specified status
@@ -123,7 +123,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             minDuration: SaplingMath.SAFE_MIN_DURATION,
             maxDuration: SaplingMath.SAFE_MAX_DURATION,
             gracePeriod: 60 days,
-            apr: uint16(30 * 10 ** SaplingMath.PERCENT_DECIMALS) // 30%
+            apr: uint32(30 * 10 ** SaplingMath.PERCENT_DECIMALS) // 30%
         });
 
         config = LoanDeskConfig({
@@ -211,7 +211,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      *      Caller must be the staker.
      * @param apr Loan APR to be enforced on the new loan offers.
      */
-    function setTemplateLoanAPR(uint16 apr) external onlyStaker {
+    function setTemplateLoanAPR(uint32 apr) external onlyStaker {
         require(
             SaplingMath.SAFE_MIN_APR <= apr && apr <= SaplingMath.HUNDRED_PERCENT,
             "LoanDesk: APR is out of bounds"
@@ -307,7 +307,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 _gracePeriod,
         uint256 _installmentAmount,
         uint16 _installments,
-        uint16 _apr
+        uint32 _apr
     )
         external
         onlyStaker
@@ -369,7 +369,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 _gracePeriod,
         uint256 _installmentAmount,
         uint16 _installments,
-        uint16 _apr
+        uint32 _apr
     )
         external
         onlyStaker
@@ -558,7 +558,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
             interestPaidTillTime: block.timestamp
         });
 
-        weightedAvgAPR = uint16(
+        weightedAvgAPR = uint32(
             (prevBorrowedFunds * weightedAvgAPR + offerAmount * offer.apr)
             / lentFunds
         );
@@ -710,9 +710,9 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
      * @param amountReducedBy amount by which the funds committed into strategy were reduced, due to repayment or loss
      * @param apr annual percentage rate of the strategy
      */
-    function updateAvgApr(uint256 amountReducedBy, uint16 apr) internal {
+    function updateAvgApr(uint256 amountReducedBy, uint32 apr) internal {
         if (lentFunds > 0) {
-            weightedAvgAPR = uint16(
+            weightedAvgAPR = uint32(
                 ((lentFunds + amountReducedBy) * weightedAvgAPR - amountReducedBy * apr)
                 / lentFunds
             );
@@ -820,7 +820,7 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
         uint256 _gracePeriod,
         uint256 _installmentAmount,
         uint16 _installments,
-        uint16 _apr
+        uint32 _apr
     ) private view
     {
         require(_amount >= loanTemplate.minAmount, "LoanDesk: invalid amount");
