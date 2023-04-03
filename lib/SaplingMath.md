@@ -15,7 +15,7 @@ The mumber of decimal digits in percentage values
 ### HUNDRED_PERCENT
 
 ```solidity
-uint16 HUNDRED_PERCENT
+uint32 HUNDRED_PERCENT
 ```
 
 A constant representing 100%
@@ -23,7 +23,7 @@ A constant representing 100%
 ### MAX_PROTOCOL_FEE_PERCENT
 
 ```solidity
-uint16 MAX_PROTOCOL_FEE_PERCENT
+uint32 MAX_PROTOCOL_FEE_PERCENT
 ```
 
 Math safe upper bound for percentage of paid interest to be allocated as protocol fee
@@ -71,7 +71,7 @@ Maximum allowed loan payment grace period
 ### SAFE_MIN_APR
 
 ```solidity
-uint16 SAFE_MIN_APR
+uint32 SAFE_MIN_APR
 ```
 
 Safe minimum for APR values

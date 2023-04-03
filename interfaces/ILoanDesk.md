@@ -35,7 +35,7 @@ struct LoanTemplate {
   uint256 minDuration;
   uint256 maxDuration;
   uint256 gracePeriod;
-  uint16 apr;
+  uint32 apr;
 }
 ```
 
@@ -64,7 +64,7 @@ struct LoanOffer {
   uint256 gracePeriod;
   uint256 installmentAmount;
   uint16 installments;
-  uint16 apr;
+  uint32 apr;
   uint256 lockedTime;
 }
 ```
@@ -93,7 +93,7 @@ struct Loan {
   uint256 gracePeriod;
   uint256 installmentAmount;
   uint16 installments;
-  uint16 apr;
+  uint32 apr;
   uint256 borrowedTime;
   enum ILoanDesk.LoanStatus status;
 }
@@ -267,7 +267,7 @@ _Total funds lent at this time, accounts only for loan principals_
 ### weightedAvgAPR
 
 ```solidity
-function weightedAvgAPR() external view returns (uint16)
+function weightedAvgAPR() external view returns (uint32)
 ```
 
 Accessor

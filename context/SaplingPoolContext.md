@@ -72,7 +72,7 @@ _Addresses must not be 0._
 ### setTargetStakePercent
 
 ```solidity
-function setTargetStakePercent(uint16 _targetStakePercent) external
+function setTargetStakePercent(uint32 _targetStakePercent) external
 ```
 
 Set the target stake percent for the pool.
@@ -82,12 +82,12 @@ __targetStakePercent must be greater than 0 and less than or equal to SaplingMat
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _targetStakePercent | uint16 | New target stake percent. |
+| _targetStakePercent | uint32 | New target stake percent. |
 
 ### setTargetLiquidityPercent
 
 ```solidity
-function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external
+function setTargetLiquidityPercent(uint32 _targetLiquidityPercent) external
 ```
 
 Set the target liquidity percent for the pool.
@@ -97,12 +97,12 @@ __targetLiquidityPercent must be inclusively between 0 and SaplingMath.HUNDRED_P
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _targetLiquidityPercent | uint16 | new target liquidity percent. |
+| _targetLiquidityPercent | uint32 | new target liquidity percent. |
 
 ### setProtocolEarningPercent
 
 ```solidity
-function setProtocolEarningPercent(uint16 _protocolEarningPercent) external
+function setProtocolEarningPercent(uint32 _protocolEarningPercent) external
 ```
 
 Set the protocol earning percent for the pool.
@@ -112,12 +112,12 @@ __protocolEarningPercent must be inclusively between 0 and MAX_PROTOCOL_FEE_PERC
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _protocolEarningPercent | uint16 | new protocol earning percent. |
+| _protocolEarningPercent | uint32 | new protocol earning percent. |
 
 ### setStakerEarnFactorMax
 
 ```solidity
-function setStakerEarnFactorMax(uint16 _stakerEarnFactorMax) external
+function setStakerEarnFactorMax(uint32 _stakerEarnFactorMax) external
 ```
 
 Set an upper bound for the staker earn factor.
@@ -128,12 +128,12 @@ __stakerEarnFactorMax must be greater than or equal to SaplingMath.HUNDRED_PERCE
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _stakerEarnFactorMax | uint16 | new maximum for staker earn factor. |
+| _stakerEarnFactorMax | uint32 | new maximum for staker earn factor. |
 
 ### setStakerEarnFactor
 
 ```solidity
-function setStakerEarnFactor(uint16 _stakerEarnFactor) external
+function setStakerEarnFactor(uint32 _stakerEarnFactor) external
 ```
 
 Set the staker earn factor.
@@ -143,7 +143,7 @@ __stakerEarnFactor must be inclusively between SaplingMath.HUNDRED_PERCENT and s
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| _stakerEarnFactor | uint16 | new staker earn factor. |
+| _stakerEarnFactor | uint32 | new staker earn factor. |
 
 ### deposit
 
@@ -475,7 +475,7 @@ _Calculates interest due since last update and increases preSettledYield,
 ### projectedAPYBreakdown
 
 ```solidity
-function projectedAPYBreakdown(uint256 _totalPoolTokens, uint256 _stakedTokens, uint256 _poolFunds, uint256 _strategizedFunds, uint256 _avgStrategyAPR, uint16 _protocolFeePercent, uint16 _stakerEarnFactor) public pure returns (struct IPoolContext.APYBreakdown)
+function projectedAPYBreakdown(uint256 _totalPoolTokens, uint256 _stakedTokens, uint256 _poolFunds, uint256 _strategizedFunds, uint256 _avgStrategyAPR, uint32 _protocolFeePercent, uint32 _stakerEarnFactor) public pure returns (struct IPoolContext.APYBreakdown)
 ```
 
 APY breakdown given a specified scenario.
@@ -489,8 +489,8 @@ _Represent percentage parameter values in contract specific format._
 | _poolFunds | uint256 | liquidity token funds that make up the pool. For current conditions use: poolFunds() |
 | _strategizedFunds | uint256 | part of the pool funds that will remain in strategies. Must be less than or equal to                           _poolFunds. For current conditions use: strategizedFunds() |
 | _avgStrategyAPR | uint256 | Weighted average APR of the funds in strategies.                         For current conditions use: ILoanDesk(loanDesk).weightedAvgAPR() |
-| _protocolFeePercent | uint16 | Protocol fee parameter. Must be less than 100%.                            For current conditions use: config.protocolFeePercent |
-| _stakerEarnFactor | uint16 | Staker's earn factor. Must be greater than or equal to 1x (100%).                           For current conditions use: config.stakerEarnFactor |
+| _protocolFeePercent | uint32 | Protocol fee parameter. Must be less than 100%.                            For current conditions use: config.protocolFeePercent |
+| _stakerEarnFactor | uint32 | Staker's earn factor. Must be greater than or equal to 1x (100%).                           For current conditions use: config.stakerEarnFactor |
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |

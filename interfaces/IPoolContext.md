@@ -17,12 +17,12 @@ struct TokenConfig {
 ```solidity
 struct PoolConfig {
   uint256 minWithdrawalRequestAmount;
-  uint16 targetStakePercent;
-  uint16 protocolFeePercent;
-  uint16 stakerEarnFactorMax;
-  uint16 stakerEarnFactor;
-  uint16 targetLiquidityPercent;
-  uint16 exitFeePercent;
+  uint32 targetStakePercent;
+  uint32 protocolFeePercent;
+  uint32 stakerEarnFactorMax;
+  uint32 stakerEarnFactor;
+  uint32 targetLiquidityPercent;
+  uint32 exitFeePercent;
 }
 ```
 
@@ -49,10 +49,10 @@ struct WithdrawalAllowance {
 
 ```solidity
 struct APYBreakdown {
-  uint16 totalPoolAPY;
-  uint16 protocolRevenueComponent;
-  uint16 stakerEarningsComponent;
-  uint16 lenderComponent;
+  uint32 totalPoolAPY;
+  uint32 protocolRevenueComponent;
+  uint32 stakerEarningsComponent;
+  uint32 lenderComponent;
 }
 ```
 
@@ -131,7 +131,7 @@ Event for when a withdrawal allowance request is made
 ### TargetStakePercentSet
 
 ```solidity
-event TargetStakePercentSet(uint16 prevValue, uint16 newValue)
+event TargetStakePercentSet(uint32 prevValue, uint32 newValue)
 ```
 
 Setter event
@@ -139,7 +139,7 @@ Setter event
 ### TargetLiquidityPercentSet
 
 ```solidity
-event TargetLiquidityPercentSet(uint16 prevValue, uint16 newValue)
+event TargetLiquidityPercentSet(uint32 prevValue, uint32 newValue)
 ```
 
 Setter event
@@ -147,7 +147,7 @@ Setter event
 ### ProtocolFeePercentSet
 
 ```solidity
-event ProtocolFeePercentSet(uint16 prevValue, uint16 newValue)
+event ProtocolFeePercentSet(uint32 prevValue, uint32 newValue)
 ```
 
 Setter event
@@ -155,7 +155,7 @@ Setter event
 ### StakerEarnFactorMaxSet
 
 ```solidity
-event StakerEarnFactorMaxSet(uint16 prevValue, uint16 newValue)
+event StakerEarnFactorMaxSet(uint32 prevValue, uint32 newValue)
 ```
 
 Setter event
@@ -163,7 +163,7 @@ Setter event
 ### StakerEarnFactorSet
 
 ```solidity
-event StakerEarnFactorSet(uint16 prevValue, uint16 newValue)
+event StakerEarnFactorSet(uint32 prevValue, uint32 newValue)
 ```
 
 Setter event

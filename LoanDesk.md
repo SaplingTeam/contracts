@@ -89,7 +89,7 @@ _Total funds lent at this time, accounts only for loan principals_
 ### weightedAvgAPR
 
 ```solidity
-uint16 weightedAvgAPR
+uint32 weightedAvgAPR
 ```
 
 Weighted average loan APR on the borrowed funds
@@ -205,7 +205,7 @@ _Grace period must be in seconds and inclusively between MIN_LOAN_GRACE_PERIOD a
 ### setTemplateLoanAPR
 
 ```solidity
-function setTemplateLoanAPR(uint16 apr) external
+function setTemplateLoanAPR(uint32 apr) external
 ```
 
 Set a template loan APR
@@ -215,7 +215,7 @@ _APR must be inclusively between SAFE_MIN_APR and 100%.
 
 | Name | Type | Description |
 | ---- | ---- | ----------- |
-| apr | uint16 | Loan APR to be enforced on the new loan offers. |
+| apr | uint32 | Loan APR to be enforced on the new loan offers. |
 
 ### requestLoan
 
@@ -251,7 +251,7 @@ _Loan must be in APPLIED status.
 ### draftOffer
 
 ```solidity
-function draftOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint16 _apr) external
+function draftOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint32 _apr) external
 ```
 
 Draft a loan offer for an application.
@@ -268,12 +268,12 @@ _Loan application must be in APPLIED status.
 | _gracePeriod | uint256 | Loan payment grace period in seconds |
 | _installmentAmount | uint256 | Minimum payment amount on each instalment in liquidity tokens |
 | _installments | uint16 | The number of payment installments |
-| _apr | uint16 | Annual percentage rate of this loan |
+| _apr | uint32 | Annual percentage rate of this loan |
 
 ### updateDraftOffer
 
 ```solidity
-function updateDraftOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint16 _apr) external
+function updateDraftOffer(uint256 appId, uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint32 _apr) external
 ```
 
 Update an existing draft loan offer.
@@ -290,7 +290,7 @@ _Loan application must be in OFFER_DRAFTED status.
 | _gracePeriod | uint256 | Loan payment grace period in seconds |
 | _installmentAmount | uint256 | Minimum payment amount on each instalment in liquidity tokens |
 | _installments | uint16 | The number of payment installments |
-| _apr | uint16 | Annual percentage rate of this loan |
+| _apr | uint32 | Annual percentage rate of this loan |
 
 ### lockDraftOffer
 
@@ -422,7 +422,7 @@ _Loan must be in OUTSTANDING status.
 ### updateAvgApr
 
 ```solidity
-function updateAvgApr(uint256 amountReducedBy, uint16 apr) internal
+function updateAvgApr(uint256 amountReducedBy, uint32 apr) internal
 ```
 
 _Internal method to update the weighted average loan apr based on the amount reduced by and an apr._
@@ -430,7 +430,7 @@ _Internal method to update the weighted average loan apr based on the amount red
 | Name | Type | Description |
 | ---- | ---- | ----------- |
 | amountReducedBy | uint256 | amount by which the funds committed into strategy were reduced, due to repayment or loss |
-| apr | uint16 | annual percentage rate of the strategy |
+| apr | uint32 | annual percentage rate of the strategy |
 
 ### applicationsCount
 
@@ -499,7 +499,7 @@ View indicating whether or not a given loan qualifies to be defaulted
 ### validateLoanParams
 
 ```solidity
-function validateLoanParams(uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint16 _apr) private view
+function validateLoanParams(uint256 _amount, uint256 _duration, uint256 _gracePeriod, uint256 _installmentAmount, uint16 _installments, uint32 _apr) private view
 ```
 
 Validates loan offer parameters
@@ -513,7 +513,7 @@ _Throws a require-type exception on invalid loan parameter_
 | _gracePeriod | uint256 | Loan payment grace period in seconds |
 | _installmentAmount | uint256 | Minimum payment amount on each instalment in liquidity tokens |
 | _installments | uint16 | The number of payment installments |
-| _apr | uint16 | Annual percentage rate of this loan |
+| _apr | uint32 | Annual percentage rate of this loan |
 
 ### loanBalanceDueWithInterest
 
