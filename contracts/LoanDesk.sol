@@ -777,15 +777,12 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         uint256 installmentPeriod = loan.duration / loan.installments;
         uint256 pastInstallments = (block.timestamp - loan.borrowedTime) / installmentPeriod;
-        uint256 paymentDueTime = loan.borrowedTime + pastInstallments * installmentPeriod;
         uint256 totalPaymentExpected = loan.installmentAmount * pastInstallments;
 
-        if (block.timestamp > paymentDueTime + loan.gracePeriod
-            && loanDetails[loanId].totalAmountRepaid < totalPaymentExpected) {
+        if (loanDetails[loanId].totalAmountRepaid < totalPaymentExpected) {
             /*
-                Some installment amount is overdue:
+                Some installment amount may be overdue:
 
-                - current time is after the last installment due date + grace installmentPeriod, AND
                 - total amount repaid is less than the sum of all previous installments
 
                 Note:
@@ -796,7 +793,12 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
                 canDefault() requires loans to be in OUTSTANDING status.
              */
-            return true;
+
+            uint256 paidInstallments = loanDetails[loanId].totalAmountRepaid / loan.installmentAmount;
+            // Determining the current period that has been paid and adding a grace period, compare it to the current time.
+            if (block.timestamp > loan.borrowedTime + paidInstallments * installmentPeriod + loan.gracePeriod) {
+                return true;
+            }
         }
 
         return false;
