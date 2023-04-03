@@ -8,17 +8,17 @@ pragma solidity ^0.8.15;
 library SaplingMath {
     
     /// The mumber of decimal digits in percentage values
-    uint8 public constant PERCENT_DECIMALS = 1;
+    uint8 public constant PERCENT_DECIMALS = 6;
 
     /// A constant representing 100%
-    uint16 public constant HUNDRED_PERCENT = uint16(100 * 10 ** PERCENT_DECIMALS);
+    uint32 public constant HUNDRED_PERCENT = uint32(100 * 10 ** PERCENT_DECIMALS);
 
     /*
      * Math safe and intended limits
      */
 
     /// Math safe upper bound for percentage of paid interest to be allocated as protocol fee
-    uint16 public constant MAX_PROTOCOL_FEE_PERCENT = uint16(50 * 10 ** PERCENT_DECIMALS);
+    uint32 public constant MAX_PROTOCOL_FEE_PERCENT = uint32(50 * 10 ** PERCENT_DECIMALS);
 
     /// Total shares divisor to calculate the minimum pool funds to maintain acceptable conversion rate for pool entries
     uint256 public constant PPS_RATE_CHECK_DIVISOR = 20; // multiplication by '5/100' is simplified as division by '20'
@@ -36,7 +36,7 @@ library SaplingMath {
     uint256 public constant MAX_LOAN_GRACE_PERIOD = 365 days;
 
     /// Safe minimum for APR values
-    uint16 public constant SAFE_MIN_APR = 0; // 0%
+    uint32 public constant SAFE_MIN_APR = 0; // 0%
 
     /// Math safe minimum loan amount, raw value
     uint256 public constant SAFE_MIN_AMOUNT = 10 ** 6;

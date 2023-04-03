@@ -85,16 +85,16 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
 
         config = PoolConfig({
             minWithdrawalRequestAmount: 10 * 10 ** tokenConfig.decimals, // 10 asset tokens
-            targetStakePercent: uint16(10 * 10 ** SaplingMath.PERCENT_DECIMALS), // 10%
+            targetStakePercent: uint32(10 * 10 ** SaplingMath.PERCENT_DECIMALS), // 10%
 
             // must be valid: protocolFeePercent <= SaplingMath.MAX_PROTOCOL_FEE_PERCENT
-            protocolFeePercent: uint16(20 * 10 ** SaplingMath.PERCENT_DECIMALS), // 20%
-            stakerEarnFactorMax: uint16(1000 * 10 ** SaplingMath.PERCENT_DECIMALS), // 1000% or 10x
+            protocolFeePercent: uint32(20 * 10 ** SaplingMath.PERCENT_DECIMALS), // 20%
+            stakerEarnFactorMax: uint32(1000 * 10 ** SaplingMath.PERCENT_DECIMALS), // 1000% or 10x
 
             targetLiquidityPercent: 0,
 
             // must be valid: stakerEarnFactor <= stakerEarnFactorMax
-            stakerEarnFactor: uint16(150 * 10 ** SaplingMath.PERCENT_DECIMALS), // 150%
+            stakerEarnFactor: uint32(150 * 10 ** SaplingMath.PERCENT_DECIMALS), // 150%
 
             exitFeePercent: SaplingMath.HUNDRED_PERCENT / 200 // 0.5%
         });
@@ -106,13 +106,13 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Caller must be the governance.
      * @param _targetStakePercent New target stake percent.
      */
-    function setTargetStakePercent(uint16 _targetStakePercent) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
+    function setTargetStakePercent(uint32 _targetStakePercent) external onlyRole(SaplingRoles.GOVERNANCE_ROLE) {
         require(
             0 < _targetStakePercent && _targetStakePercent <= SaplingMath.HUNDRED_PERCENT,
             "SaplingPoolContext: target stake percent is out of bounds"
         );
 
-        uint16 prevValue = config.targetStakePercent;
+        uint32 prevValue = config.targetStakePercent;
         config.targetStakePercent = _targetStakePercent;
 
         emit TargetStakePercentSet(prevValue, _targetStakePercent);
@@ -124,13 +124,13 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Caller must be the staker.
      * @param _targetLiquidityPercent new target liquidity percent.
      */
-    function setTargetLiquidityPercent(uint16 _targetLiquidityPercent) external onlyStaker {
+    function setTargetLiquidityPercent(uint32 _targetLiquidityPercent) external onlyStaker {
         require(
             0 <= _targetLiquidityPercent && _targetLiquidityPercent <= SaplingMath.HUNDRED_PERCENT,
             "SaplingPoolContext: target liquidity percent is out of bounds"
         );
 
-        uint16 prevValue = config.targetLiquidityPercent;
+        uint32 prevValue = config.targetLiquidityPercent;
         config.targetLiquidityPercent = _targetLiquidityPercent;
 
         emit TargetLiquidityPercentSet(prevValue, _targetLiquidityPercent);
@@ -142,7 +142,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Caller must be the governance.
      * @param _protocolEarningPercent new protocol earning percent.
      */
-    function setProtocolEarningPercent(uint16 _protocolEarningPercent)
+    function setProtocolEarningPercent(uint32 _protocolEarningPercent)
         external
         onlyRole(SaplingRoles.GOVERNANCE_ROLE)
         updatedState
@@ -152,7 +152,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
             "SaplingPoolContext: protocol earning percent is out of bounds"
         );
 
-        uint16 prevValue = config.protocolFeePercent;
+        uint32 prevValue = config.protocolFeePercent;
         config.protocolFeePercent = _protocolEarningPercent;
 
         emit ProtocolFeePercentSet(prevValue, _protocolEarningPercent);
@@ -166,7 +166,7 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      * @param _stakerEarnFactorMax new maximum for staker earn factor.
      */
     function setStakerEarnFactorMax(
-        uint16 _stakerEarnFactorMax
+        uint32 _stakerEarnFactorMax
     )
         external
         onlyRole(SaplingRoles.GOVERNANCE_ROLE)
@@ -177,11 +177,11 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
             "SaplingPoolContext: _stakerEarnFactorMax is out of bounds"
         );
 
-        uint16 prevValue = config.stakerEarnFactorMax;
+        uint32 prevValue = config.stakerEarnFactorMax;
         config.stakerEarnFactorMax = _stakerEarnFactorMax;
 
         if (config.stakerEarnFactor > _stakerEarnFactorMax) {
-            uint16 prevEarnFactor = config.stakerEarnFactor;
+            uint32 prevEarnFactor = config.stakerEarnFactor;
             config.stakerEarnFactor = _stakerEarnFactorMax;
 
             emit StakerEarnFactorSet(prevEarnFactor, _stakerEarnFactorMax);
@@ -196,13 +196,13 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
      *      Caller must be the staker.
      * @param _stakerEarnFactor new staker earn factor.
      */
-    function setStakerEarnFactor(uint16 _stakerEarnFactor) external onlyStaker updatedState {
+    function setStakerEarnFactor(uint32 _stakerEarnFactor) external onlyStaker updatedState {
         require(
             SaplingMath.HUNDRED_PERCENT <= _stakerEarnFactor && _stakerEarnFactor <= config.stakerEarnFactorMax,
             "SaplingPoolContext: _stakerEarnFactor is out of bounds"
         );
 
-        uint16 prevValue = config.stakerEarnFactor;
+        uint32 prevValue = config.stakerEarnFactor;
         config.stakerEarnFactor = _stakerEarnFactor;
 
         emit StakerEarnFactorSet(prevValue, _stakerEarnFactor);
@@ -614,8 +614,8 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         uint256 _poolFunds,
         uint256 _strategizedFunds,
         uint256 _avgStrategyAPR,
-        uint16 _protocolFeePercent,
-        uint16 _stakerEarnFactor
+        uint32 _protocolFeePercent,
+        uint32 _stakerEarnFactor
     ) 
         public 
         pure 
@@ -664,10 +664,10 @@ abstract contract SaplingPoolContext is IPoolContext, SaplingStakerContext, Reen
         uint256 _lenderAPY = remainingAPY - stakerWithdrawableAPY;
 
         return APYBreakdown({
-            totalPoolAPY: uint16(poolAPY), 
-            protocolRevenueComponent: uint16(protocolAPY), 
-            stakerEarningsComponent: uint16(stakerWithdrawableAPY),
-            lenderComponent: uint16(_lenderAPY)
+            totalPoolAPY: uint32(poolAPY),
+            protocolRevenueComponent: uint32(protocolAPY),
+            stakerEarningsComponent: uint32(stakerWithdrawableAPY),
+            lenderComponent: uint32(_lenderAPY)
         });
     }
 

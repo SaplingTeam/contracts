@@ -55,7 +55,7 @@ interface ILoanDesk {
         uint256 gracePeriod;
 
         /// Loan APR to be applied for the new loan requests
-        uint16 apr;
+        uint32 apr;
     }
 
     /// Loan application object
@@ -108,7 +108,7 @@ interface ILoanDesk {
         uint16 installments; 
 
         /// Annual percentage rate
-        uint16 apr;
+        uint32 apr;
 
         // block timestamp when the offer was locked for voting
         uint256 lockedTime;
@@ -156,7 +156,7 @@ interface ILoanDesk {
         uint16 installments;
 
         /// Annual percentage rate
-        uint16 apr;
+        uint32 apr;
 
         /// Block timestamp of funds release
         uint256 borrowedTime;
@@ -254,5 +254,5 @@ interface ILoanDesk {
      * @notice Accessor
      * @dev Weighted average loan APR on the borrowed funds
      */
-    function weightedAvgAPR() external view returns (uint16);
+    function weightedAvgAPR() external view returns (uint32);
 }

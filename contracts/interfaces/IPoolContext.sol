@@ -27,28 +27,28 @@ interface IPoolContext {
         uint256 minWithdrawalRequestAmount;
         
         /// Target percentage ratio of staked shares to total shares
-        uint16 targetStakePercent;
+        uint32 targetStakePercent;
 
         /// Percentage of paid interest to be allocated as protocol fee
-        uint16 protocolFeePercent;
+        uint32 protocolFeePercent;
 
         /// Governance set upper bound for the staker's leveraged earn factor
-        uint16 stakerEarnFactorMax;
+        uint32 stakerEarnFactorMax;
 
 
         // Staker maintained parameters
 
         /// Staker's leveraged earn factor represented as a percentage
-        uint16 stakerEarnFactor;
+        uint32 stakerEarnFactor;
 
         /// Target percentage of pool funds to keep liquid.
-        uint16 targetLiquidityPercent;
+        uint32 targetLiquidityPercent;
 
 
         // Auto or pseudo-constant parameters
 
         /// exit fee percentage
-        uint16 exitFeePercent;
+        uint32 exitFeePercent;
     }
 
     /// Key pool balances
@@ -74,16 +74,16 @@ interface IPoolContext {
     struct APYBreakdown {
 
         /// Total pool APY
-        uint16 totalPoolAPY;
+        uint32 totalPoolAPY;
 
         /// part of the pool APY allocated as protocol revenue
-        uint16 protocolRevenueComponent;
+        uint32 protocolRevenueComponent;
 
         /// part of the pool APY allocated as staker earnings
-        uint16 stakerEarningsComponent;
+        uint32 stakerEarningsComponent;
 
         /// part of the pool APY allocated as lender APY. Lender APY also includes staker's non-leveraged yield
-        uint16 lenderComponent;
+        uint32 lenderComponent;
     }
 
     /// Event for when the lender capital is lost due to defaults
@@ -114,19 +114,19 @@ interface IPoolContext {
     event WithdrawalAllowanceRequested(address indexed wallet, uint256 amount, uint256 timeFrom, uint256 timeTo);
 
     /// Setter event
-    event TargetStakePercentSet(uint16 prevValue, uint16 newValue);
+    event TargetStakePercentSet(uint32 prevValue, uint32 newValue);
 
     /// Setter event
-    event TargetLiquidityPercentSet(uint16 prevValue, uint16 newValue);
+    event TargetLiquidityPercentSet(uint32 prevValue, uint32 newValue);
 
     /// Setter event
-    event ProtocolFeePercentSet(uint16 prevValue, uint16 newValue);
+    event ProtocolFeePercentSet(uint32 prevValue, uint32 newValue);
 
     /// Setter event
-    event StakerEarnFactorMaxSet(uint16 prevValue, uint16 newValue);
+    event StakerEarnFactorMaxSet(uint32 prevValue, uint32 newValue);
 
     /// Setter event
-    event StakerEarnFactorSet(uint16 prevValue, uint16 newValue);
+    event StakerEarnFactorSet(uint32 prevValue, uint32 newValue);
 
     /**
      * @notice Settle pending yield.

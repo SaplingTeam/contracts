@@ -100,7 +100,7 @@ contract SaplingLendingPool is ILendingPool, SaplingPoolContext {
         }
 
         uint256 principalOutstanding = ILoanDesk(loanDesk).lentFunds();
-        uint16 avgApr = ILoanDesk(loanDesk).weightedAvgAPR();
+        uint32 avgApr = ILoanDesk(loanDesk).weightedAvgAPR();
 
         if (principalOutstanding == 0 || avgApr == 0) {
             // new yield will be zero, update settled time and do nothing
