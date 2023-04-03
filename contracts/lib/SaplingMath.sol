@@ -8,7 +8,7 @@ pragma solidity ^0.8.15;
 library SaplingMath {
     
     /// The mumber of decimal digits in percentage values
-    uint8 public constant PERCENT_DECIMALS = 1;
+    uint8 public constant PERCENT_DECIMALS = 6;
 
     /// A constant representing 100%
     uint32 public constant HUNDRED_PERCENT = uint32(100 * 10 ** PERCENT_DECIMALS);

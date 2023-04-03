@@ -36,7 +36,7 @@ describe('Sapling Math Context (via SaplingLendingPool)', function () {
 
         describe('Initial State', function () {
             it('Percent Decimals is correct', async function () {
-                expect(PERCENT_DECIMALS).to.equal(1);
+                expect(PERCENT_DECIMALS).to.equal(6);
             });
 
             it('"100%" value constant is correct', async function () {
