@@ -131,9 +131,6 @@ interface ILoanDesk {
         /// ID, incremental, value is not linked to application ID
         uint256 id;
 
-        /// Address of the loan desk contract this loan was created at
-        address loanDeskAddress;
-
         // Application ID, same as the loan application ID this loan is made for
         uint256 applicationId;
 

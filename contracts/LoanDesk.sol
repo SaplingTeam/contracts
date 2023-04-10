@@ -538,7 +538,6 @@ contract LoanDesk is ILoanDesk, SaplingStakerContext, ReentrancyGuardUpgradeable
 
         loans[loanId] = Loan({
             id: loanId,
-            loanDeskAddress: address(this),
             applicationId: appId,
             borrower: offer.borrower,
             amount: offerAmount,
