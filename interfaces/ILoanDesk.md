@@ -85,7 +85,6 @@ enum LoanStatus {
 ```solidity
 struct Loan {
   uint256 id;
-  address loanDeskAddress;
   uint256 applicationId;
   address borrower;
   uint256 amount;
